@@ -29,7 +29,7 @@ unresolved.
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
-| Dense planning | Header, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, calendar and planning calculations | Weekly Production Control + Timesheet read-only scenarios |
+| Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
 | Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
 | Protected canvas | Shell-level states only | Gantt geometry and Specifications tree/editor | Late migration with dedicated guardrails |
 | Admin/standalone | Buttons, panels, states | Security perimeter and standalone shell | Separate acceptance path |
@@ -191,6 +191,16 @@ actions return to legacy, where PostgreSQL hydration, editors and commands stay
 authoritative. Production-shell comparison proves identical 76 employees, 96
 rows and 35 columns from one canonical PostgreSQL-backed projection. The host
 is disabled by default and every interactive scope returns to legacy.
+
+## Planning Workbench isolated evidence
+
+Planning Workbench reuses the shared page, header, sidebar, metrics, panels,
+status and table contracts while retaining a specialized work-order hierarchy.
+The legacy module now exposes one completed read-model for PostgreSQL
+list/detail projection, snapshot fallback, readiness and visible structure.
+The isolated React proof preserves three queue entries, five decision metrics
+and four object/operation rows. All selection and command scopes return to
+legacy; production integration is not claimed yet.
 
 ## Roles and Access read-model evidence
 

@@ -39,6 +39,7 @@ Available routes:
 - `/?scenario=structure-migration-diagnostics` — Structure Migration Diagnostics;
 - `/?scenario=weekly-production-control` — read-only weekly plan/fact control;
 - `/?scenario=timesheet` — read-only personnel calendar and attendance matrix;
+- `/?scenario=planning-workbench` — read-only work-order queue, readiness and structure;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
 - `/?scenario=nomenclature-types` — Nomenclature Types directory;

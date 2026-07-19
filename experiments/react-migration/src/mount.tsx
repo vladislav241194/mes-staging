@@ -14,15 +14,16 @@ import { StructureResponsibilityPoliciesScenario } from "./modules/structure-res
 import { StructureMigrationDiagnosticsScenario } from "./modules/structure-migration-diagnostics/StructureMigrationDiagnosticsScenario";
 import { WeeklyProductionControlScenario } from "./modules/weekly-production-control/WeeklyProductionControlScenario";
 import { TimesheetScenario } from "./modules/timesheet/TimesheetScenario";
+import { PlanningWorkbenchScenario } from "./modules/planning-workbench/PlanningWorkbenchScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "structureMigrationDiagnostics" | "weeklyProductionControl" | "timesheet" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "structureMigrationDiagnostics" | "weeklyProductionControl" | "timesheet" | "planningWorkbench" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
-  onRequestLegacy?(): void;
+  onRequestLegacy?(scope?: string): void;
 }
 
-function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequestLegacy?(): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
+function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -34,6 +35,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structureMigrationDiagnostics") return <StructureMigrationDiagnosticsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "weeklyProductionControl") return <WeeklyProductionControlScenario payload={payload} />;
   if (scenario === "timesheet") return <TimesheetScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "planningWorkbench") return <PlanningWorkbenchScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "roles") return <RolesScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -67,6 +69,7 @@ export { mountStructureResponsibilityPoliciesReactIsland } from "./structure-res
 export { mountStructureMigrationDiagnosticsReactIsland } from "./structure-migration-diagnostics-island";
 export { mountWeeklyProductionControlReactIsland } from "./weekly-production-control-island";
 export { mountTimesheetReactIsland } from "./timesheet-island";
+export { mountPlanningWorkbenchReactIsland } from "./planning-workbench-island";
 export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
 export { mountOperationsReactIsland } from "./operations-island";

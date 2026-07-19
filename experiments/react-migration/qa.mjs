@@ -891,6 +891,18 @@ try {
   assert.equal(timesheetAdapter.formatTimesheetHours(7.25), "7,25");
   assert.deepEqual(timesheetAdapter.adaptTimesheet({}).groups, [], "invalid Timesheet payload must fail closed");
 
+  const planningWorkbenchOutput = join(temporaryRoot, "planning-workbench.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/planning-workbench/adapter.ts")], outfile: planningWorkbenchOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const planningWorkbenchAdapter = await import(`${pathToFileURL(planningWorkbenchOutput).href}?qa=${Date.now()}`);
+  const planningWorkbenchFixtureOutput = join(temporaryRoot, "planning-workbench-fixture.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/planning-workbench/fixture.ts")], outfile: planningWorkbenchFixtureOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { planningWorkbenchFixture } = await import(`${pathToFileURL(planningWorkbenchFixtureOutput).href}?qa=${Date.now()}`);
+  const planningWorkbenchModel = planningWorkbenchAdapter.adaptPlanningWorkbench(planningWorkbenchFixture);
+  assert.equal(planningWorkbenchModel.canActivate, true, "Planning Workbench needs queue, five readiness metrics and structure rows");
+  assert.deepEqual([planningWorkbenchModel.queue.length, planningWorkbenchModel.metrics.length, planningWorkbenchModel.rows.length], [3, 5, 4]);
+  assert.deepEqual(planningWorkbenchModel.rows.map((row) => [row.kind, row.title, row.quantity]), [["task", "Контроллер КТ-7", 120], ["step", "Монтаж компонентов", 120], ["step", "Оптический контроль", 120], ["task", "Корпус КТ-7", 120]]);
+  assert.equal(planningWorkbenchAdapter.adaptPlanningWorkbench({}).canActivate, false, "invalid Planning Workbench payload must fail closed");
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -1405,6 +1417,7 @@ try {
   assert.match(performanceBudget, /"structureMigrationDiagnostics"/);
   assert.match(performanceBudget, /"weeklyProductionControl"/);
   assert.match(performanceBudget, /"timesheet"/);
+  assert.match(performanceBudget, /"planningWorkbench"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });

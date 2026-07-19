@@ -22,7 +22,7 @@ React does not read global state or call an API.
 - day, schedule, view and period actions explicitly request the legacy route;
 - a disabled feature flag restores the lab legacy fallback;
 - browser console remains clean;
-- independent minified entry: `204,904 B` raw / `63,575 B` gzip, under the
+- independent minified entry: `204,934 B` raw / `63,585 B` gzip, under the
   unchanged `225,000 B / 68,000 B` production-island ceiling.
 
 Command:

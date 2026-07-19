@@ -103,7 +103,7 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
     },
   });
 
-  function renderPlanningWorkbenchPage() {
+  function getPlanningWorkbenchModel({ includeOverview = true } = {}) {
     const serverRoutes = getDomainWorkOrderProjections();
     const snapshotRoutes = serverRoutes.length ? [] : getRoutesForModule();
     const routeProjection = projectServerPlanningRoutes(
@@ -147,6 +147,41 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
     const headerDescription = activeRoute
       ? `${getRouteDocumentKindShortLabel(activeRoute)} · ${activeQuantity.toLocaleString("ru-RU")} шт. · ${formatPlanningObjectCount(tasks.length)} · ${formatPlanningOperationCount(routeSteps.length)}`
       : "Выберите заказ-наряд в боковой панели.";
+    const queue = routes.map((route) => {
+      const workOrderView = getWorkOrderViewModel(route);
+      const quantity = workOrderView.quantity || getPlanningRouteQuantity(route);
+      return {
+        id: String(route.id || ""),
+        title: String(workOrderView.queueTitle || route.name || "Заказ-наряд"),
+        meta: `${getRouteDocumentKindShortLabel(route)} · ${quantity.toLocaleString("ru-RU")} шт.`,
+        operationCount: Math.max(0, Number(route.operationCount || 0)),
+        status: { label: String(workOrderView.status?.label || ""), tone: String(workOrderView.status?.tone || "neutral") },
+        active: route.id === activeRoute?.id,
+      };
+    });
+    const overview = includeOverview && activeRoute && !detailLoading
+      ? getPlanningWorkbenchOverview(activeRoute, transferSummary, tasks, routeSteps, selectedItem)
+      : null;
+    return {
+      routes,
+      queue,
+      activeRoute,
+      activeRouteId: String(activeRoute?.id || ""),
+      transferSummary,
+      tasks,
+      routeSteps,
+      selectedItem,
+      activeQuantity,
+      headerDescription,
+      detailLoading,
+      projectionSource,
+      overview,
+    };
+  }
+
+  function renderPlanningWorkbenchPage() {
+    const model = getPlanningWorkbenchModel({ includeOverview: false });
+    const { routes, activeRoute, transferSummary, tasks, routeSteps, selectedItem, activeQuantity, headerDescription, detailLoading, projectionSource } = model;
     if (!routes.length) {
       const emptyDescription = "Нет маршрутных заданий для сборки заказ-наряда.";
       return renderUiModulePage({
@@ -524,6 +559,88 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       + missingLineCount
       + finalOperationMissing;
     return { issues: Array.from({ length: issueCount }) };
+  }
+
+  function getPlanningWorkbenchOverview(route, transferSummary, tasks, routeSteps, selectedItem) {
+    const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+    const supplySummary = getPlanningSupplySummary(route, transferSummary, routeSteps);
+    const chain = getPlanningOrderCompactChainStatus(route, tasks, routeSteps, supplySummary);
+    const laborReadiness = getPlanningRouteLaborReadiness(route, routeSteps);
+    const shiftOrders = getPlanningShiftOrdersForRoute(route, routeSteps);
+    const scheduleExpected = Number(transferSummary?.expected || 0);
+    const schedulePlanned = Number(transferSummary?.planned || 0);
+    const scheduleMissing = Math.max(0, scheduleExpected - schedulePlanned);
+    const collapsedTreeIds = new Set((planningState.planningOrderCollapsedTreeIds || []).map(String));
+    const rows = [];
+    getVisiblePlanningOrderTasks(tasks, collapsedTreeIds).forEach((task) => {
+      const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+      const readiness = getPlanningTaskReadiness(task, stats);
+      const taskItemId = getPlanningWorkItemId("task", task.id);
+      const expanded = !collapsedTreeIds.has(String(taskItemId));
+      const taskQuantity = normalizeQuantity(task.quantity || 1);
+      const taskSteps = stats.steps || [];
+      let confirmed = 0;
+      let totalDuration = 0;
+      if (expanded) taskSteps.forEach((step) => {
+        const quantity = getRouteStepQuantityForBatch(step, { quantity: planningQuantity });
+        const calc = getPlanningManualStepCalculation(route, step, { routeQuantity: planningQuantity, quantity });
+        if (calc.isConfirmed) confirmed += 1;
+        totalDuration += Math.max(0, Number(calc.totalSeconds || 0) * 1000);
+      });
+      rows.push({
+        id: taskItemId,
+        kind: "task",
+        level: Number(task.level || 0),
+        title: String(task.title || "Составная часть"),
+        meta: [task.parentTitle, getPlanningTaskBomLabel(task)].filter(Boolean).join(" · ") || getRouteTaskTypeLabel(task),
+        labor: expanded ? (totalDuration ? formatDuration(totalDuration) : `${confirmed}/${taskSteps.length}`) : `${taskSteps.length} операций`,
+        laborMeta: expanded ? `${taskSteps.length} операций` : "откройте объект",
+        context: "объект",
+        contextMeta: getRouteTaskTypeLabel(task),
+        quantity: normalizeQuantity(planningQuantity * taskQuantity),
+        unit: /маршрут/i.test(task.unit || "") ? "шт." : task.unit || "шт.",
+        status: { label: String(readiness.label || ""), tone: String(readiness.tone || "neutral") },
+        selected: taskItemId === selectedItem,
+        expanded,
+      });
+      if (!expanded) return;
+      taskSteps.forEach((step) => {
+        const itemId = getPlanningWorkItemId("step", step.id);
+        const tone = getPlanningStepTone(step);
+        const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+        const isManualStep = isManualLaborRouteStep(step);
+        const context = getPlanningOrderStepContext(step, { isSmtStep, isManualStep, isMachineStep: !isManualStep && isMachineLaborRouteStep(step) });
+        const quantity = getRouteStepQuantityForBatch(step, { quantity: planningQuantity });
+        const calc = getPlanningManualStepCalculation(route, step, { routeQuantity: planningQuantity, quantity });
+        rows.push({
+          id: itemId,
+          kind: "step",
+          level: Number(task.level || 0) + 1,
+          title: String(step.operationName || "Операция"),
+          meta: String(getPlanningStepLineLabel(step) || "ресурс не выбран"),
+          labor: String(calc.durationLabel || "нет оценки"),
+          laborMeta: calc.isConfirmed ? (route?.sourceSpecifications2EntryId ? `ревизия ${Number(route?.documentRevisionSnapshot?.specificationRevision || route?.revision || 0)}` : "маршрутная карта") : "нет расчета",
+          context: context.label,
+          contextMeta: context.caption,
+          quantity: Number(quantity || 0),
+          unit: "шт.",
+          status: { label: tone === "warning" ? "проверьте" : calc.isConfirmed ? "готово" : "нет оценки", tone: tone === "warning" || !calc.isConfirmed ? "warning" : "ok" },
+          selected: itemId === selectedItem,
+        });
+      });
+    });
+    return {
+      planningQuantity,
+      decision: getPlanningWorkbenchDecisionModel({ route, supplySummary, chain, laborReadiness, scheduleExpected, schedulePlanned, scheduleMissing, shiftOrders, routeSteps }),
+      metrics: [
+        { id: "supply", label: "Состав", value: supplySummary.blocking ? formatPlanningProblemCount(supplySummary.blocking) : "готово", meta: `${supplySummary.produce} произв. · ${supplySummary.stock} склад`, tone: supplySummary.blocking ? "warning" : "ok" },
+        { id: "chain", label: "Передача", value: chain.issues.length ? formatPlanningProblemCount(chain.issues.length) : "готово", meta: formatPlanningOperationCount(routeSteps.length), tone: chain.issues.length ? "warning" : "ok" },
+        { id: "duration", label: "Ревизия", value: Number(route?.documentRevisionSnapshot?.specificationRevision || route?.revision || 0) || "—", meta: route?.sourceSpecifications2EntryId ? "Спецификация 2.0" : "маршрутная карта", tone: laborReadiness.tone },
+        { id: "schedule", label: "Гант", value: scheduleExpected ? `${schedulePlanned}/${scheduleExpected}` : "нет", meta: scheduleExpected ? (scheduleMissing ? `${scheduleMissing} не размещено` : "размещено") : "после передачи", tone: scheduleExpected && !scheduleMissing ? "ok" : scheduleExpected ? "warning" : "neutral" },
+        { id: "shifts", label: "Смены", value: shiftOrders.length ? shiftOrders.length.toLocaleString("ru-RU") : "нет", meta: shiftOrders.length ? "сформированы" : "после Ганта", tone: shiftOrders.length ? "ok" : "neutral" },
+      ],
+      rows,
+    };
   }
   
   function getPlanningLaborNoteKey(route, itemId = "") {
@@ -1452,6 +1569,24 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       year: "numeric",
     });
   }
+
+  function getPlanningWorkbenchDecisionModel({ route, supplySummary, chain, laborReadiness, scheduleExpected, scheduleMissing, routeSteps }) {
+    const blockers = [];
+    if (!routeSteps.length) blockers.push({ id: "schedule", label: "нет операций" });
+    if (supplySummary.blocking) blockers.push({ id: "supply", label: `${formatPlanningProblemCount(supplySummary.blocking)} в составе` });
+    if (chain.issues.length) blockers.push({ id: "chain", label: `${formatPlanningProblemCount(chain.issues.length)} передачи` });
+    if (laborReadiness.missing) blockers.push({ id: "duration", label: `${formatPlanningOperationCount(laborReadiness.missing)} без расчета длительности` });
+    const isPlanned = Boolean(scheduleExpected && !scheduleMissing);
+    const isReady = !blockers.length;
+    return {
+      title: isReady ? (isPlanned ? "Заказ-наряд размещен в Ганте" : "Готов к передаче в план") : (isPlanned ? "Размещен, есть проблемы для проверки" : "Не готов к передаче в план"),
+      subtitle: isReady ? `Старт первой операции: ${formatPlanningOrderDateLabel(getPlanningRouteStartDate(route))}` : blockers.map((item) => item.label).slice(0, 3).join(" · "),
+      tone: isReady ? "ok" : "warning",
+      blockers,
+      isReady,
+      isPlanned,
+    };
+  }
   
   function renderPlanningOrderDecisionMetric({ id = "", selectedItem = "", label, value, meta = "", tone = "neutral" }) {
     const qaId = `planning-order-decision-${id || "metric"}`;
@@ -1483,32 +1618,14 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
     routeSteps,
   }) {
     const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
-    const blockers = [];
-    if (!routeSteps.length) blockers.push({ id: "schedule", label: "нет операций" });
-    if (supplySummary.blocking) blockers.push({ id: "supply", label: `${formatPlanningProblemCount(supplySummary.blocking)} в составе` });
-    if (chain.issues.length) blockers.push({ id: "chain", label: `${formatPlanningProblemCount(chain.issues.length)} передачи` });
-    if (laborReadiness.missing) blockers.push({ id: "duration", label: `${formatPlanningOperationCount(laborReadiness.missing)} без расчета длительности` });
-  
-    const isPlanned = Boolean(scheduleExpected && !scheduleMissing);
-    const isReady = !blockers.length;
-    const startDateLabel = formatPlanningOrderDateLabel(getPlanningRouteStartDate(route));
+    const decision = getPlanningWorkbenchDecisionModel({ route, supplySummary, chain, laborReadiness, scheduleExpected, scheduleMissing, routeSteps });
     const startDateValue = getPlanningRouteStartDate(route);
     const workOrderView = getWorkOrderViewModel(route, { summary: transferSummary, routeSteps });
     const planningTransition = workOrderView.transitionToPlanning || getMesFlowTransitionView("workOrderToGanttSlot");
     const hasRoute = Boolean(route?.id);
     const canCancel = Boolean(hasRoute && Number(transferSummary?.planned || 0));
     const canSendToPlanning = Boolean(hasRoute && (transferSummary?.steps || []).length);
-    const tone = isReady ? "ok" : "warning";
-    const title = isReady
-      ? isPlanned
-        ? "Заказ-наряд размещен в Ганте"
-        : "Готов к передаче в план"
-      : isPlanned
-        ? "Размещен, есть проблемы для проверки"
-        : "Не готов к передаче в план";
-    const subtitle = isReady
-      ? `Старт первой операции: ${startDateLabel}`
-      : blockers.map((item) => item.label).slice(0, 3).join(" · ");
+    const { tone, title, subtitle } = decision;
   
     return `
       <section class="planning-order-decision-strip is-${escapeAttribute(tone)}" data-visual-qa-target="planning-order-decision-strip" aria-label="Сводка готовности заказ-наряда">
@@ -1954,6 +2071,7 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
   }
 
   return {
+    getPlanningWorkbenchModel,
     renderPlanningWorkbenchPage,
     syncPlanningManualLaborToStepSlots,
   };

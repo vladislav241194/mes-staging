@@ -3392,11 +3392,13 @@ let renderPlanningWorkbenchPage = () => renderPlanningWorkbenchShellState({
   title: "Загружаем заказ-наряды",
   description: "Рабочее пространство откроется автоматически.",
 });
+let getPlanningWorkbenchModel = () => ({ routes: [], queue: [], overview: null });
 let syncPlanningManualLaborToStepSlots = () => false;
 let planningWorkbenchModuleLoad = null;
 let planningWorkbenchModuleError = null;
 function initializePlanningWorkbenchModule(factory) {
   ({
+    getPlanningWorkbenchModel,
     renderPlanningWorkbenchPage,
     syncPlanningManualLaborToStepSlots,
   } = factory({

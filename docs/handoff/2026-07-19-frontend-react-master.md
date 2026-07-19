@@ -292,6 +292,14 @@ legacy editor fallback. Its bundled artifact is `201,559 B` raw / `63,358 B`
 gzip / `54,518 B` Brotli. It has not been released or activated on Pilot and
 moves no attendance or schedule command.
 
+Planning Workbench is the seventeenth isolated scenario. The legacy renderer
+now exposes a completed read-model for PostgreSQL list/detail projection,
+snapshot fallback, readiness, labor and visible structure. Lab QA proves three
+queue entries, five readiness metrics, four hierarchy rows, payload update and
+legacy route fallback. Its independent artifact is `205,180 B` raw / `63,549 B`
+gzip. It has no production host and moves no quantity, date, Gantt or cancel
+command.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -310,7 +318,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control and Timesheet read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet and Planning Workbench read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; no fixture reaches production.**
