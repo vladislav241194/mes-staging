@@ -484,14 +484,21 @@ any schedule write. Evaluation was removed and retained-query reload restored
 legacy with zero React targets.
 
 Authorization picker is the twenty-fourth production-integrated scenario. It
-owns only department, unit and employee selection from PostgreSQL System
-Domains. PIN digits/draft, attempt limits, validation, role activation, gate
+owns only department, unit and employee selection from the allowlisted
+pre-auth directory projection; root rollout verifies PostgreSQL domain storage.
+PIN digits/draft, attempt limits, validation, role activation, gate
 unlock and session state never cross into React. Employee selection falls back
 to a clean legacy PIN screen. Browser QA proves nine departments, no React
 keypad, ten legacy keypad buttons after handoff, zero entered digits, zero
 System Domains writes and clean console. The production artifact is `199,896 B`
 raw / `62,906 B` gzip / `54,098 B` Brotli. No authentication policy or Pilot
-release was changed.
+release was changed. Authenticated Pilot acceptance is now complete on
+`v.1.500.01-1a8a9a4` through the actual logout path: React rendered 9
+departments and 76 employees in `526 ms` with no PIN digits, then handed
+`Алексеев Егор` to the exact ten-key legacy PIN screen with five attempts and
+zero filled digits. Root activation first verified PostgreSQL domain storage;
+the protected pre-auth APIs remained `401`. Evaluation is disabled, System
+Domains stayed at revision 2 and retained-query fallback restores legacy.
 
 The first write-parity milestone is now implemented for Nomenclature create and
 edit behind a third false-by-default permission and an explicit session request.
@@ -526,7 +533,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
 5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
-6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 19 of 24 scenarios, most recently Structure Migration Diagnostics on `.98-6539459`. The five remaining read checkpoints are Nomenclature with a non-empty live payload, Boards/BOM, Structure Responsibility Policies, Contour Admin on its mapped host, and the pre-PIN Authorization picker.**
+6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 20 of 24 scenarios, most recently the pre-PIN Authorization picker on `.500.01-1a8a9a4`. The four remaining read checkpoints are Nomenclature with a non-empty live payload, Boards/BOM, Structure Responsibility Policies with a non-empty live policy, and Contour Admin on its mapped host.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
    Operations create/edit is locally complete with linked Planning reference
