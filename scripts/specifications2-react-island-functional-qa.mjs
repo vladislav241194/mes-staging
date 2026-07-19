@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,7 +26,7 @@ const entry = {
 };
 entry.publication = { revision: 7, fingerprint: buildSpecifications2ReleaseFingerprint(entry), releasedAt: "2026-07-19T08:30:00.000Z", status: "released" };
 const serverItem = {
-  id: "revision-kt7-7", sourceEntryId: entry.id, specificationId: "document-kt7", title: "Контроллер КТ-7", designation: "АБВГ.469659.001", revisionNo: 7, fingerprint: entry.publication.fingerprint, releasedAt: entry.publication.releasedAt, sourceUpdatedAt: entry.updatedAt,
+  id: "revision-kt7-7", sourceEntryId: entry.id, specificationId: "document-kt7", title: "Контроллер КТ-7", designation: "АБВГ.469659.001", revisionNo: 7, fingerprint: `sha256:${createHash("sha256").update(entry.publication.fingerprint).digest("hex")}`, releasedAt: entry.publication.releasedAt, sourceUpdatedAt: entry.updatedAt,
   treeItems: [
     { sourceRowId: "root", parentSourceRowId: "", designation: "АБВГ.469659.001", name: "Контроллер КТ-7", kind: "Изделие", quantity: 1, unit: "шт." },
     { sourceRowId: "board", parentSourceRowId: "root", designation: "АБВГ.468332.002", name: "Плата управления", kind: "Сборочная единица", quantity: 1, unit: "шт." },

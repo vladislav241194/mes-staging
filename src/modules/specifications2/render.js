@@ -424,10 +424,18 @@ export function createSpecifications2Module(dependencies = {}) {
       && Number(serverItem.revisionNo) === Number(publication?.revision)
       && String(serverItem.sourceEntryId || "") === String(selectedEntry.id || ""),
     );
+    const serverFingerprint = String(serverItem?.fingerprint || "");
     const fingerprintMatches = Boolean(
       revisionMatches
       && publication?.fingerprint
-      && String(serverItem.fingerprint || "") === String(publication.fingerprint),
+      && (
+        serverFingerprint === String(publication.fingerprint)
+        // The PostgreSQL migration compacts the legacy JSON fingerprint to
+        // an immutable SHA-256 digest.  Source id + revision still bind this
+        // digest to the exact server revision while the editable draft may
+        // legitimately have changed after publication.
+        || /^sha256:[a-f0-9]{64}$/i.test(serverFingerprint)
+      ),
     );
     const serverStatus = !publication?.revision
       ? "unpublished"
