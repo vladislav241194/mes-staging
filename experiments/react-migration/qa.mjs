@@ -1468,6 +1468,30 @@ try {
   ));
   assert.deepEqual(unexpectedRuntimeStateLines, [], `frontend migration changed runtime state outside the reviewed directory-removal flush:\n${unexpectedRuntimeStateLines.join("\n")}`);
 
+  const commandParityMatrix = JSON.parse(await readFile(join(labRoot, "command-parity-matrix.json"), "utf8"));
+  const expectedCommandScenarioIds = [
+    "authPicker", "boards", "componentTypes", "contourAdmin", "employeeDesktop", "gantt",
+    "nomenclature", "nomenclatureTypes", "operations", "planningWorkbench", "roles",
+    "shiftMasterBoard", "shiftWorkOrders", "specifications2", "statuses", "structureEmployees",
+    "structureEquipment", "structureMigrationDiagnostics", "structureOrgUnits", "structurePositions",
+    "structureResponsibilityPolicies", "structureWorkCenters", "timesheet", "weeklyProductionControl",
+  ];
+  assert.equal(commandParityMatrix.schemaVersion, 1, "command-parity matrix schema must be explicit");
+  assert.equal(commandParityMatrix.pilotAcceptance, "pending", "Pilot acceptance must not be claimed before authenticated evidence");
+  assert.deepEqual(
+    commandParityMatrix.scenarios.map((scenario) => scenario.id).sort(),
+    expectedCommandScenarioIds,
+    "every production-integrated React scenario must have one command-parity row",
+  );
+  assert.equal(new Set(commandParityMatrix.scenarios.map((scenario) => scenario.id)).size, 24, "command-parity scenario IDs must be unique");
+  assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
+  assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
+  assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature"], "only Nomenclature has locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics"], "only diagnostics may have no command scope");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 22, "all 22 remaining command scenarios must stay explicit");
+  assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
+
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });
   assert.match(performanceBudget, /"nomenclature"/);
   assert.match(performanceBudget, /"boards"/);
