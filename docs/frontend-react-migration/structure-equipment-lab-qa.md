@@ -38,7 +38,7 @@ requires PostgreSQL primary authority plus `productionStructureMatrix.edit`.
 
 The production artifact is `214,824 B` raw / `65,385 B` gzip, below the
 `225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only
-scenario and remains below `478,000 B / 118,000 B`. Both read and write remain
+scenario and remains below `505,000 B / 122,000 B`. Both read and write remain
 false by default.
 
 ## Pilot acceptance

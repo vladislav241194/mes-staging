@@ -25,10 +25,13 @@ import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-run
 export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "structureMigrationDiagnostics" | "weeklyProductionControl" | "timesheet" | "planningWorkbench" | "shiftWorkOrders" | "shiftMasterBoard" | "employeeDesktop" | "contourAdmin" | "specifications2" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
+  onLoadShiftWorkOrderPrintPackage?(rowId: string): Promise<unknown>;
+  onLoadShiftWorkOrderPrintRenderer?(): Promise<typeof import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews")>;
+  onPrintDocument?(title: string): void;
   onRequestLegacy?(scope?: string): void;
 }
 
-function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
+function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onRequestLegacy, payload, scenario }: { onLoadShiftWorkOrderPrintPackage?(rowId: string): Promise<unknown>; onLoadShiftWorkOrderPrintRenderer?(): Promise<typeof import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews")>; onPrintDocument?(title: string): void; onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -41,7 +44,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "weeklyProductionControl") return <WeeklyProductionControlScenario payload={payload} />;
   if (scenario === "timesheet") return <TimesheetReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "planningWorkbench") return <PlanningWorkbenchReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario onLoadPrintPackage={onLoadShiftWorkOrderPrintPackage} onLoadPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onPrintDocument={onPrintDocument} payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "employeeDesktop") return <EmployeeDesktopScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "contourAdmin") return <ContourAdminScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -59,10 +62,10 @@ export function mountReactMigrationIsland(
   initialPayload: unknown,
   options: ReactMigrationScenarioOptions = {},
 ): ReturnType<typeof mountReactIsland> {
-  const { onRequestLegacy, ...runtimeOptions } = options;
+  const { onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onRequestLegacy, ...runtimeOptions } = options;
   return mountReactIsland(
     target,
-    (payload) => <ReactMigrationScenario onRequestLegacy={onRequestLegacy} payload={payload} scenario={scenario} />,
+    (payload) => <ReactMigrationScenario onLoadShiftWorkOrderPrintPackage={onLoadShiftWorkOrderPrintPackage} onLoadShiftWorkOrderPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onPrintDocument={onPrintDocument} onRequestLegacy={onRequestLegacy} payload={payload} scenario={scenario} />,
     initialPayload,
     runtimeOptions,
   );

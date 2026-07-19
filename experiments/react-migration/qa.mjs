@@ -939,16 +939,22 @@ try {
   const shiftWorkOrdersAdapter = await import(`${pathToFileURL(shiftWorkOrdersOutput).href}?qa=${Date.now()}`);
   const shiftWorkOrdersFixtureOutput = join(temporaryRoot, "shift-work-orders-fixture.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/shift-work-orders/fixture.ts")], outfile: shiftWorkOrdersFixtureOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
-  const { shiftWorkOrdersFixture } = await import(`${pathToFileURL(shiftWorkOrdersFixtureOutput).href}?qa=${Date.now()}`);
+  const { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture } = await import(`${pathToFileURL(shiftWorkOrdersFixtureOutput).href}?qa=${Date.now()}`);
   const shiftWorkOrdersModel = shiftWorkOrdersAdapter.adaptShiftWorkOrders(shiftWorkOrdersFixture);
   assert.equal(shiftWorkOrdersModel.canActivate, true, "Shift Work Orders needs documents, operations, assignments and a selected detail");
   assert.deepEqual([shiftWorkOrdersModel.documents.length, shiftWorkOrdersModel.operationCount, shiftWorkOrdersModel.rows.length], [2, 3, 3]);
   assert.deepEqual(shiftWorkOrdersModel.rows.map((row) => [row.documentNumber, row.status.id, row.issueReportCount]), [["СЗН-1042-01", "issued", 1], ["СЗН-1042-02", "assigned", 0], ["СЗН-1041-01", "closed", 0]]);
   assert.equal(shiftWorkOrdersAdapter.adaptShiftWorkOrders({}).canActivate, false, "invalid Shift Work Orders payload must fail closed");
+  const shiftPrintPackage = shiftWorkOrdersAdapter.adaptWorkOrderPrintPackage(shiftWorkOrdersPrintPackageFixture);
+  assert.equal(shiftPrintPackage.canActivate, true, "Shift Work Orders print package needs a completed owner model");
+  assert.deepEqual([shiftPrintPackage.operations.length, shiftPrintPackage.journalRows.length, shiftPrintPackage.executors.length], [2, 2, 1]);
+  assert.deepEqual(shiftPrintPackage.operations.map((row) => [row.operationName, row.plannedQuantity, row.documentCount]), [["Монтаж", 120, 1], ["Контроль", 120, 1]]);
   const shiftWorkOrdersScenarioSource = await readFile(join(sourceRoot, "modules/shift-work-orders/ShiftWorkOrdersScenario.tsx"), "utf8");
   assert.match(shiftWorkOrdersScenarioSource, /data-react-shift-work-order-photo-viewer/);
   assert.match(shiftWorkOrdersScenarioSource, /setActivePhotoId\(report\.photoId\)/);
   assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy\?\.\(`photo:/);
+  assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy\?\.\(`(?:print|package):/);
+  assert.match(shiftWorkOrdersScenarioSource, /onLoadPrintRenderer/);
 
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
@@ -1450,6 +1456,12 @@ try {
   assert.match(productionAppSource, /hydratePlanningWorkbenchBootstrap\(\{ force: true, renderOnChange: false \}\)/);
   assert.match(productionAppSource, /params\.get\("react-planning-workbench-write"\) === "1"/);
   assert.match(productionAppSource, /requireServerCommand: true/);
+  const shiftWorkOrdersHostSource = await readFile(join(repositoryRoot, "src/modules/shift_work_orders/react_island_host.js"), "utf8");
+  assert.match(shiftWorkOrdersHostSource, /shift-work-orders-print\.js/);
+  assert.match(shiftWorkOrdersHostSource, /__MES_SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION__/);
+  assert.match(productionAppSource, /loadPrintPackage: async/);
+  assert.match(productionAppSource, /getWorkOrderPrintPackageViewModel\(routeId\)/);
+  assert.match(productionAppSource, /printDocument: \(title = ""\)/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
@@ -1467,6 +1479,7 @@ try {
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
+  assert.match(productionBuildSource, /shift-work-orders-print\.js/);
   assert.match(productionBuildSource, /react-islands", "nomenclature\.js/);
   assert.match(productionBuildSource, /react-islands", "boards\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
@@ -1579,10 +1592,10 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench"], "fifteen scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders"], "sixteen scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 7, "all 7 remaining command scenarios must stay explicit");
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /locally complete attachment navigation/);
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 6, "all 6 remaining command scenarios must stay explicit");
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /Pilot read-only acceptance.*print\/package previews/);
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

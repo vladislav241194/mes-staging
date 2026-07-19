@@ -361,12 +361,16 @@ first operational-family proof. Its typed
 adapter consumes the completed journal model and renders two fixture work
 orders, three operations, three assignments, eight columns and the selected
 read detail. Selection, tree collapse, report-photo overlay with Escape close,
-revision update and legacy print fallback pass. Production-shell QA proves one PostgreSQL-backed work order,
-operation and assignment, default legacy, explicit read-only activation,
-print fallback, zero Shift Execution writes and unchanged state. Assignment,
-fact, print/package implementation, Workshop runtime and Shift Execution authority
-remain untouched. The production artifact is `210,253 B` raw / `65,375 B`
-gzip / `56,326 B` Brotli. It has not been released or activated on Pilot.
+revision update, lazy SZN preview and lazy work-order-package preview pass. The
+package remains calculated by `getWorkOrderPrintPackageViewModel()`; React only
+adapts and renders it, while the host owns `window.print()` and title restore.
+Production-shell QA proves one PostgreSQL-backed work order, operation and
+assignment, default legacy, explicit read-only activation, both previews, two
+host print callbacks, zero Shift Execution writes and unchanged state.
+Assignment, fact, Workshop runtime and Shift Execution authority remain
+untouched. The production base artifact is `213,696 B` raw / `66,343 B` gzip /
+`57,159 B` Brotli, with a lazy print artifact of `13,774 B` raw / `3,351 B`
+gzip / `2,890 B` Brotli. It has not been released or activated on Pilot.
 
 The standalone Dispatch module was audited and intentionally skipped: its
 blueprint is a disabled, headerless placeholder with no reads, writes, table
@@ -501,7 +505,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    React and reuse the PostgreSQL bootstrap; quantity editing is locally
    complete through the PostgreSQL-backed owner with conflict/retry and legacy
    read-back; dates, labor, Gantt transfer, cancellation and Pilot write
-   acceptance remain separate. Weekly
+   acceptance remain separate. Shift Work Orders attachment navigation plus
+   SZN/package print previews are locally complete without Shift Execution
+   writes; Pilot read-only acceptance, assignment, fact and Workshop stay
+   separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

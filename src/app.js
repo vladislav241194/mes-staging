@@ -3010,14 +3010,27 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
   },
   getPayload: () => ({ model: getShiftWorkOrderJournalViewModel() }),
   getTargetRoot: () => app,
+  loadPrintPackage: async (rowId = "") => {
+    const model = getShiftWorkOrderJournalViewModel();
+    const row = (model.rows || []).find((item) => item.id === rowId || item.sourceRowId === rowId) || null;
+    const routeId = row?.routeId || row?.planningOrderId || "";
+    if (!row?.id || !routeId) return null;
+    await ensureRoutesRenderModule();
+    if (routesRenderModuleError) return null;
+    return getWorkOrderPrintPackageViewModel(routeId);
+  },
+  printDocument: (title = "") => {
+    const previousTitle = document.title;
+    const restoreTitle = () => { document.title = previousTitle; window.removeEventListener("afterprint", restoreTitle); };
+    document.title = String(title || "");
+    window.addEventListener("afterprint", restoreTitle, { once: true });
+    window.requestAnimationFrame(() => window.print());
+  },
   requestLegacyRender: (_reason, scope = "") => {
-    const [action, rowId, extraId] = String(scope || "").split(":");
+    const [action, rowId] = String(scope || "").split(":");
     const model = getShiftWorkOrderJournalViewModel();
     const row = (model.rows || []).find((item) => item.id === rowId || item.sourceRowId === rowId) || model.selectedRow || null;
     if (row?.id) ui.shiftWorkOrderJournalSelectedId = row.id;
-    if (action === "print" && row?.id) ui.shiftWorkOrderPrintPreviewId = row.id;
-    if (action === "package" && row) ui.workOrderPrintPreviewId = row.routeId || row.planningOrderId || "";
-    if (action === "photo" && row?.id && extraId) ui.shiftWorkOrderIssuePhotoViewer = { rowId: row.id, photoId: extraId };
     if (action === "workshop" && row) {
       ui.shiftMasterBoardSelectedSlotId = row.sourceRowId || row.id;
       ui.activeModule = "shiftMasterBoard";

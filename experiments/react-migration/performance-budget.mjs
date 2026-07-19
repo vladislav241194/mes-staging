@@ -39,6 +39,7 @@ const weeklyProductionControl = await measureEntry("weekly-production-control-is
 const timesheet = await measureEntry("timesheet-island.tsx", { raw: 225_000, gzip: 68_000 });
 const planningWorkbench = await measureEntry("planning-workbench-island.tsx", { raw: 225_000, gzip: 68_000 });
 const shiftWorkOrders = await measureEntry("shift-work-orders-island.tsx", { raw: 225_000, gzip: 68_000 });
+const shiftWorkOrdersPrint = await measureEntry("modules/shift-work-orders/ShiftWorkOrderPrintPreviews.tsx", { raw: 225_000, gzip: 68_000 });
 const shiftMasterBoard = await measureEntry("shift-master-board-island.tsx", { raw: 225_000, gzip: 68_000 });
 const employeeDesktop = await measureEntry("employee-desktop-island.tsx", { raw: 225_000, gzip: 68_000 });
 const authPicker = await measureEntry("auth-picker-island.tsx", { raw: 225_000, gzip: 68_000 });
@@ -51,7 +52,7 @@ const operations = await measureEntry("operations-island.tsx", { raw: 225_000, g
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
 // The aggregate lab intentionally contains every scenario; production islands keep their stricter per-entry budgets above.
-const lab = await measureEntry("main.tsx", { raw: 478_000, gzip: 118_000 });
+const lab = await measureEntry("main.tsx", { raw: 505_000, gzip: 122_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -78,6 +79,9 @@ const planningWorkbenchText = new TextDecoder().decode(planningWorkbench.bytes);
 assert.doesNotMatch(planningWorkbenchText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Planning Workbench island must not bundle unrelated scenarios");
 const shiftWorkOrdersText = new TextDecoder().decode(shiftWorkOrders.bytes);
 assert.doesNotMatch(shiftWorkOrdersText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Work Orders island must not bundle unrelated scenarios");
+assert.doesNotMatch(shiftWorkOrdersText, /work-order-print-sheet/, "Shift Work Orders base island must lazy-load print previews");
+const shiftWorkOrdersPrintText = new TextDecoder().decode(shiftWorkOrdersPrint.bytes);
+assert.match(shiftWorkOrdersPrintText, /work-order-print-sheet/);
 const shiftMasterBoardText = new TextDecoder().decode(shiftMasterBoard.bytes);
 assert.doesNotMatch(shiftMasterBoardText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Master Board island must not bundle unrelated scenarios");
 const employeeDesktopText = new TextDecoder().decode(employeeDesktop.bytes);
@@ -120,6 +124,7 @@ console.log(JSON.stringify({
   timesheet: timesheet.measurement,
   planningWorkbench: planningWorkbench.measurement,
   shiftWorkOrders: shiftWorkOrders.measurement,
+  shiftWorkOrdersPrint: shiftWorkOrdersPrint.measurement,
   shiftMasterBoard: shiftMasterBoard.measurement,
   employeeDesktop: employeeDesktop.measurement,
   authPicker: authPicker.measurement,

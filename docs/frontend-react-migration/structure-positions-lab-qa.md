@@ -50,7 +50,7 @@ from the existing entity.
 
 The production island is `215,168 B` raw / `65,465 B` gzip, within the unchanged
 `225,000 B / 68,000 B` budget. The full lab is `474,000 B / 110,581 B`, below
-`478,000 B / 118,000 B`. It remains false by default.
+`505,000 B / 122,000 B`. It remains false by default.
 
 ## Pilot acceptance
 

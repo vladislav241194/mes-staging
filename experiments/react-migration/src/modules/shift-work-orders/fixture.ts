@@ -19,6 +19,17 @@ const documents = [
   { id: "wo-1042", label: "ЗН-1042 · Контроллер КТ-7", meta: "Основной маршрут", plannedQuantity: 240, assignedQuantity: 120, factQuantity: 60, remainingQuantity: 180, unit: "шт.", latestLabel: rows[0].dateLabel, rows: rows.slice(0, 2), operationGroups: [operation("op-mount", "Монтаж", "Ручной монтаж", [rows[0]]), operation("op-control", "Контроль", "ОТК", [rows[1]])] },
   { id: "wo-1041", label: "ЗН-1041 · Модуль питания", meta: "Основной маршрут", plannedQuantity: 80, assignedQuantity: 80, factQuantity: 80, remainingQuantity: 0, unit: "шт.", latestLabel: rows[2].dateLabel, rows: [rows[2]], operationGroups: [operation("op-kit", "Комплектация", "Склад", [rows[2]])] },
 ];
+export const shiftWorkOrdersPrintPackageFixture = {
+  route: { id: "route-1042", number: "ЗН-1042", name: "Основной маршрут" },
+  workOrderView: { title: "ЗН-1042", objectLabel: "Контроллер КТ-7", status: { label: "В производстве" } },
+  journalRows: rows.slice(0, 2),
+  operations: [
+    { id: "op-mount", index: 1, taskLabel: "1 · Контроллер КТ-7", operationName: "Монтаж", workCenterLabel: "Ручной монтаж", durationLabel: "3 ч", plannedQuantity: 120, assignedQuantity: 80, factQuantity: 60, remainingQuantity: 60, documentCount: 1, shiftCount: 1, executorCount: 1, statusLabel: "частично" },
+    { id: "op-control", index: 2, taskLabel: "1 · Контроллер КТ-7", operationName: "Контроль", workCenterLabel: "ОТК", durationLabel: "1 ч", plannedQuantity: 120, assignedQuantity: 40, factQuantity: 0, remainingQuantity: 120, documentCount: 1, shiftCount: 1, executorCount: 1, statusLabel: "частично" },
+  ],
+  executorRows: [{ id: "employee-a-1", employeeName: "Иванов Иван Иванович", quantity: 80, unit: "шт.", shifts: ["19.07.2026"], documents: ["СЗН-1042-01"], operations: ["Монтаж"] }],
+  planningQuantity: 120, unit: "шт.", documentDate: "19.07.2026, 13:00", finalFactQuantity: 0, finalRemainingQuantity: 120, shiftCount: 1, operationCount: 2,
+};
 export const shiftWorkOrdersFixture = { model: { rows, documentTree: documents, selectedRow: rows[0], sourceWindow: { label: "19.07.2026 · дневная смена" } } };
 const updatedRows = rows.map((item) => item.id === "a-1" ? { ...item, factQuantity: 80, remainingQuantity: 40, status: { id: "closed", label: "факт внесен", tone: "ok" }, stageLabel: "СЗН с фактом" } : item);
 export const shiftWorkOrdersUpdateFixture = { model: { ...shiftWorkOrdersFixture.model, rows: updatedRows, selectedRow: updatedRows[0], documentTree: documents.map((document) => document.id === "wo-1042" ? { ...document, factQuantity: 80, remainingQuantity: 160, rows: updatedRows.slice(0, 2), operationGroups: document.operationGroups.map((entry) => entry.id === "op-mount" ? { ...entry, factQuantity: 80, remainingQuantity: 40, rows: [updatedRows[0]] } : entry) } : document) } };

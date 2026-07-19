@@ -17,7 +17,7 @@ import { structureMigrationDiagnosticsFixture, structureMigrationDiagnosticsUpda
 import { weeklyProductionControlFixture, weeklyProductionControlUpdateFixture } from "./modules/weekly-production-control/fixture";
 import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fixture";
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
-import { shiftWorkOrdersFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
+import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
 import { shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
 import { employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
@@ -89,6 +89,9 @@ const featureGate = createReactIslandFeatureGate({
     return mountReactMigrationIsland(target, scenario, payload, {
       onError,
       onReady: ({ revision }) => recordRevisionCommit(revision),
+      onLoadShiftWorkOrderPrintPackage: async () => shiftWorkOrdersPrintPackageFixture,
+      onLoadShiftWorkOrderPrintRenderer: async () => import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews"),
+      onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
       onRequestLegacy: () => featureGate.requestLegacy("unsupported-scope"),
     });
   },

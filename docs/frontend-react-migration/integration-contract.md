@@ -159,10 +159,14 @@ complete Shift Execution read readiness, plus an explicit session request.
 Its typed adapter accepts the completed legacy journal model and owns local
 document-tree collapse, read-detail selection, issue-report presentation and
 local photo overlay navigation over already adapted `data:image/*` payloads.
-Print, package and Workshop scopes return through `unsupported-scope`;
-assignment, fact entry, Shift Execution repositories and server authority stay
-outside React. Missing PostgreSQL coverage, an open legacy overlay, editor
-access or a missing session request retains legacy.
+SZN and work-order-package previews are lazy React chunks: the host supplies
+the selected journal row, initializes the existing Routes renderer owner before
+reading `getWorkOrderPrintPackageViewModel()`, and owns `window.print()` plus
+temporary document-title restoration. React neither recalculates package
+quantities nor writes runtime state. Workshop returns through
+`unsupported-scope`; assignment, fact entry, Shift Execution repositories and
+server authority stay outside React. Missing PostgreSQL coverage, an open
+legacy overlay, editor access or a missing session request retains legacy.
 
 `mountShiftMasterBoardReactIsland(...)` owns the read-only Workshop board
 behind two false-by-default server permissions, PostgreSQL System Domains and
