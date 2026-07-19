@@ -324,14 +324,15 @@ renderer. An unlocked gate, non-server projection or missing evaluation retains
 legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice plus a
-localhost-only passport metadata and grant write evaluation over a host-supplied
+localhost-only passport metadata, grant and unassigned-role lifecycle write evaluation over a host-supplied
 System Domains snapshot and module registry. Typed commands can change only
 label, description, a view-allowed default module, one existing six-action
-grant coordinate, or the role default scope through the revision-checked
+grant coordinate, the role default scope, or `isActive` for an unassigned role through the revision-checked
 `access-control` owner. The host
 rechecks module/action existence, `roles:configure`, read-only-role restrictions
-and the `view` dependency rule before delegating. Assignments,
-personal/assignment scopes, read-only/active lifecycle and reset remain legacy. Missing configure
+and the `view` dependency rule before delegating. Lifecycle additionally uses
+exact-ID confirmation and rejects assigned roles plus the current effective
+role before PUT. Assignments, personal/assignment scopes, `readOnly`, assigned-role lifecycle and reset remain legacy. Missing configure
 permission, PostgreSQL readiness or explicit write evaluation fails closed
 before React exposes either command surface.
 

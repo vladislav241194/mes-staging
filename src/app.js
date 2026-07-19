@@ -3878,7 +3878,7 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       && systemDomainsServerCommandState.enabled === true
       && systemDomainsServerCommandState.surfaces.includes("access-control")
       && authorizeSystemDomainAction("roles", "configure");
-    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady, defaultScopeEdit: commandReady } };
+    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady, defaultScopeEdit: commandReady, lifecycleEdit: commandReady } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: () => {
@@ -3886,13 +3886,33 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-metadata", "set-grant", "set-default-scope"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
+    if (!localQa.writeEvaluation || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("access-control")) return { ok: false, message: "PostgreSQL-команда ролей недоступна." };
     if (!authorizeSystemDomainAction("roles", "configure")) return { ok: false, message: "Нет права на настройку ролей." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     const roleId = String(input.roleId || "").trim(); const label = String(input.label || "").trim(); const description = String(input.description || "").trim(); const defaultModuleId = String(input.defaultModuleId || "").trim();
     const role = (getSystemDomainsRegistries().accessRoles || []).find((item) => item.id === roleId);
     if (!role) return { ok: false, message: "Роль больше не существует." };
+    if (command.type === "deactivate-role" || command.type === "reactivate-role") {
+      const confirmRoleId = String(input.confirmRoleId || "").trim();
+      const reactivate = command.type === "reactivate-role";
+      if (confirmRoleId !== roleId) return { ok: false, message: "Подтверждение относится к другой роли." };
+      if (reactivate ? role.isActive !== false : role.isActive === false) return { ok: false, message: reactivate ? "Роль уже активна." : "Роль уже деактивирована." };
+      const roleAssignments = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.roleId || "") === roleId);
+      if (!reactivate && roleAssignments.length) return { ok: false, message: "Сначала переназначьте сотрудников: роль с назначениями нельзя деактивировать в React evaluation." };
+      const currentRoleIds = getAccessControlService()?.getEffectiveSubjectRoleAssignments(getAccessControlSubject()).map((assignment) => assignment.roleId) || [];
+      if (!reactivate && currentRoleIds.includes(roleId)) return { ok: false, message: "Нельзя деактивировать роль текущего пользователя." };
+      try {
+        const updated = await updateAccessRole({ roleId, patch: { isActive: reactivate } });
+        if (updated !== true) return { ok: false, message: "Изменение статуса роли отклонено проверкой access-control." };
+        const authoritativeRole = (getSystemDomainsRegistries().accessRoles || []).find((item) => item.id === roleId);
+        if (!authoritativeRole || (reactivate ? authoritativeRole.isActive === false : authoritativeRole.isActive !== false)) return { ok: false, message: "Access-control не подтвердил новый статус роли." };
+        queueMicrotask(() => { if (ui.activeModule === "roles") render({ skipRememberScroll: true }); });
+        return { ok: true, id: roleId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Роли изменились в другом сеансе. Проверьте данные и повторите изменение статуса." : error?.message || "Сервер не принял изменение статуса роли." };
+      }
+    }
     if (command.type === "set-default-scope") {
       const scope = String(input.scope || "").trim();
       if (!ACCESS_ROLE_SCOPES.some((item) => item.id === scope)) return { ok: false, message: "Область роли не поддерживается." };
@@ -7244,6 +7264,7 @@ function updateAccessRole({ roleId = "", patch = {} } = {}) {
     if (patch.scope !== undefined && ACCESS_ROLE_SCOPES.some((scope) => scope.id === patch.scope)) next.scope = patch.scope;
     if (patch.defaultModule !== undefined) next.defaultModuleId = String(patch.defaultModule || "").trim();
     if (patch.readOnly !== undefined) next.readOnly = Boolean(patch.readOnly);
+    if (patch.isActive !== undefined) next.isActive = patch.isActive === true;
     return next;
   }), { source: "access-control:role-update", serverCommand: true, surface: "access-control" });
 }

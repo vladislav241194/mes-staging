@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -30,5 +32,10 @@ const script = renderRuntimeConfigScript({
 assert(script.includes('"MES_REACT_ROLES":true'), "public runtime script must contain the Roles rollout boolean");
 assert(script.includes('"MES_REACT_ROLES_READ_ONLY_EVALUATION":true'), "public runtime script must contain the Roles evaluation boolean");
 assert(!script.includes("must-not-leak"), "public runtime script must never expose deployment secrets");
+
+const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+assert(appSource.includes("if (!reactivate && roleAssignments.length)"), "Roles lifecycle host must reject assigned-role deactivation");
+assert(appSource.includes("if (!reactivate && currentRoleIds.includes(roleId))"), "Roles lifecycle host must reject deactivation of the current effective role");
+assert(appSource.includes("confirmRoleId !== roleId"), "Roles lifecycle host must keep confirmation bound to the exact stable role ID");
 
 console.log("Roles React runtime policy QA: OK");

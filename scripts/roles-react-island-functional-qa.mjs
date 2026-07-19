@@ -47,6 +47,7 @@ async function main() {
         { id: "admin", label: "Администратор QA", scope: "factory", defaultModule: "roles", modulePermissions: { roles: { view: true, print: true, configure: true } } },
         { id: "master", label: "Мастер QA", scope: "workCenter", defaultModule: "shiftMasterBoard", modulePermissions: { shiftMasterBoard: { view: true, edit: true, assign: true }, timesheet: { view: true } } },
         { id: "auditor", label: "Аудитор QA", scope: "factory", defaultModule: "roles", readOnly: true, modulePermissions: { roles: { view: true, print: true }, gantt: { view: true, print: true } } },
+        { id: "reserve", label: "Резервная роль QA", scope: "factory", defaultModule: "roles", modulePermissions: { roles: { view: true, print: true } } },
       ],
       accessRoleAssignments: {
         [employeeIds[0]]: "admin",
@@ -59,8 +60,11 @@ async function main() {
   assert(migration.report.validation.valid, "canonical Roles fixture must be valid");
   assert(migration.domains.registries.accessRoles.find((role) => role.id === "auditor")?.readOnly === true, "System Domains migration must preserve the read-only role contract");
   const adminRole = migration.domains.registries.accessRoles.find((role) => role.id === "admin");
+  const reserveRole = migration.domains.registries.accessRoles.find((role) => role.id === "reserve");
   assert(adminRole, "canonical Roles fixture must contain admin");
+  assert(reserveRole, "canonical Roles fixture must contain an unassigned lifecycle role");
   adminRole.serverOnlyMarker = "role-hidden-field";
+  reserveRole.serverOnlyMarker = "role-lifecycle-hidden-field";
   const snapshot = {
     version: 1,
     updatedAt: "2026-07-19T00:00:00.000Z",
@@ -223,6 +227,7 @@ async function main() {
     const grantsBefore = JSON.stringify(grantsBeforeRows);
     const assignmentsBefore = JSON.stringify(apiDomains.registries.roleAssignments);
     const adminBefore = structuredClone(apiDomains.registries.accessRoles.find((role) => role.id === "admin"));
+    const reserveBefore = structuredClone(apiDomains.registries.accessRoles.find((role) => role.id === "reserve"));
     primaryAuthorityReady = true;
     await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
     await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&react-roles=1&react-roles-write=1&qa-reload=roles-write` });
@@ -326,13 +331,67 @@ async function main() {
     assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 8, "default-scope cleanup must advance exactly one PostgreSQL revision");
     assert(apiDomains.registries.accessRoles.find((role) => role.id === "master")?.scope === "workCenter", "default-scope cleanup did not restore the original role scope");
     assert(JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsBefore && apiDomains.registries.accessRoles.find((role) => role.id === "admin")?.serverOnlyMarker === "role-hidden-field", "default-scope command changed assignments or a hidden role field");
+    const grantsLifecycleBefore = JSON.stringify(apiDomains.registries.grants);
+
+    const lifecycleAction = async (label) => evaluate(client, (text) => {
+      const button = [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((item) => item.textContent?.trim() === text);
+      button?.click();
+    }, label);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Мастер QA"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-react-role-default-scope="master"]')?.value === "workCenter", { message: "master role was not selected before lifecycle guard" });
+    assert(await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((item) => item.textContent?.trim() === "Деактивировать")?.disabled === true), "assigned role deactivation must be disabled in React");
+    await lifecycleAction("Деактивировать");
+    await delay(100);
+    assert(!await evaluate(client, () => Boolean(document.querySelector('[data-react-role-lifecycle-confirm="master"]'))), "disabled assigned-role action must not open lifecycle confirmation");
+    assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 8, "assigned role rejection must happen before PUT");
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Резервная роль QA"))?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((item) => item.textContent?.trim() === "Деактивировать" && !item.disabled), { message: "unassigned role lifecycle action did not become available" });
+    await lifecycleAction("Деактивировать");
+    await waitForCondition(client, () => document.querySelector('[data-react-role-lifecycle-confirm="reserve"]')?.textContent?.includes("stable ID reserve"), { message: "reserve role lifecycle confirmation did not show exact stable ID" });
+    forceConflictOnce = true;
+    await lifecycleAction("Подтвердить деактивацию");
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("изменились в другом сеансе"), { message: "role lifecycle revision conflict was not visible" });
+    assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 9 && apiDomains.registries.accessRoles.find((role) => role.id === "reserve")?.isActive !== false, "conflicted role deactivation must not mutate System Domains");
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((item) => item.textContent?.trim() === "Подтвердить деактивацию" && !item.disabled), { message: "role lifecycle confirmation did not unlock after conflict" });
+    await lifecycleAction("Подтвердить деактивацию");
+    for (let attempt = 0; attempt < 100 && apiRevision !== 7; attempt += 1) await delay(100);
+    assert(apiRevision === 7 && successfulWrites === 6 && putAttempts === 10, "role deactivation retry must advance exactly one PostgreSQL revision");
+    const reserveInactive = apiDomains.registries.accessRoles.find((role) => role.id === "reserve");
+    assert(reserveInactive?.isActive === false && reserveInactive?.serverOnlyMarker === "role-lifecycle-hidden-field", "role owner did not persist inactive state or preserve hidden fields");
+    assert(JSON.stringify(apiDomains.registries.grants) === grantsLifecycleBefore && JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsBefore, "role deactivation changed grants or assignments");
+
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&qa-reload=roles-lifecycle-legacy-inactive` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-access-role-select="reserve"]')), { message: "legacy Roles did not return for inactive role read-back" });
+    await evaluate(client, () => document.querySelector('[data-access-role-select="reserve"]')?.click());
+    await waitForCondition(client, () => document.querySelectorAll('[data-access-role-permission][data-access-role-id="reserve"]:checked').length === 0, { message: "legacy access enforcement did not deny grants for inactive role" });
+
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&react-roles=1&react-roles-write=1&qa-reload=roles-lifecycle-reactivate` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-roles-island][data-react-island-state="ready"]')), { message: "Roles React did not return for reactivation", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Резервная роль QA"))?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((item) => item.textContent?.trim() === "Активировать" && !item.disabled), { message: "inactive role did not expose reactivation" });
+    assert(await evaluate(client, () => document.querySelectorAll('[data-react-role-grant^="reserve:"]:checked').length === 0), "inactive role must fail closed in the React grants projection");
+    await lifecycleAction("Активировать");
+    await waitForCondition(client, () => document.querySelector('[data-react-role-lifecycle-confirm="reserve"]')?.textContent?.includes("stable ID reserve"), { message: "role reactivation confirmation did not remain ID-bound" });
+    await lifecycleAction("Подтвердить активацию");
+    for (let attempt = 0; attempt < 100 && apiRevision !== 8; attempt += 1) await delay(100);
+    assert(apiRevision === 8 && successfulWrites === 7 && putAttempts === 11, "role reactivation must advance exactly one PostgreSQL revision");
+    const reserveActive = apiDomains.registries.accessRoles.find((role) => role.id === "reserve");
+    assert(reserveActive?.isActive === true && reserveActive?.serverOnlyMarker === "role-lifecycle-hidden-field", "role owner did not restore active state or preserve hidden fields");
+    assert(reserveActive?.label === reserveBefore?.label && reserveActive?.scope === reserveBefore?.scope && reserveActive?.defaultModuleId === reserveBefore?.defaultModuleId, "role lifecycle changed ordinary metadata");
+    assert(JSON.stringify(apiDomains.registries.grants) === grantsLifecycleBefore && JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsBefore, "role reactivation changed grants or assignments");
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&qa-reload=roles-lifecycle-legacy-active` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-access-role-select="reserve"]')), { message: "legacy Roles did not return after reactivation" });
+    await evaluate(client, () => document.querySelector('[data-access-role-select="reserve"]')?.click());
+    await waitForCondition(client, () => document.querySelector('[data-access-role-permission][data-access-role-id="reserve"][data-access-module-id="roles"][data-access-action-id="view"]')?.checked === true, { message: "legacy Roles did not read back restored active grants" });
+    assert(commandRequests.every((request) => request.surface === "access-control" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "all role commands must carry access-control surface, If-Match and idempotency key");
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
     assert(await readFile(sharedStateFile, "utf8") === originalSnapshot, "read-only Roles scenario must not modify state");
     console.log("Roles React production-shell functional QA: OK");
     console.log(`- ${initial.roles} canonical roles, ${initial.modules} modules, explicit assignments: pass`);
     console.log("- server-enabled default without session request: legacy");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
-    console.log("- metadata, grant and default-scope save/cleanup, conflict retry, read-only/dependency guards, hidden field and legacy read-back: pass");
+    console.log("- metadata, grant, default-scope and unassigned-role lifecycle save/cleanup, conflict retry, assignment/read-only/dependency guards, hidden field and legacy read-back: pass");
     console.log("- production and compact UI contracts, unchanged compatibility snapshot and clean console: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());

@@ -35,12 +35,12 @@ Current minified measurements:
 | Contour Admin production island | 207,695 B | 63,983 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
 | Gantt production island | 210,560 B | 64,962 B | 225,000 B | 68,000 B |
-| Roles and Access independent entry | 215,726 B | 65,944 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 219,016 B | 66,400 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 212,161 B | 64,999 B | 225,000 B | 68,000 B |
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 213,503 B | 65,173 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 557,101 B | 126,296 B | 558,000 B | 127,000 B |
+| Full twenty-four-scenario lab | 557,139 B | 126,312 B | 558,000 B | 127,000 B |
 | Shared lab CSS | 29,860 B | 5,345 B | 30,000 B | 5,350 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -88,10 +88,11 @@ then proved one create plus one edit through the existing command owner.
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
 
-The bundled production Roles island is `209,296 B` raw / `65,475 B` gzip /
-`56,485 B` Brotli. Its production-shell first commit remains below the `2,000 ms`
-local gate (`30.00 ms` in the latest full run); metadata/grant/default-scope QA additionally
-proves revision-conflict retry, read-only/dependency guards, cleanup,
+The bundled production Roles island is `211,411 B` raw / `66,049 B` gzip /
+`56,889 B` Brotli. Its production-shell first commit remains below the `2,000 ms`
+local gate (`17.90 ms` in the latest full run); metadata/grant/default-scope and
+unassigned-role lifecycle QA additionally prove revision-conflict retry,
+assigned/current-role fail-closed guards, inactive grant denial, cleanup,
 protected-registry preservation and legacy read-back. This is regression
 evidence, not Pilot acceptance.
 

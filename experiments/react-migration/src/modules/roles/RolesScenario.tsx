@@ -13,10 +13,11 @@ interface RoleMetadataDraft {
 export type RolesReactCommand = { type: "save-metadata"; payload: RoleMetadataDraft };
 export type RoleGrantCommand = { type: "set-grant"; payload: { roleId: string; moduleId: string; action: typeof ROLE_ACTIONS[number]["id"]; allowed: boolean } };
 export type RoleDefaultScopeCommand = { type: "set-default-scope"; payload: { roleId: string; scope: "factory" | "department" | "workCenter" | "self" } };
+export type RoleLifecycleCommand = { type: "deactivate-role" | "reactivate-role"; payload: { roleId: string; confirmRoleId: string } };
 
 export function RolesScenario({ payload, onCommand }: {
   payload: unknown;
-  onCommand?(command: RolesReactCommand | RoleGrantCommand | RoleDefaultScopeCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onCommand?(command: RolesReactCommand | RoleGrantCommand | RoleDefaultScopeCommand | RoleLifecycleCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }) {
   const model = useMemo(() => adaptRoles(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.roles[0]?.id || "");
@@ -25,6 +26,8 @@ export function RolesScenario({ payload, onCommand }: {
   const [saving, setSaving] = useState(false);
   const [grantSavingKey, setGrantSavingKey] = useState("");
   const [scopeSaving, setScopeSaving] = useState(false);
+  const [lifecycleIntent, setLifecycleIntent] = useState<"deactivate" | "reactivate" | "">("");
+  const [lifecycleSaving, setLifecycleSaving] = useState(false);
   const selected = resolveVisibleRole(model.roles, selectedId);
   const visibleDefaultModules = selected ? model.modules.filter((moduleItem) => roleAllows(selected, moduleItem.id, "view")) : [];
   const openMetadataEditor = () => {
@@ -61,6 +64,16 @@ export function RolesScenario({ payload, onCommand }: {
     catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение области роли отклонено."); }
     finally { setScopeSaving(false); }
   };
+  const commitLifecycle = async () => {
+    if (!selected || !onCommand || !lifecycleIntent || lifecycleSaving) return;
+    setLifecycleSaving(true); setCommandError("");
+    try {
+      const result = await onCommand({ type: lifecycleIntent === "reactivate" ? "reactivate-role" : "deactivate-role", payload: { roleId: selected.id, confirmRoleId: selected.id } });
+      if (result && result.ok === false) setCommandError(result.message || "Изменение статуса роли отклонено.");
+      else setLifecycleIntent("");
+    } catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение статуса роли отклонено."); }
+    finally { setLifecycleSaving(false); }
+  };
   const header = <ModuleHeader eyebrow="Система · System Domains" title="Роли и доступ" badge={<span className="lab-badge">{model.canEditMetadata ? "React · metadata evaluation" : "React migration lab"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Роли доступа" title="Роли и доступ">
@@ -70,8 +83,8 @@ export function RolesScenario({ payload, onCommand }: {
           count={role.allowedModuleCount}
           key={role.id}
           label={role.label}
-          meta={`${getRoleScopeLabel(role.scope)} · ${role.readOnly ? "read-only" : "операционная"}`}
-          onClick={() => { setSelectedId(role.id); setDraft(null); setCommandError(""); }}
+          meta={`${getRoleScopeLabel(role.scope)} · ${role.active ? role.readOnly ? "read-only" : "операционная" : "деактивирована"}`}
+          onClick={() => { setSelectedId(role.id); setDraft(null); setLifecycleIntent(""); setCommandError(""); }}
         />
       ))}
     </ModuleSidebar>
@@ -87,14 +100,14 @@ export function RolesScenario({ payload, onCommand }: {
             <MetricCard label="Назначений" value={selected.assignedEmployees.length} />
             <MetricCard label="Область" value={getRoleScopeLabel(selected.scope)} />
           </MetricGrid>
-          <Panel heading={<div className="panel-heading"><div><h2>Паспорт роли</h2><p>Название, описание и стартовый модуль · без изменения grants, scope и назначений</p></div>{draft ? <ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton> : <ActionButton disabled={!model.canEditMetadata} onClick={openMetadataEditor} title={model.canEditMetadata ? "Изменить метаданные через access-control" : "Write evaluation выключен"}>Редактировать паспорт</ActionButton>}</div>}>
+          <Panel heading={<div className="panel-heading"><div><h2>Паспорт роли</h2><p>Название, описание и стартовый модуль · lifecycle отдельно от обычного сохранения</p></div>{draft ? <ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton> : <div className="react-nomenclature-editor-actions"><ActionButton disabled={!model.canEditMetadata} onClick={openMetadataEditor} title={model.canEditMetadata ? "Изменить метаданные через access-control" : "Write evaluation выключен"}>Редактировать паспорт</ActionButton><ActionButton disabled={!model.canEditLifecycle || (selected.active && selected.assignedEmployees.length > 0)} onClick={() => { setLifecycleIntent(selected.active ? "deactivate" : "reactivate"); setCommandError(""); }} title={selected.active && selected.assignedEmployees.length > 0 ? "Сначала переназначьте сотрудников" : "Отдельная lifecycle-команда access-control"} variant={selected.active ? "danger" : "secondary"}>{selected.active ? "Деактивировать" : "Активировать"}</ActionButton></div>}</div>}>
             {draft ? <form className="react-nomenclature-editor" data-react-role-metadata-form onSubmit={(event) => { event.preventDefault(); void saveMetadata(); }}>
               <label><span>Название роли</span><input name="label" onChange={(event) => setDraftField("label", event.currentTarget.value)} required value={draft.label} /></label>
               <label><span>Описание полномочий</span><input name="description" onChange={(event) => setDraftField("description", event.currentTarget.value)} value={draft.description} /></label>
               <label><span>Стартовый модуль</span><select name="defaultModuleId" onChange={(event) => setDraftField("defaultModuleId", event.currentTarget.value)} value={draft.defaultModuleId}><option value="">Не выбран</option>{visibleDefaultModules.map((moduleItem) => <option key={moduleItem.id} value={moduleItem.id}>{moduleItem.label}</option>)}</select></label>
               {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
               <div className="react-nomenclature-editor-actions"><button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : "Сохранить паспорт"}</button></div>
-            </form> : <div className="ui-inline-statuses"><StatusToken label={selected.label} tone="success" /><StatusToken label={selected.defaultModuleLabel} tone="neutral" /><label title="Default scope роли; персональные и assignment scopes остаются в legacy"><span className="sr-only">Область роли</span><select data-react-role-default-scope={selected.id} disabled={!model.canEditDefaultScope || scopeSaving} onChange={(event) => void setDefaultScope(event.currentTarget.value as RoleDefaultScopeCommand["payload"]["scope"])} value={selected.scope}><option value="factory">Вся фабрика</option><option value="department">Свой отдел</option><option value="workCenter">Свои участки</option><option value="self">Только свои записи</option></select></label></div>}
+            </form> : lifecycleIntent ? <div className="react-nomenclature-delete-confirm" data-react-role-lifecycle-confirm={selected.id} role="alertdialog"><h3>{lifecycleIntent === "deactivate" ? "Деактивировать роль?" : "Активировать роль?"}</h3><p>Подтверждается роль <strong>{selected.label}</strong> со stable ID <code>{selected.id}</code>. Grants и назначения не удаляются.</p>{commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}<div className="react-nomenclature-editor-actions"><ActionButton disabled={lifecycleSaving} onClick={() => { setLifecycleIntent(""); setCommandError(""); }} variant="secondary">Отмена</ActionButton><ActionButton disabled={lifecycleSaving} onClick={() => void commitLifecycle()} variant={lifecycleIntent === "deactivate" ? "danger" : "primary"}>{lifecycleSaving ? "Сохранение…" : lifecycleIntent === "deactivate" ? "Подтвердить деактивацию" : "Подтвердить активацию"}</ActionButton></div></div> : <div className="ui-inline-statuses"><StatusToken label={selected.label} tone={selected.active ? "success" : "neutral"} /><StatusToken label={selected.defaultModuleLabel} tone="neutral" /><label title="Default scope роли; персональные и assignment scopes остаются в legacy"><span className="sr-only">Область роли</span><select data-react-role-default-scope={selected.id} disabled={!model.canEditDefaultScope || scopeSaving} onChange={(event) => void setDefaultScope(event.currentTarget.value as RoleDefaultScopeCommand["payload"]["scope"])} value={selected.scope}><option value="factory">Вся фабрика</option><option value="department">Свой отдел</option><option value="workCenter">Свои участки</option><option value="self">Только свои записи</option></select></label></div>}
           </Panel>
           <Panel heading={<div className="panel-heading"><div><h2>Матрица grants</h2><p>Шесть исполняемых действий · должность не является ролью</p></div><StatusToken label={model.canEditGrants ? "PostgreSQL grant evaluation" : "только чтение"} tone={model.canEditGrants ? "success" : "neutral"} /></div>}>
             {commandError && !draft ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
@@ -123,7 +136,7 @@ export function RolesScenario({ payload, onCommand }: {
           { label: "Область", value: getRoleScopeLabel(selected.scope) },
           { label: "Стартовый модуль", value: selected.defaultModuleLabel },
           { label: "Назначенные сотрудники", value: getAssignedEmployeeSummary(selected) },
-          { label: "Статус", value: <StatusToken label={selected.active ? selected.readOnly ? "read-only" : "активна" : "архив"} tone={selected.active ? selected.readOnly ? "warning" : "success" : "neutral"} /> },
+          { label: "Статус", value: <StatusToken label={selected.active ? selected.readOnly ? "read-only" : "активна" : "деактивирована"} tone={selected.active ? selected.readOnly ? "warning" : "success" : "neutral"} /> },
         ] : []}
         title={selected?.label}
       />

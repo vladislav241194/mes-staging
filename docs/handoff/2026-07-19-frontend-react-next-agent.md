@@ -569,3 +569,27 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `6%` осталось (`+1 п.п.`). Прирост относится к замкнутому
   локальному Positions lifecycle; assignment/Pilot acceptance и остальные
   legacy-only scopes не переоценены.
+
+## Продолжение 2026-07-20: Roles unassigned lifecycle checkpoint
+
+- Аудит разделил два advertised поля: `system_access_roles.is_active`
+  персистится и участвует в fail-closed enforcement, а `readOnly` текущий
+  PostgreSQL repository не сохраняет. Поэтому `readOnly` не переносился.
+- React получил отдельные typed `deactivate-role` / `reactivate-role` с
+  двухшаговым подтверждением exact stable ID. Host повторно проверяет
+  `roles:configure`, PostgreSQL command readiness и делегирует existing
+  `updateAccessRole` на revision-checked `access-control` surface.
+- Деактивация разрешена только для роли без явных назначений и никогда для
+  effective role текущего пользователя. Grants, assignments, ordinary metadata
+  и hidden fields не меняются; inactive role немедленно даёт fail-closed grants.
+- Production-shell QA доказывает disabled assigned-role path без PUT,
+  conflict/retry деактивации, inactive React/legacy read-back, ID-bound
+  reactivation, exact revision/If-Match/idempotency и восстановление исходных
+  grants. First commit `17.90 ms`.
+- Performance: independent `219016 / 66400 B`, bundled production
+  `211411 / 66049 / 56889 B`, full lab `557139 / 126312 B`; gates зелёные.
+  Pilot write/deploy/version/flags не менялись, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `95%`
+  выполнено, примерно `5%` осталось (`+1 п.п.`). Прирост относится только к
+  unassigned-role lifecycle; assignments, scopes, `readOnly`, assigned-role
+  lifecycle, Pilot acceptance и остальные legacy-only scopes не переоценены.
