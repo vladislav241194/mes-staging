@@ -38,4 +38,5 @@ export { mountNomenclatureReactIsland } from "./nomenclature-island";
 export { mountBoardsReactIsland } from "./boards-island";
 export { mountStructureEmployeesReactIsland } from "./structure-employees-island";
 export { mountRolesReactIsland } from "./roles-island";
+export { mountComponentTypesReactIsland } from "./component-types-island";
 export type { ReactMigrationIslandHandle, ReactMigrationIslandOptions, ReactMigrationIslandReadyEvent } from "./island-runtime";

@@ -21,3 +21,8 @@ export function resolveVisibleComponentType(items: ComponentTypeItem[], selected
 export function formatInteger(value: number): string {
   return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value);
 }
+
+export function formatDecimal(value: number, digits = 2): string {
+  const rounded = Math.round(value * 10 ** digits) / 10 ** digits;
+  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: digits }).format(rounded);
+}

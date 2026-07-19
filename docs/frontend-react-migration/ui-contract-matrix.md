@@ -142,3 +142,12 @@ PostgreSQL read readiness plus a per-session evaluation request. Production-
 shell browser QA covers the legacy default, canonical role/module/assignment
 rendering, disabled writes, unchanged state, commit telemetry, and clean
 console.
+
+## Directories Component Types production evidence
+
+The existing Component Types proof now has a narrow production host for the
+`componentTypes` section. Its eight visible cells are compared against the
+actual legacy directory renderer on the same payload and order. React preserves
+Russian number/unit formatting, family filtering, keyboard-capable selection,
+detail context, and an explicit return to the full legacy directories list.
+Create/edit/delete and every other directory section remain legacy.

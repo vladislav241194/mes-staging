@@ -76,6 +76,7 @@ import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
+import { createDirectoryComponentTypesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2430,6 +2431,40 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   getTargetRoot: () => app,
   requestLegacyRender: () => {
     if (ui.activeModule === "roles") render({ skipRememberScroll: true });
+  },
+});
+function getDirectoryComponentTypesReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-directory-component-types") === "1",
+    readOnlyEvaluation: params.get("react-directory-component-types-readonly") === "1",
+  };
+}
+function isDirectoryComponentTypesReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-directory-component-types-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReactIslandHost({
+  getActivation: () => {
+    const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES === true || localQa.featureFlagEnabled,
+      activeSection: normalizeDirectorySectionId(ui.activeDirectory),
+      accessMode: (serverEvaluationAllowed && isDirectoryComponentTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => directoryState,
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, sectionId) => {
+    ui.activeDirectory = normalizeDirectorySectionId(sectionId || "operations");
+    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
   },
 });
 function ensureNomenclatureRenderModule() {
@@ -6100,9 +6135,15 @@ function initializeModuleRuntime() {
             content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
           });
         }
+        const reactDecision = directoryComponentTypesReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return directoryComponentTypesReactIslandHost.renderTarget();
         return renderDirectoryPage();
       },
-      bind: () => bindDirectoryEvents(),
+      bind: () => {
+        if (directoryComponentTypesReactIslandHost.isReactEligible()) return;
+        bindDirectoryEvents();
+      },
+      afterRender: () => { void directoryComponentTypesReactIslandHost.mount(); },
     },
     specifications2: {
       render: () => {

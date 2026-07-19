@@ -44,11 +44,19 @@ Nomenclature was rechecked after extracting the shared action/row/detail
 components. Its four-row initial state and zero-count `EmptyState` path remained
 functional with no console warnings/errors.
 
-## Not yet proven
+## Production integration
 
-- live MES payload parity;
-- mounting in the legacy application;
-- write commands;
-- feature-flag rollback or Pilot acceptance.
+The scenario now has an independent production bundle and uses the shared
+island host only for the `componentTypes` directory section. Activation requires
+two false-by-default server flags and a per-session evaluation request. All
+other directory sections and every edit-capable session remain legacy.
 
-Those gates remain downstream of PostgreSQL acceptance and the required rebase.
+Production-shell QA compares the same four-row runtime payload in legacy and
+React. All eight formatted cells and row order match, including Russian decimal
+format and the `комп./ч`, `сек`, and `шт.` units. Family filtering, selection,
+detail, return to legacy Operations, disabled React writes, unchanged state,
+clean console, and a `< 25 ms` local first commit pass. The production artifact
+is `201,269 B` raw / `63,156 B` gzip / `54,455 B` Brotli.
+
+No release or Pilot activation exists yet. Authenticated Pilot acceptance and
+rollback proof remain pending.

@@ -43,6 +43,12 @@ browser storage, or manipulate DOM outside its target.
 the first feature-flag integration. Component Types proves the generic boundary
 in the lab but is not approved for production activation yet.
 
+`mountComponentTypesReactIsland(...)` owns only the Directories `componentTypes`
+read slice. Its host requires two explicit server permissions, the active
+section, and a per-session evaluation request. Choosing “Все справочники”, any
+other section, or editor access restores or retains the legacy Directories
+runtime and its commands.
+
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
 the read-only Boards/BOM scenario. Its production host requires a separate
 false-by-default feature permission, read-only permission, session request and

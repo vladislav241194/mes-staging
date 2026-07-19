@@ -589,6 +589,8 @@ try {
   assert.equal(componentTypesViewModel.filterComponentTypes(componentTypes, "Дискреты").length, 0);
   assert.equal(componentTypesViewModel.resolveVisibleComponentType(componentTypes, "missing")?.id, "ct-valid");
   assert.match(componentTypesViewModel.formatInteger(64400), /64[^\d]?400/);
+  assert.equal(componentTypesViewModel.formatDecimal(0.7), "0,7");
+  assert.equal(componentTypesViewModel.formatDecimal(0.226), "0,23");
 
   const selectionOutput = join(temporaryRoot, "selection.mjs");
   await build({
@@ -783,6 +785,10 @@ try {
   const rolesIslandSource = await readFile(join(sourceRoot, "roles-island.tsx"), "utf8");
   assert.match(rolesIslandSource, /export function mountRolesReactIsland/);
 
+  const componentTypesIslandSource = await readFile(join(sourceRoot, "component-types-island.tsx"), "utf8");
+  assert.match(componentTypesIslandSource, /export function mountComponentTypesReactIsland/);
+  assert.match(componentTypesIslandSource, /onRequestLegacy/);
+
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
@@ -899,6 +905,31 @@ try {
   assert.deepEqual(eligibleRolesProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleRolesProductionHost.renderTarget(), /data-react-roles-island/);
 
+  const directoryComponentTypesHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/directories/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeDirectoryComponentTypesHost = (activation) => directoryComponentTypesHostModule.createDirectoryComponentTypesReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeDirectoryComponentTypesHost({ featureFlagEnabled: false, activeSection: "componentTypes", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "Directory Component Types island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "unsupported-scope" },
+    "other directory sections must remain legacy",
+  );
+  assert.deepEqual(
+    makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "directory editors must retain legacy commands",
+  );
+  const eligibleDirectoryComponentTypesHost = makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleDirectoryComponentTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleDirectoryComponentTypesHost.renderTarget(), /data-react-directory-component-types-island/);
+
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
@@ -935,6 +966,13 @@ try {
   assert.match(productionAppSource, /rolesReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /rolesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /moduleDefinitions: getModuleDefinitions\(\)/);
+  assert.match(productionAppSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES === true/);
+  assert.match(productionAppSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-directory-component-types"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-component-types-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-component-types-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /directoryComponentTypesReactIslandHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /directoryComponentTypesReactIslandHost\.mount\(\)/);
   const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.js"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
@@ -947,6 +985,9 @@ try {
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
+  const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");
+  assert.match(directoryComponentTypesHostSource, /createReactIslandHost/);
+  assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("operations"\)/);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
@@ -954,12 +995,14 @@ try {
   assert.match(productionBuildSource, /react-islands", "boards\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
   assert.match(productionBuildSource, /react-islands", "roles\.js/);
+  assert.match(productionBuildSource, /react-islands", "component-types\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(boardsReactIslandVersionMarker, boardsReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(rolesReactIslandVersionMarker, rolesReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
@@ -970,6 +1013,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_ROLES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -979,6 +1024,7 @@ try {
   assert.match(performanceBudget, /"nomenclature"/);
   assert.match(performanceBudget, /"boards"/);
   assert.match(performanceBudget, /"structureEmployees"/);
+  assert.match(performanceBudget, /"componentTypes"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
@@ -990,11 +1036,14 @@ try {
   assert.match(productionStructureIslandBundle, /mountStructureEmployeesReactIsland/);
   const productionRolesIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/roles.js"), "utf8");
   assert.match(productionRolesIslandBundle, /mountRolesReactIsland/);
+  const productionComponentTypesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/component-types.js"), "utf8");
+  assert.match(productionComponentTypesBundle, /mountComponentTypesReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_ROLES_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

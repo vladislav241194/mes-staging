@@ -411,6 +411,23 @@ await writeFile(
   rolesReactIslandHostSource.replaceAll(rolesReactIslandVersionMarker, rolesReactIslandVersion),
 );
 
+const directoryComponentTypesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "component-types.js");
+await bundleReactMigrationIsland(
+  join(projectRoot, "experiments", "react-migration", "src", "component-types-island.tsx"),
+  directoryComponentTypesReactIslandOutput,
+);
+const directoryComponentTypesReactIslandVersion = await fileHash(directoryComponentTypesReactIslandOutput);
+const directoryComponentTypesReactIslandHostPath = join(stagingDistDir, "src", "modules", "directories", "react_island_host.js");
+const directoryComponentTypesReactIslandHostSource = await readFile(directoryComponentTypesReactIslandHostPath, "utf8");
+const directoryComponentTypesReactIslandVersionMarker = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
+if (!directoryComponentTypesReactIslandHostSource.includes(directoryComponentTypesReactIslandVersionMarker)) {
+  throw new Error("Cannot find Directory Component Types React island bundle version marker");
+}
+await writeFile(
+  directoryComponentTypesReactIslandHostPath,
+  directoryComponentTypesReactIslandHostSource.replaceAll(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion),
+);
+
 // The token is intentionally calculated before esbuild emits dynamic chunks.
 // Deriving it from output chunk names creates a circular hash graph and makes
 // identical source produce different cache URLs on consecutive builds.
@@ -499,5 +516,6 @@ console.log(`- src/react-islands/nomenclature.js?v=${nomenclatureReactIslandVers
 console.log(`- src/react-islands/boards.js?v=${boardsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-employees.js?v=${structureEmployeesReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
+console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

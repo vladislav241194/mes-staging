@@ -95,7 +95,7 @@ header and page contracts. This closes the one-off-prototype risk for the
 registry family: shared behavior now has two consumers, while entity columns
 remain scenario-specific.
 
-Five scenarios are available through the generic reversible island boundary.
+Five scenario families are available through the generic reversible island boundary.
 Nomenclature remains the first production feature-flag scope; Component Types
 is an isolated reuse proof. Structure Employees is the first canonical System
 Domains read-model proof and the second production-integrated island. Boards/BOM
@@ -191,6 +191,14 @@ keeps every write disabled, leaves state unchanged and records a `< 25 ms`
 local first commit. Its production artifact is `204,264 B` raw / `64,094 B`
 gzip / `55,289 B` Brotli. It has not been released or activated on Pilot.
 
+Directories Component Types is now the fifth production-integrated read-only
+island. It activates only inside `componentTypes`, behind two server flags and
+a per-session request. Production-shell QA proves literal parity for four rows,
+eight formatted cells and order, including `комп./ч`, `сек`, and `шт.` units;
+family filtering, selection/detail, legacy return, unchanged state and clean
+console pass. Its artifact is `201,269 B` raw / `63,156 B` gzip / `54,455 B`
+Brotli. It has not been released or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -212,8 +220,8 @@ will be repeated after the Structure Employees commit and before rebasing.
 1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Boards/BOM, Structure Employees and Roles/Access read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState` and for Structure Employees using PostgreSQL-hydrated System Domains; no fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Boards/BOM and Roles/Access; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature and Directories Component Types using current `directoryState`, and for Structure Employees and Roles/Access using PostgreSQL-hydrated System Domains; no fixture reaches production.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Boards/BOM, Roles/Access and Directories Component Types; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 
