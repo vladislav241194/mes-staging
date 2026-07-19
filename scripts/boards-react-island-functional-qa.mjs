@@ -19,6 +19,46 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function createStoredZip(entries) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const [name, content] of entries) {
+    const nameBytes = Buffer.from(name);
+    const data = Buffer.from(content);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt32LE(0, 6); local.writeUInt32LE(0, 10);
+    local.writeUInt32LE(0, 14); local.writeUInt32LE(data.length, 18); local.writeUInt32LE(data.length, 22); local.writeUInt16LE(nameBytes.length, 26);
+    locals.push(local, nameBytes, data);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt32LE(0, 8); central.writeUInt32LE(0, 12);
+    central.writeUInt32LE(0, 16); central.writeUInt32LE(data.length, 20); central.writeUInt32LE(data.length, 24); central.writeUInt16LE(nameBytes.length, 28); central.writeUInt32LE(offset, 42);
+    centrals.push(central, nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  }
+  const centralDirectory = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0); eocd.writeUInt16LE(entries.length, 8); eocd.writeUInt16LE(entries.length, 10); eocd.writeUInt32LE(centralDirectory.length, 12); eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralDirectory, eocd]);
+}
+
+function createBomXlsxFixture() {
+  const escapeXml = (value) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const rows = [
+    ["№", "Описание", "Обозначение в схеме", "Артикул производителя", "Производитель", "Корпус", "Кол-во", "Примечание", "Поле I"],
+    [1, "Диод QA", "VD1", "DIODE-QA", "Nexperia", "SOD-123", 2, "Импорт QA", "I-QA"],
+    [2, "Резистор QA", "R1", "RES-QA", "Yageo", "0603", 4, "", ""],
+  ];
+  const sheetRows = rows.map((row, rowIndex) => `<row r="${rowIndex + 1}">${row.map((value, columnIndex) => {
+    const ref = `${String.fromCharCode(65 + columnIndex)}${rowIndex + 1}`;
+    return typeof value === "number" ? `<c r="${ref}"><v>${value}</v></c>` : `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(value)}</t></is></c>`;
+  }).join("")}</row>`).join("");
+  return createStoredZip([
+    ["xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook><sheets><sheet name="QA BOM" sheetId="1"/></sheets></workbook>'],
+    ["xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8"?><worksheet><sheetData>${sheetRows}</sheetData></worksheet>`],
+  ]);
+}
+
 function createDirectoryFixture() {
   return {
     bomLists: [
@@ -92,6 +132,7 @@ async function main() {
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
   const writeSharedStateFile = join(temporaryRoot, "write-shared-state.json");
   const directoryFixture = createDirectoryFixture();
+  const xlsxFixtureBase64 = createBomXlsxFixture().toString("base64");
   const snapshot = {
     version: 1,
     updatedAt: "2026-07-19T00:00:00.000Z",
@@ -272,14 +313,51 @@ async function main() {
       badge: document.querySelector(".lab-badge")?.textContent?.trim() || "",
       boards: document.querySelectorAll('[data-ui-component="SidebarItem"]').length - 1,
       newDisabled: [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Новая плата"))?.disabled,
-      importDisabled: [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Импортировать"))?.disabled,
+      importInputs: document.querySelectorAll('input[aria-label="Импортировать BOM из Excel"]:not(:disabled)').length,
       addForm: document.querySelectorAll('[data-react-bom-nomenclature-add="board-control"]').length,
       addOptionValues: [...document.querySelectorAll('[data-react-bom-nomenclature-add="board-control"] option')].map((option) => option.value).filter(Boolean),
     }));
-    assert(writeInitial.badge.includes("create/edit") && writeInitial.boards === 2 && writeInitial.newDisabled === false && writeInitial.importDisabled === true && writeInitial.addForm === 1, `Boards write capability boundary failed: ${JSON.stringify(writeInitial)}`);
+    assert(writeInitial.badge.includes("create/edit") && writeInitial.boards === 2 && writeInitial.newDisabled === false && writeInitial.importInputs === 1 && writeInitial.addForm === 1, `Boards write capability boundary failed: ${JSON.stringify(writeInitial)}`);
     assert(writeInitial.addOptionValues.includes("rea-add") && !writeInitial.addOptionValues.includes("pcb-001"), `Boards add options must expose owner-eligible REA only: ${JSON.stringify(writeInitial.addOptionValues)}`);
     await delay(250);
     const planningBeforeWrite = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
+
+    const beforeInvalidImport = await readFile(writeSharedStateFile, "utf8");
+    await evaluate(client, () => {
+      const input = document.querySelector('input[aria-label="Импортировать BOM из Excel"]');
+      if (!input) throw new Error("Missing React BOM import input");
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(["not-xlsx"], "invalid.txt", { type: "text/plain" }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("формате XLSX или XLS"), { message: "invalid BOM import extension was not rejected" });
+    await delay(160);
+    assert(await readFile(writeSharedStateFile, "utf8") === beforeInvalidImport, "invalid BOM import mutated the disposable state");
+
+    await evaluate(client, (base64) => {
+      const input = document.querySelector('input[aria-label="Импортировать BOM из Excel"]');
+      if (!input) throw new Error("Missing React BOM import input for XLSX");
+      const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([bytes], "Плата Excel QA.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, xlsxFixtureBase64);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].some((item) => item.textContent.includes("Плата Excel QA")) && document.querySelectorAll(".bom-table tbody tr").length === 2 && !document.querySelector('[role="alert"]'), { message: "BOM XLSX owner result did not return to React", timeoutMs: 10_000 });
+    let afterBomImport = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const persistedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      afterBomImport = JSON.parse(persistedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (afterBomImport.bomLists.some((board) => board.sourceFileName === "Плата Excel QA.xlsx")) break;
+      await delay(120);
+    }
+    const importedBoard = afterBomImport.bomLists.find((board) => board.sourceFileName === "Плата Excel QA.xlsx");
+    assert(importedBoard?.name === "Плата Excel QA" && importedBoard.sourceSheetName === "QA BOM" && importedBoard.importRows.length === 2, `imported Board metadata mismatch: ${JSON.stringify(importedBoard)}`);
+    assert(JSON.stringify(importedBoard.importHeaders) === JSON.stringify(["№", "Описание", "Обозначение в схеме", "Артикул производителя", "Производитель", "Корпус", "Кол-во", "Примечание", "Поле I"]), "XLSX owner did not preserve the nine headers");
+    assert(JSON.stringify(importedBoard.importRows[0].values) === JSON.stringify([1, "Диод QA", "VD1", "DIODE-QA", "Nexperia", "SOD-123", 2, "Импорт QA", "I-QA"]) && importedBoard.c0603 === 4 && importedBoard.csot23 === 2, "XLSX owner did not preserve rows or calculate component totals");
+    assert(afterBomImport.nomenclature.some((item) => item.sourceBomResultId === importedBoard.id && item.article === "Плата Excel QA") && afterBomImport.nomenclature.some((item) => item.article === "DIODE-QA" && item.sourceBomIds?.includes(importedBoard.id)), "XLSX import did not synchronize Board result and component Nomenclature");
+    assert(JSON.stringify(JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY])) === JSON.stringify(planningBeforeWrite), "BOM XLSX import changed Planning state");
 
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent.includes("Плата питания"))?.click());
     await waitForCondition(client, () => Boolean(document.querySelector('[data-react-bom-nomenclature-add="board-power"]')), { message: "empty Board did not expose the bounded Nomenclature row-add form" });
@@ -492,6 +570,10 @@ async function main() {
     await waitForCondition(client, () => document.querySelector('[data-bom-import-cell="board-power"][data-bom-row-index="0"][data-bom-column-index="3"]')?.value === "CAP0603-1U", { message: "legacy Boards did not read back the Nomenclature-added BOM row" });
     const legacyAddedBomValues = await evaluate(client, () => [...document.querySelectorAll('.bom-import-table tbody tr:first-child [data-bom-import-cell]')].map((input) => input.value));
     assert(JSON.stringify(legacyAddedBomValues) === JSON.stringify(["1", "Конденсатор 1 мкФ", "", "CAP0603-1U", "Murata", "0603", "1", "Добавлено из номенклатуры", ""]), `legacy Boards row-add read-back mismatch: ${JSON.stringify(legacyAddedBomValues)}`);
+    await evaluate(client, () => document.querySelector('[data-bom-open]') && [...document.querySelectorAll('[data-bom-open]')].find((button) => button.textContent.includes("Плата Excel QA"))?.click());
+    await waitForCondition(client, () => document.querySelectorAll(".bom-import-table tbody tr").length === 2 && document.querySelector('[data-bom-import-cell][data-bom-row-index="0"][data-bom-column-index="3"]')?.value === "DIODE-QA", { message: "legacy Boards did not read back the XLSX-imported BOM" });
+    const legacyImportedRows = await evaluate(client, () => [...document.querySelectorAll(".bom-import-table tbody tr")].map((row) => [...row.querySelectorAll("[data-bom-import-cell]")].map((input) => input.value)));
+    assert(JSON.stringify(legacyImportedRows) === JSON.stringify([["1", "Диод QA", "VD1", "DIODE-QA", "Nexperia", "SOD-123", "2", "Импорт QA", "I-QA"], ["2", "Резистор QA", "R1", "RES-QA", "Yageo", "0603", "4", "", ""]]), `legacy XLSX import read-back mismatch: ${JSON.stringify(legacyImportedRows)}`);
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1&react-boards=1&react-boards-write=1` });
     await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"] .lab-badge')), { message: "Boards write evaluation did not remount its React content after legacy read-back", timeoutMs: 15_000 });
 
@@ -527,7 +609,7 @@ async function main() {
       await delay(120);
     }
     assert(!persistedAfterDelete.bomLists.some((board) => board.id === "board-control"), "Board delete did not persist the BOM removal");
-    assert(persistedAfterDelete.bomLists.some((board) => board.id === createdBoard.id) && persistedAfterDelete.bomLists.some((board) => board.id === "board-power"), "Board delete changed unrelated boards");
+    assert(persistedAfterDelete.bomLists.some((board) => board.id === createdBoard.id) && persistedAfterDelete.bomLists.some((board) => board.id === "board-power") && persistedAfterDelete.bomLists.some((board) => board.id === importedBoard.id), "Board delete changed unrelated boards");
     assert(persistedAfterDelete.bomLists.find((board) => board.id === "board-power")?.importRows?.[0]?.nomenclatureId === "rea-add", "Board delete changed the independently added BOM row");
     const specificationAfterDelete = persistedAfterDelete.specifications.find((specification) => specification.id === "spec-board-control");
     assert(specificationAfterDelete?.bomListA === "" && Number(specificationAfterDelete?.bomQtyA || 0) === 0, `Board delete did not clear direct Specifications references: ${JSON.stringify(specificationAfterDelete)}`);
@@ -537,7 +619,7 @@ async function main() {
     assert(JSON.stringify(planningProjection(planningAfterDelete)) === JSON.stringify(planningProjection(planningAfterWrite)), "Board delete changed Planning routes/steps/slots");
 
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1` });
-    await waitForCondition(client, () => document.querySelectorAll("[data-bom-open]").length === 2, { message: "legacy Boards did not read back two remaining boards after delete" });
+    await waitForCondition(client, () => document.querySelectorAll("[data-bom-open]").length === 3, { message: "legacy Boards did not read back three remaining boards after delete" });
     assert(!await evaluate(client, () => Boolean(document.querySelector('[data-bom-open="board-control"]'))), "legacy Boards still exposed the deleted board");
     assert(consoleProblems.length === 0, `browser console must stay clean after Boards write:\n${consoleProblems.join("\n")}`);
     console.log("Boards React production-shell functional QA: OK");
@@ -547,7 +629,7 @@ async function main() {
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log(`- return to legacy Nomenclature with ${returned.legacyRows} normalized rows: pass`);
-    console.log("- local RBAC-gated Nomenclature row add, all nine BOM cell edits, ID/table-bound row delete and board create/edit/delete, owner normalization, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
+    console.log("- local RBAC-gated XLSX import, Nomenclature row add, all nine BOM cell edits, ID/table-bound row delete and board create/edit/delete, owner normalization, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
   } catch (error) {
     if (chrome) {
       const browserState = await evaluate(chrome.client, () => ({

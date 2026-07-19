@@ -115,7 +115,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
-| 7 | Boards/BOM | Local complete manual lifecycle: board metadata create/edit/delete, Nomenclature row add, all nine existing-row BOM cell edits and ID/table-bound row deletion with Specifications cleanup; Excel import remains legacy | Medium | Separately gated Pilot read-only evaluation, then metadata/manual-row lifecycle write with a disposable board |
+| 7 | Boards/BOM | Local complete: XLSX import, board metadata create/edit/delete, Nomenclature row add, all nine existing-row BOM cell edits and ID/table-bound row deletion with Specifications cleanup | Medium | Separately gated Pilot read-only evaluation, then a disposable XLSX/board full-lifecycle write with verified cleanup |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit/archive with active-dependency rejection and ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable unreferenced employee; reactivation remains legacy |
 | 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: create/edit/archive with hierarchy-cycle and active-reference rejection plus ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf unit; reactivation remains owner-gap |
@@ -194,8 +194,11 @@ owner audit also repaired the missing `upsertBomResultToNomenclature` and
 `getBomImportRows` dependencies in the lazy path. The typed Nomenclature row-add
 now delegates to the existing `addNomenclatureToBom`, verifies the unchanged
 prefix plus one linked authoritative row, preserves owner sequence/note/totals
-and reads the result through legacy. Excel import remains the only Boards
-command slice in legacy; component counters remain a compatibility fallback
+and reads the result through legacy. Typed XLSX import now hands the original
+browser `File` to `importBomFromXlsxFile`; the owner retains ZIP/XML parsing,
+normalization, board/result/component creation and persistence, while React
+accepts only the authoritative non-empty imported board. Boards has no known
+remaining local command gap; component counters remain a compatibility fallback
 rather than a React command.
 
 Structure Employees is the first locally complete PostgreSQL-backed React

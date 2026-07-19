@@ -85,6 +85,7 @@ export interface BoardsModel {
   selectedBoardId: string;
   canCreateEdit: boolean;
   canDelete: boolean;
+  canImportBom: boolean;
   canAddBomRows: boolean;
   canEditBomRows: boolean;
   canDeleteBomRows: boolean;
@@ -235,6 +236,7 @@ export function adaptBoardsModel(payload: unknown): BoardsModel {
     selectedBoardId: boards.some((board) => board.id === text(root.selectedBoardId)) ? text(root.selectedBoardId) : boards[0]?.id || "",
     canCreateEdit: capabilities.createEdit === true,
     canDelete: capabilities.delete === true,
+    canImportBom: capabilities.bomImport === true,
     canAddBomRows: capabilities.bomRowAdd === true,
     canEditBomRows: capabilities.bomRowEdit === true,
     canDeleteBomRows: capabilities.bomRowDelete === true,

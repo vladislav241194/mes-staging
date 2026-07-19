@@ -136,7 +136,9 @@ retained. The host supplies the
 owner-calculated delete-usage projection; React never reimplements
 Specifications linkage. Delete clears only the selected board references,
 retains the independent Nomenclature result and leaves Planning unchanged.
-Excel import remains a protected legacy slice.
+The compact file action is enabled only by exact `bomImport`; it sends the
+original browser `File` through the typed host boundary and never parses XLSX in
+React.
 
 ## Structure Employees read-model evidence
 

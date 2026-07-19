@@ -74,10 +74,11 @@ export function BoardsScenario({
     const result = await runCommand({ type: "add-bom-nomenclature-row", payload: { bomId: selected.id, nomenclatureId, expectedRows: selected.rows.map((item) => [...item.values]) } }, "Не удалось добавить строку BOM.");
     if (result && result.ok !== false) setNomenclatureId("");
   };
+  const importBom = async (file: File) => runCommand({ type: "import-bom-xlsx", payload: { file, expectedBoardIds: boards.map((board) => board.id) } }, "Не удалось импортировать BOM из Excel.");
 
   return (
     <ModulePage header={header} sidebar={sidebar}>
-      <Panel heading={<div className="panel-heading"><div><h2>{selected?.name || "Плата не выбрана"}</h2><p>{selected ? `${selected.rows.length} строк · покомпонентный расчет платы` : "Выберите плату в перечне"}</p></div><div className="react-nomenclature-detail-actions"><ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createBoardDraft())} title={model.canCreateEdit ? "Создать карточку платы" : "Write evaluation выключен"}>Новая плата</ActionButton><ActionButton disabled title="Excel-импорт остаётся отдельным legacy-срезом">Импортировать *.xlsx</ActionButton></div></div>}>
+      <Panel heading={<div className="panel-heading"><div><h2>{selected?.name || "Плата не выбрана"}</h2><p>{selected ? `${selected.rows.length} строк · покомпонентный расчет платы` : "Выберите плату в перечне"}</p></div><div className="react-nomenclature-detail-actions"><ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createBoardDraft())} title={model.canCreateEdit ? "Создать карточку платы" : "Write evaluation выключен"}>Новая плата</ActionButton>{model.canImportBom ? <label className="react-bom-import-action">{saving ? "Импорт…" : "Импортировать *.xlsx"}<input accept=".xlsx,.xls" aria-label="Импортировать BOM из Excel" disabled={saving} onChange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (!file) return; void importBom(file).finally(() => { input.value = ""; }); }} type="file" /></label> : <ActionButton disabled title="Excel-импорт доступен только в write evaluation">Импортировать *.xlsx</ActionButton>}</div></div>}>
         {selected && model.canAddBomRows ? <form className="react-bom-nomenclature-add" data-react-bom-nomenclature-add={selected.id} onSubmit={(event) => { event.preventDefault(); void addBomNomenclatureRow(); }}>
           <label><span>Добавить строку из номенклатуры</span><select aria-label="РЭА-компонент для BOM" disabled={saving || !model.bomNomenclatureOptions.length} onChange={(event) => setNomenclatureId(event.currentTarget.value)} value={nomenclatureId}><option value="">Выберите РЭА-компонент</option>{model.bomNomenclatureOptions.map((option) => <option key={option.id} value={option.id}>{option.label}{option.meta ? ` · ${option.meta}` : ""}</option>)}</select></label>
           <button disabled={saving || !nomenclatureId} type="submit">Добавить строку</button>
@@ -153,6 +154,7 @@ const createBoardDraft = (board?: BoardItem): BoardDraft => ({ isNew: !board, bo
 export type BoardsReactCommand =
   | { type: "save"; payload: BoardDraft }
   | { type: "delete"; payload: { bomId: string } }
+  | { type: "import-bom-xlsx"; payload: { file: File; expectedBoardIds: readonly string[] } }
   | { type: "add-bom-nomenclature-row"; payload: { bomId: string; nomenclatureId: string; expectedRows: readonly (readonly (string | number)[])[] } }
   | { type: "update-bom-quantity"; payload: { bomId: string; rowIndex: number; expectedValues: readonly (string | number)[]; quantity: string } }
   | { type: "update-bom-cell"; payload: { bomId: string; rowIndex: number; columnIndex: number; expectedValues: readonly (string | number)[]; value: string } }

@@ -2478,6 +2478,7 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
       capabilities: {
         createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         delete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomImport: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         bomRowAdd: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         bomRowEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         bomRowDelete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
@@ -2499,10 +2500,22 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
-    if (!["save", "delete", "add-bom-nomenclature-row", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Excel-импорт остаётся в legacy-контуре." };
+    if (!["save", "delete", "import-bom-xlsx", "add-bom-nomenclature-row", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Команда Boards не поддерживается." };
     if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     const rowSignature = (values = []) => values.map((value, index) => index === 6 ? Number(value || 0) : String(value ?? "").trim());
+    if (command.type === "import-bom-xlsx") {
+      const file = input.file; const fileName = String(file?.name || "").trim();
+      const expectedBoardIds = Array.isArray(input.expectedBoardIds) ? input.expectedBoardIds.map((value) => String(value || "").trim()).filter(Boolean).sort() : null;
+      const actualBoardIds = (directoryState.bomLists || []).map((bom) => String(bom?.id || "").trim()).filter(Boolean).sort();
+      if (!file || typeof file.arrayBuffer !== "function" || !fileName || !/\.(xlsx|xls)$/i.test(fileName)) return { ok: false, message: "Выберите файл Excel в формате XLSX или XLS." };
+      if (!expectedBoardIds || JSON.stringify(actualBoardIds) !== JSON.stringify(expectedBoardIds)) return { ok: false, message: "Список плат изменился в другом сеансе. Обновите экран и повторите импорт." };
+      await importBomFromXlsxFile(file);
+      const importedBom = getBomList(String(ui.activeBomId || "")); const importedRows = getBomImportRows(importedBom);
+      if (!importedBom || importedBom.sourceFileName !== fileName || !importedRows.length) return { ok: false, message: "Владелец BOM не подтвердил импорт Excel." };
+      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
+      return { ok: true, id: importedBom.id, rowCount: importedRows.length };
+    }
     if (command.type === "add-bom-nomenclature-row") {
       const bomId = String(input.bomId || "").trim(); const nomenclatureId = String(input.nomenclatureId || "").trim();
       const bom = getBomList(bomId); const rows = getBomImportRows(bom); const nomenclatureItem = getNomenclatureItem(nomenclatureId);

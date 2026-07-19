@@ -436,3 +436,26 @@ actions/console, затем немедленно деактивировать и
   write/release/flags не менялись, legacy rollback сохранён. После блока
   доказательная оценка глобальной миграции: примерно `88%` выполнено, примерно
   `12%` осталось (`+1 п.п.`).
+
+## Продолжение 2026-07-20: Boards/BOM XLSX import checkpoint
+
+- Закрыт последний известный Boards command gap. Typed `import-bom-xlsx`
+  передаёт исходный browser `File` и expected board-ID snapshot; host проверяет
+  local write/RBAC, расширение и concurrent list, затем вызывает существующий
+  `importBomFromXlsxFile`. ZIP/XML parsing, headers/rows normalization, totals,
+  board/result/component Nomenclature и persistence остались в owner.
+- Успех принимается только по owner read-back непустой платы с совпадающим
+  `sourceFileName`; `ui.activeBomId` возвращает импортированную плату в React.
+  Exact boolean `bomImport` fail-closed; read-only по-прежнему показывает
+  disabled action без file input.
+- Production-shell QA строит минимальный настоящий stored-ZIP XLSX в памяти.
+  `invalid.txt` byte-stable отклоняется, затем `Плата Excel QA.xlsx` создаёт две
+  строки, девять заголовков, sheet `QA BOM`, totals `SOD-123=2`/`0603=4`, result
+  и component Nomenclature. Planning неизменен; legacy читает обе строки A:I.
+- Все прежние Boards regressions остаются зелёными. Performance: Boards
+  `221436 / 67304 B`, full lab `557101 / 126296 B`; first commit `20.30 ms`.
+  Локальных известных command gaps у Boards больше нет.
+- Pilot write/release/flags не менялись, legacy rollback сохранён. После блока
+  доказательная оценка глобальной миграции: примерно `89%` выполнено, примерно
+  `11%` осталось (`+1 п.п.`); остаток относится к другим модулям и внешним
+  Pilot gates, а не к локальному Boards command parity.
