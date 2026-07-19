@@ -140,3 +140,29 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .specifications2-react-object small { color: #718296; font-size: 9px; }
 .specifications2-react-detail { display: grid; align-content: start; gap: 12px; }
 .specifications2-react-detail .action { width: 100%; }
+.gantt-react-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) 120px auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
+.gantt-react-toolbar > div { display:grid; gap:3px; }
+.gantt-react-toolbar span,.gantt-react-label small { color:#718296; font-size:9px; }
+.gantt-react-grid { display:grid; grid-template-columns:minmax(0,1fr) 270px; align-items:start; gap:14px; }
+.gantt-react-scroll { max-height:680px; overflow:auto; background:#fff; }
+.gantt-react-canvas { position:relative; width:calc(var(--gantt-left) + var(--gantt-width)); min-height:calc(var(--gantt-timeline-height) + var(--gantt-height)); }
+.gantt-react-timeline { position:sticky; top:0; z-index:4; height:var(--gantt-timeline-height); border-bottom:1px solid #dce5ef; background:#f8fafc; }
+.gantt-react-corner { position:sticky; left:0; z-index:5; display:grid; align-content:center; width:var(--gantt-left); height:100%; padding:12px; border-right:1px solid #dce5ef; background:#f8fafc; font-size:10px; font-weight:650; }
+.gantt-react-ticks { position:absolute; left:var(--gantt-left); top:0; width:var(--gantt-width); height:100%; }
+.gantt-react-ticks > div { position:absolute; display:grid; align-content:center; justify-items:center; height:100%; border-right:1px solid #e4ebf3; }
+.gantt-react-ticks > div.is-weekend { background:#f1f4f8; }
+.gantt-react-ticks strong { font-size:10px; }
+.gantt-react-ticks small { color:#718296; font-size:8px; }
+.gantt-react-rows { position:relative; height:var(--gantt-height); }
+.gantt-react-row { position:absolute; left:0; width:calc(var(--gantt-left) + var(--gantt-width)); border-bottom:1px solid #edf1f5; }
+.gantt-react-label { position:sticky; left:0; z-index:3; display:grid; align-content:center; gap:2px; width:var(--gantt-left); height:100%; padding:8px 12px; border-right:1px solid #dce5ef; background:#fff; }
+.gantt-react-label strong,.gantt-react-label small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gantt-react-label strong { font-size:10px; }
+.gantt-react-row.is-route .gantt-react-label { background:#eef4ff; }
+.gantt-react-lane { position:absolute; left:var(--gantt-left); top:0; width:var(--gantt-width); height:100%; background-image:repeating-linear-gradient(to right,transparent 0,transparent 79px,rgba(109,132,157,.11) 80px); }
+.gantt-react-lane button { position:absolute; min-width:1px; overflow:hidden; border:1px solid #2f6fe4; border-radius:5px; color:#fff; background:#4380e8; cursor:pointer; }
+.gantt-react-lane button.is-aggregate { border-color:#244d85; background:#315d99; }
+.gantt-react-lane button[aria-pressed="true"] { box-shadow:0 0 0 3px rgba(47,111,228,.25); }
+.gantt-react-lane button span { font-size:8px; }
+.gantt-react-detail { display:grid; align-content:start; gap:12px; }
+.gantt-react-detail .action { width:100%; }

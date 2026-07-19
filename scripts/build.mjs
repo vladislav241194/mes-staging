@@ -514,6 +514,15 @@ const specifications2ReactIslandVersionMarker = "__MES_SPECIFICATIONS2_REACT_BUN
 if (!specifications2ReactIslandHostSource.includes(specifications2ReactIslandVersionMarker)) throw new Error("Cannot find Specifications 2.0 React island bundle version marker");
 await writeFile(specifications2ReactIslandHostPath, specifications2ReactIslandHostSource.replaceAll(specifications2ReactIslandVersionMarker, specifications2ReactIslandVersion));
 
+const ganttReactIslandOutput = join(stagingDistDir, "src", "react-islands", "gantt.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "gantt-island.tsx"), ganttReactIslandOutput);
+const ganttReactIslandVersion = await fileHash(ganttReactIslandOutput);
+const ganttReactIslandHostPath = join(stagingDistDir, "src", "modules", "gantt_runtime", "react_island_host.js");
+const ganttReactIslandHostSource = await readFile(ganttReactIslandHostPath, "utf8");
+const ganttReactIslandVersionMarker = "__MES_GANTT_REACT_BUNDLE_VERSION__";
+if (!ganttReactIslandHostSource.includes(ganttReactIslandVersionMarker)) throw new Error("Cannot find Gantt React island bundle version marker");
+await writeFile(ganttReactIslandHostPath, ganttReactIslandHostSource.replaceAll(ganttReactIslandVersionMarker, ganttReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -689,6 +698,7 @@ console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReact
 console.log(`- src/react-islands/employee-desktop.js?v=${employeeDesktopReactIslandVersion}`);
 console.log(`- src/react-islands/contour-admin.js?v=${contourAdminReactIslandVersion}`);
 console.log(`- src/react-islands/specifications2.js?v=${specifications2ReactIslandVersion}`);
+console.log(`- src/react-islands/gantt.js?v=${ganttReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

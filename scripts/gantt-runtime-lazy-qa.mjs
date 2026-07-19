@@ -11,7 +11,7 @@ expect(appSource.includes('createLazyGanttRuntimeModule'), "App must use the Gan
 expect(appSource.includes('title: "Загружаем график"'), "Gantt needs a visible loading state");
 expect(appSource.includes('ganttRuntime.load()'), "Gantt must request its runtime when the module opens");
 expect(appSource.includes('function ensureGanttPlanningRuntimeProjection()'), "Gantt must start its server runtime projection before the lazy renderer reads the legacy graph");
-expect(/if \(ui\?\.activeModule === "gantt"\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(appSource), "A cold Gantt boot must prefer the PostgreSQL runtime projection");
+expect(/if \(\["gantt"[^\]]*\]\.includes\(ui\?\.activeModule\)\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(appSource), "A cold Gantt boot must prefer the PostgreSQL runtime projection");
 expect(appSource.includes('if (planningRuntimeProjectionLoad) return planningRuntimeProjectionLoad;'), "The shared-state handshake and Gantt shell must coalesce one projection request");
 expect(appSource.includes('function hasGanttPlanningProjectionReady()'), "Gantt must have an explicit projection-ready gate");
 expect(appSource.includes('if (!hasGanttPlanningProjectionReady())'), "Gantt must show its loading shell before the runtime reads route, step, or slot collections");

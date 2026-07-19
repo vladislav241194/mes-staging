@@ -156,6 +156,37 @@
 .mes-react-specifications2-island .specifications2-react-object strong { font-size: 11px; }
 .mes-react-specifications2-island .specifications2-react-object small { color: #718296; font-size: 9px; }
 .mes-react-specifications2-island .specifications2-react-detail .action { width: 100%; }
+.mes-react-gantt-island .module-page { padding:16px; }
+.mes-react-gantt-island .module-layout { display:block; }
+.mes-react-gantt-island .workspace { display:grid; gap:14px; }
+.mes-react-gantt-island :is(.gantt-react-toolbar,.gantt-react-detail) .action { color:#18314d; background:#e8eef5; }
+.mes-react-gantt-island .gantt-react-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) 120px auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
+.mes-react-gantt-island .gantt-react-toolbar > div { display:grid; gap:3px; }
+.mes-react-gantt-island .gantt-react-toolbar span,.mes-react-gantt-island .gantt-react-label small { color:#718296; font-size:9px; }
+.mes-react-gantt-island .metric-grid { grid-template-columns:repeat(4,minmax(100px,1fr)); margin:14px 0; }
+.mes-react-gantt-island .gantt-react-grid { display:grid; grid-template-columns:minmax(0,1fr) 270px; align-items:start; gap:14px; }
+.mes-react-gantt-island .gantt-react-scroll { max-height:680px; overflow:auto; background:#fff; }
+.mes-react-gantt-island .gantt-react-canvas { position:relative; width:calc(var(--gantt-left) + var(--gantt-width)); min-height:calc(var(--gantt-timeline-height) + var(--gantt-height)); }
+.mes-react-gantt-island .gantt-react-timeline { position:sticky; top:0; z-index:4; height:var(--gantt-timeline-height); border-bottom:1px solid #dce5ef; background:#f8fafc; }
+.mes-react-gantt-island .gantt-react-corner { position:sticky; left:0; z-index:5; display:grid; align-content:center; width:var(--gantt-left); height:100%; padding:12px; border-right:1px solid #dce5ef; background:#f8fafc; font-size:10px; font-weight:650; }
+.mes-react-gantt-island .gantt-react-ticks { position:absolute; left:var(--gantt-left); top:0; width:var(--gantt-width); height:100%; }
+.mes-react-gantt-island .gantt-react-ticks > div { position:absolute; display:grid; align-content:center; justify-items:center; height:100%; border-right:1px solid #e4ebf3; }
+.mes-react-gantt-island .gantt-react-ticks > div.is-weekend { background:#f1f4f8; }
+.mes-react-gantt-island .gantt-react-ticks strong { font-size:10px; }
+.mes-react-gantt-island .gantt-react-ticks small { color:#718296; font-size:8px; }
+.mes-react-gantt-island .gantt-react-rows { position:relative; height:var(--gantt-height); }
+.mes-react-gantt-island .gantt-react-row { position:absolute; left:0; width:calc(var(--gantt-left) + var(--gantt-width)); border-bottom:1px solid #edf1f5; }
+.mes-react-gantt-island .gantt-react-label { position:sticky; left:0; z-index:3; display:grid; align-content:center; gap:2px; width:var(--gantt-left); height:100%; padding:8px 12px; border-right:1px solid #dce5ef; background:#fff; }
+.mes-react-gantt-island .gantt-react-label strong,.mes-react-gantt-island .gantt-react-label small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mes-react-gantt-island .gantt-react-label strong { font-size:10px; }
+.mes-react-gantt-island .gantt-react-row.is-route .gantt-react-label { background:#eef4ff; }
+.mes-react-gantt-island .gantt-react-lane { position:absolute; left:var(--gantt-left); top:0; width:var(--gantt-width); height:100%; background-image:repeating-linear-gradient(to right,transparent 0,transparent 79px,rgba(109,132,157,.11) 80px); }
+.mes-react-gantt-island .gantt-react-lane button { position:absolute; min-width:1px; overflow:hidden; border:1px solid #2f6fe4; border-radius:5px; color:#fff; background:#4380e8; cursor:pointer; }
+.mes-react-gantt-island .gantt-react-lane button.is-aggregate { border-color:#244d85; background:#315d99; }
+.mes-react-gantt-island .gantt-react-lane button[aria-pressed="true"] { box-shadow:0 0 0 3px rgba(47,111,228,.25); }
+.mes-react-gantt-island .gantt-react-lane button span { font-size:8px; }
+.mes-react-gantt-island .gantt-react-detail { display:grid; align-content:start; gap:12px; }
+.mes-react-gantt-island .gantt-react-detail .action { width:100%; }
 
 @media (max-width: 1180px) {
   .mes-react-specifications2-island .workspace { grid-template-columns: minmax(0, 1fr); }

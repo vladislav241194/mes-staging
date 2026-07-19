@@ -5264,6 +5264,67 @@ function buildSlotPlacementMap(rows, scaleInfo) {
   }, {});
 }
 
+function getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, projectionSource = "server") {
+  const modelRows = rows.map((row) => {
+    const layout = rowLayout.map[row.id] || { top: 0, height: row.height || 0 };
+    const isAggregate = row.type === "route" || row.type === "project";
+    const placements = slotPlacementMap[row.id] || {};
+    const route = row.route || getSlotRoute(getRowSlots(row)[0]);
+    const project = row.project || (route ? getRoutePlanningContext(route) : null);
+    const rowLabel = row.type === "route"
+      ? getProjectDisplayName(project || {}) || route?.name || route?.id || "Маршрут"
+      : row.resource?.name || row.workCenter?.name || row.routeSteps?.map((step) => step.name || step.operationName).filter(Boolean).join(", ") || "Ресурс";
+    const rowMeta = row.type === "route"
+      ? [project?.orderNumber, route?.name || route?.code].filter(Boolean).join(" · ")
+      : [row.workCenter?.code, row.workCenter?.name].filter(Boolean).join(" · ");
+    const slots = getRowSlots(row).map((slot) => {
+      const placement = placements[slot.id] || calculateSlotPlacements([slot], scaleInfo, isAggregate).placements[slot.id];
+      const routeMeta = getSlotRouteMeta(slot);
+      const statusView = getGanttSlotStatusView(slot);
+      return {
+        id: String(slot.id || ""),
+        rowId: row.id,
+        routeId: String(getSlotRouteId(slot) || row.routeId || ""),
+        title: String(routeMeta.step?.name || routeMeta.step?.operationName || routeMeta.routeName || slot.name || slot.id || "Операция"),
+        meta: [routeMeta.centerCode, routeMeta.orderLabel].filter(Boolean).join(" · "),
+        status: String(slot.status || ""),
+        statusLabel: String(statusView?.label || GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "—"),
+        quantity: normalizeQuantity(slot.quantity || 0),
+        plannedStart: toDate(slot.plannedStart).toISOString(),
+        plannedEnd: toDate(slot.plannedEnd).toISOString(),
+        x: round(placement?.rect?.x || 0),
+        width: round(placement?.rect?.width || 1),
+        top: round(placement?.top || 0),
+        height: round(placement?.height || getSlotHeight(isAggregate)),
+        aggregate: isAggregate,
+      };
+    });
+    return { id: row.id, type: row.type, label: rowLabel, meta: rowMeta, top: round(layout.top), height: round(layout.height), slots };
+  });
+  const slotIds = new Set(modelRows.flatMap((row) => row.slots.map((slot) => slot.id)));
+  const dependencyCount = getDependencyPairs(planningState).filter((pair) => slotIds.has(String(pair.fromId || pair.fromSlotId || "")) && slotIds.has(String(pair.toId || pair.toSlotId || ""))).length;
+  return {
+    projectionSource: String(projectionSource || "server"),
+    scale: String(ui.scale || "days"),
+    windowStart: toDate(scaleInfo.start).toISOString(),
+    windowEnd: toDate(scaleInfo.end).toISOString(),
+    leftWidth: LEFT_WIDTH,
+    timelineHeight: TIMELINE_HEIGHT,
+    timelineWidth: round(scaleInfo.width),
+    totalHeight: round(rowLayout.totalHeight),
+    ticks: scaleInfo.ticks.map((tick, index) => ({
+      id: `${index}:${toDate(tick.start).toISOString()}`,
+      label: String(tick.label || ""),
+      sublabel: String(tick.sublabel || formatShortDate(tick.start) || ""),
+      left: round(index * scaleInfo.cellWidth),
+      width: round(scaleInfo.cellWidth),
+      weekend: [0, 6].includes(toDate(tick.start).getDay()),
+    })),
+    rows: modelRows,
+    dependencyCount,
+  };
+}
+
 function getScaledRowHeight(baseHeight, slots, scaleInfo, isAggregate) {
   if (slots.length < 2) return baseHeight;
 
@@ -5731,6 +5792,7 @@ function getVisibleSlotRowId(slot) {
     getRouteGanttResourceRows,
     buildRowLayout,
     buildSlotPlacementMap,
+    getGanttReactModel,
     getScaledRowHeight,
     calculateSlotPlacements,
     getWeekSlotHeight,

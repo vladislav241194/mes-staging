@@ -32,17 +32,19 @@ Current minified measurements:
 | Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 208,864 B | 64,433 B | 225,000 B | 68,000 B |
+| Gantt production island | 204,733 B | 63,564 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
 | Full twenty-two-scenario lab | 438,958 B | 104,836 B | 445,000 B | 118,000 B |
-| Shared lab CSS | 13,852 B | 2,880 B | 14,000 B | 4,000 B |
+| Shared lab CSS | 16,747 B | 3,442 B | 17,000 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
 Specifications 2.0 and Roles artifacts and rejects unrelated scenario labels.
+The same isolation check now covers the Gantt artifact.
 This preserves independent vertical slices instead of shipping every lab
 scenario with an individual island. The larger `430,000 B / 114,000 B` limit
 applies only to the twenty-two-scenario development lab, never to a production
@@ -161,6 +163,10 @@ The bundled production Specifications 2.0 island is `204,557 B` raw /
 `64,193 B` gzip / `60,833 B` Brotli. Its four-row PostgreSQL revision production-
 shell first commit stayed below `20 ms`; this is regression evidence, not Pilot
 acceptance.
+
+The bundled production Gantt island is `201,763 B` raw / `63,352 B` gzip /
+`54,525 B` Brotli. Its three-row/two-slot PostgreSQL production-shell first
+commit was `15.30 ms`; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

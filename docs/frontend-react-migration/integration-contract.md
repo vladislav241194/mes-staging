@@ -171,6 +171,15 @@ XLSX upload, tree editing, routes, norms, attachments, publication and work-
 order creation return through `unsupported-scope`. Missing or mismatched
 PostgreSQL data, editor access or a missing session request retains legacy.
 
+`mountGanttReactIsland(...)` owns only the read-only schedule canvas and local
+slot-passport selection. The legacy Gantt runtime computes the scale, timeline,
+rows, heights and slot rectangles from the PostgreSQL runtime projection, then
+passes that immutable geometry through a typed adapter. React does not own
+working calendars or scheduling math. Filters, scale/date changes,
+dependencies, drag, resize, optimization and every editor command return
+through `unsupported-scope`. A snapshot fallback, unloaded runtime, editor
+access or missing session request retains legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

@@ -31,7 +31,7 @@ unresolved.
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
 | Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
-| Protected canvas | Shell-level states and published tree inspection | Gantt geometry and Specifications editors/commands | Read-only revision proof first; editors migrate last with dedicated guardrails |
+| Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
 | Admin/standalone | Buttons, panels, states | Security perimeter and standalone shell | Separate acceptance path |
 
 ## Difference classification
@@ -267,6 +267,17 @@ MetricGrid, TableWrap, StatusToken and ActionButton, while owning only local
 tree collapse. Production-shell QA proves revision 7 with four hierarchy rows,
 default legacy, exact server parity, editor fallback, zero publication,
 attachment or work-order writes, unchanged state and a clean console.
+
+## Gantt production evidence
+
+The Gantt proof migrates only schedule inspection and local slot-passport
+selection. Scale, timeline ticks, rows, heights and slot rectangles come from
+the completed legacy runtime after the PostgreSQL projection gate; React does
+not reproduce scheduling or calendar math. The canvas preserves
+`GanttRuntime`, `GanttCanvas`, `GanttTimeline`, `GanttRowsLayer`, `GanttSlot`,
+row and slot identity markers. Production-shell QA proves three rows, two
+slots, a `15.30 ms` first commit, default legacy, editor fallback and zero
+Planning writes. Dependencies, drag, resize and optimization remain legacy.
 
 ## Roles and Access read-model evidence
 

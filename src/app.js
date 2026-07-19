@@ -86,6 +86,7 @@ import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/empl
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
+import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
 import { createRuntimeStateServiceModule } from "./modules/runtime_state/service.js";
@@ -2811,6 +2812,38 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
     }
     localStorage.setItem("mes-specifications-2-tab-v1", action === "routes" || action === "attachments" ? "route-drafts" : "tree");
     if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+  },
+});
+let ganttReactModel = null;
+function getGanttReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-gantt") === "1", readOnlyEvaluation: params.get("react-gantt-readonly") === "1" };
+}
+function isGanttReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-gantt-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const ganttReactIslandHost = createGanttReactIslandHost({
+  getActivation: () => {
+    const localQa = getGanttReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_GANTT_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_GANTT === true || localQa.featureFlagEnabled,
+      runtimeReady: Boolean(ganttRuntime?.isReady?.() && ganttReactModel),
+      postgresProjectionReady: planningRuntimeProjectionState.status === "server",
+      accessMode: (serverEvaluationAllowed && isGanttReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ model: ganttReactModel }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, slotId] = String(scope || "").split(":");
+    if (action === "slot" && slotId) ui.selectedSlotId = slotId;
+    if (ui.activeModule === "gantt") render({ skipRememberScroll: true });
   },
 });
 function getRolesReactLocalQaOverrides() {
@@ -7126,6 +7159,20 @@ function renderCurrentModule(options = {}) {
     const ganttPlanningProjectionSource = planningRuntimeProjectionState.status === "fallback"
       ? "snapshot-fallback"
       : planningRuntimeProjectionState.status;
+    ganttReactModel = getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, ganttPlanningProjectionSource);
+    const ganttReactDecision = ganttReactIslandHost.prepareRender();
+    if (ganttReactDecision.activateReact) {
+      app.innerHTML = renderUiAppShell({
+        pageId: "gantt",
+        className: "planning-app-shell planning-gantt-shell",
+        blueprint: getMesModuleBlueprintDefinition("gantt"),
+        body: ganttReactIslandHost.renderTarget(),
+      });
+      bindGlobalNavigation();
+      void ganttReactIslandHost.mount();
+      recordRenderPhase("gantt React island", ganttDomStartedAt);
+      return;
+    }
     app.innerHTML = renderUiAppShell({
       pageId: "gantt",
       className: "planning-app-shell planning-gantt-shell",
@@ -8141,6 +8188,7 @@ const {
   getRouteGanttResourceRows,
   buildRowLayout,
   buildSlotPlacementMap,
+  getGanttReactModel,
   getScaledRowHeight,
   calculateSlotPlacements,
   getWeekSlotHeight,
