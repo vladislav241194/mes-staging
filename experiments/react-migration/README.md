@@ -36,6 +36,7 @@ Available routes:
 - `/?scenario=structure-work-centers` — Structure Work Centers;
 - `/?scenario=structure-equipment` — Structure Equipment;
 - `/?scenario=structure-responsibility-policies` — Structure Responsibility Policies;
+- `/?scenario=structure-migration-diagnostics` — Structure Migration Diagnostics;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
 - `/?scenario=nomenclature-types` — Nomenclature Types directory;

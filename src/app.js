@@ -74,7 +74,7 @@ import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
-import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
+import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
@@ -1626,7 +1626,9 @@ let renderProductionStructureMatrixPage = () => renderUiModulePage({
   content: renderUiEmptyState({ title: "Загружаем структуру производства", description: "Полная матрица открывается только по запросу." }),
 });
 let productionStructureMatrixModuleLoad = null;
+let productionStructureMatrixData = { PRODUCTION_STRUCTURE_MATRIX_COLUMNS: [], PRODUCTION_STRUCTURE_MATRIX_ROWS: [] };
 function initializeProductionStructureMatrixModule(factory, matrixData) {
+  productionStructureMatrixData = matrixData;
   ({
     bindProductionStructureMatrixEvents,
     getProductionStructureMatrixRuntimeOverrides,
@@ -2501,6 +2503,12 @@ const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibi
   },
   getPayload: () => systemDomainsState, getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "responsibilityPolicies"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+});
+function isStructureMigrationDiagnosticsReactEvaluationRequested() { const params = new URLSearchParams(window.location.search); if (params.get("react-structure-migration-diagnostics-evaluation") !== "1") return false; return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson()); }
+const structureMigrationDiagnosticsReactIslandHost = createStructureMigrationDiagnosticsReactIslandHost({
+  getActivation: () => { const params = new URLSearchParams(window.location.search); const localQa = params.get("qa-auth-bypass") === "1" && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION === true; return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS === true || (localQa && params.get("react-structure-migration-diagnostics") === "1"), serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: (serverEvaluationAllowed && isStructureMigrationDiagnosticsReactEvaluationRequested()) || (localQa && params.get("react-structure-migration-diagnostics-readonly") === "1") ? "read-only-evaluation" : "editor" }; },
+  getPayload: () => ({ item: systemDomainsState, migrationReport: systemDomainsMigrationReport, legacyMatrixRows: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS, legacyMatrixColumns: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS }), getTargetRoot: () => app,
+  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "migrationDiagnostics"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
 });
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6424,18 +6432,18 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
         ensureProductionStructureMatrixModule();
-        const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost };
-        const activeReactHost = isStructureResponsibilityPoliciesReactEvaluationRequested() ? structureReactHosts.responsibilityPolicies : isStructureEquipmentReactEvaluationRequested() ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : isStructureOrgUnitsReactEvaluationRequested() ? structureReactHosts.orgUnits : isStructurePositionsReactEvaluationRequested() ? structureReactHosts.positions : structureReactHosts.employees;
+        const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost };
+        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : isStructureResponsibilityPoliciesReactEvaluationRequested() ? structureReactHosts.responsibilityPolicies : isStructureEquipmentReactEvaluationRequested() ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : isStructureOrgUnitsReactEvaluationRequested() ? structureReactHosts.orgUnits : isStructurePositionsReactEvaluationRequested() ? structureReactHosts.positions : structureReactHosts.employees;
         Object.values(structureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();
         return renderProductionStructureMatrixPage();
       },
       bind: () => {
-        if (Object.values({ structureEmployeesReactIslandHost, structurePositionsReactIslandHost, structureOrgUnitsReactIslandHost, structureWorkCentersReactIslandHost, structureEquipmentReactIslandHost, structureResponsibilityPoliciesReactIslandHost }).some((host) => host.isReactEligible())) return;
+        if (Object.values({ structureEmployeesReactIslandHost, structurePositionsReactIslandHost, structureOrgUnitsReactIslandHost, structureWorkCentersReactIslandHost, structureEquipmentReactIslandHost, structureResponsibilityPoliciesReactIslandHost, structureMigrationDiagnosticsReactIslandHost }).some((host) => host.isReactEligible())) return;
         bindProductionStructureMatrixEvents();
       },
-      afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); void structureOrgUnitsReactIslandHost.mount(); void structureWorkCentersReactIslandHost.mount(); void structureEquipmentReactIslandHost.mount(); void structureResponsibilityPoliciesReactIslandHost.mount(); },
+      afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); void structureOrgUnitsReactIslandHost.mount(); void structureWorkCentersReactIslandHost.mount(); void structureEquipmentReactIslandHost.mount(); void structureResponsibilityPoliciesReactIslandHost.mount(); void structureMigrationDiagnosticsReactIslandHost.mount(); },
     },
     timesheet: {
       render: () => {

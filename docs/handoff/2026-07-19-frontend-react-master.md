@@ -265,6 +265,14 @@ earlier Structure regressions remain exact. Its artifact is
 `204,254 B` raw / `64,244 B` gzip / `55,365 B` Brotli. It has not been released
 or activated on Pilot.
 
+Structure Migration Diagnostics is now the fourteenth production-integrated
+read-only island and completes all seven sidebar destinations. Production-shell
+QA proves 152/152 source rows, five cells/order, six legacy-equal metrics, four
+issue groups, seven registry links, exact Employees fallback, unchanged state
+and clean console. All six registry regressions remain exact. Its artifact is
+`203,082 B` raw / `63,875 B` gzip / `55,020 B` Brotli. It has not been released
+or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -283,7 +291,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies and Roles/Access read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations and Roles/Access read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies and Roles/Access using PostgreSQL-hydrated System Domains; no fixture reaches production.**

@@ -1,0 +1,4 @@
+import { structureEmployeesFixture } from "../structure-employees/fixture";
+const legacyMatrixRows = [{ id: "ROW-001", cells: { "ID / код": "ROW-001", "Тип строки": "Сотрудник", "Структура": "Николаев Ирина Сергеевич", "Родитель": "D-COATING", "Активность строки": "активно" } }];
+export const structureMigrationDiagnosticsFixture = { item: structureEmployeesFixture, legacyMatrixRows, legacyMatrixColumns: ["ID / код", "Тип строки", "Структура", "Родитель", "Активность строки"], migrationReport: { canActivate: true, sourceCounts: { matrixRows: 1 }, targetCounts: { employees: 3, orgUnits: 2, positions: 3 }, orphans: [], duplicates: [], unmatchedMatrixOverrideKeys: [], ignoredRows: [] } };
+export const structureMigrationDiagnosticsUpdateFixture = { ...structureMigrationDiagnosticsFixture, migrationReport: { ...structureMigrationDiagnosticsFixture.migrationReport, canActivate: false, orphans: [{ registry: "employees", id: "EMP-MISSING" }] } };

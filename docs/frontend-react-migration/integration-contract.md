@@ -96,6 +96,10 @@ snapshot; create/save/archive and equipment scheduling commands remain legacy.
 table and passport. Employee references and display-name policy stay at the
 typed boundary; responsibility editing and Workshop commands remain legacy.
 
+`mountStructureMigrationDiagnosticsReactIsland(...)` owns only the diagnostic
+composition. The host supplies the existing report and legacy matrix after lazy
+load; React neither bundles nor mutates those sources.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

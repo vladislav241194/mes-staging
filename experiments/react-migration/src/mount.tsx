@@ -11,9 +11,10 @@ import { StructureOrgUnitsScenario } from "./modules/structure-org-units/Structu
 import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
 import { StructureEquipmentScenario } from "./modules/structure-equipment/StructureEquipmentScenario";
 import { StructureResponsibilityPoliciesScenario } from "./modules/structure-responsibility-policies/StructureResponsibilityPoliciesScenario";
+import { StructureMigrationDiagnosticsScenario } from "./modules/structure-migration-diagnostics/StructureMigrationDiagnosticsScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "structureMigrationDiagnostics" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(): void;
@@ -28,6 +29,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structureWorkCenters") return <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureEquipment") return <StructureEquipmentScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureResponsibilityPolicies") return <StructureResponsibilityPoliciesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureMigrationDiagnostics") return <StructureMigrationDiagnosticsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "roles") return <RolesScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -58,6 +60,7 @@ export { mountStructureOrgUnitsReactIsland } from "./structure-org-units-island"
 export { mountStructureWorkCentersReactIsland } from "./structure-work-centers-island";
 export { mountStructureEquipmentReactIsland } from "./structure-equipment-island";
 export { mountStructureResponsibilityPoliciesReactIsland } from "./structure-responsibility-policies-island";
+export { mountStructureMigrationDiagnosticsReactIsland } from "./structure-migration-diagnostics-island";
 export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
 export { mountOperationsReactIsland } from "./operations-island";

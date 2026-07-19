@@ -7,6 +7,7 @@ const STRUCTURE_ORG_UNITS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_ORG_UNITS_REAC
 const STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION__";
 const STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION__";
 const STRUCTURE_RESPONSIBILITY_POLICIES_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_RESPONSIBILITY_POLICIES_REACT_BUNDLE_VERSION__";
+const STRUCTURE_MIGRATION_DIAGNOSTICS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_MIGRATION_DIAGNOSTICS_REACT_BUNDLE_VERSION__";
 
 export function createStructureEmployeesReactIslandHost({
   getActivation,
@@ -161,5 +162,16 @@ export function createStructureResponsibilityPoliciesReactIslandHost({ getActiva
       islandUrl.searchParams.set("v", bundleVersion); return import(islandUrl.href);
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureResponsibilityPoliciesReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+  });
+}
+
+export function createStructureMigrationDiagnosticsReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Structure Migration Diagnostics React island failed", error) } = {}) {
+  return createReactIslandHost({
+    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
+    targetSelector: "[data-react-structure-migration-diagnostics-island]",
+    renderTarget: '<div class="mes-react-structure-migration-diagnostics-island" data-react-structure-migration-diagnostics-island data-react-island-state="loading" aria-live="polite"></div>',
+    getIneligibilityReason: (activation) => !activation.featureFlagEnabled ? "disabled" : !activation.serverReadReady ? "server-read-pending" : activation.accessMode !== "read-only-evaluation" ? "write-parity-incomplete" : "",
+    loadIsland: async () => { const islandUrl = new URL("./react-islands/structure-migration-diagnostics.js", import.meta.url); const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev"); const bundleVersion = STRUCTURE_MIGRATION_DIAGNOSTICS_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : STRUCTURE_MIGRATION_DIAGNOSTICS_REACT_BUNDLE_VERSION; islandUrl.searchParams.set("v", bundleVersion); return import(islandUrl.href); },
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureMigrationDiagnosticsReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
   });
 }

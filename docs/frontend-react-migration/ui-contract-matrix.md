@@ -162,6 +162,12 @@ Responsibility Policies retains its four-column master/mode/allowed-employees/
 update contract. Empty input fails closed; a temporary valid QA policy
 proves literal non-empty parity without creating real records. Commands remain legacy.
 
+## Structure Migration Diagnostics evidence
+
+Diagnostics deliberately reuses panels, metrics, empty states, status tokens and
+the table wrapper without adopting CRUD/detail contracts. It preserves 152 source
+rows, six metrics and four issue groups while keeping the legacy matrix read-only.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,
