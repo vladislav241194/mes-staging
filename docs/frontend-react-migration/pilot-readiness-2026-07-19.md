@@ -357,6 +357,8 @@ Deactivation removed every React flag. Health stayed `ok`; a newly
 authenticated session retaining the evaluation query mounted no island and
 showed the same 22 legacy rows. The exact temporary rollout directory was
 removed and no Pilot data was written. Operations is currently legacy for every
-session. Its write checkpoint remains pending because edits cascade into route
-steps and unfinished Gantt slots, while delete also clears Specifications
-references.
+Pilot session. Local create/edit parity is now complete through the existing
+RBAC owner: hidden fields survive, ordinary and overridden route steps follow
+the established rules, only unfinished unlocked slots recalculate, and legacy
+reads back the result. A separately gated Pilot create/edit checkpoint remains
+pending. Delete stays legacy because it also clears Specifications references.

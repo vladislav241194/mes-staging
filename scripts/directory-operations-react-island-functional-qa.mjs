@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
+import { createAppEventsServiceModule } from "../src/modules/app_events/service.js";
 
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
@@ -32,9 +33,52 @@ async function stopProcess(child) {
   });
 }
 
+function verifyPlanningPropagationOwner(planningFixture) {
+  let planningState = structuredClone(planningFixture);
+  const baseline = structuredClone(planningFixture);
+  const service = createAppEventsServiceModule({
+    applyPlanningOrderLaborToSlot: (slot) => slot,
+    createAppInteractionsModule: () => ({}),
+    fromDateInput: () => "2026-07-19T08:00:00.000Z",
+    getDefaultOperationCalculationType: () => "units-per-hour",
+    getDefaultSecondsPerPanel: () => 0,
+    getManualPlanningAssignmentForRouteStep: (step) => ({ workCenterId: step.workCenterId }),
+    getOperationRouteWorkCenterId: (operation) => operation.workCenterId,
+    getPlanningResourceForRouteStep: () => "",
+    getRouteForStep: (step) => planningState.routes.find((route) => route.id === step.routeId),
+    getUi: () => ({ windowStart: "2026-07-19" }),
+    getPlanningState: () => planningState,
+    setPlanningState: (nextState) => { planningState = nextState; },
+    getDirectoryState: () => ({}),
+    setDirectoryState: () => {},
+    getWorkCenterUnitsPerHour: () => 55,
+    isGanttSlotCompleted: (slot) => slot.status === "completed" || slot.completed === true,
+    isPlanningWorkCenterCompatibleWithRouteStep: (step, workCenterId) => step.workCenterId === workCenterId,
+    recalculateSlotEndByQuantity: (slot) => ({ ...slot, qaRecalculated: true }),
+  });
+  service.applyOperationMapChangesToRoutes({
+    id: "QA_OP_SMT",
+    name: "QA SMT-монтаж изменён",
+    workCenterId: "D3_UW",
+    unitsPerHour: 55,
+    requiresBatch: true,
+    isWarehouse: false,
+  });
+  const stepById = new Map(planningState.routeSteps.map((step) => [step.id, step]));
+  assert(stepById.get("QA_STEP_OPEN").operationName === "QA SMT-монтаж изменён" && stepById.get("QA_STEP_OPEN").workCenterId === "D3_UW", "ordinary linked route step must follow operation name and work center");
+  assert(stepById.get("QA_STEP_OVERRIDE").operationName === "QA SMT-монтаж изменён" && stepById.get("QA_STEP_OVERRIDE").workCenterId === "D3_AOI", "work-center override step must keep its own center while following operation name");
+  assert(JSON.stringify(stepById.get("QA_STEP_OTHER")) === JSON.stringify(baseline.routeSteps.find((step) => step.id === "QA_STEP_OTHER")), "unrelated route step must remain unchanged");
+  const slotById = new Map(planningState.slots.map((slot) => [slot.id, slot]));
+  assert(slotById.get("QA_SLOT_OPEN").operationName === "QA SMT-монтаж изменён" && slotById.get("QA_SLOT_OPEN").routeWorkCenterId === "D3_UW" && slotById.get("QA_SLOT_OPEN").qaRecalculated === true, "unfinished unlocked slot must follow and recalculate from the linked step");
+  for (const slotId of ["QA_SLOT_LOCKED", "QA_SLOT_COMPLETED", "QA_SLOT_OTHER"]) {
+    assert(JSON.stringify(slotById.get(slotId)) === JSON.stringify(baseline.slots.find((slot) => slot.id === slotId)), `${slotId} must remain unchanged`);
+  }
+}
+
 async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-directory-operations-react-"));
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
+  const writeSharedStateFile = join(temporaryRoot, "write-shared-state.json");
   const directoryFixture = {
     operationMap: [
       { id: "QA_OP_SMT", name: "QA SMT-монтаж", code: "QA-SMT", workCenterId: "D3", unitsPerHour: 55, status: "Активен" },
@@ -48,39 +92,61 @@ async function main() {
     updatedAt: "2026-07-19T00:00:00.000Z",
     updatedBy: { actor: "directory-operations-react-functional-qa" },
     values: {
-      [STATE_STORAGE_KEY]: JSON.stringify({ routes: [], routeSteps: [], slots: [] }),
+      [STATE_STORAGE_KEY]: JSON.stringify({
+        routes: [{ id: "QA_ROUTE", name: "QA маршрут", quantity: 10, boardsPerPanel: 1 }],
+        routeSteps: [
+          { id: "QA_STEP_OPEN", routeId: "QA_ROUTE", operationId: "QA_OP_SMT", operationName: "QA SMT-монтаж", workCenterId: "D3", unitsPerHour: 55, order: 1 },
+          { id: "QA_STEP_OVERRIDE", routeId: "QA_ROUTE", operationId: "QA_OP_SMT", operationName: "QA SMT-монтаж", workCenterId: "D3_AOI", workCenterOverride: true, unitsPerHour: 55, order: 2 },
+          { id: "QA_STEP_OTHER", routeId: "QA_ROUTE", operationId: "QA_OP_WASH", operationName: "QA Отмывка", workCenterId: "D3_UW", unitsPerHour: 150, order: 3 },
+        ],
+        slots: [
+          { id: "QA_SLOT_OPEN", routeId: "QA_ROUTE", routeStepId: "QA_STEP_OPEN", operationId: "QA_OP_SMT", operationName: "QA SMT-монтаж", routeWorkCenterId: "D3", workCenterId: "D3", unitsPerHour: 55, quantity: 10, plannedStart: "2026-07-19T08:00:00.000Z", plannedEnd: "2026-07-19T09:00:00.000Z", status: "planned", locked: false },
+          { id: "QA_SLOT_LOCKED", routeId: "QA_ROUTE", routeStepId: "QA_STEP_OPEN", operationId: "QA_OP_SMT", operationName: "QA SMT-монтаж", routeWorkCenterId: "D3", workCenterId: "D3", unitsPerHour: 55, quantity: 10, plannedStart: "2026-07-19T09:00:00.000Z", plannedEnd: "2026-07-19T10:00:00.000Z", status: "planned", locked: true },
+          { id: "QA_SLOT_COMPLETED", routeId: "QA_ROUTE", routeStepId: "QA_STEP_OVERRIDE", operationId: "QA_OP_SMT", operationName: "QA SMT-монтаж", routeWorkCenterId: "D3_AOI", workCenterId: "D3_AOI", unitsPerHour: 55, quantity: 10, plannedStart: "2026-07-19T10:00:00.000Z", plannedEnd: "2026-07-19T11:00:00.000Z", status: "completed", locked: false },
+          { id: "QA_SLOT_OTHER", routeId: "QA_ROUTE", routeStepId: "QA_STEP_OTHER", operationId: "QA_OP_WASH", operationName: "QA Отмывка", routeWorkCenterId: "D3_UW", workCenterId: "D3_UW", unitsPerHour: 150, quantity: 10, plannedStart: "2026-07-19T11:00:00.000Z", plannedEnd: "2026-07-19T12:00:00.000Z", status: "planned", locked: false },
+        ],
+      }),
       [DIRECTORY_STORAGE_KEY]: JSON.stringify(directoryFixture),
     },
     sharedUi: {}, events: [],
   };
+  verifyPlanningPropagationOwner(JSON.parse(snapshot.values[STATE_STORAGE_KEY]));
   await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+  await writeFile(writeSharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
   assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state must be owner-readable only");
+  assert(((await stat(writeSharedStateFile)).mode & 0o777) === 0o600, "temporary write state must be owner-readable only");
   const originalSnapshot = await readFile(sharedStateFile, "utf8");
   const previewPort = await getFreePort();
   const legacyPort = await getFreePort();
+  const writePort = await getFreePort();
   const origin = `http://127.0.0.1:${previewPort}`;
   const legacyOrigin = `http://127.0.0.1:${legacyPort}`;
-  const spawnPreview = (port, enabled) => spawn(process.execPath, ["scripts/preview-dist.mjs"], {
+  const writeOrigin = `http://127.0.0.1:${writePort}`;
+  const spawnPreview = (port, enabled, stateFile = sharedStateFile) => spawn(process.execPath, ["scripts/preview-dist.mjs"], {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile,
+      HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: stateFile,
       ...(enabled ? { MES_REACT_DIRECTORY_OPERATIONS: "1", MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION: "1" } : {}),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const preview = spawnPreview(previewPort, true);
   const legacyPreview = spawnPreview(legacyPort, false);
+  const writePreview = spawnPreview(writePort, false, writeSharedStateFile);
   let previewOutput = "";
   let legacyOutput = "";
+  let writeOutput = "";
   preview.stdout.on("data", (chunk) => { previewOutput += chunk.toString(); });
   preview.stderr.on("data", (chunk) => { previewOutput += chunk.toString(); });
   legacyPreview.stdout.on("data", (chunk) => { legacyOutput += chunk.toString(); });
   legacyPreview.stderr.on("data", (chunk) => { legacyOutput += chunk.toString(); });
+  writePreview.stdout.on("data", (chunk) => { writeOutput += chunk.toString(); });
+  writePreview.stderr.on("data", (chunk) => { writeOutput += chunk.toString(); });
   let chrome = null;
   const consoleProblems = [];
   try {
-    await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin)]);
+    await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin), waitForPreview(writeOrigin)]);
     chrome = await launchChrome("mes-directory-operations-react-qa-");
     const { client } = chrome;
     client.socket.addEventListener("message", (event) => {
@@ -151,18 +217,124 @@ async function main() {
     await waitForCondition(client, () => Boolean(!document.querySelector("[data-react-directory-operations-island]") && document.querySelector('[data-directory-id="operations"].is-active')), { message: "Operations legacy return did not restore the current full directory navigation" });
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
     assert(await readFile(sharedStateFile, "utf8") === originalSnapshot, "read-only Operations scenario must not modify state");
+
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=directories&qa-auth-bypass=1&react-directory-operations=1&react-directory-operations-write=1` });
+    await waitForCondition(client, () => Boolean(
+      document.querySelector('[data-react-directory-operations-island][data-react-island-state="ready"]')
+      && document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 3
+    ), { message: "Operations write evaluation did not mount", timeoutMs: 15_000 });
+    const writeActivation = await evaluate(client, () => ({
+      badge: document.querySelector(".lab-badge")?.textContent?.trim() || "",
+      addDisabled: [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Добавить операцию"))?.disabled,
+      hasDelete: [...document.querySelectorAll("button")].some((button) => button.textContent.trim() === "Удалить"),
+    }));
+    assert(writeActivation.badge.includes("create/edit") && writeActivation.addDisabled === false && !writeActivation.hasDelete, `Operations write capability did not stay create/edit-only: ${JSON.stringify(writeActivation)}`);
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.includes("Добавить операцию"))?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "Operations create editor did not open" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const setInput = (name, value) => {
+        const control = form?.elements.namedItem(name);
+        if (!control) throw new Error(`Missing Operations editor field: ${name}`);
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(control, value);
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+        control.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      const center = form?.elements.namedItem("workCenterId");
+      setInput("name", "React QA новая операция");
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(center, "D3_UW");
+      center.dispatchEvent(new Event("change", { bubbles: true }));
+      setInput("status", "Активен");
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
+      && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("React QA новая операция"))
+    ), { message: "Operations create did not return the four-row projection" });
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .find((row) => row.textContent.includes("QA SMT-монтаж"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "QA SMT-монтаж", { message: "linked operation did not become selected" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Редактировать")?.click());
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "QA SMT-монтаж", { message: "Operations edit form did not open" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const name = form?.elements.namedItem("name");
+      const center = form?.elements.namedItem("workCenterId");
+      const status = form?.elements.namedItem("status");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(name, "QA SMT-монтаж изменён");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(center, "D3_UW");
+      center.dispatchEvent(new Event("change", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(status, "Отключен");
+      status.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .some((row) => row.textContent.includes("QA SMT-монтаж изменён")), { message: "Operations edit did not return the renamed projection" });
+    const editedProjection = await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .find((row) => row.textContent.includes("QA SMT-монтаж изменён"))?.textContent.replace(/\s+/g, " ").trim() || "");
+    assert(editedProjection.includes("Участок отмывки") && editedProjection.includes("Отключен"), `Operations edited projection must expose work center and status: ${editedProjection}`);
+    const persistedAfterEdit = await evaluate(client, ({ directoryKey }) => ({
+      directory: JSON.parse(localStorage.getItem(directoryKey) || "{}"),
+    }), { directoryKey: DIRECTORY_STORAGE_KEY });
+    const editedOperation = persistedAfterEdit.directory.operationMap.find((item) => item.id === "QA_OP_SMT");
+    assert(editedOperation.code === "QA-SMT" && editedOperation.unitsPerHour === 55, "Operations edit must preserve hidden code and normative fields");
+    assert(editedOperation.workCenterId === "D3_UW" && editedOperation.status === "Отключен", "Operations edit must persist the exact editable fields");
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .find((row) => row.textContent.includes("QA SMT-монтаж изменён"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "QA SMT-монтаж изменён", { message: "edited operation did not reselect for restore" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Редактировать")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "Operations restore editor did not open" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const name = form?.elements.namedItem("name");
+      const center = form?.elements.namedItem("workCenterId");
+      const status = form?.elements.namedItem("status");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(name, "QA SMT-монтаж");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(center, "D3");
+      center.dispatchEvent(new Event("change", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(status, "Активен");
+      status.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .some((row) => row.textContent.includes("QA SMT-монтаж") && row.textContent.includes("SMT-монтаж") && row.textContent.includes("Активен")), { message: "Operations semantic restore did not return the original projection" });
+
+    const finalRuntime = await evaluate(client, ({ directoryKey }) => ({
+      directory: JSON.parse(localStorage.getItem(directoryKey) || "{}"),
+    }), { directoryKey: DIRECTORY_STORAGE_KEY });
+    const finalWriteDirectory = finalRuntime.directory;
+    const restoredOperation = finalWriteDirectory.operationMap.find((item) => item.id === "QA_OP_SMT");
+    assert(restoredOperation.name === "QA SMT-монтаж" && restoredOperation.code === "QA-SMT" && restoredOperation.workCenterId === "D3" && restoredOperation.unitsPerHour === 55 && restoredOperation.status === "Активен", "React edit restore must preserve the original operation semantics");
+    assert(finalWriteDirectory.operationMap.length === 4 && finalWriteDirectory.operationMap.some((item) => item.name === "React QA новая операция"), "create command must persist exactly one disposable operation in the isolated fixture");
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')]
+      .find((item) => item.textContent?.includes("Все справочники"))?.click());
+    await waitForCondition(client, () => document.querySelectorAll('[data-directory-row]').length === 4, { message: "legacy Operations did not expose the React command results" });
+    const legacyWriteRows = await evaluate(client, () => [...document.querySelectorAll('[data-directory-row]')].map((row) => row.textContent.replace(/\s+/g, " ").trim()));
+    assert(legacyWriteRows.some((row) => row.includes("React QA новая операция")) && legacyWriteRows.some((row) => row.includes("QA SMT-монтаж")), "same-runtime legacy read-back must expose React create and restored edit results");
+    assert(consoleProblems.length === 0, `write-evaluation browser console must stay clean:\n${consoleProblems.join("\n")}`);
     console.log("Directory Operations React production-shell functional QA: OK");
     console.log(`- same payload: ${legacyRows.length} legacy rows = ${initial.rows.length} React rows, three cells and order match`);
     console.log("- resolved work-center labels, filtering, selection/detail and legacy return: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- editable legacy default, disabled React writes, unchanged state and clean console: pass");
+    console.log("- local RBAC-gated create/edit, legacy read-back and hidden-field preservation: pass");
+    console.log("- linked route-step propagation, override preservation and unlocked/locked/completed slot boundaries: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     if (legacyOutput.trim()) console.error(legacyOutput.trim());
+    if (writeOutput.trim()) console.error(writeOutput.trim());
     throw error;
   } finally {
     if (chrome) await cleanupChrome(chrome);
-    await Promise.all([stopProcess(preview), stopProcess(legacyPreview)]);
+    await Promise.all([stopProcess(preview), stopProcess(legacyPreview), stopProcess(writePreview)]);
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 }

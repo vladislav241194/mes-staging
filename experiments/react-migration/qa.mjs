@@ -1217,6 +1217,11 @@ try {
   const eligibleDirectoryOperationsHost = makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryOperationsHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleDirectoryOperationsHost.renderTarget(), /data-react-directory-operations-island/);
+  assert.deepEqual(
+    makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "write-evaluation" }).prepareRender(),
+    { activateReact: true, reason: "eligible" },
+    "Operations must accept only its explicit write-evaluation mode in addition to read-only evaluation",
+  );
 
   const makeDirectoryNomenclatureTypesHost = (activation) => directoryComponentTypesHostModule.createDirectoryNomenclatureTypesReactIslandHost({
     getActivation: () => activation,
@@ -1338,7 +1343,9 @@ try {
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-directory-operations"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-operations-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-operations-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-operations-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /canEditDirectorySection\("operations"\)/);
   assert.match(productionAppSource, /directoryOperationsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /workCenterLabel: appEventsService\.formatDirectoryCell/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true/);
@@ -1498,9 +1505,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes"], "Nomenclature and Component Types must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations"], "Nomenclature, Component Types and Operations create/edit must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics"], "only diagnostics may have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 21, "all 21 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 20, "all 20 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

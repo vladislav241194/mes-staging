@@ -16,7 +16,9 @@ session-scoped, measured, returned to legacy and left all rollout flags off.
 The Directories cluster additionally has Component Types `8/8` and Operations
 `22/22` accepted with literal visible-cell and row-order parity.
 
-Nomenclature and Component Types have locally complete command parity;
+Nomenclature and Component Types have locally complete create/edit/delete
+command parity. Operations has locally complete create/edit parity while its
+reference-clearing delete remains an explicit legacy-only slice;
 Structure Migration Diagnostics is intentionally read-only and owns no
 commands. The remaining scenarios retain their explicit next vertical scopes.
 
@@ -24,7 +26,7 @@ commands. The remaining scenarios retain their explicit next vertical scopes.
 | ---: | --- | --- | --- | --- |
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
-| 3 | Operations | Pending | Medium | Create/edit and work-center reference parity; delete stays separate |
+| 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
 | 4 | Weekly Production Control | Pending | Medium | Week selection and report actions without duplicating aggregation |
 | 5 | Nomenclature Types | Pending | High | Create/edit plus reference synchronization |
 | 6 | Statuses | Pending | High | Non-system status create/edit with lifecycle protection |
@@ -45,7 +47,12 @@ slots unchanged. Pilot write acceptance remains a separate gate because the
 current authenticated QA role is read-only. Operations read parity is also
 accepted on Pilot: all `22/22` rows and three visible fields matched legacy,
 the `Склад` filter returned seven rows, and rollback restored the same
-authenticated legacy screen. Its command owner is audited, but create/edit
-cannot be marked complete until linked route-step and unfinished-slot impact is
-proved; delete additionally touches Specifications and therefore stays
-separate.
+authenticated legacy screen. Its local RBAC-gated React contour now creates
+and edits through that same owner, preserves hidden operation fields, reads the
+result through legacy and restores the original edited row. Owner-level QA
+proves propagation to ordinary and work-center-override route steps,
+recalculation of an unfinished unlocked slot, and immutability of locked,
+completed and unrelated slots. The audit also found and repaired a missing
+`applyPlanningOrderLaborToSlot` dependency at the legacy service boundary.
+Delete additionally touches Specifications and therefore stays separate and
+legacy-only.

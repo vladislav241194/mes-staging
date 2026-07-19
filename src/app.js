@@ -3071,12 +3071,13 @@ const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReac
 });
 function getDirectoryOperationsReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-directory-operations") === "1",
     readOnlyEvaluation: params.get("react-directory-operations-readonly") === "1",
+    writeEvaluation: params.get("react-directory-operations-write") === "1",
   };
 }
 function isDirectoryOperationsReactEvaluationRequested() {
@@ -3091,21 +3092,65 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
     return {
       featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS === true || localQa.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: (serverEvaluationAllowed && isDirectoryOperationsReactEvaluationRequested()) || localQa.readOnlyEvaluation
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isDirectoryOperationsReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor",
     };
   },
-  getPayload: () => ({
-    operations: getOperationMapRows().map((operation) => ({
-      ...operation,
-      workCenterLabel: appEventsService.formatDirectoryCell("operations", "workCenterId", operation.workCenterId),
-    })),
-  }),
+  getPayload: () => {
+    const localQa = getDirectoryOperationsReactLocalQaOverrides();
+    const canWrite = localQa.writeEvaluation && canEditDirectorySection("operations");
+    return {
+      operations: getOperationMapRows().map((operation) => ({
+        ...operation,
+        workCenterLabel: appEventsService.formatDirectoryCell("operations", "workCenterId", operation.workCenterId),
+      })),
+      workCenters: getRouteInstructionWorkCenters().map((center) => ({
+        id: center.id,
+        label: center.name,
+        code: center.code || "",
+      })),
+      capabilities: { createEdit: canWrite, delete: false },
+    };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getDirectoryOperationsReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || !canEditDirectorySection("operations")) {
+      return { ok: false, message: "Запись операций недоступна для текущей роли." };
+    }
+    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда операций." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const isNew = input.isNew === true;
+    const itemId = isNew ? makeId("op") : String(input.itemId || "").trim();
+    const rowIndex = isNew ? -1 : getOperationMapRows().findIndex((item) => String(item.id || "") === itemId);
+    if (!isNew && rowIndex < 0) return { ok: false, message: "Операция уже отсутствует." };
+    const name = String(input.name || "").trim();
+    if (!name) return { ok: false, message: "Заполните поле «Операция»." };
+    const workCenterId = getRouteInstructionWorkCenterId(String(input.workCenterId || "").trim());
+    if (!workCenterId || !getRouteInstructionWorkCenters().some((center) => center.id === workCenterId)) {
+      return { ok: false, message: "Выберите рабочий центр." };
+    }
+    const previous = rowIndex >= 0 ? getOperationMapRows()[rowIndex] : {};
+    const row = {
+      ...previous,
+      id: itemId,
+      name,
+      workCenterId,
+      status: String(input.status || "").trim() || "Активен",
+    };
+    const result = saveDirectoryRow("operations", rowIndex, row);
+    if (result === false) return { ok: false, message: "Не удалось сохранить операцию." };
+    ui.selectedDirectoryRows.operations = rowIndex >= 0 ? rowIndex : Math.max(0, getOperationMapRows().length - 1);
+    persistUiState();
+    render({ skipRememberScroll: true });
+    return { ok: true, id: itemId, isNew };
   },
 });
 function getDirectoryNomenclatureTypesReactLocalQaOverrides() {
@@ -6639,6 +6684,7 @@ function calculateQuantityByDuration(...args) { return planningCoreService.calcu
 function getSlotEffectiveOperationContext(...args) { return planningCoreService.getSlotEffectiveOperationContext(...args); }
 function getSlotRequiredDurationMs(...args) { return planningCoreService.getSlotRequiredDurationMs(...args); }
 function recalculateSlotEndByQuantity(...args) { return planningCoreService.recalculateSlotEndByQuantity(...args); }
+function applyPlanningOrderLaborToSlot(...args) { return planningCoreService.applyPlanningOrderLaborToSlot(...args); }
 function applyRecalculatedSlotTiming(...args) { return planningCoreService.applyRecalculatedSlotTiming(...args); }
 function rescheduleSlotsForWorkCenterCalendarChange(...args) { return planningCoreService.rescheduleSlotsForWorkCenterCalendarChange(...args); }
 function rescheduleAllGanttSlotsByCurrentCalendars(...args) { return planningCoreService.rescheduleAllGanttSlotsByCurrentCalendars(...args); }
@@ -7973,6 +8019,7 @@ appEventsService = createAppEventsServiceModule({
   app,
   audit: getStatusAuditInfo,
   applyOperationMapItemToRouteStep,
+  applyPlanningOrderLaborToSlot,
   buildDefaultSpecificationStructureItems,
   calculateProjectProgress,
   cancelPlanningRoute,

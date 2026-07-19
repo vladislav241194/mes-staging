@@ -4415,6 +4415,7 @@ function resetRemovedGanttFilters() {
     getSlotEffectiveOperationContext,
     getSlotRequiredDurationMs,
     recalculateSlotEndByQuantity,
+    applyPlanningOrderLaborToSlot,
     applyRecalculatedSlotTiming,
     rescheduleSlotsForWorkCenterCalendarChange,
     rescheduleAllGanttSlotsByCurrentCalendars,

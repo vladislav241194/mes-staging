@@ -19,6 +19,19 @@ export interface OperationReadItem {
   statusTone: "success" | "neutral";
 }
 
+export interface OperationWorkCenter {
+  id: string;
+  label: string;
+  code: string;
+}
+
+export interface OperationsModel {
+  items: OperationReadItem[];
+  workCenters: OperationWorkCenter[];
+  canCreateEdit: boolean;
+  canDelete: boolean;
+}
+
 function text(value: unknown): string {
   return String(value ?? "").trim();
 }
@@ -46,4 +59,26 @@ export function adaptOperations(payload: unknown): OperationReadItem[] {
       statusTone: statusLabel.toLocaleLowerCase("ru-RU").includes("актив") ? "success" : "neutral",
     }];
   });
+}
+
+export function adaptOperationsModel(payload: unknown): OperationsModel {
+  const root = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload as Record<string, unknown>
+    : {};
+  const capabilities = root.capabilities && typeof root.capabilities === "object"
+    ? root.capabilities as Record<string, unknown>
+    : {};
+  const workCenters = Array.isArray(root.workCenters) ? root.workCenters : [];
+  return {
+    items: adaptOperations(payload),
+    workCenters: workCenters.flatMap((entry): OperationWorkCenter[] => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+      const center = entry as Record<string, unknown>;
+      const id = text(center.id);
+      const label = text(center.label);
+      return id && label ? [{ id, label, code: text(center.code) }] : [];
+    }),
+    canCreateEdit: capabilities.createEdit === true,
+    canDelete: capabilities.delete === true,
+  };
 }

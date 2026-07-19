@@ -69,6 +69,7 @@ export function createDirectoryComponentTypesReactIslandHost(options = {}) {
 export function createDirectoryOperationsReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowWriteEvaluation: true,
     bundleName: "operations",
     bundleVersion: OPERATIONS_VERSION,
     className: "mes-react-directory-operations-island",

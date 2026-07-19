@@ -14,6 +14,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     app,
     audit,
     applyOperationMapItemToRouteStep,
+    applyPlanningOrderLaborToSlot,
     bom = null,
     boardsPerPanel = 0,
     bomId = "",
