@@ -375,6 +375,35 @@ async function main() {
     const editedAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.employeeId === createdEmployee.id && assignment.isPrimary !== false);
     assert(editedEmployee?.displayName === "Тестов Редактор Сергеевич" && editedEmployee?.personnelNumber === "QA-9002", "edited employee fields were not persisted");
     assert(editedEmployee?.serverOnlyMarker === "employee-hidden-field" && editedAssignment?.serverOnlyMarker === "assignment-hidden-field", "React edit must preserve hidden employee and assignment fields");
+    const endedSecondaryAssignment = { id: `employment-secondary:${createdEmployee.id}`, employeeId: createdEmployee.id, positionId: referenceIds.positionId, orgUnitId: referenceIds.orgUnitId, workCenterId: "", isPrimary: false, validFrom: "2026-07-01", validTo: "2026-07-18", serverOnlyMarker: "secondary-assignment-hidden-field" };
+    apiDomains.registries.employmentAssignments.push(endedSecondaryAssignment);
+    const archiveUrl = `${writeUrl}&qa-reload=archive-revision-3`;
+    await client.send("Page.navigate", { url: archiveUrl });
+    await waitForCondition(client, () => document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 77, { message: "employee archive projection did not hydrate", timeoutMs: 15_000 });
+    await evaluate(client, (employeeId) => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(employeeId))?.click(), masterId);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Архивировать"), { message: "referenced employee archive action did not become available for rejection proof" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Архивировать")?.click());
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить архивирование")?.click());
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("назначениями доступа"), { message: "employee with an active access assignment was not rejected" });
+    assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "referenced employee archive must fail before PostgreSQL mutation");
+    await evaluate(client, (employeeId) => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(employeeId))?.click(), createdEmployee.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Архивировать"), { message: "disposable employee archive action did not become available" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Архивировать")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование"), { message: "employee archive confirmation was not explicit" });
+    await evaluate(client, (employeeId) => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => !row.textContent?.includes(employeeId))?.click(), createdEmployee.id);
+    assert(await evaluate(client, () => ![...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование")), "employee archive confirmation must not follow another selected row");
+    await evaluate(client, (employeeId) => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(employeeId))?.click(), createdEmployee.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование"), { message: "employee-specific archive confirmation was not retained" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить архивирование")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("QA-9002") && row.textContent?.includes("архив")), { message: "archived employee did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 4 && successfulWrites === 3 && putAttempts === 4, "employee archive must advance exactly one PostgreSQL revision");
+    const archivedEmployee = apiDomains.registries.employees.find((employee) => employee.id === createdEmployee.id);
+    const archivedPrimaryAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.employeeId === createdEmployee.id && assignment.isPrimary !== false);
+    const retainedSecondaryAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.id === endedSecondaryAssignment.id);
+    assert(archivedEmployee?.isActive === false, "employee archive owner did not persist inactive state");
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(archivedPrimaryAssignment?.validTo || ""), "employee archive owner did not close the active primary assignment");
+    assert(archivedEmployee?.serverOnlyMarker === "employee-hidden-field" && archivedPrimaryAssignment?.serverOnlyMarker === "assignment-hidden-field", "employee archive lost hidden employee or primary-assignment fields");
+    assert(retainedSecondaryAssignment?.validTo === "2026-07-18" && retainedSecondaryAssignment?.serverOnlyMarker === "secondary-assignment-hidden-field", "employee archive changed an ended secondary assignment");
     assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "every employee command must carry the production surface, If-Match and idempotency key");
 
     await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
@@ -382,8 +411,8 @@ async function main() {
     await selectLegacyRegistry(client, "employees");
     await waitForCondition(client, () => (
       document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]').length === 77
-      && [...document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]')].some((row) => row.textContent?.includes("QA-9002"))
-    ), { message: "legacy Employees did not read back the React PostgreSQL write", timeoutMs: 15_000 });
+      && [...document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]')].some((row) => row.textContent?.includes("QA-9002") && row.textContent?.includes("архив"))
+    ), { message: "legacy Employees did not read back the React PostgreSQL archive", timeoutMs: 15_000 });
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
 
     const finalSnapshot = await readFile(sharedStateFile, "utf8");
@@ -393,9 +422,9 @@ async function main() {
     console.log("- server-enabled default without session request: legacy");
     console.log("- selection, detail, seven registries and six metrics: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
-    console.log("- read-only gate keeps writes disabled; local PostgreSQL write gate creates and edits an employee + primary assignment: pass");
-    console.log("- revision conflict is visible and retryable; If-Match, idempotency, references and hidden fields: pass");
-    console.log("- 77-row legacy read-back and unchanged disposable shared-state snapshot: pass");
+    console.log("- read-only gate keeps writes disabled; local PostgreSQL write gate creates, edits and archives an employee + primary assignment: pass");
+    console.log("- dependency rejection, ID-bound confirmation, primary-assignment closure, ended-secondary preservation, conflict retry, If-Match and hidden fields: pass");
+    console.log("- archived 77-row legacy read-back and unchanged disposable shared-state snapshot: pass");
     console.log("- requested Org Units legacy fallback with 19 rows: pass");
   } catch (error) {
     if (chrome) {

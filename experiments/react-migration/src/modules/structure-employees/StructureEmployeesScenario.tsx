@@ -17,7 +17,7 @@ export interface StructureEmployeeDraft {
   isActive: boolean;
 }
 
-export type StructureEmployeesReactCommand = { type: "save"; payload: StructureEmployeeDraft };
+export type StructureEmployeesReactCommand = { type: "save"; payload: StructureEmployeeDraft } | { type: "archive"; payload: { employeeId: string } };
 
 const draftValue = (value: string) => value === "—" ? "" : value;
 const createEmployeeDraft = (employee?: StructureEmployee): StructureEmployeeDraft => ({
@@ -44,6 +44,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
   const [draft, setDraft] = useState<StructureEmployeeDraft | null>(null);
   const [commandError, setCommandError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [archiveArmedId, setArchiveArmedId] = useState("");
   const selected = resolveVisibleStructureEmployee(model.employees, selectedId);
   const setDraftField = <K extends keyof StructureEmployeeDraft>(field: K, value: StructureEmployeeDraft[K]) => setDraft((current) => current ? { ...current, [field]: value } : current);
   const saveDraft = async () => {
@@ -60,8 +61,19 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
       setSaving(false);
     }
   };
+  const archiveSelected = async () => {
+    if (!selected || !onCommand || archiveArmedId !== selected.id) return;
+    setSaving(true); setCommandError("");
+    try {
+      const result = await onCommand({ type: "archive", payload: { employeeId: selected.id } });
+      if (result && result.ok === false) setCommandError(result.message || "Не удалось архивировать сотрудника.");
+      else setArchiveArmedId("");
+    } catch (error) {
+      setCommandError(error instanceof Error ? error.message : "Не удалось архивировать сотрудника.");
+    } finally { setSaving(false); }
+  };
 
-  const header = <ModuleHeader eyebrow="Система · System Domains" title="Сотрудники" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL create/edit evaluation" : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Система · System Domains" title="Сотрудники" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL create/edit/archive evaluation" : "React preview · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Реестры структуры и сотрудников" title="Структура и сотрудники">
       {registries.map((registry) => (
@@ -105,7 +117,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
         <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
           <label className="full"><span>ФИО</span><input name="displayName" onChange={(event) => setDraftField("displayName", event.currentTarget.value)} required value={draft.displayName} /></label>
           <label><span>Табельный номер</span><input name="personnelNumber" onChange={(event) => setDraftField("personnelNumber", event.currentTarget.value)} value={draft.personnelNumber} /></label>
-          <label><span>Статус</span><select name="isActive" onChange={(event) => setDraftField("isActive", event.currentTarget.value === "true")} value={String(draft.isActive)}><option value="true">Активно</option><option value="false">В архиве</option></select></label>
+          <label><span>Статус · меняется отдельной lifecycle-командой</span><select disabled name="isActive" value={String(draft.isActive)}><option value="true">Активно</option><option value="false">В архиве</option></select></label>
           <label><span>Должность</span><select name="positionId" onChange={(event) => setDraftField("positionId", event.currentTarget.value)} required value={draft.positionId}><option value="">Не выбрано</option>{model.positions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
           <label><span>Подразделение</span><select name="orgUnitId" onChange={(event) => setDraftField("orgUnitId", event.currentTarget.value)} required value={draft.orgUnitId}><option value="">Не выбрано</option>{model.orgUnits.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
           <label><span>Рабочий центр</span><select name="workCenterId" onChange={(event) => setDraftField("workCenterId", event.currentTarget.value)} value={draft.workCenterId}><option value="">Не выбран</option>{model.workCenters.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
@@ -128,7 +140,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
           { label: "Статус", value: <StatusToken label={selected.statusLabel} tone={selected.statusTone} /> },
         ] : []}
         title={selected?.displayName}
-      />{selected && model.canCreateEdit ? <div className="react-nomenclature-detail-actions"><ActionButton onClick={() => setDraft(createEmployeeDraft(selected))} variant="secondary">Редактировать сотрудника</ActionButton></div> : null}</>}
+      />{selected && model.canCreateEdit ? <div className="react-nomenclature-detail-actions"><ActionButton onClick={() => { setArchiveArmedId(""); setDraft(createEmployeeDraft(selected)); }} variant="secondary">Редактировать сотрудника</ActionButton>{selected.isActive && model.canArchive ? <ActionButton disabled={saving} onClick={() => archiveArmedId === selected.id ? void archiveSelected() : setArchiveArmedId(selected.id)} variant="secondary">{archiveArmedId === selected.id ? "Подтвердить архивирование" : "Архивировать"}</ActionButton> : null}{archiveArmedId === selected.id ? <ActionButton onClick={() => setArchiveArmedId("")} variant="secondary">Отмена</ActionButton> : null}</div> : null}{commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}</>}
     </ModulePage>
   );
 }

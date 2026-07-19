@@ -56,6 +56,7 @@ export interface StructureEmployeesReadModel {
   orgUnits: StructureReferenceOption[];
   workCenters: StructureReferenceOption[];
   canCreateEdit: boolean;
+  canArchive: boolean;
 }
 
 function text(value: unknown): string {
@@ -182,5 +183,6 @@ export function adaptStructureEmployees(payload: unknown): StructureEmployeesRea
     orgUnits: referenceOptions(orgUnits),
     workCenters: referenceOptions(workCenters),
     canCreateEdit: capabilities.createEdit === true,
+    canArchive: capabilities.archive === true,
   };
 }

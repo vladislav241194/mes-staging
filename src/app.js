@@ -2544,16 +2544,14 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
           : "editor",
     };
   },
-  getPayload: () => ({
-    ...systemDomainsState,
-    capabilities: {
-      createEdit: getStructureEmployeesReactLocalQaOverrides().writeEvaluation
+  getPayload: () => {
+    const commandReady = getStructureEmployeesReactLocalQaOverrides().writeEvaluation
         && systemDomainsServerCommandState.status === "ready"
         && systemDomainsServerCommandState.enabled === true
         && systemDomainsServerCommandState.surfaces.includes("production-structure")
-        && canEditSystemDomainRegistry("employees"),
-    },
-  }),
+        && canEditSystemDomainRegistry("employees");
+    return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => {
     setProductionStructureMatrixActiveRegistry(registryId || "employees");
@@ -2561,7 +2559,7 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
   },
   executeCommand: async (command = {}) => {
     const localQa = getStructureEmployeesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save") {
+    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) {
       return { ok: false, message: "Команда редактирования сотрудников недоступна." };
     }
     if (systemDomainsServerReadState.status !== "server"
@@ -2572,12 +2570,33 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
       return { ok: false, message: "PostgreSQL-команда или право редактирования сотрудников недоступны." };
     }
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "archive") {
+      const employeeId = String(input.employeeId || "").trim();
+      const registries = getSystemDomainsRegistries();
+      const employee = (registries.employees || []).find((row) => row.id === employeeId);
+      if (!employee || employee.isActive === false) return { ok: false, message: "Активный сотрудник больше не существует." };
+      const hasActiveDependency = (registries.employmentAssignments || []).some((row) => row.employeeId === employeeId && row.isPrimary === false && !row.validTo)
+        || (registries.scheduleAssignments || []).some((row) => row.employeeId === employeeId && !row.validTo)
+        || (registries.roleAssignments || []).some((row) => row.employeeId === employeeId)
+        || (registries.responsibilityPolicies || []).some((row) => row.isActive !== false && (row.subjectEmployeeId === employeeId || (row.targetEmployeeIds || []).includes(employeeId)));
+      if (hasActiveDependency) return { ok: false, message: "Нельзя архивировать сотрудника с действующими назначениями доступа, графика или ответственности." };
+      try {
+        const result = await archiveSystemDomainEntity("employees", employeeId, { source: "react:structure-employees:archive", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Архивирование сотрудника отклонено проверкой System Domains." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: employeeId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные сотрудника изменились в другом сеансе. Проверьте значения и повторите архивирование." : error?.message || "Сервер не принял архивирование сотрудника." };
+      }
+    }
     const employeeId = String(input.employeeId || "").trim() || makeId("employee");
     const displayName = String(input.displayName || "").trim().replace(/\s+/g, " ");
     const positionId = String(input.positionId || "").trim();
     const orgUnitId = String(input.orgUnitId || "").trim();
     const workCenterId = String(input.workCenterId || "").trim();
     const registries = getSystemDomainsRegistries();
+    const currentEmployee = (registries.employees || []).find((row) => row.id === employeeId);
+    if ((!currentEmployee && input.isActive === false) || (currentEmployee && (currentEmployee.isActive !== false) !== (input.isActive !== false))) return { ok: false, message: "Статус сотрудника меняется только отдельной lifecycle-командой." };
     if (!displayName || !positionId || !orgUnitId) return { ok: false, message: "Заполните ФИО, должность и подразделение." };
     if (!(registries.positions || []).some((row) => row.id === positionId)) return { ok: false, message: "Выбранная должность больше не существует." };
     if (!(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };

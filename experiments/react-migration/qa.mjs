@@ -451,6 +451,8 @@ try {
   });
   const { structureEmployeesFixture } = await import(`${pathToFileURL(structureFixtureOutput).href}?qa=${Date.now()}`);
   const structureModel = structureAdapter.adaptStructureEmployees(structureEmployeesFixture);
+  assert.equal(structureModel.canArchive, false, "Employees archive capability must fail closed");
+  assert.equal(structureAdapter.adaptStructureEmployees({ ...structureEmployeesFixture, capabilities: { archive: true } }).canArchive, true, "Employees archive capability must be explicit");
   assert.deepEqual(structureModel.counts, {
     orgUnits: 2,
     workCenters: 2,
