@@ -115,6 +115,39 @@ Post-activation evidence:
 - the pre-deploy shared-state backup and metadata both have mode `0600`;
 - the exact active commit was fast-forward promoted to GitHub `main`.
 
-This completes acceptance steps 1-3. React itself has not yet been activated or
-accepted on Pilot. Step 4 requires a separate approval to enable only the
-Nomenclature read-only evaluation; write evaluation remains forbidden.
+This completes acceptance steps 1-3.
+
+## Nomenclature read-only Pilot evaluation
+
+The root-owned Nomenclature evaluation permission was enabled for one bounded,
+authenticated session and then disabled again. No write-evaluation flag was
+enabled and no application data was changed.
+
+Live evidence for the React path:
+
+- the effective service environment contained only
+  `MES_REACT_NOMENCLATURE=1` and
+  `MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION=1`;
+- the service remained active and public `/healthz` returned `200`;
+- the authenticated user explicitly requested
+  `react-nomenclature-evaluation=1` and received the React read-only view;
+- the island reached `data-react-island-state=ready`, revision `1`, with a
+  first-commit measurement of `60.30 ms`;
+- React and legacy both showed zero Nomenclature rows and the same eleven
+  registry sections with zero counts;
+- React exposed no legacy `Новая позиция` action and its `Добавить позицию`
+  control was disabled;
+- no real or disposable record was created, updated or deleted.
+
+Rollback evidence:
+
+- the root-owned deactivation procedure removed all effective
+  `MES_REACT_*` values;
+- the service remained active and public `/healthz` still returned `200`;
+- an authenticated reload with the same evaluation query rendered legacy,
+  had no React mount target and restored the legacy `Новая позиция` action.
+
+This completes acceptance steps 4-6 for the empty-state Nomenclature read-only
+slice. A non-empty row/detail parity claim and every write command remain
+unaccepted until a disposable test record is available. All sessions currently
+use legacy Nomenclature.
