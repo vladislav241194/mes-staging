@@ -273,6 +273,14 @@ and clean console. All six registry regressions remain exact. Its artifact is
 `203,082 B` raw / `63,875 B` gzip / `55,020 B` Brotli. It has not been released
 or activated on Pilot.
 
+Weekly Production Control is now the fifteenth isolated scenario and the first
+dense planning-family proof. Its adapter consumes the existing module's
+completed read model instead of duplicating PostgreSQL hydration or plan/fact
+calculations. Browser QA proves two resource groups, seven days, 14 dense cells,
+summary parity, revision `1 -> 2`, table-owned overflow, disabled fallback and a
+clean console. The independent entry is `204,704 B` raw / `63,343 B` gzip. It
+is not yet connected to the production shell or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight

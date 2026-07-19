@@ -23,20 +23,21 @@ Current minified measurements:
 | Structure Work Centers production island | 209,390 B | 64,349 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 208,973 B | 64,291 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 210,082 B | 64,604 B | 225,000 B | 68,000 B |
-| Structure Migration Diagnostics production island | 208,882 B | 64,226 B | 225,000 B | 68,000 B |
+| Structure Migration Diagnostics production island | 208,915 B | 64,240 B | 225,000 B | 68,000 B |
+| Weekly Production Control independent entry | 204,704 B | 63,343 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,857 B | 63,539 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,364 B | 63,173 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,242 B | 63,096 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,588 B | 63,461 B | 225,000 B | 68,000 B |
-| Full fourteen-scenario lab | 332,148 B | 84,193 B | 340,000 B | 88,000 B |
+| Full fifteen-scenario lab | 341,330 B | 86,395 B | 350,000 B | 92,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure
 registry and Roles artifacts and rejects unrelated scenario labels. This preserves
 independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `340,000 B / 88,000 B` limit applies only to the
-fourteen-scenario development lab, never to a production island. Its raw limit
+individual island. The larger `350,000 B / 92,000 B` limit applies only to the
+fifteen-scenario development lab, never to a production island. Its raw limit
 increased only as isolated scenarios were added; every production entry retains the
 unchanged `225,000 B / 68,000 B` gate.
 
@@ -58,6 +59,7 @@ Browser evidence from one local run:
 | Boards/BOM | measured by the same callback | 3.80 ms | 2 rows, 5 components, revision 2 |
 | Structure Employees | measured by the same callback | 2.90 ms | 1 employee, metric and detail updated, revision 2 |
 | Roles and Access | measured by the same callback | browser gate passed | selected role passport updated, revision 2 |
+| Weekly Production Control | measured by the same callback | browser gate passed | weekly fact total updated, revision 2 |
 
 The bundled production Roles island is `204,264 B` raw / `64,094 B` gzip /
 `55,289 B` Brotli. Its production-shell first commit measured below `25 ms` on the

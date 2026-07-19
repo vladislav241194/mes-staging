@@ -100,6 +100,12 @@ typed boundary; responsibility editing and Workshop commands remain legacy.
 composition. The host supplies the existing report and legacy matrix after lazy
 load; React neither bundles nor mutates those sources.
 
+`mountWeeklyProductionControlReactIsland(...)` is currently an isolated dense-
+planning proof. Its adapter accepts the completed legacy weekly read model;
+PostgreSQL period hydration, structure lookups, fact/report aggregation and
+deviation calculations stay outside React. Production flags and a host mount
+have not yet been added.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

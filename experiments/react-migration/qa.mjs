@@ -847,6 +847,36 @@ try {
   updateFailureScheduled.shift()();
   assert.deepEqual(updateFailureEvents, ["unmount", "render-error:update failed"]);
 
+  const weeklyControlOutput = join(temporaryRoot, "weekly-production-control.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/weekly-production-control/adapter.ts")],
+    outfile: weeklyControlOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const weeklyControlAdapter = await import(`${pathToFileURL(weeklyControlOutput).href}?qa=${Date.now()}`);
+  const weeklyFixtureOutput = join(temporaryRoot, "weekly-production-control-fixture.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/weekly-production-control/fixture.ts")],
+    outfile: weeklyFixtureOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { weeklyProductionControlFixture } = await import(`${pathToFileURL(weeklyFixtureOutput).href}?qa=${Date.now()}`);
+  const weeklyControlModel = weeklyControlAdapter.adaptWeeklyProductionControl(weeklyProductionControlFixture);
+  assert.equal(weeklyControlModel.canActivate, true, "Weekly Control needs an exact seven-day model");
+  assert.deepEqual(weeklyControlModel.groups.map((group) => [group.id, group.days.length, group.totalPlan, group.totalFact]), [
+    ["assembly::line-1", 7, 100, 100],
+    ["smt::dek", 7, 500, 494],
+  ], "Weekly Control adapter must preserve group order and daily density");
+  assert.equal(weeklyControlAdapter.formatWeeklyControlQuantity(12.6, "шт."), "13 шт.");
+  assert.equal(weeklyControlAdapter.formatWeeklyControlPercent(5.5), "+6%");
+  assert.deepEqual(weeklyControlAdapter.adaptWeeklyProductionControl({}).groups, [], "invalid Weekly Control payload must fail closed");
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -1335,6 +1365,7 @@ try {
   assert.match(performanceBudget, /"structureEquipment"/);
   assert.match(performanceBudget, /"structureResponsibilityPolicies"/);
   assert.match(performanceBudget, /"structureMigrationDiagnostics"/);
+  assert.match(performanceBudget, /"weeklyProductionControl"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });

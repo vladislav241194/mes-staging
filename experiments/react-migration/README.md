@@ -37,6 +37,7 @@ Available routes:
 - `/?scenario=structure-equipment` — Structure Equipment;
 - `/?scenario=structure-responsibility-policies` — Structure Responsibility Policies;
 - `/?scenario=structure-migration-diagnostics` — Structure Migration Diagnostics;
+- `/?scenario=weekly-production-control` — read-only weekly plan/fact control;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
 - `/?scenario=nomenclature-types` — Nomenclature Types directory;
