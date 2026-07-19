@@ -31,7 +31,7 @@ unresolved.
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
 | Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
-| Protected canvas | Shell-level states only | Gantt geometry and Specifications tree/editor | Late migration with dedicated guardrails |
+| Protected canvas | Shell-level states and published tree inspection | Gantt geometry and Specifications editors/commands | Read-only revision proof first; editors migrate last with dedicated guardrails |
 | Admin/standalone | Buttons, panels, states | Security perimeter and standalone shell | Separate acceptance path |
 
 ## Difference classification
@@ -256,6 +256,17 @@ existing authenticated `admin.mes-line.ru` route, two false-by-default runtime
 permissions and an explicit read-only session request. Production-shell QA
 proves default legacy, scoped styles, identical three-contour/five-scenario
 density, action fallback and zero Ops writes.
+
+## Specifications 2.0 production evidence
+
+The protected-canvas proof deliberately migrates only immutable revision
+inspection, not the editor. The legacy host derives registry summaries and
+accepts the selected server item only when source entry, revision number and
+fingerprint match PostgreSQL. React reuses ModulePage, ModuleSidebar, Panel,
+MetricGrid, TableWrap, StatusToken and ActionButton, while owning only local
+tree collapse. Production-shell QA proves revision 7 with four hierarchy rows,
+default legacy, exact server parity, editor fallback, zero publication,
+attachment or work-order writes, unchanged state and a clean console.
 
 ## Roles and Access read-model evidence
 

@@ -126,3 +126,17 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .contour-admin-react table { width: 100%; border-collapse: collapse; }
 .contour-admin-react th, .contour-admin-react td { padding: 9px; border-bottom: 1px solid #e3ebf3; font-size: 10px; text-align: left; vertical-align: top; }
 .contour-admin-react-guardrails { display: grid; gap: 9px; margin: 0; padding: 14px 14px 14px 32px; font-size: 11px; }
+.specifications2-react { gap: 14px; }
+.specifications2-react-summary { display: grid; gap: 12px; padding: 14px; }
+.specifications2-react-summary .metric-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+.specifications2-react-publication { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 10px; border: 1px solid #dce5ef; border-radius: 11px; background: #f8fafc; }
+.specifications2-react-publication > span:not(.status) { flex: 1 1 300px; color: #52667a; font-size: 11px; }
+.specifications2-react-tree { min-width: 720px; }
+.specifications2-react-tree th:nth-child(3), .specifications2-react-tree td:nth-child(3) { text-align: right; }
+.specifications2-react-object { display: grid; grid-template-columns: 22px minmax(160px, auto); align-items: center; gap: 2px 7px; padding-left: calc(var(--tree-depth) * 22px); }
+.specifications2-react-object button, .specifications2-react-object > span { grid-row: 1 / span 2; width: 20px; height: 20px; }
+.specifications2-react-object button { border: 1px solid #cbd8e6; border-radius: 6px; color: #285aa8; background: #fff; cursor: pointer; }
+.specifications2-react-object strong { font-size: 11px; }
+.specifications2-react-object small { color: #718296; font-size: 9px; }
+.specifications2-react-detail { display: grid; align-content: start; gap: 12px; }
+.specifications2-react-detail .action { width: 100%; }

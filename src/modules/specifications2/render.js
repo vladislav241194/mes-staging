@@ -383,6 +383,90 @@ export function createSpecifications2Module(dependencies = {}) {
     return store.registry.find((item) => item.id === store.selectedId) || store.registry[0] || null;
   }
 
+  function getSpecifications2ReactModel() {
+    const store = readStore();
+    const selectedEntry = getSelectedEntry(store);
+    const registry = store.registry.map((entry) => {
+      const publicationState = getSpecifications2PublicationState(entry);
+      return {
+        id: String(entry.id || ""),
+        title: entry.title || entry.fileName || "Спецификация XLSX",
+        importedAt: entry.importedAt || "",
+        rowCount: Number(entry.stats?.rows || entry.treeRows?.length || 0),
+        errorCount: Number(entry.errors?.length || 0),
+        publicationRevision: Number(entry.publication?.revision || 0),
+        publicationState: publicationState.id,
+        publicationLabel: publicationState.sidebarLabel,
+        selected: entry.id === store.selectedId,
+      };
+    });
+    if (!selectedEntry) {
+      return {
+        registry,
+        selectedEntry: null,
+        serverStatus: "empty",
+        serverError: "",
+      };
+    }
+
+    const publication = selectedEntry.publication && typeof selectedEntry.publication === "object"
+      ? selectedEntry.publication
+      : null;
+    const publicationState = getSpecifications2PublicationState(selectedEntry);
+    const serverRevision = publication?.revision ? getPublishedRevision(selectedEntry.id) : null;
+    if (publication?.revision) hydratePublishedRevision(selectedEntry);
+    const serverItem = serverRevision?.item || null;
+    const revisionMatches = Boolean(
+      serverItem
+      && Number(serverItem.revisionNo) === Number(publication?.revision)
+      && String(serverItem.sourceEntryId || "") === String(selectedEntry.id || ""),
+    );
+    const fingerprintMatches = Boolean(
+      revisionMatches
+      && publication?.fingerprint
+      && String(serverItem.fingerprint || "") === String(publication.fingerprint),
+    );
+    const serverStatus = !publication?.revision
+      ? "unpublished"
+      : serverRevision?.loading
+        ? "loading"
+        : serverRevision?.error
+          ? "error"
+          : !serverItem
+            ? "missing"
+            : !revisionMatches || !fingerprintMatches
+              ? "mismatch"
+              : "ready";
+
+    return {
+      registry,
+      serverStatus,
+      serverError: String(serverRevision?.error || ""),
+      selectedEntry: {
+        id: String(selectedEntry.id || ""),
+        title: selectedEntry.title || selectedEntry.fileName || "Спецификация XLSX",
+        fileName: selectedEntry.fileName || "",
+        importedAt: selectedEntry.importedAt || "",
+        publicationState: publicationState.id,
+        publicationLabel: publicationState.label,
+        publicationRevision: Number(publication?.revision || 0),
+        publishedAt: publication?.releasedAt || publication?.publishedAt || "",
+        serverRevision: serverItem ? {
+          id: String(serverItem.id || ""),
+          sourceEntryId: String(serverItem.sourceEntryId || ""),
+          specificationId: String(serverItem.specificationId || ""),
+          title: serverItem.title || selectedEntry.title || "Спецификация",
+          designation: serverItem.designation || "",
+          revisionNo: Number(serverItem.revisionNo || 0),
+          releasedAt: serverItem.releasedAt || "",
+          sourceUpdatedAt: serverItem.sourceUpdatedAt || "",
+          treeItems: Array.isArray(serverItem.treeItems) ? serverItem.treeItems : [],
+          routes: Array.isArray(serverItem.routes) ? serverItem.routes : [],
+        } : null,
+      },
+    };
+  }
+
   async function migrateLocalProductionFilesToSharedStore(store) {
     let changed = false;
     const registry = [];
@@ -2546,6 +2630,7 @@ export function createSpecifications2Module(dependencies = {}) {
 
   return {
     bindSpecifications2Events,
+    getSpecifications2ReactModel,
     renderSpecifications2Page,
   };
 }

@@ -704,6 +704,14 @@ try {
   assert.deepEqual(statusesViewModel.buildStatusFilters(statuses).map((entry) => [entry.label, entry.count]), [["Все статусы", 1], ["Документы", 1]]);
   assert.equal(statusesViewModel.resolveVisibleStatus(statuses, "missing")?.id, "ready");
 
+  const specifications2AdapterOutput = join(temporaryRoot, "specifications2-adapter.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/specifications2/adapter.ts")], outfile: specifications2AdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { adaptSpecifications2Payload } = await import(`${pathToFileURL(specifications2AdapterOutput).href}?qa=${Date.now()}`);
+  const specifications2Model = adaptSpecifications2Payload({ model: { serverStatus: "ready", registry: [{ id: "spec-1", title: "Изделие", rowCount: 3, selected: true }], selectedEntry: { id: "spec-1", publicationRevision: 4, serverRevision: { id: "rev-4", sourceEntryId: "spec-1", specificationId: "doc-1", revisionNo: 4, treeItems: [{ sourceRowId: "child", parentSourceRowId: "root", name: "Плата", quantity: 2 }, { sourceRowId: "root", name: "Изделие", quantity: 1 }, { sourceRowId: "leaf", parentSourceRowId: "child", name: "Резистор", quantity: 4 }], routes: [{ sourceDraftId: "route-1", operations: [{}, {}] }] } } } });
+  assert.deepEqual(specifications2Model.selectedEntry?.serverRevision?.treeItems.map((item) => [item.id, item.depth]), [["root", 0], ["child", 1], ["leaf", 2]], "Specifications 2.0 adapter must derive hierarchy from PostgreSQL parent ids, not response ordering");
+  assert.equal(specifications2Model.selectedEntry?.serverRevision?.operationCount, 2, "Specifications 2.0 adapter must preserve published route operation totals");
+  assert.deepEqual(adaptSpecifications2Payload({}).registry, [], "invalid Specifications 2.0 payload must fail closed");
+
   const selectionOutput = join(temporaryRoot, "selection.mjs");
   await build({
     entryPoints: [join(sourceRoot, "ui/selection.ts")],
@@ -975,6 +983,10 @@ try {
   assert.match(operationsIslandSource, /export function mountOperationsReactIsland/);
   assert.match(operationsIslandSource, /onRequestLegacy/);
 
+  const specifications2IslandSource = await readFile(join(sourceRoot, "specifications2-island.tsx"), "utf8");
+  assert.match(specifications2IslandSource, /export function mountSpecifications2ReactIsland/);
+  assert.match(specifications2IslandSource, /onRequestLegacy/);
+
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
@@ -982,6 +994,7 @@ try {
   assert.match(mainSource, /scenarioParam.*structure-employees/);
   assert.match(mainSource, /scenarioParam.*roles/);
   assert.match(mainSource, /scenarioParam.*operations/);
+  assert.match(mainSource, /scenarioParam.*specifications2/);
   assert.match(mainSource, /createReactIslandFeatureGate/);
   assert.match(mainSource, /featureGate\.update\(updatePayload\)/);
   assert.match(mainSource, /featureGate\.dispose\(\)/);
@@ -1107,6 +1120,16 @@ try {
   const eligibleWeeklyProductionControlHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleWeeklyProductionControlHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleWeeklyProductionControlHost.renderTarget(), /data-react-weekly-production-control-island/);
+
+  const specifications2ProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/specifications2/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeSpecifications2ProductionHost = (activation) => specifications2ProductionHostModule.createSpecifications2ReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: false, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: false, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "module-not-ready" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "postgres-revision-not-confirmed" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
+  const eligibleSpecifications2Host = makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleSpecifications2Host.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleSpecifications2Host.renderTarget(), /data-react-specifications2-island/);
 
   const rolesProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_roles/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({
@@ -1334,6 +1357,9 @@ try {
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
+  const specifications2ProductionHostSource = await readFile(join(repositoryRoot, "src/modules/specifications2/react_island_host.js"), "utf8");
+  assert.match(specifications2ProductionHostSource, /createReactIslandHost/);
+  assert.match(specifications2ProductionHostSource, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
   const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");
   assert.match(directoryComponentTypesHostSource, /createReactIslandHost/);
   assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("legacy-directory"\)/);
@@ -1359,6 +1385,7 @@ try {
   assert.match(productionBuildSource, /react-islands", "operations\.js/);
   assert.match(productionBuildSource, /react-islands", "nomenclature-types\.js/);
   assert.match(productionBuildSource, /react-islands", "statuses\.js/);
+  assert.match(productionBuildSource, /react-islands", "specifications2\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
@@ -1376,6 +1403,7 @@ try {
   assert.match(productionBuildSource, /replaceAll\(directoryOperationsReactIslandVersionMarker, directoryOperationsReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryNomenclatureTypesReactIslandVersionMarker, directoryNomenclatureTypesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryStatusesReactIslandVersionMarker, directoryStatusesReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(specifications2ReactIslandVersionMarker, specifications2ReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
@@ -1408,6 +1436,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_STATUSES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_SPECIFICATIONS2:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -1434,6 +1464,7 @@ try {
   assert.match(performanceBudget, /"shiftMasterBoard"/);
   assert.match(performanceBudget, /"employeeDesktop"/);
   assert.match(performanceBudget, /"contourAdmin"/);
+  assert.match(performanceBudget, /"specifications2"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
@@ -1461,6 +1492,8 @@ try {
   assert.match(productionNomenclatureTypesBundle, /mountNomenclatureTypesReactIsland/);
   const productionStatusesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/statuses.js"), "utf8");
   assert.match(productionStatusesBundle, /mountStatusesReactIsland/);
+  const productionSpecifications2Bundle = await readFile(join(repositoryRoot, "dist/src/react-islands/specifications2.js"), "utf8");
+  assert.match(productionSpecifications2Bundle, /mountSpecifications2ReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
@@ -1477,6 +1510,7 @@ try {
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

@@ -163,6 +163,14 @@ server-authenticated admin-only hostname boundary and additionally requires two
 false-by-default permissions plus an explicit read-only session request. A
 public host, editor access or a missing request retains legacy.
 
+`mountSpecifications2ReactIsland(...)` owns only inspection of the selected
+immutable published revision and its PostgreSQL tree. The host exposes a compact
+read model only after source entry, revision number and fingerprint all match
+the server projection. React owns local branch collapse; registry switching,
+XLSX upload, tree editing, routes, norms, attachments, publication and work-
+order creation return through `unsupported-scope`. Missing or mismatched
+PostgreSQL data, editor access or a missing session request retains legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

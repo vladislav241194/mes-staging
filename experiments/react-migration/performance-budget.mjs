@@ -42,12 +42,13 @@ const shiftWorkOrders = await measureEntry("shift-work-orders-island.tsx", { raw
 const shiftMasterBoard = await measureEntry("shift-master-board-island.tsx", { raw: 225_000, gzip: 68_000 });
 const employeeDesktop = await measureEntry("employee-desktop-island.tsx", { raw: 225_000, gzip: 68_000 });
 const contourAdmin = await measureEntry("contour-admin-island.tsx", { raw: 225_000, gzip: 68_000 });
+const specifications2 = await measureEntry("specifications2-island.tsx", { raw: 225_000, gzip: 68_000 });
 const roles = await measureEntry("roles-island.tsx", { raw: 225_000, gzip: 68_000 });
 const componentTypes = await measureEntry("component-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const operations = await measureEntry("operations-island.tsx", { raw: 225_000, gzip: 68_000 });
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
-const lab = await measureEntry("main.tsx", { raw: 430_000, gzip: 114_000 });
+const lab = await measureEntry("main.tsx", { raw: 445_000, gzip: 118_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -80,6 +81,8 @@ const employeeDesktopText = new TextDecoder().decode(employeeDesktop.bytes);
 assert.doesNotMatch(employeeDesktopText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Employee Desktop island must not bundle unrelated scenarios");
 const contourAdminText = new TextDecoder().decode(contourAdmin.bytes);
 assert.doesNotMatch(contourAdminText, /Вся номенклатура|Типы компонентов|Рабочий стол/, "Contour Admin island must not bundle unrelated scenarios");
+const specifications2Text = new TextDecoder().decode(specifications2.bytes);
+assert.doesNotMatch(specifications2Text, /Вся номенклатура|Типы компонентов|Рабочий стол/, "Specifications 2.0 island must not bundle unrelated scenarios");
 const rolesText = new TextDecoder().decode(roles.bytes);
 assert.doesNotMatch(rolesText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Roles production island must not bundle unrelated scenarios");
 const componentTypesText = new TextDecoder().decode(componentTypes.bytes);
@@ -113,6 +116,7 @@ console.log(JSON.stringify({
   shiftMasterBoard: shiftMasterBoard.measurement,
   employeeDesktop: employeeDesktop.measurement,
   contourAdmin: contourAdmin.measurement,
+  specifications2: specifications2.measurement,
   roles: roles.measurement,
   componentTypes: componentTypes.measurement,
   operations: operations.measurement,

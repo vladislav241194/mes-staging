@@ -505,6 +505,15 @@ const contourAdminReactIslandVersionMarker = "__MES_CONTOUR_ADMIN_REACT_BUNDLE_V
 if (!contourAdminReactIslandHostSource.includes(contourAdminReactIslandVersionMarker)) throw new Error("Cannot find Contour Admin React island bundle version marker");
 await writeFile(contourAdminReactIslandHostPath, contourAdminReactIslandHostSource.replaceAll(contourAdminReactIslandVersionMarker, contourAdminReactIslandVersion));
 
+const specifications2ReactIslandOutput = join(stagingDistDir, "src", "react-islands", "specifications2.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "specifications2-island.tsx"), specifications2ReactIslandOutput);
+const specifications2ReactIslandVersion = await fileHash(specifications2ReactIslandOutput);
+const specifications2ReactIslandHostPath = join(stagingDistDir, "src", "modules", "specifications2", "react_island_host.js");
+const specifications2ReactIslandHostSource = await readFile(specifications2ReactIslandHostPath, "utf8");
+const specifications2ReactIslandVersionMarker = "__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__";
+if (!specifications2ReactIslandHostSource.includes(specifications2ReactIslandVersionMarker)) throw new Error("Cannot find Specifications 2.0 React island bundle version marker");
+await writeFile(specifications2ReactIslandHostPath, specifications2ReactIslandHostSource.replaceAll(specifications2ReactIslandVersionMarker, specifications2ReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -679,6 +688,7 @@ console.log(`- src/react-islands/shift-work-orders.js?v=${shiftWorkOrdersReactIs
 console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReactIslandVersion}`);
 console.log(`- src/react-islands/employee-desktop.js?v=${employeeDesktopReactIslandVersion}`);
 console.log(`- src/react-islands/contour-admin.js?v=${contourAdminReactIslandVersion}`);
+console.log(`- src/react-islands/specifications2.js?v=${specifications2ReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

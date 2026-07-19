@@ -84,6 +84,7 @@ import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_order
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
+import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2173,7 +2174,9 @@ let renderSpecifications2Page = () => renderUiModulePage({
   className: "specifications2-page",
   content: renderUiEmptyState({ title: "Загружаем модуль", description: "Спецификация откроется автоматически." }),
 });
+let getSpecifications2ReactModel = () => ({ registry: [], selectedEntry: null, serverStatus: "empty", serverError: "" });
 let specifications2ModuleLoad = null;
+let specifications2ModuleReady = false;
 let specifications2RevisionsReadModel = null;
 let specifications2PublishCommands = null;
 let specifications2AttachmentCommands = null;
@@ -2215,6 +2218,7 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
   };
   ({
     bindSpecifications2Events,
+    getSpecifications2ReactModel,
     renderSpecifications2Page,
   } = factory({
     escapeAttribute,
@@ -2265,6 +2269,7 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
     renderUiStatusToken,
     renderUiTableWrap,
   }));
+  specifications2ModuleReady = true;
 }
 
 function ensureSpecifications2Module() {
@@ -2294,6 +2299,7 @@ function ensureSpecifications2Module() {
       if (ui.activeModule === "specifications2") render();
     })
     .catch((error) => {
+      specifications2ModuleReady = false;
       console.error("Не удалось загрузить модуль Спецификации 2.0", error);
       renderSpecifications2Page = () => renderUiModulePage({
         ariaLabel: "Спецификации 2.0",
@@ -2760,6 +2766,52 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
   getPayload: () => ({ model: getContourAdminModel() }),
   getTargetRoot: () => app,
   requestLegacyRender: () => { if (ui.activeModule === "contourAdmin") render({ skipRememberScroll: true }); },
+});
+function getSpecifications2ReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-specifications2") === "1",
+    readOnlyEvaluation: params.get("react-specifications2-readonly") === "1",
+  };
+}
+function isSpecifications2ReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-specifications2-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
+  getActivation: () => {
+    const localQa = getSpecifications2ReactLocalQaOverrides();
+    const featureFlagEnabled = MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2 === true || localQa.featureFlagEnabled;
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION === true;
+    const model = featureFlagEnabled && specifications2ModuleReady ? getSpecifications2ReactModel() : null;
+    return {
+      featureFlagEnabled,
+      moduleReady: specifications2ModuleReady,
+      serverReadReady: model?.serverStatus === "ready",
+      accessMode: (serverEvaluationAllowed && isSpecifications2ReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => ({ model: getSpecifications2ReactModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, targetId] = String(scope || "").split(":");
+    if (action === "select" && targetId) {
+      try {
+        const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
+        localStorage.setItem("mes-specifications-2-registry-v1", JSON.stringify({ ...store, selectedId: targetId }));
+      } catch (_error) {
+        // Invalid compatibility state is normalized by the legacy module.
+      }
+    }
+    localStorage.setItem("mes-specifications-2-tab-v1", action === "routes" || action === "attachments" ? "route-drafts" : "tree");
+    if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+  },
 });
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6643,9 +6695,12 @@ function initializeModuleRuntime() {
     specifications2: {
       render: () => {
         ensureSpecifications2Module();
+        const reactDecision = specifications2ReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return specifications2ReactIslandHost.renderTarget();
         return renderSpecifications2Page();
       },
-      bind: () => bindSpecifications2Events(),
+      bind: () => { if (!specifications2ReactIslandHost.isReactEligible()) bindSpecifications2Events(); },
+      afterRender: () => { void specifications2ReactIslandHost.mount(); },
     },
     authPrototype: {
       render: () => {

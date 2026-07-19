@@ -91,3 +91,72 @@
 .mes-react-contour-admin-island .contour-admin-react th,
 .mes-react-contour-admin-island .contour-admin-react td { vertical-align: top; }
 .mes-react-contour-admin-island .contour-admin-react-guardrails { display: grid; gap: 9px; margin: 0; padding: 14px 14px 14px 32px; font-size: 11px; }
+
+.mes-react-specifications2-island { min-width: 0; color: #18314d; font-family: Onest, Inter, system-ui, sans-serif; }
+.mes-react-specifications2-island * { box-sizing: border-box; }
+.mes-react-specifications2-island button { font: inherit; }
+.mes-react-specifications2-island .module-page { min-height: 680px; padding: 22px; }
+.mes-react-specifications2-island .module-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.mes-react-specifications2-island .module-header p,
+.mes-react-specifications2-island .panel-heading p,
+.mes-react-specifications2-island .detail > p { margin: 0 0 4px; color: #718296; font-size: 12px; }
+.mes-react-specifications2-island h1,
+.mes-react-specifications2-island h2 { margin: 0; }
+.mes-react-specifications2-island h1 { font-size: 25px; }
+.mes-react-specifications2-island h2 { font-size: 16px; }
+.mes-react-specifications2-island .lab-badge,
+.mes-react-specifications2-island .status { border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 650; }
+.mes-react-specifications2-island .lab-badge { color: #285aa8; background: #dce9ff; }
+.mes-react-specifications2-island .module-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; }
+.mes-react-specifications2-island .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
+.mes-react-specifications2-island .module-sidebar,
+.mes-react-specifications2-island .panel,
+.mes-react-specifications2-island .detail { overflow: hidden; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+.mes-react-specifications2-island .module-sidebar { min-height: 620px; padding: 16px; }
+.mes-react-specifications2-island .module-sidebar > strong { display: block; margin: 4px 8px 12px; color: #718296; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.mes-react-specifications2-island .filter { display: flex; width: 100%; justify-content: space-between; gap: 12px; margin: 3px 0; padding: 10px 11px; border: 0; border-radius: 10px; color: #41586e; background: transparent; text-align: left; cursor: pointer; }
+.mes-react-specifications2-island .filter.is-active { color: #164fa4; background: #e5efff; }
+.mes-react-specifications2-island .filter-copy { display: grid; min-width: 0; gap: 2px; }
+.mes-react-specifications2-island .filter-copy > span,
+.mes-react-specifications2-island .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mes-react-specifications2-island .filter-copy small { color: #7a8b9d; font-size: 9px; }
+.mes-react-specifications2-island .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+.mes-react-specifications2-island .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; }
+.mes-react-specifications2-island :is(.module-sidebar, .specifications2-react-publication, .specifications2-react-detail) .action { color: #18314d; background: #e8eef5; }
+.mes-react-specifications2-island .table-wrap { overflow: auto; }
+.mes-react-specifications2-island table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mes-react-specifications2-island th,
+.mes-react-specifications2-island td { padding: 11px 13px; border-bottom: 1px solid #edf1f5; text-align: left; white-space: nowrap; }
+.mes-react-specifications2-island th { color: #718296; background: #f8fafc; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.mes-react-specifications2-island .status--success { color: #167451; background: #dff6eb; }
+.mes-react-specifications2-island .status--warning { color: #8b6412; background: #fff0c9; }
+.mes-react-specifications2-island .status--neutral { color: #52667a; background: #e9eef4; }
+.mes-react-specifications2-island .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(104px, 1fr)); gap: 8px; }
+.mes-react-specifications2-island .metric-card { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+.mes-react-specifications2-island .metric-card span,
+.mes-react-specifications2-island .metric-card small { color: #718296; font-size: 9px; }
+.mes-react-specifications2-island .metric-card strong { font-size: 17px; }
+.mes-react-specifications2-island .detail { display: grid; align-content: start; gap: 12px; padding: 18px; }
+.mes-react-specifications2-island .detail h2 { margin-bottom: 18px; }
+.mes-react-specifications2-island dl { display: grid; gap: 12px; margin: 0; }
+.mes-react-specifications2-island dl div { padding-bottom: 10px; border-bottom: 1px solid #edf1f5; }
+.mes-react-specifications2-island dt { color: #718296; font-size: 10px; text-transform: uppercase; }
+.mes-react-specifications2-island dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+.mes-react-specifications2-island .specifications2-react { display: grid; gap: 14px; }
+.mes-react-specifications2-island .specifications2-react-summary { display: grid; gap: 12px; padding: 14px; }
+.mes-react-specifications2-island .specifications2-react-publication { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 10px; border: 1px solid #dce5ef; border-radius: 11px; background: #f8fafc; }
+.mes-react-specifications2-island .specifications2-react-publication > span:not(.status) { flex: 1 1 300px; color: #52667a; font-size: 11px; }
+.mes-react-specifications2-island .specifications2-react-tree { min-width: 720px; }
+.mes-react-specifications2-island .specifications2-react-tree th:nth-child(3),
+.mes-react-specifications2-island .specifications2-react-tree td:nth-child(3) { text-align: right; }
+.mes-react-specifications2-island .specifications2-react-object { display: grid; grid-template-columns: 22px minmax(160px, auto); align-items: center; gap: 2px 7px; padding-left: calc(var(--tree-depth) * 22px); }
+.mes-react-specifications2-island .specifications2-react-object button,
+.mes-react-specifications2-island .specifications2-react-object > span { grid-row: 1 / span 2; width: 20px; height: 20px; }
+.mes-react-specifications2-island .specifications2-react-object button { border: 1px solid #cbd8e6; border-radius: 6px; color: #285aa8; background: #fff; cursor: pointer; }
+.mes-react-specifications2-island .specifications2-react-object strong { font-size: 11px; }
+.mes-react-specifications2-island .specifications2-react-object small { color: #718296; font-size: 9px; }
+.mes-react-specifications2-island .specifications2-react-detail .action { width: 100%; }
+
+@media (max-width: 1180px) {
+  .mes-react-specifications2-island .workspace { grid-template-columns: minmax(0, 1fr); }
+}

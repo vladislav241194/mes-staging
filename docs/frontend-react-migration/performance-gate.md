@@ -31,19 +31,21 @@ Current minified measurements:
 | Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
+| Specifications 2.0 production island | 208,864 B | 64,433 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full twenty-one-scenario lab | 424,587 B | 101,918 B | 430,000 B | 114,000 B |
-| Shared lab CSS | 12,466 B | 2,638 B | 14,000 B | 4,000 B |
+| Full twenty-two-scenario lab | 438,958 B | 104,836 B | 445,000 B | 118,000 B |
+| Shared lab CSS | 13,852 B | 2,880 B | 14,000 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
-Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin and Roles artifacts and rejects unrelated scenario labels.
+Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
+Specifications 2.0 and Roles artifacts and rejects unrelated scenario labels.
 This preserves independent vertical slices instead of shipping every lab
 scenario with an individual island. The larger `430,000 B / 114,000 B` limit
-applies only to the twenty-one-scenario development lab, never to a production
+applies only to the twenty-two-scenario development lab, never to a production
 island. Its raw limit increased only as isolated scenarios were added; every
 production entry retains the unchanged `225,000 B / 68,000 B` gate.
 
@@ -72,6 +74,7 @@ Browser evidence from one local run:
 | Shift Master Board | measured by the same callback | browser gate passed | card selection preserved, revision 2 |
 | Employee Desktop | measured by the same callback | browser gate passed | task selection preserved, revision 2 |
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
+| Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
 
 The bundled production Roles island is `204,264 B` raw / `64,094 B` gzip /
 `55,289 B` Brotli. Its production-shell first commit measured below `25 ms` on the
@@ -153,6 +156,11 @@ acceptance.
 The bundled production Contour Admin island is `201,348 B` raw / `63,003 B`
 gzip / `54,161 B` Brotli. Its exact admin-host production-shell first commit
 stayed below `20 ms`; this is regression evidence, not Admin/Pilot acceptance.
+
+The bundled production Specifications 2.0 island is `204,557 B` raw /
+`64,193 B` gzip / `60,833 B` Brotli. Its four-row PostgreSQL revision production-
+shell first commit stayed below `20 ms`; this is regression evidence, not Pilot
+acceptance.
 
 All measured paths produced revision `1` then `2`.
 

@@ -68,7 +68,7 @@ remain frozen backend contracts rather than frontend migration scope.
 | Registry/sidebar | Nomenclature, Roles, Production Structure, Directories | Shared page, sidebar, filter, table, detail contracts |
 | Dense planning | Planning, Timesheet, Weekly Control | Shared loading/error contracts; specialized dense layouts |
 | Operational | Workshop, Worker Desktop, Shift Journal | Integrate only after the final PostgreSQL root audit; preserve accepted server authority |
-| Protected canvas | Gantt, Specifications 2.0 | Migrate last; retain geometry and interaction guardrails |
+| Protected canvas | Gantt, Specifications 2.0 | Published Specifications tree is read-only React; editors and Gantt retain geometry and interaction guardrails |
 | Admin/standalone | Contours, Authorization | Keep isolated security and standalone-shell contracts |
 
 ## Isolated vertical scenarios
@@ -351,6 +351,19 @@ first commit below `20 ms`, action fallback, zero Ops writes and clean console.
 The production artifact is `201,348 B` raw / `63,003 B` gzip / `54,161 B`
 Brotli. Pilot and Admin were not changed.
 
+Specifications 2.0 is the twenty-second production-integrated scenario and the
+first bounded protected-canvas proof. The legacy module exposes a compact read
+model only after the selected source entry, publication revision and fingerprint
+match the PostgreSQL revision projection. React renders the immutable revision
+passport, four metrics and published tree with local branch collapse. Registry
+switching, XLSX upload, editing, routes, norms, attachments, publication and
+work-order creation all return to legacy. Lab QA proves revision `7 -> 8`, tree
+collapse, disabled fallback and clean console. Production-shell QA proves
+default legacy, exact PostgreSQL revision/fingerprint parity, four rows, first
+commit below `20 ms`, editor fallback, zero Specifications API writes and unchanged
+`0600` state. The production artifact is `204,557 B` raw / `64,193 B` gzip /
+`60,833 B` Brotli. It has not been released or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -369,11 +382,11 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop and Contour Admin read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin and Specifications 2.0 read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; and for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop and Contour Admin; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; and for Specifications 2.0 using the fingerprint-matched published revision read model. No fixture reaches production.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin and Specifications 2.0; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 
