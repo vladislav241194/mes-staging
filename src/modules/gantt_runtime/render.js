@@ -5285,6 +5285,7 @@ function getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, projec
         id: String(slot.id || ""),
         rowId: row.id,
         routeId: String(getSlotRouteId(slot) || row.routeId || ""),
+        operationId: String(slot.routeStepId || routeMeta.step?.id || slot.operationId || ""),
         title: String(routeMeta.step?.name || routeMeta.step?.operationName || routeMeta.routeName || slot.name || slot.id || "Операция"),
         meta: [routeMeta.centerCode, routeMeta.orderLabel].filter(Boolean).join(" · "),
         status: String(slot.status || ""),
@@ -5297,6 +5298,7 @@ function getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, projec
         top: round(placement?.top || 0),
         height: round(placement?.height || getSlotHeight(isAggregate)),
         aggregate: isAggregate,
+        locked: Boolean(slot.locked || slot.isLocked || isGanttSlotCompleted(slot)),
       };
     });
     return { id: row.id, type: row.type, label: rowLabel, meta: rowMeta, top: round(layout.top), height: round(layout.height), slots };

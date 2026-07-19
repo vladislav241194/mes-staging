@@ -268,15 +268,19 @@ publication and work-order creation return through `unsupported-scope`. Missing
 or mismatched PostgreSQL data or a missing evaluation request retains legacy.
 
 `mountGanttReactIsland(...)` owns the read-only schedule canvas, local slot-
-passport selection and inspection of visible dependencies. The legacy Gantt
+passport selection and inspection of visible dependencies, plus a loopback-only
+typed start-time command proof for one existing unlocked slot. The legacy Gantt
 runtime computes the scale, timeline, rows, heights and slot rectangles from
 the PostgreSQL runtime projection and resolves dependency pairs through
 `getDependencyPairs(planningState)`, then passes that immutable read model
 through a typed adapter. React does not own working calendars, scheduling math
-or dependency rules. Filters, scale/date changes, dependency editing, drag,
-resize, optimization and every editor command return through
-`unsupported-scope`. A snapshot fallback, unloaded runtime, editor access or
-missing session request retains legacy.
+or dependency rules. Before delegating the typed command to the existing
+revision-checked `changeSlotSchedule` owner, the host rechecks the PostgreSQL
+projection, RBAC, slot identity, route/operation binding, lock state and date.
+Filters, scale/date changes, dependency editing, drag, resize, optimization and
+all other editor commands return through `unsupported-scope`. A snapshot
+fallback, unloaded runtime, non-loopback write request, editor access or missing
+session request retains legacy.
 
 `mountAuthPickerReactIsland(...)` owns the unauthenticated organizational picker
 and a localhost-only PIN command evaluation. Its typed payload allowlists

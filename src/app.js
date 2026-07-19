@@ -3608,10 +3608,10 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
 let ganttReactModel = null;
 function getGanttReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-gantt") === "1", readOnlyEvaluation: params.get("react-gantt-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-gantt") === "1", readOnlyEvaluation: params.get("react-gantt-readonly") === "1", writeEvaluation: params.get("react-gantt-write") === "1" };
 }
 function isGanttReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
@@ -3626,15 +3626,35 @@ const ganttReactIslandHost = createGanttReactIslandHost({
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_GANTT === true || localQa.featureFlagEnabled,
       runtimeReady: Boolean(ganttRuntime?.isReady?.() && ganttReactModel),
       postgresProjectionReady: planningRuntimeProjectionState.status === "server",
-      accessMode: (serverEvaluationAllowed && isGanttReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isGanttReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => ({ model: ganttReactModel }),
+  getPayload: () => {
+    const localQa = getGanttReactLocalQaOverrides();
+    return { model: ganttReactModel, capabilities: { scheduleEdit: localQa.writeEvaluation && planningRuntimeProjectionState.status === "server" && authorizeSystemDomainAction("planning", "edit") } };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
     const [action, slotId] = String(scope || "").split(":");
     if (action === "slot" && slotId) ui.selectedSlotId = slotId;
     if (ui.activeModule === "gantt") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getGanttReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "reschedule-slot") return { ok: false, message: "Изменение графика в React недоступно." };
+    if (planningRuntimeProjectionState.status !== "server") return { ok: false, message: "PostgreSQL-проекция графика недоступна." };
+    if (!authorizeSystemDomainAction("planning", "edit")) return { ok: false, message: "Нет права изменять производственный график." };
+    const slotId = String(command.slotId || "").trim(); const routeId = String(command.routeId || "").trim(); const operationId = String(command.operationId || "").trim();
+    const projectedSlot = (ganttReactModel?.rows || []).flatMap((row) => row.slots || []).find((slot) => slot.id === slotId && !slot.aggregate);
+    const stateSlot = (planningState?.slots || []).find((slot) => String(slot.id || "") === slotId);
+    if (!projectedSlot || !stateSlot || projectedSlot.routeId !== routeId || String(projectedSlot.operationId || "") !== operationId || String(stateSlot.routeStepId || stateSlot.operationId || "") !== operationId) return { ok: false, message: "Слот больше не соответствует выбранной операции." };
+    if (stateSlot.locked || stateSlot.isLocked || isGanttSlotCompleted(stateSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
+    const plannedStart = new Date(String(command.plannedStart || ""));
+    if (Number.isNaN(plannedStart.getTime()) || plannedStart.getFullYear() < 2000 || plannedStart.getFullYear() > 2100) return { ok: false, message: "Дата начала операции некорректна." };
+    const result = await changePlanningSlotSchedule(routeId, operationId, plannedStart.toISOString(), { renderOnConflict: false });
+    if (!result?.applied) return { ok: false, message: result?.kind === "conflict" ? "График изменился в другом сеансе. Экран обновлён — проверьте слот и повторите." : "Начало операции не сохранено владельцем Planning." };
+    queueMicrotask(() => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); });
+    return { ok: true, id: slotId, plannedStart: result.slot?.plannedStart || plannedStart.toISOString() };
   },
 });
 function getRolesReactLocalQaOverrides() {
@@ -6314,7 +6334,7 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
   }
   return false;
 }
-async function changePlanningSlotSchedule(routeId, operationId, plannedStart) {
+async function changePlanningSlotSchedule(routeId, operationId, plannedStart, options = {}) {
   if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: "local" };
   const route = (planningState?.routes || []).find((item) => item.id === routeId);
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
@@ -6341,7 +6361,7 @@ async function changePlanningSlotSchedule(routeId, operationId, plannedStart) {
   if (result.kind === "conflict") {
     await Promise.all([workOrdersReadModel.refresh({ force: true }), workOrdersReadModel.refreshDetail(routeId, { force: true })]);
     notifySaveSuccess("Срок уже изменён в другом сеансе. Экран обновлён.");
-    render();
+    if (options.renderOnConflict !== false) render();
   }
   return { applied: false, kind: result.kind || "unavailable" };
 }

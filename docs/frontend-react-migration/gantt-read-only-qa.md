@@ -14,8 +14,11 @@ React does not recalculate scheduling or working-calendar rules. Toolbar,
 filter and scale remain legacy. React now consumes the exact visible pairs from
 the existing `getDependencyPairs(planningState)` owner, exposes their source,
 target, type and time interval, and selects the target slot locally. Dependency
-editing, drag, resize, optimization and every schedule mutation remain in the
-unchanged legacy renderer.
+editing, drag, resize and optimization remain in the unchanged legacy renderer.
+A localhost-only typed command proof may move the start of one existing
+unlocked slot, but the host revalidates the PostgreSQL projection, RBAC,
+route/operation binding, lock state and date before delegating to the existing
+revision-checked `changeSlotSchedule` owner.
 
 Activation requires all of the following:
 
@@ -26,7 +29,9 @@ Activation requires all of the following:
 - explicit authenticated `react-gantt-evaluation=1` request.
 
 Local QA may use `qa-auth-bypass=1&react-gantt=1&react-gantt-readonly=1` only
-on loopback hosts. Default navigation remains legacy.
+on loopback hosts. The schedule command proof additionally requires
+`react-gantt-write=1`; it is unavailable on Pilot and every non-loopback host.
+Default navigation remains legacy.
 
 ## Evidence
 
@@ -34,8 +39,12 @@ on loopback hosts. Default navigation remains legacy.
 production-shell rendering, local slot selection, one `Монтаж -> Контроль`
 dependency with a 60-minute interval, target-slot selection, editor fallback,
 zero Planning API writes and a clean browser console. The fixture rendered
-three rows and two slots from PostgreSQL revision 19; first React commit was
-`17.10 ms`.
+three rows and two slots from PostgreSQL revision 19; first React commit remains
+under `25 ms` in the current local runs. The same production-shell gate proves locked and invalid
+requests fail before the API, a revision conflict is presented without leaving
+React, a retry performs exactly one successful owner mutation, preserves slot
+duration and advances the authoritative revision once, and legacy reads the
+updated slot geometry back from the same projection.
 
 The independent production bundle is `204,190 B` raw / `63,874 B` gzip /
 `55,121 B` Brotli. The isolated entry measurement is `207,957 B` raw /

@@ -212,7 +212,7 @@
 .mes-react-gantt-island .gantt-react-detail dt { color:#718296; font-size:10px; text-transform:uppercase; }
 .mes-react-gantt-island .gantt-react-detail dd { margin:3px 0 0; font-size:13px; font-weight:600; }
 .mes-react-gantt-island .gantt-react-detail label { display:grid; gap:5px; color:#718296; font-size:10px; }
-.mes-react-gantt-island .gantt-react-detail select { width:100%; min-width:0; padding:8px 10px; border:1px solid #cbd8e6; border-radius:9px; color:#18314d; background:#fff; }
+.mes-react-gantt-island .gantt-react-detail :is(select,input) { width:100%; min-width:0; padding:8px 10px; border:1px solid #cbd8e6; border-radius:9px; color:#18314d; background:#fff; }
 .mes-react-gantt-island .gantt-react-detail .action { width:100%; }
 .mes-react-auth-picker-island .module-page { min-height:100vh; padding:28px; }
 .mes-react-auth-picker-island .module-layout,.mes-react-auth-picker-island .workspace { display:block; }

@@ -3,7 +3,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 const GANTT_REACT_TARGET = "[data-react-gantt-island]";
 const GANTT_REACT_BUNDLE_VERSION = "__MES_GANTT_REACT_BUNDLE_VERSION__";
 
-export function createGanttReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Gantt React island failed", error) } = {}) {
+export function createGanttReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Gantt React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation,
     getPayload,
@@ -16,7 +16,7 @@ export function createGanttReactIslandHost({ getActivation, getPayload, getTarge
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.runtimeReady) return "runtime-not-ready";
       if (!activation.postgresProjectionReady) return "postgres-projection-not-ready";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -26,6 +26,6 @@ export function createGanttReactIslandHost({ getActivation, getPayload, getTarge
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountGanttReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountGanttReactIsland(target, payload, { onError, onReady, onRequestLegacy, onCommand: executeCommand ? (command) => executeCommand(command) : undefined }),
   });
 }

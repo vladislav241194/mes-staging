@@ -6,16 +6,26 @@ const now = new Date(); now.setHours(8, 0, 0, 0);
 const later = (hours) => new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
 const projection = {
   revision: 19,
-  routes: [{ id: "qa-react-gantt-route", name: "Маршрут React Gantt", planningQuantity: 24, planningStatus: "scheduled", lifecycleStatus: "released", unit: "шт." }],
+  routes: [{ id: "qa-react-gantt-route", name: "Маршрут React Gantt", planningQuantity: 24, planningStatus: "scheduled", lifecycleStatus: "released", unit: "шт.", domainConcurrencyRevision: 19 }],
   routeSteps: [
     { id: "qa-react-gantt-step-1", routeId: "qa-react-gantt-route", stepOrder: 1, operationId: "OP-1", operationName: "Монтаж", workCenterId: "D5", isRequired: true, quantityMultiplier: 1 },
     { id: "qa-react-gantt-step-2", routeId: "qa-react-gantt-route", stepOrder: 2, operationId: "OP-2", operationName: "Контроль", workCenterId: "D6", isRequired: true, quantityMultiplier: 1 },
   ],
   slots: [
     { id: "qa-react-gantt-slot-1", routeId: "qa-react-gantt-route", routeStepId: "qa-react-gantt-step-1", planningOrderId: "qa-react-gantt-route", workCenterId: "D5", operationId: "OP-1", operationName: "Монтаж", quantity: 24, unit: "шт.", plannedStart: later(0), plannedEnd: later(4), status: "planned" },
-    { id: "qa-react-gantt-slot-2", routeId: "qa-react-gantt-route", routeStepId: "qa-react-gantt-step-2", planningOrderId: "qa-react-gantt-route", workCenterId: "D6", operationId: "OP-2", operationName: "Контроль", quantity: 24, unit: "шт.", plannedStart: later(5), plannedEnd: later(7), status: "planned" },
+    { id: "qa-react-gantt-slot-2", routeId: "qa-react-gantt-route", routeStepId: "qa-react-gantt-step-2", planningOrderId: "qa-react-gantt-route", workCenterId: "D6", operationId: "OP-2", operationName: "Контроль", quantity: 24, unit: "шт.", plannedStart: later(5), plannedEnd: later(7), status: "planned", isLocked: true },
   ],
 };
+const workOrderItem = () => ({
+  id: projection.routes[0].id,
+  number: "WO-GANTT-QA",
+  name: projection.routes[0].name,
+  quantity: 24,
+  concurrencyRevision: projection.routes[0].domainConcurrencyRevision,
+  revision: projection.routes[0].domainConcurrencyRevision,
+  metadata: { id: projection.routes[0].id, name: projection.routes[0].name, planningQuantity: 24 },
+  operations: projection.routeSteps.map((step) => ({ ...step, slot: { ...projection.slots.find((slot) => slot.routeStepId === step.id) } })),
+});
 
 async function waitPreview(origin) {
   for (let index = 0; index < 100; index += 1) {
@@ -32,7 +42,7 @@ async function stop(child) {
 const port = await getFreePort(); const origin = `http://127.0.0.1:${port}`;
 const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru" }, stdio: ["ignore", "pipe", "pipe"] });
 let previewOutput = ""; preview.stdout.on("data", (chunk) => { previewOutput += chunk; }); preview.stderr.on("data", (chunk) => { previewOutput += chunk; });
-let chrome = null; const consoleProblems = []; let projectionReads = 0; let planningWrites = 0;
+let chrome = null; const consoleProblems = []; let projectionReads = 0; let planningWrites = 0; let schedulePatchAttempts = 0; let successfulScheduleWrites = 0; let forceScheduleConflict = false;
 try {
   await waitPreview(origin); chrome = await launchChrome("mes-gantt-react-island-qa-"); const { client } = chrome;
   client.socket.addEventListener("message", (event) => {
@@ -40,11 +50,28 @@ try {
     if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url); const method = message.params.request.method;
+    const fulfill = (payload, responseCode = 200, etag = "gantt-react-r19") => client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: `"${etag}"` }], body: Buffer.from(JSON.stringify(payload)).toString("base64") }).catch((error) => consoleProblems.push(error.message));
     if (requestUrl.pathname === "/api/v1/planning/work-orders/projection") {
       projectionReads += 1;
-      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: '"gantt-react-r19"' }], body: Buffer.from(JSON.stringify({ ok: true, projection })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      void fulfill({ ok: true, projection }, 200, `gantt-react-r${projection.routes[0].domainConcurrencyRevision}`);
       return;
     }
+    const scheduleMatch = requestUrl.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)\/operations\/([^/]+)\/slot$/);
+    if (scheduleMatch && method === "PATCH") {
+      planningWrites += 1; schedulePatchAttempts += 1;
+      const routeId = decodeURIComponent(scheduleMatch[1]); const operationId = decodeURIComponent(scheduleMatch[2]); const body = JSON.parse(message.params.request.postData || "{}");
+      const revision = projection.routes[0].domainConcurrencyRevision; const ifMatch = Object.entries(message.params.request.headers || {}).find(([key]) => key.toLowerCase() === "if-match")?.[1] || "";
+      if (routeId !== projection.routes[0].id || !projection.routeSteps.some((step) => step.id === operationId)) void fulfill({ ok: false, error: "not found" }, 404);
+      else if (forceScheduleConflict || Number(body.expectedRevision) !== revision || ifMatch !== `"${revision}"`) { forceScheduleConflict = false; void fulfill({ ok: false, conflict: true, item: workOrderItem(), error: "revision conflict" }, 409, `gantt-react-r${revision}`); }
+      else {
+        const slot = projection.slots.find((entry) => entry.routeStepId === operationId); const nextStart = new Date(body.plannedStart); const duration = new Date(slot.plannedEnd).getTime() - new Date(slot.plannedStart).getTime();
+        slot.plannedStart = nextStart.toISOString(); slot.plannedEnd = new Date(nextStart.getTime() + duration).toISOString(); projection.routes[0].domainConcurrencyRevision += 1; projection.revision += 1; successfulScheduleWrites += 1;
+        const { operations, ...compact } = workOrderItem(); void fulfill({ ok: true, item: compact }, 200, `gantt-react-r${projection.routes[0].domainConcurrencyRevision}`);
+      }
+      return;
+    }
+    if (requestUrl.pathname === "/api/v1/planning/work-orders" && method === "GET") { const { operations, ...compact } = workOrderItem(); void fulfill({ ok: true, items: [compact] }, 200, `gantt-react-r${projection.routes[0].domainConcurrencyRevision}`); return; }
+    if (requestUrl.pathname === `/api/v1/planning/work-orders/${projection.routes[0].id}` && method === "GET") { void fulfill({ ok: true, item: workOrderItem() }, 200, `gantt-react-r${projection.routes[0].domainConcurrencyRevision}`); return; }
     if (requestUrl.pathname.startsWith("/api/v1/planning") && method !== "GET") planningWrites += 1;
     void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
   });
@@ -54,6 +81,8 @@ try {
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-gantt-shell][data-ui-component="GanttRuntime"]')), { message: "legacy Gantt must remain default", timeoutMs: 20_000 });
+  const initialLegacySlotLeft = await evaluate(client, () => document.querySelector('[data-gantt-shell] [data-slot-id="qa-react-gantt-slot-1"]')?.style.left || "");
+  assert(initialLegacySlotLeft, "legacy Gantt must expose initial slot geometry");
   assert(!await evaluate(client, () => Boolean(document.querySelector("[data-react-gantt-island]"))), "Gantt React activated without evaluation flags");
   await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&react-gantt=1&react-gantt-readonly=1` });
   try {
@@ -74,12 +103,43 @@ try {
   await evaluate(client, () => [...document.querySelectorAll('.gantt-react-detail [data-ui-component="ActionButton"]')].find((button) => button.textContent?.includes("Вернуться к слоту"))?.click()); await waitForCondition(client, () => document.querySelector(".gantt-react-detail h2")?.textContent?.includes("Контроль"), { message: "Gantt dependency inspector did not return to target slot" });
   await evaluate(client, () => [...document.querySelectorAll('.gantt-react-detail [data-ui-component="ActionButton"]')].find((button) => button.textContent?.includes("Открыть редактирование"))?.click());
   await waitForCondition(client, () => Boolean(document.querySelector("[data-gantt-shell]")) && !document.querySelector("[data-react-gantt-island]"), { message: "Gantt edit action did not return to legacy", timeoutMs: 15_000 });
-  assert(projectionReads >= 1, "Gantt must read the PostgreSQL projection");
   assert(planningWrites === 0, "read-only Gantt evaluation must not call planning writes");
+
+  await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&react-gantt=1&react-gantt-write=1&qa-reload=gantt-schedule-write` });
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-gantt-island][data-react-island-state="ready"]')) && document.querySelector('[data-gantt-react-schedule-form] input[name="plannedStart"]')?.disabled === false, { message: "Gantt schedule write evaluation did not become ready", timeoutMs: 20_000 });
+
+  await evaluate(client, () => document.querySelector('[data-ui-component="GanttSlot"][data-slot-id="qa-react-gantt-slot-2"]')?.click());
+  await waitForCondition(client, () => document.querySelector('[data-gantt-react-schedule-form] input[name="plannedStart"]')?.disabled === true && document.querySelector('[role="alert"]')?.textContent?.includes("заблокированный слот"), { message: "locked Gantt slot was not fail-closed", timeoutMs: 10_000 });
+  assert(schedulePatchAttempts === 0, "locked Gantt slot must not reach the schedule owner");
+
+  await evaluate(client, () => document.querySelector('[data-ui-component="GanttSlot"][data-slot-id="qa-react-gantt-slot-1"]')?.click());
+  await waitForCondition(client, () => document.querySelector('[data-gantt-react-schedule-form] input[name="plannedStart"]')?.disabled === false, { message: "editable Gantt slot did not restore its schedule form" });
+  await evaluate(client, () => { const input = document.querySelector('[data-gantt-react-schedule-form] input[name="plannedStart"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "1000-01-01T08:00"); input.dispatchEvent(new Event("input", { bubbles: true })); document.querySelector("[data-gantt-react-schedule-form]")?.requestSubmit(); });
+  await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("Дата начала операции некорректна"), { message: "invalid Gantt start was not rejected before API" });
+  assert(schedulePatchAttempts === 0, "invalid Gantt start must not reach PATCH");
+
+  const requestedStart = later(1);
+  await evaluate(client, (value) => { const date = new Date(value); const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16); const input = document.querySelector('[data-gantt-react-schedule-form] input[name="plannedStart"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, local); input.dispatchEvent(new Event("input", { bubbles: true })); }, requestedStart);
+  forceScheduleConflict = true;
+  await evaluate(client, () => document.querySelector("[data-gantt-react-schedule-form]")?.requestSubmit());
+  await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("другом сеансе"), { message: "Gantt schedule conflict was not visible", timeoutMs: 15_000 });
+  assert(schedulePatchAttempts === 1 && successfulScheduleWrites === 0, "conflicted Gantt schedule must not mutate projection");
+
+  await evaluate(client, () => document.querySelector("[data-gantt-react-schedule-form]")?.requestSubmit());
+  await waitForCondition(client, (expected) => document.querySelector('.gantt-react-detail dl')?.textContent?.includes(new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date(expected))) === true, { arg: requestedStart, message: "Gantt schedule retry did not refresh the authoritative slot", timeoutMs: 20_000 });
+  assert(schedulePatchAttempts === 2 && successfulScheduleWrites === 1 && projection.routes[0].domainConcurrencyRevision === 20, "Gantt schedule success must advance exactly one owner revision");
+  assert(projection.slots[0].plannedStart === requestedStart && new Date(projection.slots[0].plannedEnd).getTime() - new Date(projection.slots[0].plannedStart).getTime() === 4 * 60 * 60 * 1000, "Gantt schedule owner must preserve slot duration");
+
+  await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&qa-reload=gantt-schedule-legacy-readback` });
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-gantt-shell] [data-slot-id="qa-react-gantt-slot-1"]')), { message: "legacy Gantt did not render the React-updated slot", timeoutMs: 20_000 });
+  const updatedLegacySlotLeft = await evaluate(client, () => document.querySelector('[data-gantt-shell] [data-slot-id="qa-react-gantt-slot-1"]')?.style.left || "");
+  assert(updatedLegacySlotLeft && updatedLegacySlotLeft !== initialLegacySlotLeft, `legacy Gantt did not read back React schedule geometry (${initialLegacySlotLeft} -> ${updatedLegacySlotLeft})`);
+  assert(projectionReads >= 1, "Gantt must read the PostgreSQL projection");
+  assert(planningWrites === 2, "Gantt command QA must perform only the conflict and successful schedule PATCH attempts");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Gantt React production-shell functional QA: OK");
   console.log(`- ${react.rows} rows, ${react.slots} slots, exact legacy geometry; first commit ${react.commitMs.toFixed(2)} ms`);
-  console.log("- dependency inspection Монтаж -> Контроль, target-slot selection, edit fallback and zero API writes: pass");
+  console.log("- dependency inspection, read-only edit fallback, locked/invalid rejection, schedule conflict/retry and legacy read-back: pass");
 } catch (error) {
   if (previewOutput.trim()) console.error(previewOutput.trim());
   throw error;
