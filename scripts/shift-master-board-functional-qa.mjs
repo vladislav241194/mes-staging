@@ -3,7 +3,32 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY } from "../src/app_constants.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { migrateLegacySystemDomains } from "../src/modules/system_domains/service.js";
+
 const defaultUrl = new URL("/?module=shiftMasterBoard&qa-auth-bypass=1&qa=shift-master-board-functional", process.env.MES_QA_URL || "http://localhost:4174/").toString();
+const MASTER_ID = "ROLE-D-WAREHOUSE-STARSHIY-KLADOVSCHIK-1-EMP-01";
+const EMPLOYEE_ID = "ROLE-D-WAREHOUSE-KLADOVSCHIK-1-EMP-01";
+const systemDomainsMigration = migrateLegacySystemDomains({
+  matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,
+  legacyUi: {
+    accessRoleProfiles: [{
+      id: "admin",
+      label: "Администратор QA",
+      scope: "all",
+      defaultModule: "shiftMasterBoard",
+      modulePermissions: { shiftMasterBoard: { view: true, edit: true, assign: true } },
+    }],
+    accessRoleAssignments: { [MASTER_ID]: "admin", [EMPLOYEE_ID]: "admin" },
+    shiftMasterAssignmentMatrix: {
+      [MASTER_ID]: { mode: "manual", employeeIds: [EMPLOYEE_ID], updatedAt: "2026-07-19T00:00:00.000Z" },
+    },
+  },
+  migratedAt: "2026-07-19T00:00:00.000Z",
+});
+const systemDomainsFixture = systemDomainsMigration.domains;
+const responseBody = (value) => Buffer.from(JSON.stringify(value)).toString("base64");
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -162,11 +187,26 @@ async function waitForApp(client) {
     if (ok) return;
     await delay(120);
   }
-  throw new Error("Shift Master Board app shell did not render.");
+  const debug = await evaluate(client, () => {
+    const ui = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+    return {
+      href: location.href,
+      page: document.querySelector("main.app-shell")?.getAttribute("data-layout-page") || "",
+      message: document.querySelector(".startup-error-message")?.textContent?.trim() || "",
+      technical: document.querySelector(".startup-error-details pre")?.textContent?.trim().slice(0, 4000) || "",
+      ui: {
+        activeRole: ui.activeRole,
+        activeShiftMasterId: ui.activeShiftMasterId,
+        windowStart: ui.windowStart,
+        shiftMasterAssignmentMatrix: ui.shiftMasterAssignmentMatrix,
+      },
+    };
+  });
+  throw new Error(`Shift Master Board app shell did not render: ${JSON.stringify(debug)}`);
 }
 
 async function seedSpecifications2ShiftBoardFixture(client) {
-  const fixture = await evaluate(client, ({ stateKey, uiKey }) => {
+  const fixture = await evaluate(client, ({ stateKey, uiKey, masterId, employeeId }) => {
     // The test owns a throwaway browser profile. This is the smallest released
     // Specs 2.0 chain, so the board test never depends on legacy/pilot data.
     const state = JSON.parse(localStorage.getItem(stateKey) || "{}");
@@ -178,6 +218,11 @@ async function seedSpecifications2ShiftBoardFixture(client) {
     while ([0, 6].includes(start.getDay())) start.setDate(start.getDate() + 1);
     start.setHours(9, 0, 0, 0);
     const end = new Date(start.getTime() + 90 * 60 * 1000);
+    const windowStart = [
+      start.getFullYear(),
+      String(start.getMonth() + 1).padStart(2, "0"),
+      String(start.getDate()).padStart(2, "0"),
+    ].join("-");
     const routeId = "qa-specifications2-board-route";
     const stepId = "qa-specifications2-board-step";
     const slotId = "qa-specifications2-board-slot";
@@ -208,10 +253,10 @@ async function seedSpecifications2ShiftBoardFixture(client) {
     state.dispatchFacts = {};
     state.planningCorrections = {};
     localStorage.setItem(stateKey, JSON.stringify(state));
-    localStorage.setItem(uiKey, JSON.stringify({ ...ui, activeModule: "shiftMasterBoard", windowStart: start.toISOString(), shiftMasterBoardAssignments: {}, shiftMasterBoardFacts: {}, shiftMasterBoardCarryovers: {}, shiftMasterBoardLaneBySlot: {} }));
+    sessionStorage.setItem("mes-shift-master-board-functional-ui-seed", JSON.stringify({ ...ui, activeModule: "shiftMasterBoard", activeShiftMasterId: masterId, windowStart, shiftMasterAssignmentMatrix: { [masterId]: { mode: "manual", employeeIds: [employeeId], updatedAt: start.toISOString() } }, shiftMasterBoardAssignments: {}, shiftMasterBoardFacts: {}, shiftMasterBoardCarryovers: {}, shiftMasterBoardLaneBySlot: {} }));
     window.location.reload();
     return { routeId, stepId, slotId, workCenterId };
-  }, { stateKey: "mes-planning-prototype-state-v2", uiKey: "mes-planning-prototype-ui-v1" });
+  }, { stateKey: "mes-planning-prototype-state-v2", uiKey: "mes-planning-prototype-ui-v1", masterId: MASTER_ID, employeeId: EMPLOYEE_ID });
   await delay(800);
   await waitForApp(client);
   assert(fixture?.slotId, `Could not seed isolated Specs 2.0 shift-board fixture: ${JSON.stringify(fixture)}`);
@@ -269,16 +314,51 @@ async function cleanupChrome(chrome) {
 
 async function main() {
   await assertSourceIsolation();
+  assert(systemDomainsMigration.report.validation.valid, `Shift Master Board System Domains fixture is invalid: ${JSON.stringify(systemDomainsMigration.report.validation)}`);
+  assert(systemDomainsFixture.registries.employees.some((employee) => employee.id === MASTER_ID), "Shift Master Board master fixture is missing.");
+  assert(systemDomainsFixture.registries.employees.some((employee) => employee.id === EMPLOYEE_ID), "Shift Master Board executor fixture is missing.");
   const url = getArg("--url", defaultUrl);
   const chrome = await launchChrome();
   try {
     const { client } = chrome;
+    const fetchErrors = [];
+    client.socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.method !== "Fetch.requestPaused") return;
+      const requestUrl = new URL(message.params.request.url);
+      const fulfill = (payload) => client.send("Fetch.fulfillRequest", {
+        requestId: message.params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "Content-Type", value: "application/json; charset=utf-8" },
+          { name: "Cache-Control", value: "no-store" },
+          { name: "ETag", value: '"shift-master-board-functional-1"' },
+        ],
+        body: responseBody(payload),
+      }).catch((error) => fetchErrors.push(error?.message || String(error)));
+      if (requestUrl.pathname === "/api/v1/system-domains/capabilities") {
+        void fulfill({ ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], consistency: { details: { authority: { mode: "postgres-primary" } } } } });
+        return;
+      }
+      if (requestUrl.pathname === "/api/v1/system-domains") {
+        void fulfill({ ok: true, revision: 1, item: systemDomainsFixture });
+        return;
+      }
+      void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => fetchErrors.push(error?.message || String(error)));
+    });
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] });
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `
         try {
           sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
+          sessionStorage.setItem(${JSON.stringify(SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY)}, "1");
+          const shiftMasterSeed = sessionStorage.getItem("mes-shift-master-board-functional-ui-seed");
+          if (shiftMasterSeed) {
+            localStorage.setItem("mes-planning-prototype-ui-v1", shiftMasterSeed);
+            sessionStorage.removeItem("mes-shift-master-board-functional-ui-seed");
+          }
         } catch {}
       `,
     });
@@ -331,9 +411,11 @@ async function main() {
       return {
         missing: true,
         cardCount: initialCards.length,
+        ui: (() => { const value = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"); return { activeRole: value.activeRole, activeShiftMasterId: value.activeShiftMasterId, assignmentMatrix: value.shiftMasterAssignmentMatrix }; })(),
         panels: [...document.querySelectorAll("[data-shift-board-assignment-panel]")]
           .map((panel) => ({
             row: panel.getAttribute("data-shift-board-assignment-panel") || "",
+            masterId: panel.getAttribute("data-shift-board-assignment-master-id") || "",
             scope: Number(panel.getAttribute("data-shift-board-assignment-scope-count") || 0),
             available: Number(panel.getAttribute("data-shift-board-assignment-available-count") || 0),
             inputCount: panel.querySelectorAll("[data-shift-board-available-quantity]").length,
@@ -935,6 +1017,7 @@ async function main() {
 
       return { laneCounts, removedPanelsVisible, boardLaneStructureValid, invalidDragTargetsBlocked, masterSelectorKeepsBoardVisible, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, kuzminaEmployeeCardCount, kuzminaLoadbarText, kuzminaFallbackTaskCount, kuzminaFallbackScopeCount, kuzminaFallbackAvailableCount, kuzminaFallbackEmployeeCardCount, kuzminaFallbackSavedQuantity, kuzminaFallbackLoadbarText, assignmentInputAvailable, unavailableInputBlocked, unavailableCardText, unavailableCardHasHatching, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, documentPanelText, documentTransferCards, factPanelVisible, factSaveVisible, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, tinyTargets, tinyTargetDetails, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
     });
+    assert(fetchErrors.length === 0, `Shift Master Board System Domains interception failed: ${fetchErrors.join("; ")}`);
 
     if (result.assignmentInputAvailable) {
       assert(result.modalOpened, "Shift board sheet modal did not open.");

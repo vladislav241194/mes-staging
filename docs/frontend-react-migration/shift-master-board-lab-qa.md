@@ -55,12 +55,17 @@ exactly one Shift Execution write, leaves the 0600 fixture unchanged and keeps a
 clean console. First commit is `26.50 ms`; the production bundle is `208,190 B`
 raw / `65,231 B` gzip / `56,256 B` Brotli. Pilot remains unchanged.
 
-## Known legacy-fixture debt
+## Legacy lifecycle baseline restored
 
-`npm run qa:shift-master-board` currently stops before its mutation assertions:
-the isolated Specifications 2.0 card receives `0` access-matrix employees and
-`0` Timesheet-available employees after PostgreSQL System Domains hydration.
-The failure is upstream of both the React form and the assignment owner. The
-dedicated server command/bridge/outbox/carryover suites, React production shell
-and 26-module smoke pass; the legacy fixture still needs a PostgreSQL-primary
-employee/schedule seed rather than a weakened assertion.
+`npm run qa:shift-master-board` now supplies a validated PostgreSQL-primary
+System Domains projection generated from the production matrix. The fixture has
+the canonical warehouse master, one manually authorized warehouse executor,
+their role assignments and the standard schedule projection. The dispatch
+window is seeded through the date-only UI contract before application startup.
+
+The full legacy lifecycle passes without weakening access or Timesheet checks:
+one isolated Specifications 2.0 task, one authorized and available executor,
+`11 / 12` assigned, direct shift-sheet issue, transfer contract, print preview,
+unauthorized-executor filtering, storage isolation and no horizontal overflow.
+The React production shell, server command/bridge/outbox/carryover suites and
+the 26-module smoke also pass against the restored baseline.
