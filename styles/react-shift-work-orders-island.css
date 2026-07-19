@@ -1,0 +1,16 @@
+.mes-react-shift-work-orders-island .action {
+  padding: 9px 13px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  background: #2f6fe4;
+  cursor: pointer;
+}
+
+.mes-react-shift-work-orders-island .action--secondary {
+  color: #18314d;
+  background: #e8eef5;
+}
+
+.mes-react-shift-work-orders-island .action--danger { background: #b83a3a; }
+.mes-react-shift-work-orders-island .action:disabled { opacity: .45; cursor: default; }
