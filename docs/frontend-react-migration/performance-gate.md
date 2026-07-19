@@ -29,13 +29,13 @@ Current minified measurements:
 | Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
-| Employee Desktop isolated entry | 206,128 B | 63,621 B | 225,000 B | 68,000 B |
+| Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full twenty-scenario lab | 411,525 B | 99,478 B | 420,000 B | 111,000 B |
+| Full twenty-scenario lab | 411,663 B | 99,501 B | 420,000 B | 111,000 B |
 | Shared lab CSS | 11,026 B | 2,435 B | 12,000 B | 3,500 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -141,6 +141,11 @@ Pilot acceptance.
 The bundled production Shift Master Board island is `202,787 B` raw /
 `63,572 B` gzip / `54,628 B` Brotli. Its one-card PostgreSQL-backed production-
 shell first commit was `22.10 ms`; this is regression evidence, not Pilot
+acceptance.
+
+The bundled production Employee Desktop island is `202,416 B` raw /
+`63,416 B` gzip / `54,553 B` Brotli. Its one-task PostgreSQL-backed production-
+shell first commit stayed below `50 ms`; this is regression evidence, not Pilot
 acceptance.
 
 All measured paths produced revision `1` then `2`.

@@ -144,12 +144,16 @@ assignment, fact, carryover, transfer and print scopes return through
 `unsupported-scope`. Missing coverage, an open legacy overlay, editor access
 or a missing session request retains legacy.
 
-`mountEmployeeDesktopReactIsland(...)` is currently an isolated read-only
-employee-task proof. Its adapter consumes the completed legacy
-`getAuthSessionPrototypeModel()` and owns only local task selection. Person
+`mountEmployeeDesktopReactIsland(...)` owns the read-only executor task view
+behind two false-by-default server permissions, PostgreSQL System Domains and
+complete current Shift Execution coverage, plus an explicit session request.
+Its adapter consumes the completed legacy `getAuthSessionPrototypeModel()` and
+owns only local task selection. A direct module entry first hydrates the full
+Planning PostgreSQL graph, then derives the bounded dispatch scope. Person
 switching plus start, fact, Report, structure, route and PDF scopes return
 through `unsupported-scope`; authentication, fact drafts, keypad input, photos
-and every save command stay in legacy. No production flag or host is claimed.
+and every save command stay in legacy. Missing coverage, an open legacy modal,
+editor access or a missing session request retains legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host

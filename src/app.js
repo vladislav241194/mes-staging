@@ -82,6 +82,7 @@ import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
+import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2695,6 +2696,42 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });
   },
 });
+function getEmployeeDesktopReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-employee-desktop") === "1", readOnlyEvaluation: params.get("react-employee-desktop-readonly") === "1" };
+}
+function isEmployeeDesktopReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-employee-desktop-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
+  getActivation: () => {
+    const localQa = getEmployeeDesktopReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION === true;
+    const overlayClosed = !normalizePlainRecord(ui.authSessionModal).type;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP === true || localQa.featureFlagEnabled,
+      serverReadReady: authModulesReady && systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
+      accessMode: (serverEvaluationAllowed && isEmployeeDesktopReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ model: getAuthSessionPrototypeModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, taskId] = String(scope || "").split(":");
+    const model = getAuthSessionPrototypeModel();
+    const task = (model.allTasks || []).find((item) => item.id === taskId) || model.selectedTask || null;
+    if (task?.id) ui.authSessionSelectedTaskId = task.id;
+    const modalType = action === "report" ? "issue" : action;
+    if (["structure", "route", "pdf", "issue"].includes(modalType) && task?.id) ui.authSessionModal = { type: modalType, taskId: task.id };
+    persistUiState();
+    if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true });
+  },
+});
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
@@ -4401,7 +4438,7 @@ async function hydrateInitialPlanningServerBootstrap() {
   // shared-state service can retain its metadata-only handshake on success.
   // Returning false is intentional: runtime_state then restores exactly one
   // compatibility snapshot instead of presenting a partial graph.
-  if (["gantt", "shiftMasterBoard", "shiftWorkOrders"].includes(ui?.activeModule)) {
+  if (["gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)) {
     const applied = await hydratePlanningRuntimeProjection();
     // `applySharedStateSnapshot()` may synchronously render before runtime
     // state emits its post-sync completion hook.  Keep that intervening render
@@ -4553,7 +4590,7 @@ async function hydratePlanningRuntimeProjection({ force = false } = {}) {
       // forced caller must then observe one more PostgreSQL projection rather
       // than accepting the pre-command response it happened to join.
     } while (planningRuntimeProjectionForceRefreshRequested);
-    if (applied && ["planning", "gantt", "shiftMasterBoard", "shiftWorkOrders"].includes(ui?.activeModule)) {
+    if (applied && ["planning", "gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)) {
       render({ skipRememberScroll: true });
     }
     return applied;
@@ -6602,17 +6639,25 @@ function initializeModuleRuntime() {
         }
         ensureAuthModules();
         ensureShiftMasterBoardModule();
+        // A direct Employee Desktop entry needs the same complete Planning
+        // graph as the Master Board before it can derive a bounded dispatch
+        // scope. The PostgreSQL projection is the source of those task rows.
+        if (planningRuntimeProjectionState.status === "idle") void hydratePlanningRuntimeProjection();
         // The employee desktop consumes the same PostgreSQL assignment/fact
         // projection as the Master Board.  Hydrate it before treating the
         // retired browser maps as an authoritative empty task list.
         if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
+        const reactDecision = employeeDesktopReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return employeeDesktopReactIslandHost.renderTarget();
         return renderAuthSessionPrototypePage();
       },
       renderModals: () => renderAuthSessionModal(),
       bind: () => {
+        if (employeeDesktopReactIslandHost.isReactEligible()) return;
         bindAuthPrototypeEvents();
         bindAuthSessionEvents();
       },
+      afterRender: () => { void employeeDesktopReactIslandHost.mount(); },
     },
     weeklyProductionControl: {
       initialize: () => getWeeklyProductionControlRuntimeInstance(),
