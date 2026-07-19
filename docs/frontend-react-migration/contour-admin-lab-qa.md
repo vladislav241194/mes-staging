@@ -46,3 +46,18 @@ read-only fallback, cancelled confirmation with zero calls, one exact mocked
 confirmed call, safe result rendering and a clean console. The production bundle
 is `203,825 B` raw / `63,608 B` gzip / `54,810 B` Brotli. No real Ops command,
 Admin deployment or Pilot change was performed.
+
+## Pilot rollout preparation
+
+The read-only evaluation now has an isolated root-controlled rollout contour:
+
+- `ops/frontend/mes-pilot-react-contour-admin-evaluation.conf`;
+- `ops/frontend/activate-react-contour-admin-evaluation.sh`;
+- `ops/frontend/deactivate-react-contour-admin-evaluation.sh`;
+- `scripts/contour-admin-react-rollout-ops-qa.mjs`.
+
+It owns only systemd drop-in `91-react-contour-admin-evaluation.conf`, verifies
+health, both public read flags and the protected Admin login surface after
+restart, and restores the prior configuration on failure. It never enables or
+calls the protected Ops action endpoint. The rollout QA is part of
+`npm run qa:contour-admin-react-island`.
