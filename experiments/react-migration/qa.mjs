@@ -345,6 +345,65 @@ try {
   assert.deepEqual(legacyBoardButtons, adaptedBoards.map((board) => [board.id, String(board.rows.length ? board.componentTotal : 0)]), "React board list must preserve legacy badge totals");
   assert.deepEqual(legacyBomRows.map((row) => row.values.map(String)), adaptedBoards[0].rows.map((row) => row.values.map(String)), "React adapter must match the actual legacy BOM row normalizer");
 
+  const rolesAdapterOutput = join(temporaryRoot, "roles-adapter.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/roles/adapter.ts")],
+    outfile: rolesAdapterOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const rolesAdapter = await import(`${pathToFileURL(rolesAdapterOutput).href}?qa=${Date.now()}`);
+  assert.deepEqual(rolesAdapter.adaptRoles({ registries: { accessRoles: {} } }).roles, [], "invalid accessRoles registry must fail closed");
+  assert.deepEqual(rolesAdapter.adaptRoles({ registries: { accessRoles: [{ id: "", label: "invalid" }] } }).roles, [], "roles without stable ids must fail closed");
+
+  const rolesFixtureOutput = join(temporaryRoot, "roles-fixture.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/roles/fixture.ts")],
+    outfile: rolesFixtureOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { rolesFixture } = await import(`${pathToFileURL(rolesFixtureOutput).href}?qa=${Date.now()}`);
+  const rolesModel = rolesAdapter.adaptRoles(rolesFixture);
+  assert.deepEqual(rolesModel.roles.map((role) => [role.id, role.allowedModuleCount, role.assignedEmployees.length]), [
+    ["admin", 4, 1],
+    ["master", 2, 1],
+    ["auditor", 2, 1],
+  ], "Roles adapter must preserve module visibility and explicit assignments");
+  assert.deepEqual(rolesModel.roles.find((role) => role.id === "master")?.assignedEmployees[0], {
+    id: "employee-master",
+    name: "Иванов Сергей",
+    personnelNumber: "0105",
+    positionLabel: "Мастер участка",
+    orgUnitLabel: "Производство",
+  }, "role assignment must join canonical employee, position and organization labels");
+  const auditorRole = rolesModel.roles.find((role) => role.id === "auditor");
+  assert.equal(rolesAdapter.roleAllows(auditorRole, "roles", "print"), true, "read-only role must retain print");
+  assert.equal(rolesAdapter.roleAllows(auditorRole, "roles", "edit"), false, "read-only role must deny mutating actions");
+
+  const { createAccessControlService } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_control/service.js")).href}?qa=${Date.now()}`);
+  const { toAccessControlAssignments, toAccessControlRoles } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/system_domains/runtime_adapter.js")).href}?qa=${Date.now()}`);
+  const legacyRolesService = createAccessControlService({
+    accessRoles: toAccessControlRoles(rolesFixture.item),
+    subjectRoleAssignments: toAccessControlAssignments(rolesFixture.item),
+    responsibilityScopes: [],
+  });
+  rolesModel.roles.forEach((role) => {
+    rolesModel.modules.forEach((moduleItem) => {
+      rolesAdapter.ROLE_ACTIONS.forEach((action) => {
+        assert.equal(
+          rolesAdapter.roleAllows(role, moduleItem.id, action.id),
+          legacyRolesService.grants(role.id, moduleItem.id, action.id),
+          `React grant visibility must match the production access-control service for ${role.id}/${moduleItem.id}/${action.id}`,
+        );
+      });
+    });
+  });
+
   const structureAdapterOutput = join(temporaryRoot, "structure-employees-adapter.mjs");
   await build({
     entryPoints: [join(sourceRoot, "modules/structure-employees/adapter.ts")],
@@ -721,11 +780,15 @@ try {
   assert.match(structureEmployeesIslandSource, /export function mountStructureEmployeesReactIsland/);
   assert.match(structureEmployeesIslandSource, /onRequestLegacy/);
 
+  const rolesIslandSource = await readFile(join(sourceRoot, "roles-island.tsx"), "utf8");
+  assert.match(rolesIslandSource, /export function mountRolesReactIsland/);
+
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
   assert.match(mainSource, /scenarioParam.*boards/);
   assert.match(mainSource, /scenarioParam.*structure-employees/);
+  assert.match(mainSource, /scenarioParam.*roles/);
   assert.match(mainSource, /createReactIslandFeatureGate/);
   assert.match(mainSource, /featureGate\.update\(updatePayload\)/);
   assert.match(mainSource, /featureGate\.dispose\(\)/);

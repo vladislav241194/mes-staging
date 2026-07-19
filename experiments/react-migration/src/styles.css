@@ -70,4 +70,7 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .primary-copy small { color: #718296; font-size: 9px; font-weight: 450; }
 .bom-table { min-width: 1120px; }
 .bom-table td:nth-child(7) { text-align: right; }
+.roles-grant-table { min-width: 940px; }
+.roles-grant-table td:not(:first-child):not(:nth-child(2)), .roles-grant-table th:not(:first-child):not(:nth-child(2)) { text-align: center; }
+.roles-assignment-table { min-width: 760px; }
 .primary-cell { font-weight: 650; }

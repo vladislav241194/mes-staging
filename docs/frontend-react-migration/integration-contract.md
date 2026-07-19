@@ -53,6 +53,10 @@ registry slice over a host-supplied System Domains snapshot. The host retains
 all registry navigation, authorization and command ownership; choosing any
 registry other than Employees requests unchanged legacy rendering.
 
+`mountRolesReactIsland(...)` provides the isolated Roles and Access read slice
+over a host-supplied System Domains snapshot and module registry. It has no
+production host yet; all role/grant/assignment/scope commands remain legacy.
+
 The Nomenclature wrapper has its own entry point and does not bundle Component
 Types. The multi-scenario lab keeps a separate entry for development QA.
 

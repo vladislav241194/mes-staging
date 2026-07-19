@@ -27,7 +27,7 @@ unresolved.
 
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
-| Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees read-only scenarios |
+| Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
 | Dense planning | Header, toolbar, status, loading/error | Dense grids, calendar and planning calculations | After registry proof |
 | Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
@@ -126,3 +126,13 @@ destinations return through the feature gate to legacy, and editor access never
 mounts the read-only island. Shared `MetricGrid`/`MetricCard` primitives now
 serve both canonical structure metrics and the Boards component summary without
 turning either process composition into a universal table variant.
+
+## Roles and Access read-model evidence
+
+The fifth isolated scenario consumes canonical `accessRoles`, `grants`,
+`roleAssignments`, employees and employment references. It reuses the shared
+page/header/sidebar/panel/table/metric/detail/status contracts, while keeping
+the six-action grant matrix and assignment table process-specific. Role/module/
+action visibility is executable-parity checked against the production access-
+control service. Editor access, reset, role edits, grant edits, assignments and
+scope commands remain legacy.

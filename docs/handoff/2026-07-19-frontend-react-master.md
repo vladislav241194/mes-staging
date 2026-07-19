@@ -95,7 +95,7 @@ header and page contracts. This closes the one-off-prototype risk for the
 registry family: shared behavior now has two consumers, while entity columns
 remain scenario-specific.
 
-All four scenarios are available through the generic reversible island boundary.
+Five scenarios are available through the generic reversible island boundary.
 Nomenclature remains the first production feature-flag scope; Component Types
 is an isolated reuse proof. Structure Employees is the first canonical System
 Domains read-model proof and the second production-integrated island. Boards/BOM
@@ -103,17 +103,26 @@ is now the third production-integrated island and preserves its process-specific
 nine-column table and component summary. All remain disabled by default; these
 integrations are not Pilot activation claims.
 
+The fifth isolated proof is `Roles and Access: select role -> inspect passport
+-> inspect six-action grants -> inspect explicit employee assignments`. Its
+typed adapter consumes canonical System Domains plus the module registry and is
+checked action-by-action against the production access-control service. Browser
+QA proves three roles, four modules, mouse/keyboard selection, payload revision
+`1 -> 2`, assignment joins, table-owned overflow and editor/disabled legacy
+fallback. The independent artifact is `208,801 B` raw / `64,511 B` gzip. It has
+no production host or runtime flag yet; all commands remain legacy.
+
 The lab also contains a host-side feature gate. A disabled flag never mounts
 React; mount/update/render failures schedule one fallback, unmount React, and
 restore the host-owned legacy view. Browser QA proved disabled and render-error
 paths without console warnings. This closes the isolated rollback-mechanics
 gate but does not wire or activate a production flag.
 
-The production-candidate Nomenclature, Boards and Structure Employees entries
-are separated from the multi-scenario lab. Each minified budget is `225,000 B`
-raw / `68,000 B` gzip; the current artifacts are respectively
-`205,469 B` / `63,705 B`, `208,616 B` / `64,478 B`, and
-`210,459 B` / `64,768 B`. Each is checked not to contain unrelated scenarios.
+The independent Nomenclature, Boards, Structure Employees and Roles entries are
+separated from the multi-scenario lab. Each minified budget is `225,000 B` raw /
+`68,000 B` gzip; the current artifacts are respectively `205,469 B` /
+`63,705 B`, `208,616 B` / `64,478 B`, `210,459 B` / `64,768 B`, and
+`208,801 B` / `64,511 B`. Each is checked not to contain unrelated scenarios.
 The shared runtime reports post-commit revision
 events, so Pilot mount/update time can later be measured without arbitrary
 timeouts. Local timings are QA evidence only, not Pilot acceptance.
@@ -192,7 +201,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Boards/BOM and Structure Employees read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Boards/BOM, Structure Employees and Roles/Access read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState` and for Structure Employees using PostgreSQL-hydrated System Domains; no fixture reaches production.**

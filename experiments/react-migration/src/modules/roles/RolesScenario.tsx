@@ -1,0 +1,68 @@
+import { useMemo, useState } from "react";
+import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { adaptRoles, ROLE_ACTIONS, roleAllows } from "./adapter";
+import { getAssignedEmployeeSummary, getRoleScopeLabel, resolveVisibleRole } from "./view-model";
+
+export function RolesScenario({ payload }: { payload: unknown }) {
+  const model = useMemo(() => adaptRoles(payload), [payload]);
+  const [selectedId, setSelectedId] = useState(model.roles[0]?.id || "");
+  const selected = resolveVisibleRole(model.roles, selectedId);
+  const header = <ModuleHeader eyebrow="Система · System Domains" title="Роли и доступ" badge={<span className="lab-badge">React migration lab</span>} />;
+  const sidebar = (
+    <ModuleSidebar label="Роли доступа" title="Роли и доступ">
+      {model.roles.map((role) => (
+        <SidebarItem
+          active={selected?.id === role.id}
+          count={role.allowedModuleCount}
+          key={role.id}
+          label={role.label}
+          meta={`${getRoleScopeLabel(role.scope)} · ${role.readOnly ? "read-only" : "операционная"}`}
+          onClick={() => setSelectedId(role.id)}
+        />
+      ))}
+    </ModuleSidebar>
+  );
+
+  return (
+    <ModulePage header={header} sidebar={sidebar}>
+      <section className="workspace-main">
+        {selected ? <>
+          <MetricGrid className="structure-metrics" label="Сводка роли доступа">
+            <MetricCard label="Доступных модулей" value={selected.allowedModuleCount} />
+            <MetricCard label="Явных grants" value={selected.explicitGrantCount} />
+            <MetricCard label="Назначений" value={selected.assignedEmployees.length} />
+            <MetricCard label="Область" value={getRoleScopeLabel(selected.scope)} />
+          </MetricGrid>
+          <Panel heading={<div className="panel-heading"><div><h2>Матрица grants</h2><p>Шесть исполняемых действий · должность не является ролью</p></div><ActionButton disabled title="Изменение grants остаётся в legacy до миграции команд">Изменить права</ActionButton></div>}>
+            <TableWrap><table className="roles-grant-table">
+              <thead><tr><th>Модуль</th><th>Группа</th>{ROLE_ACTIONS.map((action) => <th key={action.id}>{action.label}</th>)}</tr></thead>
+              <tbody>{model.modules.map((moduleItem) => <tr key={moduleItem.id}>
+                <td className="primary-cell">{moduleItem.label}</td><td>{moduleItem.group}</td>
+                {ROLE_ACTIONS.map((action) => <td key={action.id}><StatusToken label={roleAllows(selected, moduleItem.id, action.id) ? "да" : "нет"} tone={roleAllows(selected, moduleItem.id, action.id) ? "success" : "neutral"} /></td>)}
+              </tr>)}</tbody>
+            </table></TableWrap>
+          </Panel>
+          <Panel heading={<div className="panel-heading"><div><h2>Явные назначения</h2><p>{selected.assignedEmployees.length || "Нет"} сотрудников с этой ролью</p></div></div>}>
+            {selected.assignedEmployees.length ? <TableWrap><table className="roles-assignment-table">
+              <thead><tr><th>Сотрудник</th><th>Табельный номер</th><th>Должность</th><th>Подразделение</th></tr></thead>
+              <tbody>{selected.assignedEmployees.map((employee) => <tr key={employee.id}><td className="primary-cell">{employee.name}</td><td>{employee.personnelNumber}</td><td>{employee.positionLabel}</td><td>{employee.orgUnitLabel}</td></tr>)}</tbody>
+            </table></TableWrap> : <EmptyState title="Явных назначений нет" text="Эффективная роль может определяться отдельным точным правилом positionId в legacy-контуре." />}
+          </Panel>
+        </> : <EmptyState title="Роли пока недоступны" text="Read-only сценарий появится после загрузки канонического System Domains read-model." />}
+      </section>
+      <DetailPanel
+        emptyText="Роль не выбрана"
+        eyebrow="Паспорт роли"
+        fields={selected ? [
+          { label: "Stable ID", value: selected.id },
+          { label: "Описание", value: selected.description || "—" },
+          { label: "Область", value: getRoleScopeLabel(selected.scope) },
+          { label: "Стартовый модуль", value: selected.defaultModuleLabel },
+          { label: "Назначенные сотрудники", value: getAssignedEmployeeSummary(selected) },
+          { label: "Статус", value: <StatusToken label={selected.active ? selected.readOnly ? "read-only" : "активна" : "архив"} tone={selected.active ? selected.readOnly ? "warning" : "success" : "neutral"} /> },
+        ] : []}
+        title={selected?.label}
+      />
+    </ModulePage>
+  );
+}
