@@ -132,7 +132,7 @@ export function createStructureWorkCentersReactIslandHost({ getActivation, getPa
   });
 }
 
-export function createStructureEquipmentReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Structure Equipment React island failed", error) } = {}) {
+export function createStructureEquipmentReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Structure Equipment React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: "[data-react-structure-equipment-island]",
@@ -140,7 +140,7 @@ export function createStructureEquipmentReactIslandHost({ getActivation, getPayl
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -149,7 +149,7 @@ export function createStructureEquipmentReactIslandHost({ getActivation, getPayl
       const bundleVersion = STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion); return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureEquipmentReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureEquipmentReactIsland(target, payload, { onError, onReady, onRequestLegacy, onCommand: (command) => executeCommand?.(command) }),
   });
 }
 

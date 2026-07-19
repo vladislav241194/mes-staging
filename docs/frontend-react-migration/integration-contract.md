@@ -103,9 +103,10 @@ Archive and all unsupported commands remain legacy.
 and passport. Organization and parent-center references are resolved at the
 typed boundary; planning/Gantt commands and every editor action remain legacy.
 
-`mountStructureEquipmentReactIsland(...)` owns only the Equipment read table
-and passport. Work-center and schedule references are resolved from the same
-snapshot; create/save/archive and equipment scheduling commands remain legacy.
+`mountStructureEquipmentReactIsland(...)` owns the Equipment read table,
+passport and a local-only create/edit evaluation. Organization, work-center and
+schedule references are resolved from the same snapshot and validated by the
+host command owner. Archive and equipment scheduling commands remain legacy.
 
 `mountStructureResponsibilityPoliciesReactIsland(...)` owns the policy read
 table and passport. Employee references and display-name policy stay at the

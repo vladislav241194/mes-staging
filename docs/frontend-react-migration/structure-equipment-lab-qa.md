@@ -5,13 +5,21 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read-only vertical scenario:
+Read vertical scenario:
 
 `open Structure and Employees -> Equipment -> select an item -> inspect its passport`.
 
 The typed adapter consumes the authenticated PostgreSQL System Domains snapshot
 and preserves stable IDs, legacy Russian ordering, work-center and schedule
 references, quantity and archive status.
+
+Local-only command scenario:
+
+`reject invalid quantity -> create equipment -> edit with revision conflict -> retry -> read through legacy`.
+
+The form covers all seven legacy fields, including `orgUnitId`, which is not
+visible in the five-column read table. The host remains the command owner and
+requires PostgreSQL primary authority plus `productionStructureMatrix.edit`.
 
 ## Evidence
 
@@ -21,10 +29,16 @@ references, quantity and archive status.
 - selection/passport, seven registry links, six metrics, exact Org Units fallback,
   unchanged state and clean console pass in the production shell;
 - all four previously integrated Structure registry regressions remain exact;
-- latest local first commit was `16.5 ms`.
+- negative quantity is rejected before any PUT;
+- create preserves organization, work-center and schedule IDs plus quantity;
+- conflict does not mutate the revision and retry advances it exactly once;
+- hidden server-only fields survive edit and legacy reads back all seven rows;
+- the disposable compatibility snapshot stays byte-for-byte unchanged;
+- latest local first commit was `32.30 ms`.
 
-The independent entry is `208,973 B` raw / `64,291 B` gzip. The production
-artifact is `203,506 B` raw / `63,993 B` gzip / `55,085 B` Brotli. It remains
+The production artifact is `214,824 B` raw / `65,385 B` gzip, below the
+`225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only
+scenario and remains below `475,000 B / 118,000 B`. Both read and write remain
 false by default.
 
 ## Pilot acceptance
@@ -45,4 +59,5 @@ Equipment in read-only mode.
   the evaluation query retained.
 
 The flags are off, the temporary root directory has been removed, and no Pilot
-data was written. Command migration is outside this accepted slice.
+data was written. The new command slice is local evidence only; Pilot write
+acceptance remains a separate controlled checkpoint.

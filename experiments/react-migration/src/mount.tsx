@@ -9,7 +9,7 @@ import { StructureEmployeesReadScenario } from "./modules/structure-employees/St
 import { StructurePositionsReadScenario } from "./modules/structure-positions/StructurePositionsReadScenario";
 import { StructureOrgUnitsReadScenario } from "./modules/structure-org-units/StructureOrgUnitsReadScenario";
 import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
-import { StructureEquipmentScenario } from "./modules/structure-equipment/StructureEquipmentScenario";
+import { StructureEquipmentReadScenario } from "./modules/structure-equipment/StructureEquipmentReadScenario";
 import { StructureResponsibilityPoliciesScenario } from "./modules/structure-responsibility-policies/StructureResponsibilityPoliciesScenario";
 import { StructureMigrationDiagnosticsScenario } from "./modules/structure-migration-diagnostics/StructureMigrationDiagnosticsScenario";
 import { WeeklyProductionControlScenario } from "./modules/weekly-production-control/WeeklyProductionControlScenario";
@@ -35,7 +35,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structurePositions") return <StructurePositionsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureOrgUnits") return <StructureOrgUnitsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureWorkCenters") return <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "structureEquipment") return <StructureEquipmentScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureEquipment") return <StructureEquipmentReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureResponsibilityPolicies") return <StructureResponsibilityPoliciesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureMigrationDiagnostics") return <StructureMigrationDiagnosticsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "weeklyProductionControl") return <WeeklyProductionControlScenario payload={payload} />;

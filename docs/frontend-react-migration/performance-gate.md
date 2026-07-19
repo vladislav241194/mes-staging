@@ -21,7 +21,7 @@ Current minified measurements:
 | Structure Positions production island | 215,168 B | 65,465 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 213,588 B | 65,204 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 209,465 B | 64,375 B | 225,000 B | 68,000 B |
-| Structure Equipment production island | 209,048 B | 64,318 B | 225,000 B | 68,000 B |
+| Structure Equipment production island | 214,824 B | 65,385 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 210,157 B | 64,629 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,266 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,948 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 474,126 B | 110,624 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,542 B | 110,710 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -121,10 +121,12 @@ The bundled production Structure Work Centers island is `203,739 B` raw /
 `23.8 ms` across 19 PostgreSQL-backed rows; this is regression evidence, not
 Pilot acceptance.
 
-The bundled production Structure Equipment island is `203,506 B` raw /
-`63,993 B` gzip / `55,085 B` Brotli. Its production-shell first commit was
-`16.5 ms` across six PostgreSQL-backed rows; this is regression evidence, not
-Pilot acceptance.
+The bundled production Structure Equipment island is `214,824 B` raw /
+`65,385 B` gzip. Its production-shell first commit was `32.30 ms` across six
+PostgreSQL-backed rows; create/edit QA additionally returns a seventh row,
+rejects invalid quantity before mutation and preserves organization,
+work-center and schedule references. This is regression evidence, not Pilot
+acceptance.
 
 The bundled production Structure Responsibility Policies island is `204,254 B`
 raw / `64,244 B` gzip / `55,365 B` Brotli. Its temporary non-empty production-
