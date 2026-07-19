@@ -13,7 +13,7 @@ export interface ShiftMasterBoardRow {
   remainingQuantity: number; unit: string; laneId: string; signal: { label: string; tone: "success" | "warning" | "neutral" };
   masterName: string; executors: ShiftMasterBoardExecutor[]; assignableEmployees: ShiftMasterBoardAssignableEmployee[]; factUpdatedAt: string; riskLabel: string;
   factReady: boolean; hasFact: boolean; actualQuantity: number; defectQuantity: number; laborMinutes: number; executorCount: number; factComment: string; deviationComment: string;
-  isCarryover: boolean; sourceRowId: string; carryoverReason: string; transferStatus: string; carryoverId: string; carryoverDateKey: string; carryoverRemainingQuantity: number; transferTargetLabel: string;
+  isCarryover: boolean; sourceRowId: string; sourceDateKey: string; carryoverReason: string; transferStatus: string; carryoverId: string; carryoverDateKey: string; carryoverRemainingQuantity: number; transferTargetLabel: string;
 }
 export interface ShiftMasterBoardLane { id: string; label: string; caption: string; tone: "success" | "warning" | "neutral"; rows: ShiftMasterBoardRow[] }
 export interface ShiftMasterBoardModel {
@@ -45,7 +45,7 @@ function adaptRow(value: unknown): ShiftMasterBoardRow | null {
     factReady: assignment.issued === true || text(assignment.status) === "issued" || source.isIssued === true,
     hasFact: Boolean(text(fact.updatedAt || source.masterFactUpdatedAt)), actualQuantity: number(fact.actualQuantity), defectQuantity: number(fact.defectQuantity), laborMinutes: number(fact.laborMinutes),
     executorCount: number(fact.executorCount), factComment: text(fact.comment), deviationComment: text(fact.deviationComment),
-    isCarryover: source.isBoardCarryover === true, sourceRowId: text(source.sourceRowId), carryoverReason: text(source.note || source.reason),
+    isCarryover: source.isBoardCarryover === true, sourceRowId: text(source.sourceRowId), sourceDateKey: text(source.sourceDateKey), carryoverReason: text(source.note || source.reason),
     transferStatus: text(transfer.status), carryoverId: text(transfer.carryoverId || (source.isBoardCarryover ? id : "")), carryoverDateKey: text(transfer.carryoverDateKey || source.dateKey),
     carryoverRemainingQuantity: number(transfer.remainingQuantity || (source.isBoardCarryover ? plannedQuantity : 0)), transferTargetLabel: text(transfer.targetLabel, "Остаток в следующую смену"),
   };

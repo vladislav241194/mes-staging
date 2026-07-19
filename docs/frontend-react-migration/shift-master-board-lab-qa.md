@@ -8,7 +8,8 @@ Status: production-integrated assignment, fact and carryover-navigation island; 
 `Open Workshop -> inspect shift lanes -> select a task -> switch board focus ->
 distribute a bounded quantity between eligible executors -> read the assignment
 back -> record a partial shift fact -> read the canonical fact and carryover back
--> open the canonical remainder on the next shift.`
+-> open the canonical remainder on the next shift -> return to the source task
+-> correct the fact -> cancel the canonical remainder.`
 
 The typed adapter consumes the completed `getShiftMasterBoardModel()` result.
 It does not read PostgreSQL, shared state, Shift Execution repositories or the
@@ -33,8 +34,13 @@ legacy DOM directly.
   carryover and changes the date through the existing workbench date owner;
 - provisional-to-canonical reconciliation preserves selection by the durable
   `(sourceRowId, dateKey)` identity, so the next render selects the PostgreSQL ID;
-- read-only evaluation still returns assignment and fact to legacy; date/master
-  picker changes, manual cancellation/correction and print remain legacy;
+- the carryover POST result is normalized immediately, including the real
+  snake_case repository shape; correcting the fact can therefore PATCH the
+  canonical ID without waiting for a future-date dispatch;
+- returning from a carryover to its source task uses the same date owner. A
+  cached scope now re-renders React even when its ETag is unchanged;
+- read-only evaluation still returns assignment and fact to legacy; master
+  picker changes, manual transfer and print remain legacy;
 - no storage handle or API client crosses the island boundary.
 
 ## Evidence
@@ -48,14 +54,14 @@ legacy DOM directly.
 - focus reduces the lab board from four to three cards and preserves all three
   lanes; a zero-row production focus keeps the toolbar available so the user
   can return to `Все`;
-- two-executor assignment `80 + 40 = 120`, partial fact `100 - 4 = 96` and
-  remainder preview `24`, navigation to the next-shift carryover, owner-backed
-  revision `1 -> 6`, print fallback,
+- two-executor assignment `80 + 40 = 120`, partial fact `100 - 4 = 96`,
+  remainder preview `24`, next-shift/source navigation and corrected fact
+  `120`, owner-backed revision `1 -> 8`, print fallback,
   disabled flag, no page overflow and clean console;
-- independent entry `220,182 B` raw / `66,864 B` gzip under the unchanged
+- independent entry `220,660 B` raw / `66,936 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full aggregate lab `545,196 B / 124,379 B` under its development-only
-  `546,000 B / 126,000 B` budget;
+- full aggregate lab `545,945 B / 124,524 B` under its development-only
+  `547,000 B / 126,000 B` budget;
 - shared lab CSS `29,860 B / 5,345 B` under its development-only
   `30,000 B / 5,350 B` budget.
 
@@ -63,17 +69,23 @@ Production-shell QA proves default legacy, explicit session-only read access,
 three lanes and one PostgreSQL-backed task card on both renderers, read-only
 assignment fallback, owner-backed focus `Все -> empty Незакрытые -> Все`, then
 one write-evaluation assignment, one partial fact and one carryover with
-canonical read-back. It then navigates to the next shift and selects the
-canonical carryover alongside a normal next-shift production row. The test
-intercepts exactly one assignment, fact and carryover write, leaves the 0600
-fixture unchanged and keeps a clean console. Current first commit is `26.10 ms`;
-the production bundle is `213,357 B` raw / `66,542 B` gzip / `57,264 B` Brotli.
+canonical read-back. It then navigates to the next shift, selects the canonical
+carryover alongside a normal next-shift production row, returns to the source,
+corrects the fact and observes one canonical cancellation. The test intercepts
+exactly one assignment, two fact writes, one carryover create and one carryover
+cancel, leaves the 0600 fixture unchanged and keeps a clean console. Current
+first commit is `25.40 ms`; the production bundle is `213,675 B` raw /
+`66,609 B` gzip / `63,150 B` Brotli.
 Pilot remains unchanged.
 
 The frozen backend still requires at least one durable source row in a dispatch
 scope. A future date containing only a carryover therefore remains a legacy
 fallback and needs a separate Domain API contract change outside this frontend
-checkpoint; no backend/API/repository file was changed here.
+checkpoint. Likewise, the proven correction/cancellation path is one continuous
+owner session: a fresh bootstrap opened only on the source date cannot discover
+the target-date carryover ID through the current date-bounded API. Closing that
+cross-date read requires a separate backend contract; no backend/API/repository
+file was changed here.
 
 ## Legacy lifecycle baseline restored
 

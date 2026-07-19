@@ -1522,6 +1522,7 @@ function getShiftMasterBoardCarryoverRows(window = getShiftWorkbenchWindow(), ma
         endsAt,
         isBoardCarryover: true,
         sourceRowId: item.sourceRowId || "",
+        sourceDateKey: item.sourceDateKey || String(item.sourceRowId || "").match(/::(\d{4}-\d{2}-\d{2})$/)?.[1] || "",
       };
     })
     .filter(Boolean);
@@ -3346,6 +3347,7 @@ function createShiftMasterBoardCarryover(slotId = "", options = {}) {
   const carryover = {
     id: carryoverId,
     sourceRowId: slotId,
+    sourceDateKey: toDateInput(getShiftWorkbenchWindow().start),
     dateKey: nextDate,
     sourceSlotId: row.slotId || row.slot?.id || "",
     routeId: row.route?.id || row.routeId || "",

@@ -3080,6 +3080,12 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     if (!carryover) return;
     setShiftWorkbenchDate(dateKey, { selectedSlotId: carryover.id });
   },
+  openSource: (dateKey = "", sourceRowId = "") => {
+    const carryover = Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))
+      .find((item) => item?.sourceRowId === sourceRowId && (item?.sourceDateKey === dateKey || String(sourceRowId).endsWith(`::${dateKey}`))) || null;
+    if (!carryover) return;
+    setShiftWorkbenchDate(dateKey, { selectedSlotId: sourceRowId });
+  },
   selectFocus: (focus = "") => {
     const nextFocus = normalizeShiftMasterBoardFocus(focus);
     if (nextFocus === ui.shiftMasterBoardFocus) return;
@@ -5710,6 +5716,7 @@ function hydrateShiftExecutionServerProjection() {
     return;
   }
   const currentReadState = shiftExecutionDispatchReadModel?.getState?.();
+  const scopeChanged = !isSameShiftExecutionDispatchScope(scope, currentReadState?.scope);
   if (shiftExecutionServerState.status === "ready"
     && currentReadState?.ok === true
     && !currentReadState.error
@@ -5764,7 +5771,7 @@ function hydrateShiftExecutionServerProjection() {
       window.setTimeout(() => {
         if (ui?.activeModule === "shiftWorkOrders") render({ skipRememberScroll: true });
       }, 0);
-    } else if (projection.ok && projection.changed && ["shiftMasterBoard", "authSessionPrototype"].includes(ui?.activeModule)) {
+    } else if (projection.ok && (projection.changed || scopeChanged) && ["shiftMasterBoard", "authSessionPrototype"].includes(ui?.activeModule)) {
       render({ skipRememberScroll: true });
     }
   }).catch(() => {
@@ -5947,6 +5954,31 @@ async function mirrorShiftMasterBoardCarryoverToServer(row, carryover, replacedC
       return result;
     }
     if (!result?.ok) throw new Error(result?.error || "Shift carryover was not accepted by the server");
+    const serverItem = normalizePlainRecord(result.item);
+    const canonicalId = String(serverItem.id || "").trim();
+    if (canonicalId) {
+      const selectedCarryoverId = ui.shiftMasterBoardSelectedSlotId;
+      const canonicalCarryover = {
+        ...carryover,
+        id: canonicalId,
+        serverId: canonicalId,
+        sourceRowId: carryover.sourceRowId || row.id || "",
+        sourceSlotId: serverItem.sourceSlotId || serverItem.source_slot_id || carryover.sourceSlotId || "",
+        routeId: serverItem.workOrderId || serverItem.work_order_id || carryover.routeId || "",
+        stepId: serverItem.operationId || serverItem.work_order_operation_id || carryover.stepId || "",
+        workCenterId: serverItem.workCenterId || serverItem.work_center_id || carryover.workCenterId || "",
+        dateKey: String(serverItem.dateKey || serverItem.date_key || carryover.dateKey || "").slice(0, 10),
+        remainingQuantity: Number(serverItem.remainingQuantity ?? serverItem.remaining_quantity ?? carryover.remainingQuantity ?? 0),
+        reason: String(serverItem.reason || carryover.reason || ""),
+        createdAt: String(serverItem.createdAt || serverItem.created_at || carryover.createdAt || ""),
+      };
+      ui.shiftMasterBoardCarryovers = mergeShiftExecutionCarryovers(
+        ui.shiftMasterBoardCarryovers,
+        { [canonicalId]: canonicalCarryover },
+      );
+      if (selectedCarryoverId === carryover.id) ui.shiftMasterBoardSelectedSlotId = canonicalId;
+      persistUiState();
+    }
     await refreshShiftExecutionServerProjection();
     return result;
   } catch (error) {

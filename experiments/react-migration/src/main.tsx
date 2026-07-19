@@ -94,6 +94,7 @@ const featureGate = createReactIslandFeatureGate({
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
       onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
       onOpenShiftMasterBoardCarryover: (dateKey, carryoverId) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardCarryoverFixture(dateKey, carryoverId)); },
+      onOpenShiftMasterBoardSource: () => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFactFixture("assigned", { actualQuantity: 100, defectQuantity: 4, laborMinutes: 240, executorCount: 2, comment: "", deviationComment: "" })); },
       onShiftMasterBoardCommand: async (command) => { markRevisionStart(nextExpectedRevision); featureGate.update(command.type === "save-assignment" ? createShiftMasterBoardAssignmentFixture(command.rowId, command.executors) : createShiftMasterBoardFactFixture(command.rowId, command)); return { ok: true }; },
       onEmployeeDesktopCommand: async (command) => {
         if (command.type === "prepare-report-photo") { const dataUrl = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => resolve(""); reader.readAsDataURL(command.file); }); return { ok: true, photo: { id: "photo-lab", name: command.file.name, type: command.file.type, size: command.file.size, source: command.source, dataUrl, storageNote: "" } }; }
