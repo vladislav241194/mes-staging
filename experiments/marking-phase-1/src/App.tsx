@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Search,
   Send,
-  Settings2,
   Smartphone,
   UserRound,
   X,
@@ -27,8 +26,8 @@ import { createKits, event, findCode, makeBatch, taskStats } from "./model";
 import { testPrintAdapter } from "./printAdapter";
 import type { MarkingTask, PrintBatch, PrintStatus, PrototypeState, TaskStatus } from "./types";
 
-const STORAGE_KEY = "mes-line:marking-phase-1:test-state:v1";
 const PAGE_SIZE = 25;
+const logoUrl = new URL("../../../assets/brand/mes_logo_high_quality.svg", import.meta.url).href;
 
 const statusLabel: Record<TaskStatus, string> = {
   new: "Новое",
@@ -47,16 +46,6 @@ const printStatusLabel: Record<PrintStatus, string> = {
   reprinted: "Перепечатано",
 };
 
-const loadState = (): PrototypeState => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored) as PrototypeState;
-  } catch {
-    // A broken prototype snapshot must never block the local UI.
-  }
-  return createInitialState();
-};
-
 const formatTime = (value: string) => new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
   month: "2-digit",
@@ -71,7 +60,7 @@ function StatusBadge({ status }: { status: TaskStatus }) {
 }
 
 function App() {
-  const [state, setState] = useState<PrototypeState>(loadState);
+  const [state, setState] = useState<PrototypeState>(createInitialState);
   const [mobileNav, setMobileNav] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -80,7 +69,6 @@ function App() {
   const [reprintRequest, setReprintRequest] = useState<{ batchId: string; scope: PrintBatch["scope"]; targetCode?: string } | null>(null);
   const [toast, setToast] = useState("");
 
-  useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(state)), [state]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 3200);
@@ -99,23 +87,22 @@ function App() {
   const resetPrototype = () => {
     const initial = createInitialState();
     setState(initial);
-    localStorage.removeItem(STORAGE_KEY);
-    setToast("Тестовое состояние восстановлено");
+    setToast("MOCK-состояние восстановлено в памяти");
   };
 
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
-        <div className="brand"><div className="brand-mark">M</div><div><b>MES-line</b><span>производственный контур</span></div></div>
+        <div className="brand"><img alt="MES Line" src={logoUrl} /><div><b>MES Line</b><span>рабочие места</span></div></div>
         <nav>
-          <span className="nav-section">Оперативное управление</span>
-          <button><Boxes size={18} /> Мастерская</button>
+          <span className="nav-section">Специализированные модули</span>
           <button className="active"><QrCode size={18} /> Маркировка</button>
-          <button><PackageCheck size={18} /> Заказ-наряды</button>
+          <button disabled><Boxes size={18} /> SMT · отдельный модуль</button>
+          <button disabled><PackageCheck size={18} /> Склад · отдельный модуль</button>
           <span className="nav-section">Инструменты</span>
           <button onClick={() => setScannerOpen(true)}><Search size={18} /> Проверить код</button>
         </nav>
-        <div className="prototype-stamp"><CircleDot size={15} /><div><b>Локальный прототип</b><span>Только тестовые данные</span></div></div>
+        <div className="prototype-stamp"><CircleDot size={15} /><div><b>MOCK · локальный прототип</b><span>Нет API, БД и сохранения</span></div></div>
       </aside>
 
       <main className="workspace">
@@ -130,23 +117,16 @@ function App() {
 
         <div className="page">
           <div className="page-heading">
-            <div><div className="eyebrow">Специализированный рабочий стол</div><h1>Маркировка</h1><p>Создание комплектов, печать этикеток и передача партии</p></div>
+            <div><div className="eyebrow">Отдельный модуль рабочего места</div><h1>Маркировка</h1><p>Очередь задания → подготовка кодов → печать → передача</p></div>
             <div className="heading-actions">
-              <button className="button secondary" onClick={resetPrototype}><RotateCcw size={17} /> Сбросить тест</button>
-              <div className="test-flag">TEST · LOCAL</div>
+              <button className="button secondary" onClick={resetPrototype}><RotateCcw size={17} /> Сбросить MOCK</button>
+              <div className="test-flag">MOCK · MEMORY ONLY</div>
             </div>
           </div>
 
-          <section className="summary-strip" aria-label="Сводка заданий">
-            <Summary label="Назначено" value={state.tasks.length} detail="задания сотрудника" />
-            <Summary label="Требуют действий" value={state.tasks.filter((item) => item.status !== "transferred").length} detail="в текущей смене" tone="blue" />
-            <Summary label="Комплектов" value={state.tasks.reduce((sum, item) => sum + item.kits.length, 0)} detail="создано в тесте" />
-            <Summary label="Риски" value={state.tasks.filter((item) => taskStats(item).overPlan).length} detail="превышение плана" tone="amber" />
-          </section>
-
           <div className="content-grid">
             <section className="panel task-board">
-              <div className="panel-header"><div><h2>Мои задания</h2><span>{state.tasks.length} назначено</span></div><button className="icon-button"><Settings2 size={18} /></button></div>
+              <div className="panel-header"><div><h2>Очередь маркировки</h2><span>Активно: {state.tasks.filter((item) => item.status !== "transferred").length} · все данные MOCK</span></div></div>
               <div className="task-list">
                 {state.tasks.map((item) => <TaskRow key={item.id} task={item} selected={item.id === task.id} onSelect={() => setState((current) => ({ ...current, selectedTaskId: item.id }))} />)}
               </div>
@@ -176,19 +156,15 @@ function App() {
   );
 }
 
-function Summary({ label, value, detail, tone = "default" }: { label: string; value: number; detail: string; tone?: string }) {
-  return <div className={`summary-item ${tone}`}><span>{label}</span><strong>{number(value)}</strong><small>{detail}</small></div>;
-}
-
 function TaskRow({ task, selected, onSelect }: { task: MarkingTask; selected: boolean; onSelect: () => void }) {
   const stats = taskStats(task);
   const configuredKits = task.kits.length || task.multiplicationCount;
   return (
     <button className={`task-row ${selected ? "selected" : ""}`} onClick={onSelect}>
-      <div className="task-row-top"><b>{task.id}</b><StatusBadge status={task.status} /></div>
+      <div className="task-row-top"><b>MOCK · {task.id}</b><StatusBadge status={task.status} /></div>
       <strong>{task.product}</strong><span>{task.workOrder}</span>
       <div className="task-progress"><i style={{ width: `${configuredKits ? Math.min(100, stats.printedKits / configuredKits * 100) : 0}%` }} /></div>
-      <div className="task-metrics"><span>План <b>{number(task.planBoards)}</b></span><span>Комплекты <b>{number(configuredKits)}</b></span><span>Напечатано <b>{number(stats.printedKits)}</b></span></div>
+      <div className="task-metrics"><span>{number(stats.printedKits)} из {number(configuredKits)} комплектов напечатано</span></div>
       {stats.overPlan && <div className="row-alert"><AlertTriangle size={14} /> Превышение плана</div>}
     </button>
   );
@@ -242,21 +218,14 @@ function TaskDetail({ task, updateTask, onPrint, onExtra, onTransfer, onReprint,
 
   return <>
     <div className="detail-head">
-      <div><div className="task-id">{task.id}</div><h2>{task.title}</h2><p>{task.product} · {task.workOrder}</p></div>
+      <div><div className="task-id">MOCK · {task.id}</div><h2>{task.title}</h2><p>{task.product} · {task.workOrder}</p></div>
       <StatusBadge status={task.status} />
-    </div>
-
-    <div className="fact-grid">
-      <Fact label="План плат" value={number(task.planBoards)} />
-      <Fact label="Мультипликаций" value={number(task.kits.length || multiplications)} />
-      <Fact label="Плат в одной" value={number(boards)} />
-      <Fact label="Осталось комплектов" value={number(stats.remainingKits)} />
     </div>
 
     {stats.overPlan && <div className="alert warning"><AlertTriangle /><div><b>Количество выше плана на {number(stats.totalBoards - task.planBoards)} плат</b><span>Продолжение разрешено. Действие будет зафиксировано в журнале.</span></div></div>}
 
     <section className="configuration">
-      <div className="section-title"><div><h3>Параметры и расчёт</h3><span>{hasPrinted ? "После печати размер группы заблокирован" : "Можно изменить до первой подтверждённой печати"}</span></div></div>
+      <div className="section-title"><div><h3>Подготовка партии</h3><span>План {number(task.planBoards)} плат · {hasPrinted ? "размер группы заблокирован после печати" : "параметры доступны до первой печати"}</span></div></div>
       <div className="configuration-grid">
         <label>Количество мультипликаций<input type="number" min={hasPrinted ? stats.printedKits : 1} max={5000} value={multiplications} disabled={generated} onChange={(e) => setMultiplications(Number(e.target.value))} /></label>
         <label>Плат в мультипликации<input type="number" min={1} max={200} value={boards} disabled={generated || hasPrinted} onChange={(e) => setBoards(Number(e.target.value))} /></label>

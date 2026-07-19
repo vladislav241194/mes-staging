@@ -25,10 +25,10 @@ const baseTask = (partial: Partial<MarkingTask> & Pick<MarkingTask, "id" | "titl
 
 export const createInitialState = (): PrototypeState => {
   const active = baseTask({
-    id: "MKG-240719-01",
+    id: "MOCK-MKG-01",
     title: "Маркировка партии контроллеров",
     product: "Плата контроллера НУ70-2+2 F",
-    workOrder: "СЗН-240719-018",
+    workOrder: "MOCK-СЗН-018",
     planBoards: 2000,
     multiplicationCount: 100,
     boardsPerMultiplication: 20,
@@ -38,28 +38,15 @@ export const createInitialState = (): PrototypeState => {
   active.history.unshift(event("Тестовые комплекты созданы", "100 мультипликаций · 2 000 плат", "success"));
 
   const large = baseTask({
-    id: "MKG-240719-02",
+    id: "MOCK-MKG-02",
     title: "Крупная партия модулей питания",
     product: "Модуль питания МП-24 rev.6",
-    workOrder: "СЗН-240719-021",
+    workOrder: "MOCK-СЗН-021",
     planBoards: 24000,
     multiplicationCount: 1200,
     boardsPerMultiplication: 20,
     status: "new",
   });
 
-  const done = baseTask({
-    id: "MKG-240718-07",
-    title: "Маркировка платы интерфейса",
-    product: "Плата интерфейса ПИ-08",
-    workOrder: "СЗН-240718-044",
-    planBoards: 480,
-    multiplicationCount: 24,
-    boardsPerMultiplication: 20,
-    status: "transferred",
-  });
-  done.kits = createKits(done, 24, 20, false).map((kit) => ({ ...kit, printStatus: "confirmed", printCount: 1 }));
-  done.history.unshift(event("Передача подтверждена", `Передано: ${done.nextArea}`, "success"));
-
-  return { tasks: [active, large, done], selectedTaskId: active.id };
+  return { tasks: [active, large], selectedTaskId: active.id };
 };
