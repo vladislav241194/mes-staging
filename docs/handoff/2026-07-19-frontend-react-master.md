@@ -323,8 +323,13 @@ read-only island and completes all seven sidebar destinations. Production-shell
 QA proves 152/152 source rows, five cells/order, six legacy-equal metrics, four
 issue groups, seven registry links, exact Employees fallback, unchanged state
 and clean console. All six registry regressions remain exact. Its artifact is
-`203,082 B` raw / `63,875 B` gzip / `55,020 B` Brotli. It has not been released
-or activated on Pilot.
+`203,082 B` raw / `63,875 B` gzip / `55,020 B` Brotli. Authenticated Pilot
+acceptance is now complete on
+`v.1.499.98-6539459`: React and legacy matched 152 rows, five headers, first
+and last rows and all six metrics; the island committed in `56.9 ms`, returned
+to the 76-row legacy Employees registry and exposed no write action. The
+evaluation drop-in is removed, System Domains remains at revision 2 with
+unchanged entity counts, and legacy Diagnostics again renders 152 rows.
 
 Weekly Production Control is now the fifteenth production-integrated scenario
 and the first dense planning-family island. Its adapter consumes the existing
@@ -521,7 +526,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
 5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
-6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 15 of 24 scenarios, most recently Specifications 2.0 on `.97-1304535`.**
+6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 19 of 24 scenarios, most recently Structure Migration Diagnostics on `.98-6539459`. The five remaining read checkpoints are Nomenclature with a non-empty live payload, Boards/BOM, Structure Responsibility Policies, Contour Admin on its mapped host, and the pre-PIN Authorization picker.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
    Operations create/edit is locally complete with linked Planning reference
