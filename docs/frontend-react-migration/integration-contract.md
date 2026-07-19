@@ -80,6 +80,10 @@ Domains snapshot in a separate bundle and feature policy. It owns only the
 Positions read table and passport. Create/save/archive commands and every
 other Structure registry remain in the legacy renderer.
 
+`mountStructureOrgUnitsReactIsland(...)` owns only the Org Units read table and
+passport over the same snapshot. Parent resolution stays inside the typed
+adapter; create/save/archive and all other registries remain legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

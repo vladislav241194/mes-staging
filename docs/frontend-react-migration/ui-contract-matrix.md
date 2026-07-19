@@ -135,6 +135,13 @@ organization, work-center and schedule references from the same PostgreSQL
 snapshot. Five table cells match legacy literally; editor commands remain a
 separate protected command surface.
 
+## Structure Org Units read-model evidence
+
+Org Units reuses the Structure registry components while preserving the
+hierarchy-specific parent reference and department/section category. All 19
+stable IDs, five table cells and legacy order match the authenticated System
+Domains projection; no editor behavior moved into React.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,

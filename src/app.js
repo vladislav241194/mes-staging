@@ -74,7 +74,7 @@ import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
-import { createStructureEmployeesReactIslandHost, createStructurePositionsReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
+import { createStructureEmployeesReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
@@ -2428,6 +2428,28 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
     setProductionStructureMatrixActiveRegistry(registryId || "positions");
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
   },
+});
+function getStructureOrgUnitsReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-structure-org-units") === "1", readOnlyEvaluation: params.get("react-structure-org-units-readonly") === "1" };
+}
+function isStructureOrgUnitsReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-structure-org-units-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost({
+  getActivation: () => {
+    const localQa = getStructureOrgUnitsReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true;
+    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: (serverEvaluationAllowed && isStructureOrgUnitsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
+  },
+  getPayload: () => systemDomainsState,
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "orgUnits"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
 });
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6351,19 +6373,18 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
         ensureProductionStructureMatrixModule();
-        const usePositionsHost = isStructurePositionsReactEvaluationRequested();
-        const activeReactHost = usePositionsHost ? structurePositionsReactIslandHost : structureEmployeesReactIslandHost;
-        const inactiveReactHost = usePositionsHost ? structureEmployeesReactIslandHost : structurePositionsReactIslandHost;
-        inactiveReactHost.prepareRender();
+        const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost };
+        const activeReactHost = isStructureOrgUnitsReactEvaluationRequested() ? structureReactHosts.orgUnits : isStructurePositionsReactEvaluationRequested() ? structureReactHosts.positions : structureReactHosts.employees;
+        Object.values(structureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();
         return renderProductionStructureMatrixPage();
       },
       bind: () => {
-        if (structureEmployeesReactIslandHost.isReactEligible() || structurePositionsReactIslandHost.isReactEligible()) return;
+        if (structureEmployeesReactIslandHost.isReactEligible() || structurePositionsReactIslandHost.isReactEligible() || structureOrgUnitsReactIslandHost.isReactEligible()) return;
         bindProductionStructureMatrixEvents();
       },
-      afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); },
+      afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); void structureOrgUnitsReactIslandHost.mount(); },
     },
     timesheet: {
       render: () => {

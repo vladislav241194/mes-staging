@@ -32,6 +32,7 @@ Available routes:
 - `/?scenario=boards` — Boards/BOM;
 - `/?scenario=structure-employees` — Structure and Employees;
 - `/?scenario=structure-positions` — Structure Positions;
+- `/?scenario=structure-org-units` — Structure Org Units;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
 - `/?scenario=nomenclature-types` — Nomenclature Types directory;

@@ -7,9 +7,10 @@ import { NomenclatureTypesScenario } from "./modules/nomenclature-types/Nomencla
 import { StatusesScenario } from "./modules/statuses/StatusesScenario";
 import { StructureEmployeesScenario } from "./modules/structure-employees/StructureEmployeesScenario";
 import { StructurePositionsScenario } from "./modules/structure-positions/StructurePositionsScenario";
+import { StructureOrgUnitsScenario } from "./modules/structure-org-units/StructureOrgUnitsScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(): void;
@@ -20,6 +21,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structurePositions") return <StructurePositionsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureOrgUnits") return <StructureOrgUnitsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "roles") return <RolesScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -46,6 +48,7 @@ export { mountNomenclatureReactIsland } from "./nomenclature-island";
 export { mountBoardsReactIsland } from "./boards-island";
 export { mountStructureEmployeesReactIsland } from "./structure-employees-island";
 export { mountStructurePositionsReactIsland } from "./structure-positions-island";
+export { mountStructureOrgUnitsReactIsland } from "./structure-org-units-island";
 export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
 export { mountOperationsReactIsland } from "./operations-island";

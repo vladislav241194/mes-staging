@@ -504,6 +504,14 @@ try {
   assert.equal(positionsViewModel.buildPositionRegistryOptions(positionsModel).find((entry) => entry.id === "positions")?.action, "positions");
   assert.equal(positionsViewModel.resolveVisiblePosition(positionsModel.positions, "missing")?.id, "POS-MASTER");
 
+  const orgUnitsAdapterOutput = join(temporaryRoot, "structure-org-units-adapter.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/structure-org-units/adapter.ts")], outfile: orgUnitsAdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const orgUnitsAdapter = await import(`${pathToFileURL(orgUnitsAdapterOutput).href}?qa=${Date.now()}`);
+  assert.deepEqual(orgUnitsAdapter.adaptStructureOrgUnits({ registries: { orgUnits: {} } }).orgUnits, []);
+  const orgUnitsModel = orgUnitsAdapter.adaptStructureOrgUnits(structureEmployeesFixture);
+  assert.deepEqual(orgUnitsModel.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit.kindLabel, orgUnit.parentOrgUnitLabel, orgUnit.statusLabel]), [["D-COATING", "Отдел", "—", "активно"], ["D-MANUAL", "Отдел", "—", "активно"]]);
+  assert.equal(orgUnitsAdapter.adaptStructureOrgUnits({ registries: canonicalMigration.domains.registries }).orgUnits.length, 19, "no canonical org unit may be dropped");
+
   const { createProductionStructureMatrixModule } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/render.js")).href}?qa=${Date.now()}`);
   const registryListeners = new Map();
   const employeesRegistryButton = {
@@ -962,6 +970,11 @@ try {
   const eligibleStructurePositionsHost = makeStructurePositionsProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleStructurePositionsHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleStructurePositionsHost.renderTarget(), /data-react-structure-positions-island/);
+  const makeStructureOrgUnitsHost = (activation) => structureProductionHostModule.createStructureOrgUnitsReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
+  assert.deepEqual(makeStructureOrgUnitsHost({ featureFlagEnabled: false, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
+  assert.deepEqual(makeStructureOrgUnitsHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "server-read-pending" });
+  assert.deepEqual(makeStructureOrgUnitsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
+  const eligibleStructureOrgUnitsHost = makeStructureOrgUnitsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" }); assert.deepEqual(eligibleStructureOrgUnitsHost.prepareRender(), { activateReact: true, reason: "eligible" }); assert.match(eligibleStructureOrgUnitsHost.renderTarget(), /data-react-structure-org-units-island/);
 
   const rolesProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_roles/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({
@@ -1094,7 +1107,7 @@ try {
   assert.match(productionAppSource, /params\.get\("react-structure-employees-readonly"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-structure-employees-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /systemDomainsServerReadState\.status === "server"/);
-  assert.match(productionAppSource, /const activeReactHost = usePositionsHost \? structurePositionsReactIslandHost : structureEmployeesReactIslandHost/);
+  assert.match(productionAppSource, /const structureReactHosts = \{ employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost \}/);
   assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /structureEmployeesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "employees"\)/);
@@ -1105,6 +1118,10 @@ try {
   assert.match(productionAppSource, /params\.get\("react-structure-positions-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /structurePositionsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "positions"\)/);
+  assert.match(productionAppSource, /MES_REACT_STRUCTURE_ORG_UNITS === true/);
+  assert.match(productionAppSource, /MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-structure-org-units-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /structureOrgUnitsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_ROLES === true/);
   assert.match(productionAppSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-roles"\) === "1"/);
@@ -1151,6 +1168,7 @@ try {
   const structureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js"), "utf8");
   assert.match(structureProductionHostSource, /createReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructurePositionsReactIslandHost/);
+  assert.match(structureProductionHostSource, /createStructureOrgUnitsReactIslandHost/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
@@ -1169,6 +1187,7 @@ try {
   assert.match(productionBuildSource, /react-islands", "boards\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-positions\.js/);
+  assert.match(productionBuildSource, /react-islands", "structure-org-units\.js/);
   assert.match(productionBuildSource, /react-islands", "roles\.js/);
   assert.match(productionBuildSource, /react-islands", "component-types\.js/);
   assert.match(productionBuildSource, /react-islands", "operations\.js/);
@@ -1180,6 +1199,7 @@ try {
   assert.match(productionBuildSource, /replaceAll\(boardsReactIslandVersionMarker, boardsReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structurePositionsReactIslandVersionMarker, structurePositionsReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(structureOrgUnitsReactIslandVersionMarker, structureOrgUnitsReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(rolesReactIslandVersionMarker, rolesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryOperationsReactIslandVersionMarker, directoryOperationsReactIslandVersion\)/);
@@ -1195,6 +1215,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_POSITIONS:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_ORG_UNITS:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_ROLES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES:.*=== "1"/);
@@ -1219,6 +1241,7 @@ try {
   assert.match(performanceBudget, /"nomenclatureTypes"/);
   assert.match(performanceBudget, /"statuses"/);
   assert.match(performanceBudget, /"structurePositions"/);
+  assert.match(performanceBudget, /"structureOrgUnits"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
@@ -1230,6 +1253,7 @@ try {
   assert.match(productionStructureIslandBundle, /mountStructureEmployeesReactIsland/);
   const productionStructurePositionsBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-positions.js"), "utf8");
   assert.match(productionStructurePositionsBundle, /mountStructurePositionsReactIsland/);
+  const productionStructureOrgUnitsBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-org-units.js"), "utf8"); assert.match(productionStructureOrgUnitsBundle, /mountStructureOrgUnitsReactIsland/);
   const productionRolesIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/roles.js"), "utf8");
   assert.match(productionRolesIslandBundle, /mountRolesReactIsland/);
   const productionComponentTypesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/component-types.js"), "utf8");
@@ -1245,6 +1269,7 @@ try {
   assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_POSITIONS_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_ORG_UNITS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_ROLES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__/);
