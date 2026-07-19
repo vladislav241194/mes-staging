@@ -6,7 +6,7 @@
 
 - Репозиторий: `/Users/vladislav/Documents/Codex/2026-05-30/mes-frontend-react`
 - Ветка: `codex/frontend-react-migration`
-- Завершённый кодовый checkpoint: `55f55f7` (`feat: complete custom Statuses delete parity`)
+- Завершённый кодовый checkpoint: `9d33401` (`feat: complete Timesheet schedule command parity`)
 - Предыдущий брендовый checkpoint: `d60c461` (`feat: replace MES brand logo across runtime`)
 - Перед работой выполнить `git status --short --branch` и `git pull --ff-only`.
 - Не переносить работу обратно в старый checkout и не смешивать её с чужими dirty-файлами.
@@ -120,7 +120,8 @@ actions/console, затем немедленно деактивировать и
   активный artifact `v.1.500.01-16e0e86`, оба Contour Admin флага `false`.
   `deploy` по-прежнему не имеет passwordless root, прямой root SSH закрыт;
   activation script не запускался.
-- Следующим доказанным legacy-only scope выбран постоянный график Timesheet.
+- Checkpoint среза: `9d33401` (`feat: complete Timesheet schedule command parity`).
+  Следующим доказанным legacy-only scope выбран постоянный график Timesheet.
   React теперь локально завершает typed save/remove через существующие
   `saveScheduleAssignment` / `removeScheduleAssignment` и revision-checked
   `timesheet` System Domains owner. PostgreSQL/API/RBAC/normalization не
