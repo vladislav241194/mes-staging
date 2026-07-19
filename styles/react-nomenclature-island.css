@@ -156,7 +156,20 @@
 .mes-react-specifications2-island .specifications2-react-object strong { font-size: 11px; }
 .mes-react-specifications2-island .specifications2-react-object small { color: #718296; font-size: 9px; }
 .mes-react-specifications2-island .specifications2-react-detail .action { width: 100%; }
+.mes-react-gantt-island { min-width:0; color:#18314d; font-family:Onest,Inter,system-ui,sans-serif; }
+.mes-react-gantt-island * { box-sizing:border-box; }
+.mes-react-gantt-island button { font:inherit; }
 .mes-react-gantt-island .module-page { padding:16px; }
+.mes-react-gantt-island .module-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.mes-react-gantt-island .module-header p,.mes-react-gantt-island .panel-heading p,.mes-react-gantt-island .detail>p { margin:0 0 4px; color:#718296; font-size:12px; }
+.mes-react-gantt-island h1,.mes-react-gantt-island h2 { margin:0; }
+.mes-react-gantt-island h1 { font-size:25px; }
+.mes-react-gantt-island h2 { font-size:16px; }
+.mes-react-gantt-island .lab-badge,.mes-react-gantt-island .status { padding:6px 10px; border-radius:999px; font-size:11px; font-weight:650; }
+.mes-react-gantt-island .lab-badge { color:#285aa8; background:#dce9ff; }
+.mes-react-gantt-island .status--success { color:#167451; background:#dff6eb; }
+.mes-react-gantt-island .status--warning { color:#8b6412; background:#fff0c9; }
+.mes-react-gantt-island .status--neutral { color:#52667a; background:#e9eef4; }
 .mes-react-gantt-island .module-layout { display:block; }
 .mes-react-gantt-island .workspace { display:grid; gap:14px; }
 .mes-react-gantt-island .action { padding:9px 13px; border:0; border-radius:10px; color:#fff; background:#2f6fe4; cursor:pointer; }
@@ -165,8 +178,13 @@
 .mes-react-gantt-island .gantt-react-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) 120px auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
 .mes-react-gantt-island .gantt-react-toolbar > div { display:grid; gap:3px; }
 .mes-react-gantt-island .gantt-react-toolbar span,.mes-react-gantt-island .gantt-react-label small { color:#718296; font-size:9px; }
-.mes-react-gantt-island .metric-grid { grid-template-columns:repeat(4,minmax(100px,1fr)); margin:14px 0; }
+.mes-react-gantt-island .metric-grid { display:grid; grid-template-columns:repeat(4,minmax(100px,1fr)); gap:8px; margin:14px 0; }
+.mes-react-gantt-island .metric-card { display:grid; gap:3px; padding:10px; border:1px solid #e3ebf3; border-radius:10px; background:#fff; }
+.mes-react-gantt-island .metric-card span,.mes-react-gantt-island .metric-card small { color:#718296; font-size:9px; }
+.mes-react-gantt-island .metric-card strong { font-size:17px; }
 .mes-react-gantt-island .gantt-react-grid { display:grid; grid-template-columns:minmax(0,1fr) 270px; align-items:start; gap:14px; }
+.mes-react-gantt-island .panel,.mes-react-gantt-island .detail { overflow:hidden; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:rgba(255,255,255,.92); box-shadow:0 12px 34px rgba(22,50,82,.08); }
+.mes-react-gantt-island .panel-heading { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #e3ebf3; }
 .mes-react-gantt-island .gantt-react-scroll { max-height:680px; overflow:auto; background:#fff; }
 .mes-react-gantt-island .gantt-react-canvas { position:relative; width:calc(var(--gantt-left) + var(--gantt-width)); min-height:calc(var(--gantt-timeline-height) + var(--gantt-height)); }
 .mes-react-gantt-island .gantt-react-timeline { position:sticky; top:0; z-index:4; height:var(--gantt-timeline-height); border-bottom:1px solid #dce5ef; background:#f8fafc; }
@@ -187,7 +205,14 @@
 .mes-react-gantt-island .gantt-react-lane button.is-aggregate { border-color:#244d85; background:#315d99; }
 .mes-react-gantt-island .gantt-react-lane button[aria-pressed="true"] { box-shadow:0 0 0 3px rgba(47,111,228,.25); }
 .mes-react-gantt-island .gantt-react-lane button span { font-size:8px; }
-.mes-react-gantt-island .gantt-react-detail { display:grid; align-content:start; gap:12px; }
+.mes-react-gantt-island .gantt-react-detail { display:grid; align-content:start; gap:12px; padding:18px; }
+.mes-react-gantt-island .gantt-react-detail h2 { margin-bottom:6px; }
+.mes-react-gantt-island .gantt-react-detail dl { display:grid; gap:12px; margin:0; }
+.mes-react-gantt-island .gantt-react-detail dl div { padding-bottom:10px; border-bottom:1px solid #edf1f5; }
+.mes-react-gantt-island .gantt-react-detail dt { color:#718296; font-size:10px; text-transform:uppercase; }
+.mes-react-gantt-island .gantt-react-detail dd { margin:3px 0 0; font-size:13px; font-weight:600; }
+.mes-react-gantt-island .gantt-react-detail label { display:grid; gap:5px; color:#718296; font-size:10px; }
+.mes-react-gantt-island .gantt-react-detail select { width:100%; min-width:0; padding:8px 10px; border:1px solid #cbd8e6; border-radius:9px; color:#18314d; background:#fff; }
 .mes-react-gantt-island .gantt-react-detail .action { width:100%; }
 .mes-react-auth-picker-island .module-page { min-height:100vh; padding:28px; }
 .mes-react-auth-picker-island .module-layout,.mes-react-auth-picker-island .workspace { display:block; }
