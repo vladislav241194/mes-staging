@@ -1,15 +1,16 @@
 # Boards/BOM React migration QA
 
-Date: 2026-07-19
+Date: 2026-07-20
 Branch: `codex/frontend-react-migration`
 
 ## Scope
 
 Locally complete board-metadata create/edit/delete plus existing BOM quantity
-vertical scenario:
+and row-delete vertical scenario:
 
 `open Boards -> inspect BOM -> reject invalid quantity -> change one existing
-row quantity -> read it through legacy -> create a board card -> edit an
+row quantity -> cancel row delete -> confirm exact row delete -> read both
+changes through legacy -> create a board card -> edit an
 existing board -> inspect delete impact -> cancel -> confirm delete -> verify
 Nomenclature result, Specifications cleanup and unchanged Planning`.
 
@@ -19,8 +20,11 @@ persistence, result-Nomenclature synchronization, reference cleanup,
 notifications and rerender. The bounded quantity control sends the row index,
 complete expected normalized row and integer quantity; the host rejects stale,
 missing, fractional or negative requests before the existing
-`updateBomImportCell` owner. Excel import, other BOM cells, row deletion and
-legacy component counters remain separate slices.
+`updateBomImportCell` owner. Excel import, other BOM cells and legacy component
+counters remain separate slices. Row deletion separately
+carries the complete expected table, requires accessible confirmation and
+delegates to `deleteBomImportRow`; independently addressable Nomenclature stays
+outside that delete.
 
 ## Legacy contract preserved
 
@@ -34,9 +38,10 @@ legacy component counters remain separate slices.
   references stable; delete clears only references to the removed board;
 - board result create/edit continues to upsert the existing Nomenclature
   result with the same `sourceBomResultId`;
-- deletion preserves the independently addressable Nomenclature result and all
-  Planning routes, steps and slots;
-- unsupported import, other-cell and row-deletion commands never cross the
+- row deletion preserves independently addressable component Nomenclature;
+- board deletion preserves the independently addressable Nomenclature result
+  and all Planning routes, steps and slots;
+- unsupported import and other-cell commands never cross the
   React boundary.
 
 The owner refactor also repaired a legacy defect: `saveBomModuleForm` called
@@ -58,27 +63,30 @@ explicit `getBomImportRows` dependency across that same lazy chain.
 - invalid BOM quantity rejection without persistence, successful `10 -> 12`
   owner update, preservation of the other eight row values and three unrelated
   rows, unchanged Planning and legacy input read-back;
-- unchanged hidden metadata and four imported rows during edit;
+- byte-identical row-delete cancellation, confirmed removal of only row four,
+  complete expected-table recheck, preservation of three retained rows, hidden
+  board metadata, component Nomenclature and unchanged Planning;
+- unchanged hidden metadata and three imported rows during board edit;
 - existing and newly created board results synchronize to Nomenclature;
-- delete confirmation reports one linked Specification and four BOM rows;
+- board-delete confirmation reports one linked Specification and three BOM rows;
 - cancel is byte-stable; confirm removes one board, clears its direct and
   structure references, retains its Nomenclature result, and leaves Planning
   routes/steps/slots unchanged;
 - the two remaining boards read back through the real legacy screen;
 - clean browser console after excluding the fixture-only critical-default
   reconciliation notice;
-- first React commit was `20.20 ms` in the final full run, below the
+- the final full run committed its first React view in `20.80 ms`, below the
   `2000 ms` local gate.
 
-The production island is `216,117 B` raw / `66,259 B` gzip, below the unchanged
+The production island is `217,946 B` raw / `66,517 B` gzip, below the unchanged
 `225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only Boards
-scenario and remains below its unchanged budget at `556,666 B / 126,148 B`.
+scenario and remains below its unchanged budget at `556,703 B / 126,154 B`.
 
 ## Production boundary
 
 Read-only activation still requires false-by-default runtime permissions plus
-a per-session request. Board create/edit/delete and BOM quantity edit exist
-only behind local `react-boards-write=1`, exact boolean capability and the existing
+a per-session request. Board create/edit/delete, BOM quantity edit and row
+delete exist only behind local `react-boards-write=1`, exact boolean capability and the existing
 `nomenclature:edit` authorization check. No Pilot/server write flag exists.
 No release, Pilot activation or real-data mutation was performed.
 

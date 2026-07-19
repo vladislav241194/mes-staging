@@ -249,16 +249,18 @@ try {
   const boardsCommandModel = boardsAdapter.adaptBoardsModel({
     bomLists: [{ id: "board-qa", name: "QA", importRows: [{ values: [1, "R", "R1", "", "", "0603", 1, "", ""] }] }],
     deleteUsageById: { "board-qa": { specificationsCount: 1, bomRowsCount: 1 } },
-    capabilities: { createEdit: true, delete: true, bomRowEdit: true },
+    capabilities: { createEdit: true, delete: true, bomRowEdit: true, bomRowDelete: true },
   });
   assert.equal(boardsCommandModel.canCreateEdit, true);
   assert.equal(boardsCommandModel.canDelete, true);
   assert.equal(boardsCommandModel.canEditBomRows, true);
+  assert.equal(boardsCommandModel.canDeleteBomRows, true);
   assert.deepEqual(boardsCommandModel.deleteUsageById["board-qa"], { specificationsCount: 1, bomRowsCount: 1 });
-  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true", bomRowEdit: "true" } });
+  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true", bomRowEdit: "true", bomRowDelete: "true" } });
   assert.equal(boardsFailClosedModel.canCreateEdit, false, "non-boolean Boards write capability must fail closed");
   assert.equal(boardsFailClosedModel.canDelete, false, "non-boolean Boards delete capability must fail closed");
   assert.equal(boardsFailClosedModel.canEditBomRows, false, "non-boolean BOM-row capability must fail closed");
+  assert.equal(boardsFailClosedModel.canDeleteBomRows, false, "non-boolean BOM-row delete capability must fail closed");
 
   const boardsViewModelOutput = join(temporaryRoot, "boards-view-model.mjs");
   await build({
@@ -1411,6 +1413,10 @@ try {
   assert.match(productionAppSource, /await ensureNomenclatureRenderModule\(\)/, "Boards write must await its lazy result-Nomenclature owner before mutation");
   assert.match(productionAppSource, /saveBomCommand\(\{/);
   assert.match(productionAppSource, /deleteBomCommand\(\{ bomId:/);
+  assert.match(productionAppSource, /command\.type === "delete-bom-row"/, "Boards row delete must retain its own typed host branch");
+  assert.match(productionAppSource, /input\.expectedRows/, "Boards row delete must carry a full expected-table snapshot");
+  assert.match(productionAppSource, /deleteBomImportRow\(bomId, rowIndex\)/, "Boards row delete must delegate to the existing owner");
+  assert.match(productionAppSource, /authoritativeRows\.map\(\(row\) => rowSignature\(row\.values\)\)/, "Boards row delete must read the owner result back");
   assert.match(productionAppSource, /const activeReactHost = useBoardsHost \? boardsReactIslandHost : nomenclatureReactIslandHost/);
   assert.match(productionAppSource, /boardsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES === true/);

@@ -83,6 +83,7 @@ export interface BoardsModel {
   canCreateEdit: boolean;
   canDelete: boolean;
   canEditBomRows: boolean;
+  canDeleteBomRows: boolean;
   deleteUsageById: Record<string, BoardDeleteUsage>;
 }
 
@@ -220,6 +221,7 @@ export function adaptBoardsModel(payload: unknown): BoardsModel {
     canCreateEdit: capabilities.createEdit === true,
     canDelete: capabilities.delete === true,
     canEditBomRows: capabilities.bomRowEdit === true,
+    canDeleteBomRows: capabilities.bomRowDelete === true,
     deleteUsageById,
   };
 }

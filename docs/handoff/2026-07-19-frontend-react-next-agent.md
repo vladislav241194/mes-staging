@@ -359,3 +359,27 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `15%` осталось (`+1 п.п.`). Процент отражает закрытие
   bounded owner-backed slice, а не объявляет готовыми оставшиеся команды Boards,
   Planning/Gantt, role lifecycle и Pilot acceptance.
+
+## Продолжение 2026-07-20: Boards/BOM row-delete checkpoint
+
+- Следующим настоящим legacy-only scope выбрано удаление одной строки BOM.
+  Legacy UI уже делегировал его `deleteBomImportRow`; React не получил ни
+  persistence, ни normalization authority и вызывает того же lazy Products owner.
+- Write-evaluation payload имеет отдельную exact-boolean `bomRowDelete`
+  capability. React показывает действие только при ней, сохраняет полный снимок
+  таблицы и требует доступное подтверждение. Host повторно проверяет RBAC,
+  board/index и все строки authoritative BOM до удаления; changed/missing target
+  fail closed. После owner-команды host читает точный remaining-row projection.
+- Production-shell QA на disposable `0600` snapshot доказывает byte-identical
+  cancel, удаление только четвёртой строки, сохранность первых трёх строк,
+  quantity `12`, hidden board metadata, independently addressable component
+  Nomenclature и Planning. Legacy затем читает три строки и не показывает
+  удалённый `HDR-2`; board create/edit/delete regression также остаётся зелёным.
+- Performance gate зелёный: Boards island `217946 / 66517 B`, full lab
+  `556703 / 126154 B`; final first commit `20.80 ms` при gate
+  `2000 ms`. Excel import и остальные восемь BOM fields остаются отдельными
+  legacy-only scopes.
+- Pilot write/release/flag change не выполнялся; server write flag по-прежнему
+  отсутствует, legacy rollback сохранён. После этого блока доказательная оценка
+  глобальной миграции: примерно `86%` выполнено, примерно `14%` осталось
+  (`+1 п.п.`); критические owner gaps и Pilot acceptance не переоценены.

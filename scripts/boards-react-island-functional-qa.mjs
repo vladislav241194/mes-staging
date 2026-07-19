@@ -54,6 +54,7 @@ function createDirectoryFixture() {
     ],
     nomenclature: [
       { id: "rea-001", article: "RC0603-10K", name: "Резистор 10 кОм", type: "РЭА компоненты", unit: "шт.", package: "0603", manufacturer: "Yageo", status: "Активен" },
+      { id: "rea-xp", article: "HDR-2", name: "Разъем питания", type: "РЭА компоненты", unit: "шт.", package: "Connector", manufacturer: "Amphenol", status: "Активен", sourceBomIds: ["board-control"], hiddenMarker: "preserve-row-nomenclature" },
       { id: "pcb-001", article: "АБВГ.469659.001", name: "Смонтированная плата управления", type: "Печатные платы", unit: "шт.", package: "PCB", manufacturer: "—", status: "Активен", sourceBomResultId: "board-control" },
     ],
     specifications: [{ id: "spec-board-control", name: "Изделие с платой", bomListA: "board-control", bomQtyA: 2, structureItems: [{ id: "spec-board-item", type: "bom", bomId: "board-control", quantity: 2 }] }],
@@ -265,7 +266,7 @@ async function main() {
     assert(finalSnapshot === originalSnapshot, "read-only Boards scenario must not modify shared state");
 
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1&react-boards=1&react-boards-write=1` });
-    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"]')), { message: "Boards write evaluation did not mount", timeoutMs: 15_000 });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"] .lab-badge')), { message: "Boards write evaluation did not mount its React content", timeoutMs: 15_000 });
     const writeInitial = await evaluate(client, () => ({
       badge: document.querySelector(".lab-badge")?.textContent?.trim() || "",
       boards: document.querySelectorAll('[data-ui-component="SidebarItem"]').length - 1,
@@ -310,6 +311,34 @@ async function main() {
     assert(quantityBoard.importRows.slice(1).length === 3 && quantityBoard.customMetadata === "preserve-me", "BOM quantity edit changed unrelated rows or hidden board metadata");
     const planningAfterBomQuantity = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
     assert(JSON.stringify(planningAfterBomQuantity) === JSON.stringify(planningBeforeWrite), "BOM quantity edit changed Planning state");
+
+    await evaluate(client, () => document.querySelector('[data-react-bom-row-delete="board-control:3"]')?.click());
+    await waitForCondition(client, () => document.querySelector('[role="alertdialog"] h3')?.textContent?.trim() === "Удалить строку BOM?", { message: "BOM row delete confirmation did not open" });
+    const rowDeleteConfirmation = await evaluate(client, () => document.querySelector('[role="alertdialog"]')?.textContent?.replace(/\s+/g, " ").trim() || "");
+    assert(rowDeleteConfirmation.includes("Строка 4") && rowDeleteConfirmation.includes("Разъем питания") && rowDeleteConfirmation.includes("номенклатура останется"), `BOM row delete confirmation mismatch: ${rowDeleteConfirmation}`);
+    const beforeRowDeleteCancel = await readFile(writeSharedStateFile, "utf8");
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Не удалять")?.click());
+    await waitForCondition(client, () => !document.querySelector('[role="alertdialog"]'), { message: "BOM row delete cancel did not close confirmation" });
+    await delay(180);
+    assert(await readFile(writeSharedStateFile, "utf8") === beforeRowDeleteCancel, "BOM row delete cancel mutated the disposable state");
+
+    await evaluate(client, () => document.querySelector('[data-react-bom-row-delete="board-control:3"]')?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[role="alertdialog"]')), { message: "BOM row delete confirmation did not reopen" });
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => document.querySelectorAll(".bom-table tbody tr").length === 3 && !document.querySelector('[role="alertdialog"]'), { message: "BOM row owner result did not return to React", timeoutMs: 10_000 });
+    let afterBomRowDelete = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const persistedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      afterBomRowDelete = JSON.parse(persistedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (afterBomRowDelete.bomLists.find((board) => board.id === "board-control")?.importRows?.length === 3) break;
+      await delay(120);
+    }
+    const rowDeletedBoard = afterBomRowDelete.bomLists.find((board) => board.id === "board-control");
+    assert(rowDeletedBoard.importRows.length === 3 && !rowDeletedBoard.importRows.some((row) => row.manufacturerPart === "HDR-2"), "BOM row delete did not remove exactly the confirmed row");
+    assert(rowDeletedBoard.importRows[0].quantity === 12 && rowDeletedBoard.importRows[0].manufacturerPart === "RC0603-10K" && rowDeletedBoard.customMetadata === "preserve-me", "BOM row delete changed the retained rows or hidden board metadata");
+    assert(afterBomRowDelete.nomenclature.some((item) => item.id === "rea-xp" && item.article === "HDR-2" && item.hiddenMarker === "preserve-row-nomenclature"), "BOM row delete silently removed independently addressable Nomenclature");
+    const planningAfterBomRowDelete = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
+    assert(JSON.stringify(planningAfterBomRowDelete) === JSON.stringify(planningBeforeWrite), "BOM row delete changed Planning state");
 
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Новая плата"))?.click());
     await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "Boards create editor did not open" });
@@ -358,7 +387,7 @@ async function main() {
     const editedBoard = persistedDirectory.bomLists.find((board) => board.id === "board-control");
     assert(createdBoard?.boardCode === "QA.469659.003" && createdBoard.importRows.length === 0 && createdBoard.status === "Черновик", `created Board contract mismatch: ${JSON.stringify(createdBoard)}`);
     assert(editedBoard?.boardCode === "АБВГ.469659.001-R" && editedBoard.resultItem === "Смонтированная плата управления React", "edited Board fields were not persisted");
-    assert(editedBoard.projectId === "spec-board-control" && editedBoard.customMetadata === "preserve-me" && editedBoard.sourceFileName === "АБВГ.469659.001 Клюшка.xlsx" && editedBoard.importRows.length === 4, "Board edit changed hidden metadata or BOM/import rows");
+    assert(editedBoard.projectId === "spec-board-control" && editedBoard.customMetadata === "preserve-me" && editedBoard.sourceFileName === "АБВГ.469659.001 Клюшка.xlsx" && editedBoard.importRows.length === 3, "Board edit changed hidden metadata or BOM/import rows");
     assert(persistedDirectory.specifications.some((specification) => specification.id === "spec-board-control" && specification.bomListA === "board-control" && specification.structureItems.some((item) => item.bomListId === "board-control")), `Board edit changed Specifications references: ${JSON.stringify(persistedDirectory.specifications)}`);
     assert(persistedDirectory.nomenclature.some((item) => item.id === "pcb-001" && item.sourceBomResultId === "board-control" && item.article === "АБВГ.469659.001-R" && item.name === "Смонтированная плата управления React"), "Board result did not synchronize to existing Nomenclature result");
     assert(persistedDirectory.nomenclature.some((item) => item.sourceBomResultId === createdBoard.id && item.article === "QA.469659.003"), "created Board result did not synchronize to Nomenclature");
@@ -369,7 +398,8 @@ async function main() {
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1` });
     await waitForCondition(client, () => Boolean(document.querySelector('[data-bom-open="board-control"]')), { message: "legacy Boards did not return for BOM quantity read-back" });
     await evaluate(client, () => document.querySelector('[data-bom-open="board-control"]')?.click());
-    await waitForCondition(client, () => document.querySelector('[data-bom-import-cell="board-control"][data-bom-row-index="0"][data-bom-column-index="6"]')?.value === "12", { message: "legacy Boards did not read back React BOM quantity" });
+    await waitForCondition(client, () => document.querySelector('[data-bom-import-cell="board-control"][data-bom-row-index="0"][data-bom-column-index="6"]')?.value === "12" && document.querySelectorAll(".bom-import-table tbody tr").length === 3, { message: "legacy Boards did not read back React BOM quantity and row delete" });
+    assert(!await evaluate(client, () => [...document.querySelectorAll('[data-bom-column-index="3"]')].some((input) => input.value === "HDR-2")), "legacy Boards still exposed the deleted BOM row");
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1&react-boards=1&react-boards-write=1` });
     await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"]')), { message: "Boards write evaluation did not remount after legacy read-back", timeoutMs: 15_000 });
 
@@ -382,7 +412,7 @@ async function main() {
       text: document.querySelector('[role="alertdialog"]')?.textContent?.replace(/\s+/g, " ").trim() || "",
     }));
     assert(deleteConfirmation.title === "Удалить плату и её BOM?", `Board delete title mismatch: ${JSON.stringify(deleteConfirmation)}`);
-    assert(deleteConfirmation.text.includes("Связано с составами: 1") && deleteConfirmation.text.includes("Строк BOM: 4"), `Board delete usage must disclose linked Specifications and imported rows: ${JSON.stringify(deleteConfirmation)}`);
+    assert(deleteConfirmation.text.includes("Связано с составами: 1") && deleteConfirmation.text.includes("Строк BOM: 3"), `Board delete usage must disclose linked Specifications and imported rows: ${JSON.stringify(deleteConfirmation)}`);
     const beforeDeleteCancel = await readFile(writeSharedStateFile, "utf8");
     await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Не удалять")?.click());
     await waitForCondition(client, () => !document.querySelector('[role="alertdialog"]') && Boolean(document.querySelector('.react-nomenclature-editor')), { message: "Board delete cancel did not return to the editor" });
@@ -421,7 +451,7 @@ async function main() {
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log(`- return to legacy Nomenclature with ${returned.legacyRows} normalized rows: pass`);
-    console.log("- local RBAC-gated BOM quantity edit plus board create/edit/delete, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature result retention and unchanged Planning: pass");
+    console.log("- local RBAC-gated BOM quantity edit, ID/table-bound row delete and board create/edit/delete, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
   } catch (error) {
     if (chrome) {
       const browserState = await evaluate(chrome.client, () => ({

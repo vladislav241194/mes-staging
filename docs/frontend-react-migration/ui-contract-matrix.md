@@ -28,7 +28,7 @@ unresolved.
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
-| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor, usage-aware delete confirmation | BOM component summary, nine-column import table, board selection semantics, bounded quantity editor | Boards/BOM read plus metadata create/edit/delete and existing-row quantity edit |
+| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor, usage-aware delete confirmation | BOM component summary, nine-column import table, board selection semantics, bounded quantity editor and row action | Boards/BOM read plus metadata create/edit/delete, existing-row quantity edit and row deletion |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error, bounded typed form | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control read-only + Timesheet day fact + Planning Workbench quantity |
 | Operational | Status, action, panel, table tree, metric grid, `ModalOverlay`, bounded quantity/fact forms, read-only attachment overlay, lazy print-preview shell, owner-backed board date/master/focus, carryover navigation and typed transfer | Manual lane movement and specialized worker fact entry | Shift Work Orders document journal plus Shift Master Board date/master/assignment/fact/carryover/transfer/SZN lifecycle |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
@@ -123,12 +123,15 @@ shared `Panel` and `TableWrap`; they are not promoted to universal registry
 variants. Board identity create/edit/delete now reuses the shared form/action/
 confirmation contracts and existing command owner. One bounded quantity form
 also delegates to the existing `updateBomImportCell` owner after the host
-rechecks the complete expected row, index and nonnegative integer. The host supplies the
+rechecks the complete expected row, index and nonnegative integer. A separate
+row action carries the full expected table into an accessible confirmation;
+the host rechecks every row before delegating to `deleteBomImportRow` and reads
+the remaining owner projection back. Independently addressable Nomenclature is
+retained. The host supplies the
 owner-calculated delete-usage projection; React never reimplements
 Specifications linkage. Delete clears only the selected board references,
 retains the independent Nomenclature result and leaves Planning unchanged. The
-other imported cell inputs, full BOM action column, row deletion and Excel
-import remain protected legacy slices.
+other imported cell inputs and Excel import remain protected legacy slices.
 
 ## Structure Employees read-model evidence
 

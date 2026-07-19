@@ -20,6 +20,7 @@ export function BoardsScenario({
   const [selectedId, setSelectedId] = useState(boards[0]?.id ?? "");
   const [draft, setDraft] = useState<BoardDraft | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const [rowDeletePending, setRowDeletePending] = useState<BomRowDeleteTarget | null>(null);
   const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const selected = resolveVisibleBoard(boards, selectedId);
   const setDraftField = (field: "name" | "boardCode" | "resultItem", value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
@@ -44,6 +45,8 @@ export function BoardsScenario({
           meta={getBoardSidebarMeta(board)}
           onClick={() => {
             setSelectedId(board.id);
+            setRowDeletePending(null);
+            clearCommandError();
             onSelectionChange?.(board.id);
           }}
         />
@@ -59,6 +62,11 @@ export function BoardsScenario({
     if (!draft || draft.isNew || !model.canDelete) return;
     await runCommand({ type: "delete", payload: { bomId: draft.bomId } }, "Не удалось удалить плату.");
   };
+  const deleteBomRow = async () => {
+    if (!rowDeletePending || !model.canDeleteBomRows) return;
+    const result = await runCommand({ type: "delete-bom-row", payload: rowDeletePending }, "Не удалось удалить строку BOM.");
+    if (result && result.ok !== false) setRowDeletePending(null);
+  };
 
   return (
     <ModulePage header={header} sidebar={sidebar}>
@@ -70,12 +78,16 @@ export function BoardsScenario({
             {BOM_COMPONENT_FIELDS.map((field) => <MetricCard key={field.key} label={field.label} meta="шт." value={formatComponentCount(selected.componentCounts[field.key])} />)}
           </MetricGrid>
           <TableWrap><table className="bom-table">
-            <thead><tr>{selected.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead>
+            <thead><tr>{selected.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}{model.canDeleteBomRows ? <th>Действия</th> : null}</tr></thead>
             <tbody>{selected.rows.map((row, rowIndex) => <tr key={`${selected.id}-${rowIndex}`}>
               {row.values.map((value, columnIndex) => <td className={columnIndex === 1 ? "primary-cell" : ""} key={columnIndex}>{columnIndex === 6 && model.canEditBomRows ? <form data-react-bom-quantity-form={`${selected.id}:${rowIndex}`} onSubmit={(event) => { event.preventDefault(); const quantity = String(new FormData(event.currentTarget).get("quantity") ?? ""); void runCommand({ type: "update-bom-quantity", payload: { bomId: selected.id, rowIndex, expectedValues: [...row.values], quantity } }, "Количество BOM не сохранено."); }}><input aria-label={`Количество BOM, строка ${rowIndex + 1}`} defaultValue={String(row.quantity)} disabled={saving} min="0" name="quantity" required step="1" type="number" /><button disabled={saving} type="submit">Сохранить</button></form> : formatBomCell(value)}</td>)}
+              {model.canDeleteBomRows ? <td><button aria-label={`Удалить строку BOM ${rowIndex + 1}`} className="react-bom-row-delete" data-react-bom-row-delete={`${selected.id}:${rowIndex}`} disabled={saving} onClick={() => { setRowDeletePending({ bomId: selected.id, rowIndex, expectedRows: selected.rows.map((item) => [...item.values]), label: row.description || row.manufacturerPart || `строка ${rowIndex + 1}` }); clearCommandError(); }} type="button">Удалить</button></td> : null}
             </tr>)}</tbody>
           </table></TableWrap>
-          {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
+          {rowDeletePending ? <DeleteConfirmation busy={saving} error={commandError} id="react-bom-row-delete-title" onCancel={() => { setRowDeletePending(null); clearCommandError(); }} onConfirm={() => { void deleteBomRow(); }} title="Удалить строку BOM?">
+            <p>Строка {rowDeletePending.rowIndex + 1} «{rowDeletePending.label}» будет удалена только из выбранной платы.</p>
+            <p>Связанная номенклатура останется независимо доступной.</p>
+          </DeleteConfirmation> : commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
         </> : <EmptyState title="Пока нет импортированных строк" text="Карточка платы сохранена, но компонентный состав ещё не импортирован." /> : <EmptyState title="Платы пока не созданы" text="Read-only сценарий покажет платы после появления данных BOM." />}
       </Panel>
 
@@ -111,8 +123,10 @@ export function BoardsScenario({
 }
 
 interface BoardDraft { isNew: boolean; bomId: string; name: string; boardCode: string; resultItem: string }
+interface BomRowDeleteTarget { bomId: string; rowIndex: number; expectedRows: readonly (readonly (string | number)[])[]; label: string }
 const createBoardDraft = (board?: BoardItem): BoardDraft => ({ isNew: !board, bomId: board?.id || "", name: board?.name || "", boardCode: board?.boardCode === "-" ? "" : board?.boardCode || "", resultItem: board?.resultItem === "-" ? "" : board?.resultItem || "" });
 export type BoardsReactCommand =
   | { type: "save"; payload: BoardDraft }
   | { type: "delete"; payload: { bomId: string } }
-  | { type: "update-bom-quantity"; payload: { bomId: string; rowIndex: number; expectedValues: readonly (string | number)[]; quantity: string } };
+  | { type: "update-bom-quantity"; payload: { bomId: string; rowIndex: number; expectedValues: readonly (string | number)[]; quantity: string } }
+  | { type: "delete-bom-row"; payload: BomRowDeleteTarget };
