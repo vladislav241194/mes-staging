@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
+import { useCommandRunner } from "../../ui/use-command";
 import { adaptNomenclatureTypesModel, type NomenclatureTypeReadItem } from "./adapter";
 import { buildNomenclatureTypeFilters, filterNomenclatureTypes, resolveVisibleNomenclatureType, type NomenclatureTypeFilter } from "./view-model";
 
@@ -34,25 +35,15 @@ export function NomenclatureTypesScenario({ payload, onCommand, onRequestLegacy 
   const [filter, setFilter] = useState<NomenclatureTypeFilter>("all");
   const [selectedId, setSelectedId] = useState(model.items[0]?.id || "");
   const [draft, setDraft] = useState<NomenclatureTypeDraft | null>(null);
-  const [commandError, setCommandError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
   const visibleItems = filterNomenclatureTypes(model.items, activeFilter);
   const selected = resolveVisibleNomenclatureType(visibleItems, selectedId);
   const setDraftField = (field: keyof NomenclatureTypeDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
 
   const saveDraft = async () => {
-    if (!draft || !onCommand) return;
-    setSaving(true);
-    setCommandError("");
-    try {
-      const result = await onCommand({ type: "save", payload: draft });
-      if (result && result.ok === false) setCommandError(result.message || "Не удалось сохранить тип номенклатуры.");
-    } catch (error) {
-      setCommandError(error instanceof Error ? error.message : "Не удалось сохранить тип номенклатуры.");
-    } finally {
-      setSaving(false);
-    }
+    if (!draft) return;
+    await runCommand({ type: "save", payload: draft }, "Не удалось сохранить тип номенклатуры.");
   };
 
   const header = <ModuleHeader eyebrow="Технологии" title="Типы номенклатуры" badge={<span className="lab-badge">{model.canCreateEdit ? "React · create/edit evaluation" : "React preview · только чтение"}</span>} />;
@@ -70,7 +61,7 @@ export function NomenclatureTypesScenario({ payload, onCommand, onRequestLegacy 
         </SelectableRow>)}</tbody>
       </table></TableWrap> : <EmptyState title="Типов пока нет" text="В выбранном статусе нет типов номенклатуры." />}
     </Panel>
-    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новый тип номенклатуры" : "Редактирование типа"}</h2><p>Команда выполняется существующим владельцем справочника</p></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
+    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новый тип номенклатуры" : "Редактирование типа"}</h2><p>Команда выполняется существующим владельцем справочника</p></div><ActionButton onClick={() => { setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
       <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
         <label><span>Тип номенклатуры</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
         <label><span>Код</span><input name="code" onChange={(event) => setDraftField("code", event.currentTarget.value)} value={draft.code} /></label>

@@ -28,7 +28,7 @@ unresolved.
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
-| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read plus metadata create/edit |
+| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor, usage-aware delete confirmation | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read plus metadata create/edit/delete |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error, bounded typed form | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control read-only + Timesheet day fact + Planning Workbench quantity |
 | Operational | Status, action, panel, table tree, metric grid, `ModalOverlay`, bounded quantity/fact forms, read-only attachment overlay, lazy print-preview shell, owner-backed board date/master/focus, carryover navigation and typed transfer | Manual lane movement and specialized worker fact entry | Shift Work Orders document journal plus Shift Master Board date/master/assignment/fact/carryover/transfer/SZN lifecycle |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
@@ -46,7 +46,9 @@ unresolved.
 The lab now implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
 `SidebarItem`, `Panel`, `TableWrap`, `MetricGrid`, `MetricCard`, `ActionButton`,
 `SelectableRow`, `DetailPanel`, `EmptyState`, `SystemState`, `StatusToken`, and
-the accessible `ModalOverlay`.
+the accessible `ModalOverlay` and `DeleteConfirmation`. Repeated async command
+state now uses one typed `useCommandRunner` contract instead of per-module
+loading/error forks.
 Nomenclature, Component Types, Boards/BOM and Structure Employees use the same
 primitives; entity-specific columns, filters, summaries, and detail fields
 remain inside their scenario. Write
@@ -118,9 +120,13 @@ component quantities only when rows exist.
 The board list reuses the shared `SidebarItem` with optional metadata. The BOM
 summary and nine-column table are process-specific composition inside the
 shared `Panel` and `TableWrap`; they are not promoted to universal registry
-variants. Board identity create/edit now reuses the shared form/action
-contracts and existing command owner. The actual BOM action column, imported
-cell inputs, Excel import and delete remain protected legacy slices.
+variants. Board identity create/edit/delete now reuses the shared form/action/
+confirmation contracts and existing command owner. The host supplies the
+owner-calculated delete-usage projection; React never reimplements
+Specifications linkage. Delete clears only the selected board references,
+retains the independent Nomenclature result and leaves Planning unchanged. The
+actual BOM action column, imported cell inputs and Excel import remain
+protected legacy slices.
 
 ## Structure Employees read-model evidence
 

@@ -2455,9 +2455,20 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
   },
   getPayload: () => {
     const localQa = getBoardsReactLocalQaOverrides();
+    const deleteUsageById = Object.fromEntries((directoryState.bomLists || []).flatMap((bom) => {
+      const boardId = String(bom?.id || "").trim();
+      return boardId ? [[boardId, {
+        specificationsCount: getBomLinkedSpecifications(boardId).length,
+        bomRowsCount: getBomImportRows(bom).length,
+      }]] : [];
+    }));
     return {
       ...directoryState,
-      capabilities: { createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }) },
+      deleteUsageById,
+      capabilities: {
+        createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        delete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+      },
     };
   },
   getTargetRoot: () => app,
@@ -2475,9 +2486,18 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
-    if (command.type !== "save") return { ok: false, message: "Импорт, строки BOM и удаление остаются в legacy-контуре." };
+    if (command.type !== "save" && command.type !== "delete") return { ok: false, message: "Импорт и строки BOM остаются в legacy-контуре." };
     if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "delete") {
+      const result = await deleteBomCommand({ bomId: String(input.bomId || "") });
+      return {
+        ok: result?.ok === true,
+        id: String(result?.id || ""),
+        code: String(result?.code || ""),
+        message: String(result?.message || ""),
+      };
+    }
     const result = await saveBomCommand({
       isNew: input.isNew === true,
       bomId: String(input.bomId || ""),
@@ -8722,7 +8742,7 @@ function bindGlobalNavigation(...args) { return appEventsService.bindGlobalNavig
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
 function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }
-function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); } function saveBomCommand(...args) { return appEventsService.saveBomCommand(...args); }
+function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); } function saveBomCommand(...args) { return appEventsService.saveBomCommand(...args); } function deleteBomCommand(...args) { return appEventsService.deleteBomCommand(...args); }
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }

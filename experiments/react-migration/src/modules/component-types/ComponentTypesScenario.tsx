@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { formatRecordCount } from "../../ui/format";
 import { resolveAvailableFilter } from "../../ui/selection";
+import { useCommandRunner } from "../../ui/use-command";
 import { adaptComponentTypesModel, type ComponentTypeItem } from "./adapter";
 import { buildComponentTypeFilters, filterComponentTypes, formatDecimal, formatInteger, resolveVisibleComponentType, type ComponentTypeFilter } from "./view-model";
 
@@ -46,26 +47,11 @@ export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: 
   const [selectedId, setSelectedId] = useState(model.items[0]?.id ?? "");
   const [draft, setDraft] = useState<ComponentTypeDraft | null>(null);
   const [deletePending, setDeletePending] = useState(false);
-  const [commandError, setCommandError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
   const visibleItems = filterComponentTypes(model.items, activeFilter);
   const selected = resolveVisibleComponentType(visibleItems, selectedId);
   const setDraftField = (field: keyof ComponentTypeDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
-
-  const runCommand = async (command: ComponentTypesReactCommand, fallbackMessage: string) => {
-    if (!onCommand) return;
-    setSaving(true);
-    setCommandError("");
-    try {
-      const result = await onCommand(command);
-      if (result && result.ok === false) setCommandError(result.message || fallbackMessage);
-    } catch (error) {
-      setCommandError(error instanceof Error ? error.message : fallbackMessage);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const header = <ModuleHeader eyebrow="Технологии" title="Типы компонентов" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React preview · только чтение"}</span>} />;
   const sidebar = (
@@ -86,16 +72,10 @@ export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: 
         </table></TableWrap> : <EmptyState title="Типов пока нет" text="В выбранном семействе ещё нет типов компонентов." />}
       </Panel>
 
-      {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новый тип" : "Редактирование типа"}</h2><p>Команда выполняется существующим владельцем справочника</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
-        {deletePending ? <div className="react-nomenclature-delete-confirm" role="alertdialog" aria-labelledby="react-component-type-delete-title">
-          <h3 id="react-component-type-delete-title">Удалить тип компонента?</h3>
+      {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новый тип" : "Редактирование типа"}</h2><p>Команда выполняется существующим владельцем справочника</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
+        {deletePending ? <DeleteConfirmation busy={saving} error={commandError} id="react-component-type-delete-title" onCancel={() => setDeletePending(false)} onConfirm={() => { void runCommand({ type: "delete", payload: { itemId: draft.itemId } }, "Не удалось удалить тип."); }} title="Удалить тип компонента?">
           <p>Тип «{draft.name || "без названия"}» будет удалён тем же legacy-владельцем данных.</p>
-          {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
-          <div className="react-nomenclature-editor-actions">
-            <ActionButton disabled={saving} onClick={() => setDeletePending(false)} variant="secondary">Не удалять</ActionButton>
-            <ActionButton disabled={saving} onClick={() => { void runCommand({ type: "delete", payload: { itemId: draft.itemId } }, "Не удалось удалить тип."); }} variant="danger">{saving ? "Удаление…" : "Удалить"}</ActionButton>
-          </div>
-        </div> : <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void runCommand({ type: "save", payload: draft }, "Не удалось сохранить тип."); }}>
+        </DeleteConfirmation> : <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void runCommand({ type: "save", payload: draft }, "Не удалось сохранить тип."); }}>
           <label><span>Тип</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
           <label><span>Корпус</span><input name="package" onChange={(event) => setDraftField("package", event.currentTarget.value)} value={draft.package} /></label>
           <label><span>Семейство</span><input name="family" onChange={(event) => setDraftField("family", event.currentTarget.value)} value={draft.family} /></label>
@@ -106,7 +86,7 @@ export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: 
           <label><span>Статус</span><input name="status" onChange={(event) => setDraftField("status", event.currentTarget.value)} value={draft.status} /></label>
           {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
           <div className="react-nomenclature-editor-actions">
-            {!draft.isNew ? <ActionButton disabled={!model.canDelete} onClick={() => { setDeletePending(true); setCommandError(""); }} title={model.canDelete ? "Удалить через существующую команду" : "Delete evaluation выключен"} variant="danger">Удалить</ActionButton> : null}
+            {!draft.isNew ? <ActionButton disabled={!model.canDelete} onClick={() => { setDeletePending(true); clearCommandError(); }} title={model.canDelete ? "Удалить через существующую команду" : "Delete evaluation выключен"} variant="danger">Удалить</ActionButton> : null}
             <button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : draft.isNew ? "Создать тип" : "Сохранить тип"}</button>
           </div>
         </form>}

@@ -77,10 +77,12 @@ owner accepts create/edit only for persisted user-authority rows, while every
 system lifecycle row and delete remain read-only.
 
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
-Boards/BOM read and board-metadata create/edit. Its production host requires a
-separate false-by-default feature policy and the `boards` pane. React dispatches
-only typed board save commands to the existing Products owner; Excel import,
-BOM rows and delete do not transfer from legacy.
+Boards/BOM read and board-metadata create/edit/delete. Its production host
+requires a separate false-by-default feature policy and the `boards` pane.
+React dispatches only typed board save/delete commands to the existing Products
+owner and renders the host-owned delete-usage projection; Excel import and BOM
+rows do not transfer from legacy. The aggregate fixture lab uses a separate
+read-only Boards scenario, so command UI does not leak into read evaluation.
 
 `mountStructureEmployeesReactIsland(...)` provides the canonical Employees
 registry slice over a host-supplied System Domains snapshot. The host retains

@@ -64,6 +64,26 @@ export function ActionButton({ children, disabled = false, onClick, title, varia
   return <button className={`action action--${variant}`} data-ui-component="ActionButton" disabled={disabled} onClick={onClick} title={title} type="button">{children}</button>;
 }
 
+export function DeleteConfirmation({ busy = false, children, error = "", id, onCancel, onConfirm, title }: {
+  busy?: boolean;
+  children: ReactNode;
+  error?: string;
+  id: string;
+  onCancel(): void;
+  onConfirm(): void;
+  title: string;
+}) {
+  return <div aria-labelledby={id} className="react-nomenclature-delete-confirm" data-ui-component="DeleteConfirmation" role="alertdialog">
+    <h3 id={id}>{title}</h3>
+    {children}
+    {error ? <p className="react-nomenclature-command-error" role="alert">{error}</p> : null}
+    <div className="react-nomenclature-editor-actions">
+      <ActionButton disabled={busy} onClick={onCancel} variant="secondary">Не удалять</ActionButton>
+      <ActionButton disabled={busy} onClick={onConfirm} variant="danger">{busy ? "Удаление…" : "Удалить"}</ActionButton>
+    </div>
+  </div>;
+}
+
 export function OperationalPage({ children, className = "", label }: { children: ReactNode; className?: string; label: string }) {
   return <main aria-label={label} className={["module-page", className].filter(Boolean).join(" ")} data-ui-component="OperationalPage">{children}</main>;
 }

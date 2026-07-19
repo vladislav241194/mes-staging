@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
+import { useCommandRunner } from "../../ui/use-command";
 import { adaptStatusesModel, type StatusReadItem } from "./adapter";
 import { buildStatusFilters, filterStatuses, resolveVisibleStatus, type StatusFilter } from "./view-model";
 
@@ -38,24 +39,14 @@ export function StatusesScenario({ payload, onCommand, onRequestLegacy }: {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [selectedId, setSelectedId] = useState(model.items[0]?.id || "");
   const [draft, setDraft] = useState<CustomStatusDraft | null>(null);
-  const [commandError, setCommandError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
   const visibleItems = filterStatuses(model.items, activeFilter);
   const selected = resolveVisibleStatus(visibleItems, selectedId);
   const setDraftField = (field: keyof CustomStatusDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
   const saveDraft = async () => {
-    if (!draft || !onCommand) return;
-    setSaving(true);
-    setCommandError("");
-    try {
-      const result = await onCommand({ type: "save-custom", payload: draft });
-      if (result && result.ok === false) setCommandError(result.message || "Не удалось сохранить пользовательский статус.");
-    } catch (error) {
-      setCommandError(error instanceof Error ? error.message : "Не удалось сохранить пользовательский статус.");
-    } finally {
-      setSaving(false);
-    }
+    if (!draft) return;
+    await runCommand({ type: "save-custom", payload: draft }, "Не удалось сохранить пользовательский статус.");
   };
   const sidebar = <ModuleSidebar label="Статусы по области применения" title="Области">
     {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
@@ -67,7 +58,7 @@ export function StatusesScenario({ payload, onCommand, onRequestLegacy }: {
         <tbody>{visibleItems.map((item) => <SelectableRow key={item.id} onSelect={() => setSelectedId(item.id)} selected={selected?.id === item.id}><td>{item.group}</td><td>{item.originModule}</td><td>{item.changeModule}</td><td>{item.contractView}</td><td>{item.transitionView}</td><td>{item.name}</td><td>{item.impactTableView}</td></SelectableRow>)}</tbody>
       </table></TableWrap> : <EmptyState title="Статусов пока нет" text="В выбранной области нет записей." />}
     </Panel>
-    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новый пользовательский статус" : "Редактирование пользовательского статуса"}</h2><p>Системные lifecycle-строки этим редактором не изменяются</p></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
+    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новый пользовательский статус" : "Редактирование пользовательского статуса"}</h2><p>Системные lifecycle-строки этим редактором не изменяются</p></div><ActionButton onClick={() => { setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
       <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
         <label><span>Область применения</span><input name="group" onChange={(event) => setDraftField("group", event.currentTarget.value)} required value={draft.group} /></label>
         <label><span>Название статуса</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>

@@ -22,6 +22,7 @@ export function createProductsEventsModule(dependencies = {}) {
     getDefaultStructureNomenclatureType,
     getExecutionTypeForFulfillmentMode,
     getActiveSpecificationForModule,
+    getBomImportRows,
     getBomList,
     getNomenclatureDeleteUsage,
     getNomenclatureItem,
@@ -1112,9 +1113,20 @@ function saveBomModuleForm(form) {
   return result;
 }
 
-function deleteBomList(bomId) {
+function deleteBomCommand(command = {}) {
+  const bomId = String(command.bomId || "").trim();
   const bom = getBomList(bomId);
-  if (!bom) return;
+  if (!bom) return { ok: false, code: "not-found", message: "Плата не найдена." };
+  const linkedSpecificationIds = (directoryState.specifications || []).filter((specification) => (
+    specification.bomListA === bomId
+    || specification.bomListB === bomId
+    || getSpecificationStructureItems(specification).some((item) => item.bomListId === bomId)
+  )).map((specification) => String(specification.id || "")).filter(Boolean);
+  const usage = {
+    specificationsCount: linkedSpecificationIds.length,
+    specificationIds: linkedSpecificationIds,
+    bomRowsCount: getBomImportRows(bom).length,
+  };
 
   deleteDirectoryStateRow("bomLists", bom);
   replaceDirectoryState(normalizeDirectoryState(directoryState, { mergeFallback: false }));
@@ -1123,6 +1135,11 @@ function deleteBomList(bomId) {
   withDirectoryEntityRemovalAllowed(() => persistDirectoryState());
   persistUiState();
   render();
+  return { ok: true, id: bomId, usage };
+}
+
+function deleteBomList(bomId) {
+  return deleteBomCommand({ bomId });
 }
 
 
@@ -1147,6 +1164,7 @@ function deleteBomList(bomId) {
     deleteNomenclatureItem,
     bindBomListsEvents,
     saveBomCommand,
+    deleteBomCommand,
     saveSpecificationModuleForm,
     saveBomModuleForm,
     deleteBomList,

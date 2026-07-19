@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { formatRecordCount } from "../../ui/format";
+import { useCommandRunner } from "../../ui/use-command";
 import { adaptStructurePositions, type StructurePosition } from "./adapter";
 import { buildPositionRegistryOptions, resolveVisiblePosition, STRUCTURE_POSITION_READ_COLUMNS } from "./view-model";
 
@@ -14,11 +15,10 @@ export function StructurePositionsScenario({ payload, onCommand, onRequestLegacy
   const registries = useMemo(() => buildPositionRegistryOptions(model), [model]);
   const [selectedId, setSelectedId] = useState(model.positions[0]?.id || "");
   const [draft, setDraft] = useState<StructurePositionDraft | null>(null);
-  const [commandError, setCommandError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const selected = resolveVisiblePosition(model.positions, selectedId);
   const setDraftField = <K extends keyof StructurePositionDraft>(field: K, value: StructurePositionDraft[K]) => setDraft((current) => current ? { ...current, [field]: value } : current);
-  const saveDraft = async () => { if (!draft || !onCommand) return; setSaving(true); setCommandError(""); try { const result = await onCommand({ type: "save", payload: draft }); if (result && result.ok === false) setCommandError(result.message || "Не удалось сохранить должность."); else if (result?.id) setSelectedId(result.id); } catch (error) { setCommandError(error instanceof Error ? error.message : "Не удалось сохранить должность."); } finally { setSaving(false); } };
+  const saveDraft = async () => { if (!draft) return; const result = await runCommand({ type: "save", payload: draft }, "Не удалось сохранить должность."); if (result?.ok !== false && result?.id) setSelectedId(result.id); };
   return <ModulePage header={<ModuleHeader eyebrow="Система · System Domains" title="Должности" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL create/edit evaluation" : "React preview · только чтение"}</span>} />} sidebar={<ModuleSidebar label="Реестры структуры и сотрудников" title="Структура и сотрудники">{registries.map((registry) => <SidebarItem active={registry.id === "positions"} count={registry.count} key={registry.id} label={registry.label} meta={registry.description} onClick={() => registry.action === "positions" ? undefined : onRequestLegacy?.(registry.id)} />)}</ModuleSidebar>}>
     <section className="workspace-main">
       <MetricGrid className="structure-metrics" label="Сводка структуры и сотрудников"><MetricCard label="Подразделений" value={model.counts.orgUnits} /><MetricCard label="Рабочих центров" value={model.counts.workCenters} /><MetricCard label="Должностей" value={model.counts.positions} /><MetricCard label="Сотрудников" value={model.counts.employees} /><MetricCard label="Оборудования" value={model.counts.equipment} /><MetricCard label="Зон ответственности" value={model.counts.responsibilityPolicies} /></MetricGrid>
@@ -26,7 +26,7 @@ export function StructurePositionsScenario({ payload, onCommand, onRequestLegacy
         {model.positions.length ? <TableWrap><table><thead><tr>{STRUCTURE_POSITION_READ_COLUMNS.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{model.positions.map((position) => <SelectableRow key={position.id} onSelect={() => setSelectedId(position.id)} selected={selected?.id === position.id}><td className="primary-cell"><span className="primary-copy"><strong>{position.name}</strong><small>{position.id}</small></span></td><td>{position.kindLabel}</td><td>{position.orgUnitLabel}</td><td>{position.workCenterLabel}</td><td><StatusToken label={position.statusLabel} tone={position.statusTone} /></td></SelectableRow>)}</tbody></table></TableWrap> : <EmptyState title="Должностей пока нет" text="Записи появятся после загрузки канонического System Domains read-model." />}
       </Panel>
     </section>
-    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая должность" : "Редактирование должности"}</h2><p>Ссылки проверяются по текущей PostgreSQL-ревизии</p></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}><form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
+    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая должность" : "Редактирование должности"}</h2><p>Ссылки проверяются по текущей PostgreSQL-ревизии</p></div><ActionButton onClick={() => { setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}><form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
       <label className="full"><span>Название</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
       <label><span>Код</span><input name="code" onChange={(event) => setDraftField("code", event.currentTarget.value)} value={draft.code} /></label>
       <label><span>Категория</span><select name="kind" onChange={(event) => setDraftField("kind", event.currentTarget.value)} value={draft.kind}><option value="manager">Руководитель</option><option value="supervisor">Мастер</option><option value="worker">Исполнитель</option></select></label>

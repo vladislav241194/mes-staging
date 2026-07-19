@@ -1,5 +1,5 @@
 import { ComponentTypesScenario } from "./modules/component-types/ComponentTypesScenario";
-import { BoardsScenario } from "./modules/boards/BoardsScenario";
+import { BoardsReadScenario } from "./modules/boards/BoardsReadScenario";
 import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenario";
 import { RolesReadScenario } from "./modules/roles/RolesReadScenario";
 import { OperationsScenario } from "./modules/operations/OperationsScenario";
@@ -40,7 +40,7 @@ export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptio
 
 function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onOpenShiftMasterBoardCarryover, onOpenShiftMasterBoardSource, onSelectShiftMasterBoardDate, onSelectShiftMasterBoardFocus, onSelectShiftMasterBoardMaster, onShiftMasterBoardCommand, onEmployeeDesktopCommand, onRequestLegacy, payload, scenario }: { onLoadShiftWorkOrderPrintPackage?(rowId: string): Promise<unknown>; onLoadShiftWorkOrderPrintRenderer?(): Promise<typeof import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews")>; onPrintDocument?(title: string): void; onOpenShiftMasterBoardCarryover?(dateKey: string, carryoverId: string): void; onOpenShiftMasterBoardSource?(dateKey: string, sourceRowId: string): void; onSelectShiftMasterBoardDate?(dateKey: string): void; onSelectShiftMasterBoardFocus?(focus: "all" | "mine" | "open" | "attention"): void; onSelectShiftMasterBoardMaster?(masterId: string): void; onShiftMasterBoardCommand?(command: ShiftMasterBoardCommand): Promise<{ ok?: boolean; message?: string } | void>; onEmployeeDesktopCommand?(command: EmployeeDesktopReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
-  if (scenario === "boards") return <BoardsScenario payload={payload} />;
+  if (scenario === "boards") return <BoardsReadScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structurePositions") return <StructurePositionsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureOrgUnits") return <StructureOrgUnitsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;

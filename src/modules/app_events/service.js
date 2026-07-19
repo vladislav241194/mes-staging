@@ -1464,6 +1464,7 @@ function getRoutesEventsDependencies() {
     getDefaultStructureNomenclatureType,
     getExecutionTypeForFulfillmentMode,
     getActiveSpecificationForModule,
+    getBomImportRows,
     getBomList,
     getManualPlanningAssignmentForRouteStep,
     getNomenclatureDeleteUsage,
@@ -1637,6 +1638,7 @@ function saveNomenclatureCommand(...args) { return callRoutesEventsAsync("saveNo
 function deleteNomenclatureCommand(...args) { return callRoutesEventsAsync("deleteNomenclatureCommand", ...args); }
 function bindBomListsEvents(...args) { return bindRoutesEventsMethod("bindBomListsEvents", ...args); }
 function saveBomCommand(...args) { return callRoutesEventsAsync("saveBomCommand", ...args); }
+function deleteBomCommand(...args) { return callRoutesEventsAsync("deleteBomCommand", ...args); }
 function getRouteStepAddTargetTaskId(...args) { return callRoutesEvents("getRouteStepAddTargetTaskId", ...args); }
 function addRouteModuleStep(...args) { return callRoutesEvents("addRouteModuleStep", ...args); }
 function moveRouteStep(...args) { return callRoutesEvents("moveRouteStep", ...args); }
@@ -1982,6 +1984,7 @@ function updateDependencyClip(shell) {
     deleteNomenclatureCommand,
     bindBomListsEvents,
     saveBomCommand,
+    deleteBomCommand,
     bindPlanningEvents,
     bindShiftCalendarEvents,
     applyOperationMapChangesToRoutes,

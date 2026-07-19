@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { useCommandRunner } from "../../ui/use-command";
 import { adaptBoardsModel, BOM_COMPONENT_FIELDS, type BoardItem } from "./adapter";
 import { formatBomCell, formatComponentCount, getBoardSidebarMeta, getVisibleComponentTotal, resolveVisibleBoard } from "./view-model";
 
@@ -18,11 +19,11 @@ export function BoardsScenario({
   const boards = model.boards;
   const [selectedId, setSelectedId] = useState(boards[0]?.id ?? "");
   const [draft, setDraft] = useState<BoardDraft | null>(null);
-  const [commandError, setCommandError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const selected = resolveVisibleBoard(boards, selectedId);
   const setDraftField = (field: "name" | "boardCode" | "resultItem", value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
-  const header = <ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge">{model.canCreateEdit ? "React · create/edit evaluation" : "React migration lab"}</span>} />;
+  const header = <ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React migration lab"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Печатные платы" title="Платы">
       {onRequestItems ? (
@@ -51,17 +52,12 @@ export function BoardsScenario({
   );
 
   const saveDraft = async () => {
-    if (!draft || !onCommand) return;
-    setSaving(true);
-    setCommandError("");
-    try {
-      const result = await onCommand({ type: "save", payload: draft });
-      if (result && result.ok === false) setCommandError(result.message || "Не удалось сохранить плату.");
-    } catch (error) {
-      setCommandError(error instanceof Error ? error.message : "Не удалось сохранить плату.");
-    } finally {
-      setSaving(false);
-    }
+    if (!draft) return;
+    await runCommand({ type: "save", payload: draft }, "Не удалось сохранить плату.");
+  };
+  const deleteDraft = async () => {
+    if (!draft || draft.isNew || !model.canDelete) return;
+    await runCommand({ type: "delete", payload: { bomId: draft.bomId } }, "Не удалось удалить плату.");
   };
 
   return (
@@ -82,14 +78,20 @@ export function BoardsScenario({
         </> : <EmptyState title="Пока нет импортированных строк" text="Карточка платы сохранена, но компонентный состав ещё не импортирован." /> : <EmptyState title="Платы пока не созданы" text="Read-only сценарий покажет платы после появления данных BOM." />}
       </Panel>
 
-      {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая плата" : "Редактирование платы"}</h2><p>BOM-строки, импорт и удаление этой командой не меняются</p></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
-        <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
+      {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новая плата" : "Редактирование платы"}</h2><p>Существующий владелец Boards/BOM</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
+        {deletePending ? <DeleteConfirmation busy={saving} error={commandError} id="react-board-delete-title" onCancel={() => setDeletePending(false)} onConfirm={() => { void deleteDraft(); }} title="Удалить плату и её BOM?">
+          <p>Плата «{draft.name || "без названия"}» и её BOM будут удалены.</p>
+          <p>Связано с составами: {model.deleteUsageById[draft.bomId]?.specificationsCount || 0}. Строк BOM: {model.deleteUsageById[draft.bomId]?.bomRowsCount || 0}.</p>
+        </DeleteConfirmation> : <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
           <label><span>Название платы</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
           <label><span>Децимальный номер</span><input name="boardCode" onChange={(event) => setDraftField("boardCode", event.currentTarget.value)} value={draft.boardCode} /></label>
           <label className="full"><span>Результат производства</span><input name="resultItem" onChange={(event) => setDraftField("resultItem", event.currentTarget.value)} value={draft.resultItem} /></label>
           {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
-          <div className="react-nomenclature-editor-actions"><button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : draft.isNew ? "Создать плату" : "Сохранить плату"}</button></div>
-        </form>
+          <div className="react-nomenclature-editor-actions">
+            {!draft.isNew ? <ActionButton disabled={!model.canDelete} onClick={() => { setDeletePending(true); clearCommandError(); }} title={model.canDelete ? "Удалить через существующую команду" : "Delete evaluation выключен"} variant="danger">Удалить</ActionButton> : null}
+            <button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : draft.isNew ? "Создать плату" : "Сохранить плату"}</button>
+          </div>
+        </form>}
       </Panel> : <><DetailPanel
         emptyText="Плата не выбрана"
         eyebrow="Карточка платы"
@@ -109,4 +111,6 @@ export function BoardsScenario({
 
 interface BoardDraft { isNew: boolean; bomId: string; name: string; boardCode: string; resultItem: string }
 const createBoardDraft = (board?: BoardItem): BoardDraft => ({ isNew: !board, bomId: board?.id || "", name: board?.name || "", boardCode: board?.boardCode === "-" ? "" : board?.boardCode || "", resultItem: board?.resultItem === "-" ? "" : board?.resultItem || "" });
-export type BoardsReactCommand = { type: "save"; payload: BoardDraft };
+export type BoardsReactCommand =
+  | { type: "save"; payload: BoardDraft }
+  | { type: "delete"; payload: { bomId: string } };

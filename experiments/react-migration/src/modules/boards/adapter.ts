@@ -77,7 +77,13 @@ export interface BoardItem {
   activeComponentTypes: number;
 }
 
-export interface BoardsModel { boards: BoardItem[]; canCreateEdit: boolean }
+export interface BoardDeleteUsage { specificationsCount: number; bomRowsCount: number }
+export interface BoardsModel {
+  boards: BoardItem[];
+  canCreateEdit: boolean;
+  canDelete: boolean;
+  deleteUsageById: Record<string, BoardDeleteUsage>;
+}
 
 function text(value: unknown): string {
   return String(value ?? "").trim();
@@ -199,5 +205,19 @@ export function adaptBoards(payload: unknown): BoardItem[] {
 export function adaptBoardsModel(payload: unknown): BoardsModel {
   const root = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
   const capabilities = root.capabilities && typeof root.capabilities === "object" ? root.capabilities as Record<string, unknown> : {};
-  return { boards: adaptBoards(payload), canCreateEdit: capabilities.createEdit === true };
+  const boards = adaptBoards(payload);
+  const usageRoot = root.deleteUsageById && typeof root.deleteUsageById === "object" && !Array.isArray(root.deleteUsageById) ? root.deleteUsageById as Record<string, unknown> : {};
+  const deleteUsageById = Object.fromEntries(boards.map((board) => {
+    const entry = usageRoot[board.id] && typeof usageRoot[board.id] === "object" && !Array.isArray(usageRoot[board.id]) ? usageRoot[board.id] as Record<string, unknown> : {};
+    return [board.id, {
+      specificationsCount: normalizeQuantity(entry.specificationsCount),
+      bomRowsCount: normalizeQuantity(entry.bomRowsCount),
+    }];
+  }));
+  return {
+    boards,
+    canCreateEdit: capabilities.createEdit === true,
+    canDelete: capabilities.delete === true,
+    deleteUsageById,
+  };
 }

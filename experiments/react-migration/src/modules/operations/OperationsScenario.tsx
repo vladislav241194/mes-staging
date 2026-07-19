@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
+import { useCommandRunner } from "../../ui/use-command";
 import { adaptOperationsModel, type OperationReadItem } from "./adapter";
 import { buildOperationFilters, filterOperations, resolveVisibleOperation, type OperationFilter } from "./view-model";
 
@@ -32,8 +33,7 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
   const [filter, setFilter] = useState<OperationFilter>("all");
   const [selectedId, setSelectedId] = useState(model.items[0]?.id || "");
   const [draft, setDraft] = useState<OperationDraft | null>(null);
-  const [commandError, setCommandError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
   const visibleItems = filterOperations(model.items, activeFilter);
   const selected = resolveVisibleOperation(visibleItems, selectedId);
@@ -41,17 +41,8 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
   const setDraftField = (field: keyof OperationDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
 
   const saveDraft = async () => {
-    if (!draft || !onCommand) return;
-    setSaving(true);
-    setCommandError("");
-    try {
-      const result = await onCommand({ type: "save", payload: draft });
-      if (result && result.ok === false) setCommandError(result.message || "Не удалось сохранить операцию.");
-    } catch (error) {
-      setCommandError(error instanceof Error ? error.message : "Не удалось сохранить операцию.");
-    } finally {
-      setSaving(false);
-    }
+    if (!draft) return;
+    await runCommand({ type: "save", payload: draft }, "Не удалось сохранить операцию.");
   };
 
   const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge">{model.canCreateEdit ? "React · create/edit evaluation" : "React preview · только чтение"}</span>} />;
@@ -69,7 +60,7 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
       </table></TableWrap> : <EmptyState title="Операций пока нет" text="В выбранном рабочем центре нет операций." />}
     </Panel>
 
-    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая операция" : "Редактирование операции"}</h2><p>Команда выполняется существующим владельцем справочника и связей планирования</p></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
+    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая операция" : "Редактирование операции"}</h2><p>Команда выполняется существующим владельцем справочника и связей планирования</p></div><ActionButton onClick={() => { setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
       <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
         <label><span>Операция</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
         <label><span>Рабочий центр</span><select name="workCenterId" onChange={(event) => setDraftField("workCenterId", event.currentTarget.value)} required value={draft.workCenterId}>

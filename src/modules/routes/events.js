@@ -34,6 +34,7 @@ export function createRoutesEventsModule(dependencies = {}) {
     getDefaultStructureNomenclatureType,
     getExecutionTypeForFulfillmentMode,
     getActiveSpecificationForModule,
+    getBomImportRows,
     getBomList,
     getNomenclatureDeleteUsage,
     getNomenclatureItem,
@@ -848,6 +849,7 @@ function deleteRouteStepConfirmed(stepId) {
       getDefaultStructureNomenclatureType,
       getExecutionTypeForFulfillmentMode,
       getActiveSpecificationForModule,
+      getBomImportRows,
       getBomList,
       getNomenclatureDeleteUsage,
       getNomenclatureItem,
@@ -978,6 +980,10 @@ function deleteRouteStepConfirmed(stepId) {
     return callProductsEvents("saveBomCommand", ...args);
   }
 
+  function deleteBomCommand(...args) {
+    return callProductsEvents("deleteBomCommand", ...args);
+  }
+
 
   return {
     bindRoutesEvents,
@@ -996,6 +1002,7 @@ function deleteRouteStepConfirmed(stepId) {
     deleteNomenclatureCommand,
     bindBomListsEvents,
     saveBomCommand,
+    deleteBomCommand,
     getRouteStepAddTargetTaskId,
     addRouteModuleStep,
     moveRouteStep,

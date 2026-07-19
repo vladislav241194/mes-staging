@@ -246,8 +246,17 @@ try {
   ], "Boards adapter must preserve rows and legacy component totals");
   assert.equal(adaptedBoards[0].headers[3], "Артикул производителя", "known legacy BOM header typo must normalize");
   assert.deepEqual(boardsAdapter.adaptBoards({ bomLists: [{ id: "", name: "invalid" }, null] }), [], "invalid Boards records must fail closed");
-  assert.equal(boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: true } }).canCreateEdit, true);
-  assert.equal(boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true" } }).canCreateEdit, false, "non-boolean Boards write capability must fail closed");
+  const boardsCommandModel = boardsAdapter.adaptBoardsModel({
+    bomLists: [{ id: "board-qa", name: "QA", importRows: [{ values: [1, "R", "R1", "", "", "0603", 1, "", ""] }] }],
+    deleteUsageById: { "board-qa": { specificationsCount: 1, bomRowsCount: 1 } },
+    capabilities: { createEdit: true, delete: true },
+  });
+  assert.equal(boardsCommandModel.canCreateEdit, true);
+  assert.equal(boardsCommandModel.canDelete, true);
+  assert.deepEqual(boardsCommandModel.deleteUsageById["board-qa"], { specificationsCount: 1, bomRowsCount: 1 });
+  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true" } });
+  assert.equal(boardsFailClosedModel.canCreateEdit, false, "non-boolean Boards write capability must fail closed");
+  assert.equal(boardsFailClosedModel.canDelete, false, "non-boolean Boards delete capability must fail closed");
 
   const boardsViewModelOutput = join(temporaryRoot, "boards-view-model.mjs");
   await build({
@@ -1027,6 +1036,12 @@ try {
 
   const productsEventsSource = await readFile(join(repositoryRoot, "src/modules/products/events.js"), "utf8");
   assert.match(productsEventsSource, /function saveBomCommand/);
+  assert.match(productsEventsSource, /function deleteBomCommand/);
+  assert.match(productsEventsSource, /getBomImportRows,/, "Board delete command must receive the lazy BOM row owner explicitly");
+  const appEventsSource = await readFile(join(repositoryRoot, "src/modules/app_events/service.js"), "utf8");
+  assert.match(appEventsSource, /function getRoutesEventsDependencies\(\)[\s\S]*getBomImportRows,/, "App Events must pass the BOM row owner into the lazy Routes bridge");
+  assert.match(productsEventsSource, /getSpecificationStructureItems\(specification\)\.some\(\(item\) => item\.bomListId === bomId\)/, "Board delete command must report structure references before cleanup");
+  assert.match(productsEventsSource, /withDirectoryEntityRemovalAllowed\(\(\) => persistDirectoryState\(\)\)/, "Board delete command must use the existing removal owner");
   assert.match(productsEventsSource, /\.\.\.\(previousBom \|\| \{\}\)/, "Board edit must retain hidden metadata before applying typed fields");
   assert.match(productsEventsSource, /projectId: String\(previousBom\?\.projectId \|\| ""\)/, "Board edit must retain its Specifications project reference");
   assert.match(productsEventsSource, /upsertBomResultToNomenclature\(row, row\.updatedAt\)/);
@@ -1361,6 +1376,7 @@ try {
   assert.match(productionAppSource, /authorizeSystemDomainAction\("nomenclature", "edit", \{ resourceId: "boards" \}\)/);
   assert.match(productionAppSource, /await ensureNomenclatureRenderModule\(\)/, "Boards write must await its lazy result-Nomenclature owner before mutation");
   assert.match(productionAppSource, /saveBomCommand\(\{/);
+  assert.match(productionAppSource, /deleteBomCommand\(\{ bomId:/);
   assert.match(productionAppSource, /const activeReactHost = useBoardsHost \? boardsReactIslandHost : nomenclatureReactIslandHost/);
   assert.match(productionAppSource, /boardsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES === true/);

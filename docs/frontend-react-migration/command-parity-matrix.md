@@ -104,7 +104,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy; Pilot read accepted | Medium | Keep default-off; separately gate write evaluation with a disposable type and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
-| 7 | Boards/BOM | Local complete: board metadata create/edit; import, BOM rows and delete remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write with a disposable board |
+| 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
 | 9 | Structure Positions | Local complete: create/edit with organization, work-center and schedule references; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable position and cleanup |
 | 10 | Structure Org Units | Local complete: create/edit with parent existence and hierarchy-cycle validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable child unit and cleanup |
@@ -158,13 +158,15 @@ persistence, unchanged system contracts, legacy read-back and unchanged
 Planning rows. Pilot remains default-off and has no Statuses write runtime
 flag.
 
-Boards/BOM now has local metadata create/edit parity through the existing lazy
-Products command owner. Production-shell QA preserves hidden fields,
-`projectId`, imported rows and Specifications references, synchronizes both
-existing and new result Nomenclature, reads the edit through legacy and leaves
-Planning unchanged. The owner audit also repaired the missing
-`upsertBomResultToNomenclature` dependency in the legacy save path. Excel
-import, BOM-row edits, counters and delete remain separate legacy slices.
+Boards/BOM now has local metadata create/edit/delete parity through the
+existing lazy Products command owner. Production-shell QA preserves hidden
+fields, `projectId` and imported rows on edit, synchronizes both existing and
+new result Nomenclature, then proves usage-aware delete cancellation and exact
+Specifications cleanup. The independently addressable Nomenclature result and
+Planning remain unchanged, and legacy reads the two remaining boards. The
+owner audit also repaired the missing `upsertBomResultToNomenclature` and
+`getBomImportRows` dependencies in the lazy path. Excel import, BOM-row edits
+and counters remain separate legacy slices.
 
 Structure Employees is the first locally complete PostgreSQL-backed React
 command slice. Its local-only write gate delegates to the existing compound
