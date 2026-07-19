@@ -300,3 +300,29 @@ Positions (`49`), Org Units (`19`), Work Centers (`19`) and Equipment (`6`) on
 the same PostgreSQL-authoritative payload and shared React host/UI contracts.
 Responsibility Policies and Migration Diagnostics remain separate semantic
 slices rather than implied by this checkpoint.
+
+## Directory Component Types read-only Pilot evaluation
+
+The seventh live slice started the Directories cluster with the existing
+Component Types data. Rollout controls from commit `8cc9aee` ran from an
+isolated root-only directory without changing the immutable release.
+
+- only `MES_REACT_DIRECTORY_COMPONENT_TYPES=1` and
+  `MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION=1` were active;
+- the authenticated session requested
+  `react-directory-component-types-evaluation=1`;
+- the island reached `ready`, revision `1`, in `137.40 ms`;
+- Pilot contained eight current rows rather than the four-row local fixture;
+  all `8/8` React rows matched all `8/8` legacy rows in order and in every one
+  of the eight formatted cells;
+- family counters were `R/C/L 3`, `Дискреты 1`, `Микросхемы 3`, `Крупные 1`;
+- filtering to `Микросхемы` produced the expected three rows and selecting
+  `BGA` opened its coefficient, rate, setup and default-quantity passport;
+- `Добавить тип` remained disabled, while `Все справочники` unmounted React
+  and restored the complete legacy navigation with four directories.
+
+Deactivation removed all React flags. Health stayed green, an authenticated
+session retaining the evaluation query mounted no island, and the same eight
+legacy rows remained unchanged. The temporary rollout directory was removed
+and no Pilot data was written. Component Types is currently legacy for every
+session.

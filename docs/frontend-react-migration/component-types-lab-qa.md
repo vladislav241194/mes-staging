@@ -58,5 +58,20 @@ detail, return to the full legacy directories list, disabled React writes, uncha
 clean console, and a `< 25 ms` local first commit pass. The production artifact
 is `201,269 B` raw / `63,156 B` gzip / `54,455 B` Brotli.
 
-No release or Pilot activation exists yet. Authenticated Pilot acceptance and
-rollback proof remain pending.
+## Pilot acceptance
+
+The production host shipped disabled by default in release
+`v.1.499.73-b1b77cf`. On 2026-07-19, one authenticated session evaluated
+Component Types in read-only mode.
+
+The live dataset contained eight rows, extending the four-row local fixture.
+All eight rows and all eight formatted cells matched legacy literally and in
+the same order. Family counts were `3 / 1 / 3 / 1`; the `Микросхемы` filter and
+the `BGA` passport passed. First React commit was `137.40 ms`, and add remained
+disabled. Returning to `Все справочники` restored the four-section legacy
+directory shell.
+
+Deactivation restored the unchanged eight-row legacy table in an authenticated
+session even with the evaluation query retained. All flags are off, the
+temporary root directory is removed, and no Pilot data was written. Disposable
+create/edit/delete remains a separate command slice.
