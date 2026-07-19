@@ -443,16 +443,20 @@ Brotli. Pilot and Admin were not changed.
 
 Specifications 2.0 is the twenty-second production-integrated scenario and the
 first bounded protected-canvas proof. The legacy module exposes a compact read
-model only after the selected source entry, publication revision and fingerprint
-match the PostgreSQL revision projection. React renders the immutable revision
+model only after the selected source entry and publication revision match the
+PostgreSQL projection with an immutable legacy or SHA-256 fingerprint. React renders the immutable revision
 passport, four metrics and published tree with local branch collapse. Registry
 switching, XLSX upload, editing, routes, norms, attachments, publication and
 work-order creation all return to legacy. Lab QA proves revision `7 -> 8`, tree
 collapse, disabled fallback and clean console. Production-shell QA proves
-default legacy, exact PostgreSQL revision/fingerprint parity, four rows, first
-commit below `20 ms`, editor fallback, zero Specifications API writes and unchanged
-`0600` state. The production artifact is `204,557 B` raw / `64,193 B` gzip /
-`60,833 B` Brotli. It has not been released or activated on Pilot.
+default legacy, exact PostgreSQL revision/digest parity, four rows, first
+commit near `20 ms`, editor fallback, zero Specifications API writes and
+unchanged `0600` state. The production artifact is `204,557 B` raw /
+`64,193 B` gzip / `60,833 B` Brotli. Authenticated Pilot acceptance completed
+on `v.1.499.97-1304535`: the immutable revision 6 rendered 91 positions, 18
+routes, 66 operations and four metrics; root collapse restored `1 -> 91`
+visible rows without writes. Evaluation is disabled and retained-query
+fallback restores the exact 91-row legacy tree.
 
 Gantt is the twenty-third production-integrated scenario. Its read boundary is
 not a second scheduler: the existing runtime computes the PostgreSQL-backed
@@ -517,7 +521,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
 5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
-6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 14 of 24 scenarios, most recently Nomenclature Types on `.86`.**
+6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 15 of 24 scenarios, most recently Specifications 2.0 on `.97-1304535`.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
    Operations create/edit is locally complete with linked Planning reference

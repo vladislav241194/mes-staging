@@ -1,7 +1,7 @@
 # Specifications 2.0 React lab QA
 
 Date: 2026-07-19
-Status: production-integrated read proof plus local-only existing draft-row edit; disabled by default
+Status: authenticated Pilot read acceptance complete; disabled by default
 
 ## Vertical scenario
 
@@ -12,8 +12,9 @@ attachments, work orders and publication to legacy.`
 
 The legacy module exposes one compact `getSpecifications2ReactModel()` boundary.
 It contains registry summaries, allowlisted selected draft-row fields and the
-selected published revision only after
-source entry, revision number and fingerprint match the PostgreSQL read model.
+selected published revision only after source entry and revision number match
+the PostgreSQL read model and the server exposes either the original legacy
+fingerprint or its immutable `sha256:` migration digest.
 React receives no storage handle, publication callback, attachment command,
 work-order command or API client. Its typed `save-draft-row` callback is admitted
 only by the localhost QA write gate and delegates to the existing editor owner.
@@ -47,5 +48,31 @@ Production-shell QA proves default legacy, the same PostgreSQL revision and four
 tree rows, scoped CSS, one existing-row save through the current owner, exactly
 one compatibility persistence, unchanged revision 7 metadata and published
 tree, zero publication/attachment/work-order API writes, unchanged disposable
-`0600` server state and a clean console. The isolated bundle is `213,439 B` raw
-/ `65,398 B` gzip. Pilot remains unchanged; the write gate is localhost-only.
+`0600` server state and a clean console. It also covers the compact PostgreSQL
+SHA-256 fingerprint form used by the real migrated revision. The isolated
+bundle is `213,439 B` raw / `65,398 B` gzip. The write gate is localhost-only.
+
+## Pilot acceptance
+
+Authenticated read-only acceptance completed on
+`v.1.499.97-1304535` (`1304535`). The live React slice rendered the selected
+`АБВГ.469659.001 Калоша` PostgreSQL revision 6 with 91 positions, 18 routes,
+66 operations and four metrics. The draft remained visibly marked as changed
+after revision 6; React showed only the immutable published tree. Collapsing
+the root changed the visible count from `91 из 91` to `1 из 91`, and expanding
+restored `91 из 91` without persistence.
+
+Live evaluation exposed and closed two compatibility defects before acceptance:
+
+- an unchanged cached revalidation completed without repainting the eligibility
+  transition from loading to ready;
+- the legacy full JSON fingerprint and the migrated PostgreSQL `sha256:` digest
+  represented the same authority boundary in different formats.
+
+The accepted view had no document overflow, four desktop metric columns and no
+publication or work-order command. The compact one-column/two-metric-column
+contract is covered by production-shell QA. Before and after evaluation the
+database contained exactly one Specifications revision, revision 6, with the
+same digest. The evaluation drop-in is removed, health is `ok`, the active
+release remains `.97-1304535`, and a retained-query reload restored the exact
+legacy registry and 91-row tree with zero React target.
