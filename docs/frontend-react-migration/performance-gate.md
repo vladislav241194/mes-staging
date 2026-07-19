@@ -20,19 +20,20 @@ Current minified measurements:
 | Structure Employees production island | 210,459 B | 64,768 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 209,326 B | 64,392 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 208,696 B | 64,239 B | 225,000 B | 68,000 B |
+| Structure Work Centers production island | 209,439 B | 64,359 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,857 B | 63,539 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,364 B | 63,173 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,242 B | 63,096 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,588 B | 63,461 B | 225,000 B | 68,000 B |
-| Full ten-scenario lab | 300,827 B | 80,119 B | 310,000 B | 85,000 B |
+| Full eleven-scenario lab | 308,361 B | 80,957 B | 310,000 B | 85,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure
 registry and Roles artifacts and rejects unrelated scenario labels. This preserves
 independent vertical slices instead of shipping every lab scenario with an
 individual island. The larger `310,000 B / 85,000 B` limit applies only to the
-ten-scenario development lab, never to a production island. Its raw limit
+eleven-scenario development lab, never to a production island. Its raw limit
 increased only as isolated scenarios were added; every production entry retains the
 unchanged `225,000 B / 68,000 B` gate.
 
@@ -84,6 +85,11 @@ Pilot acceptance.
 The bundled production Structure Org Units island is `203,298 B` raw /
 `63,823 B` gzip / `55,093 B` Brotli. Its production-shell first commit was
 `17.3 ms` across 19 PostgreSQL-backed rows; this is regression evidence, not
+Pilot acceptance.
+
+The bundled production Structure Work Centers island is `203,739 B` raw /
+`64,039 B` gzip / `55,095 B` Brotli. Its production-shell first commit was
+`23.8 ms` across 19 PostgreSQL-backed rows; this is regression evidence, not
 Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.

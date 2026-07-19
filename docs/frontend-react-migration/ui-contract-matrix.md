@@ -142,6 +142,13 @@ hierarchy-specific parent reference and department/section category. All 19
 stable IDs, five table cells and legacy order match the authenticated System
 Domains projection; no editor behavior moved into React.
 
+## Structure Work Centers read-model evidence
+
+Work Centers reuses the same registry, metric, table, selection, detail and
+status contracts. Its adapter preserves 19 stable IDs and resolves organization
+and parent hierarchy from one PostgreSQL projection. Five cells and order match
+legacy literally; planning, Gantt and editor commands remain outside React.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,

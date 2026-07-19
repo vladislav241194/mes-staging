@@ -84,6 +84,10 @@ other Structure registry remain in the legacy renderer.
 passport over the same snapshot. Parent resolution stays inside the typed
 adapter; create/save/archive and all other registries remain legacy.
 
+`mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table
+and passport. Organization and parent-center references are resolved at the
+typed boundary; planning/Gantt commands and every editor action remain legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

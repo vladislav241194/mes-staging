@@ -4,6 +4,7 @@ const STRUCTURE_EMPLOYEES_REACT_TARGET = "[data-react-structure-employees-island
 const STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__";
 const STRUCTURE_POSITIONS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_POSITIONS_REACT_BUNDLE_VERSION__";
 const STRUCTURE_ORG_UNITS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_ORG_UNITS_REACT_BUNDLE_VERSION__";
+const STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION__";
 
 export function createStructureEmployeesReactIslandHost({
   getActivation,
@@ -100,5 +101,27 @@ export function createStructureOrgUnitsReactIslandHost({ getActivation, getPaylo
       return import(islandUrl.href);
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureOrgUnitsReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+  });
+}
+
+export function createStructureWorkCentersReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Structure Work Centers React island failed", error) } = {}) {
+  return createReactIslandHost({
+    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
+    targetSelector: "[data-react-structure-work-centers-island]",
+    renderTarget: '<div class="mes-react-structure-work-centers-island" data-react-structure-work-centers-island data-react-island-state="loading" aria-live="polite"></div>',
+    getIneligibilityReason: (activation) => {
+      if (!activation.featureFlagEnabled) return "disabled";
+      if (!activation.serverReadReady) return "server-read-pending";
+      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      return "";
+    },
+    loadIsland: async () => {
+      const islandUrl = new URL("./react-islands/structure-work-centers.js", import.meta.url);
+      const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
+      const bundleVersion = STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION;
+      islandUrl.searchParams.set("v", bundleVersion);
+      return import(islandUrl.href);
+    },
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureWorkCentersReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
   });
 }

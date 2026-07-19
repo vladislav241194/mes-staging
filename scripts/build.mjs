@@ -410,6 +410,14 @@ const structureOrgUnitsReactIslandVersionMarker = "__MES_STRUCTURE_ORG_UNITS_REA
 if (!structureOrgUnitsReactIslandHostSource.includes(structureOrgUnitsReactIslandVersionMarker)) throw new Error("Cannot find Structure Org Units React island bundle version marker");
 await writeFile(structureEmployeesReactIslandHostPath, structureOrgUnitsReactIslandHostSource.replaceAll(structureOrgUnitsReactIslandVersionMarker, structureOrgUnitsReactIslandVersion));
 
+const structureWorkCentersReactIslandOutput = join(stagingDistDir, "src", "react-islands", "structure-work-centers.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "structure-work-centers-island.tsx"), structureWorkCentersReactIslandOutput);
+const structureWorkCentersReactIslandVersion = await fileHash(structureWorkCentersReactIslandOutput);
+const structureWorkCentersReactIslandHostSource = await readFile(structureEmployeesReactIslandHostPath, "utf8");
+const structureWorkCentersReactIslandVersionMarker = "__MES_STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION__";
+if (!structureWorkCentersReactIslandHostSource.includes(structureWorkCentersReactIslandVersionMarker)) throw new Error("Cannot find Structure Work Centers React island bundle version marker");
+await writeFile(structureEmployeesReactIslandHostPath, structureWorkCentersReactIslandHostSource.replaceAll(structureWorkCentersReactIslandVersionMarker, structureWorkCentersReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -573,6 +581,7 @@ console.log(`- src/react-islands/boards.js?v=${boardsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-employees.js?v=${structureEmployeesReactIslandVersion}`);
 console.log(`- src/react-islands/structure-positions.js?v=${structurePositionsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-org-units.js?v=${structureOrgUnitsReactIslandVersion}`);
+console.log(`- src/react-islands/structure-work-centers.js?v=${structureWorkCentersReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

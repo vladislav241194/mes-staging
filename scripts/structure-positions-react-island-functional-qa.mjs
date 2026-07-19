@@ -9,7 +9,11 @@ import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondi
 
 const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
-const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "orgUnits" ? {
+const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "workCenters" ? {
+  label: "Work Centers", registryId: "workCenters", rowCount: 19, target: "data-react-structure-work-centers-island",
+  featureFlag: "MES_REACT_STRUCTURE_WORK_CENTERS", evaluationFlag: "MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION",
+  evaluationQuery: "react-structure-work-centers-evaluation", fallbackLabel: "Оборудование", fallbackRegistry: "equipment", fallbackCount: 6,
+} : process.env.MES_STRUCTURE_QA_REGISTRY === "orgUnits" ? {
   label: "Org Units", registryId: "orgUnits", rowCount: 19, target: "data-react-structure-org-units-island",
   featureFlag: "MES_REACT_STRUCTURE_ORG_UNITS", evaluationFlag: "MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-org-units-evaluation", fallbackLabel: "Рабочие центры", fallbackRegistry: "workCenters", fallbackCount: 19,
