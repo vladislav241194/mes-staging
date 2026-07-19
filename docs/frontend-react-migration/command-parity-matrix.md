@@ -32,12 +32,17 @@ schedule write was invoked, evaluation was disabled and legacy restored. This
 Nomenclature Types read-only acceptance additionally covers all 10 real rows,
 four literal columns, selection/detail and the common panel contract on `.86`.
 No write command was enabled; evaluation was disabled and the 10-row legacy
-directory restored. This brings authenticated Pilot read acceptance to 14 of
-24 scenarios.
+directory restored. Subsequent accepted checkpoints added Statuses, Roles and
+Access, Timesheet, Planning Workbench, Specifications 2.0 and the pre-PIN
+Authorization picker. This brings authenticated Pilot read acceptance to 20 of
+24 scenarios on the all-flags-off `v.1.500.01-1a8a9a4` baseline. The remaining
+four are non-empty Nomenclature, Boards/BOM, non-empty Responsibility Policies
+and Contour Admin on its mapped host.
 
-Nomenclature and Component Types have locally complete create/edit/delete
-command parity. Operations, Nomenclature Types, user-managed Statuses and board
-metadata have locally complete create/edit parity. Structure Employees,
+Nomenclature, Component Types and Nomenclature Types have locally complete
+create/edit/delete command parity. Operations and user-managed Statuses have
+locally complete create/edit parity; board metadata has create/edit/delete.
+Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner, while reference-sensitive,
@@ -102,7 +107,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
-| 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy; Pilot read accepted | Medium | Keep default-off; separately gate write evaluation with a disposable type and reference audit |
+| 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
 | 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
@@ -141,14 +146,15 @@ completed and unrelated slots. The audit also found and repaired a missing
 Delete additionally touches Specifications and therefore stays separate and
 legacy-only.
 
-Nomenclature Types now has local RBAC-gated create/edit parity through the
-existing directory owner. Its disposable-snapshot QA proves create, rename,
-Nomenclature item type propagation, Specifications 2.0 structure-reference
-propagation, legacy read-back and no changes to unrelated Planning rows. The
-owner audit also repaired two legacy defects: synchronization previously used
-an unavailable/stale state boundary, and a new row's empty previous name could
-normalize to `РЭА компоненты` and recategorize existing items. Pilot remains
-default-off and has no write runtime flag for this scenario.
+Nomenclature Types now has local RBAC-gated create/edit/delete parity through
+the existing directory owner. Its disposable-snapshot QA proves create,
+rename, Nomenclature and Specifications 2.0 rename propagation, usage-aware
+delete confirmation, byte-stable cancel, fallback reassignment in both
+reference families, legacy read-back and no changes to unrelated Planning
+rows. The owner audit repaired four legacy defects: unavailable/stale rename
+state, empty-previous-name normalization, a missing production fallback-owner
+dependency and loss of normalized Specifications references during delete.
+Pilot remains default-off and has no write runtime flag for this scenario.
 
 Statuses now has local create/edit parity only for explicitly user-managed
 rows. Both `custom-status-` ID and persisted `statusAuthority: "user"` are

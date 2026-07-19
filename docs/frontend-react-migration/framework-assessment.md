@@ -1,12 +1,12 @@
 # Отчёт по фреймворкам и целевому стеку MES
 
 Дата: 2026-07-19
-Состояние: фактический код ветки `codex/frontend-react-migration`; на Pilot активен all-flags-off релиз `v.1.499.86-6b5cec6`
+Состояние: фактический код ветки `codex/frontend-react-migration`; на Pilot активен all-flags-off релиз `v.1.500.01-1a8a9a4`
 
 | Компонент | Что используется сейчас | Статус | Что хорошо | Что плохо / риск | На что менять или как улучшить |
 | --- | --- | --- | --- | --- | --- |
 | Основной frontend | Vanilla JavaScript, ES modules, ручной HTML/DOM-рендеринг; рядом работают default-off React islands | 🟠 Переход идёт | Существующая бизнес-логика и legacy rollback сохранены; 24 read-сценария уже production-интегрированы и проверены локально в production shell | Legacy остаётся основным UI; состояние, DOM и события связаны вручную; соседние модули могут выглядеть по-разному | Переносить по одному вертикальному сценарию на React + TypeScript. Не делать big-bang rewrite |
-| React frontend | React 19.2.7 + React DOM 19.2.7 + TypeScript/TSX | 🟠 Встроен, выключен по умолчанию | Типизированные adapters, общий lifecycle, error fallback и переиспользуемые представления; Pilot уже принял 14 из 24 read-сценариев, включая Nomenclature empty-state, пять Structure-регистров, Component Types, Operations, Nomenclature Types, Weekly Control, Shift Work Orders, Shift Master Board, Employee Desktop и Gantt; локальная command parity завершена для 22 сценариев | Большинство экранов ещё открываются в legacy и требуют отдельной Pilot-приёмки; 22 из 24 сценариев имеют локально завершённую command parity, оставшиеся 2 являются read-only по назначению | Оставить целевым frontend-стеком. Продолжать по одному пользовательскому сценарию, сохраняя session gate и мгновенный legacy rollback |
+| React frontend | React 19.2.7 + React DOM 19.2.7 + TypeScript/TSX | 🟠 Встроен, выключен по умолчанию | Типизированные adapters, общий lifecycle, error fallback и переиспользуемые представления; Pilot уже принял 20 из 24 read-сценариев, а локальная command parity завершена для 22 сценариев | Четыре read-сценария ещё не приняты на Pilot: непустая Nomenclature, Boards/BOM, непустые Responsibility Policies и Contour Admin на mapped host; большинство экранов пока default-off/legacy | Оставить целевым frontend-стеком. Продолжать по одному пользовательскому сценарию, сохраняя session gate и мгновенный legacy rollback |
 | Модульная система | Собственный реестр MES-модулей и runtime-контракты | 🟠 Оставить на переходный период | Реестр хранит права, навигацию, lazy loading, владельцев runtime и rollback независимо от способа рендера | Самописный runtime требует поддержки; нельзя одновременно менять его, экран и бизнес-команды без роста риска | Сохранять реестр как конфигурационный слой, а рендер постепенно отдавать React. React Router сейчас не нужен и не внедрён |
 | UI Kit | Собственные React-примитивы `OperationalPage`, `ModuleHeader`, `Panel`, `MetricGrid`, `StatusToken`, `ActionButton` и MES CSS-контракты | 🟢 Выбран целевой подход | Сохраняет производственный язык интерфейса и уже унифицирует разнородные islands без внешней дизайн-системы; Pilot подтвердил контракт KPI, панели и действий на сложном Gantt-экране | Пока не покрывает все редакторы и сложные таблицы; возможны локальные исключения | Развивать собственную typed design system и токены. Не подключать MUI, Ant, Bootstrap или Blueprint как второй визуальный язык |
 | Blueprint UI | Не установлен и не используется; существующие в коде `module_blueprint` — внутренние контракты MES, а не библиотека Blueprint UI | ⚪ Закрыто: в системе не будет | Изолированный PoC позволил оценить готовые сложные компоненты | Чужой визуальный язык, дополнительная зависимость и отсутствие решения архитектурных проблем; смешение с legacy ухудшило бы согласованность | Не переносить PoC в продукт и исключить Blueprint UI из целевой архитектуры. Внутренний MES-термин `module_blueprint` не связан с этим решением |
@@ -38,12 +38,13 @@
 
 ## Что ещё не завершено
 
-- authenticated Pilot read-only QA оставшихся islands и отдельное решение о default-on для уже принятых срезов;
-- перенос остальных write-команд: справочники, назначения, факт и публикация;
-  create/edit/delete Номенклатуры уже реализованы как один отдельный default-off
-  evaluation-срез;
-- PIN/сессия и write-команды авторизации; React уже покрывает только безопасный
-  выбор отдела, участка и сотрудника, а Gantt, Specifications 2.0 и Contour
-  Admin также production-интегрированы read-only default-off;
+- authenticated Pilot read-only QA четырёх оставшихся islands и отдельное
+  решение о default-on для уже принятых срезов;
+- перенос оставшихся write-команд по указанным в command-parity matrix
+  вертикальным срезам; Nomenclature, Component Types и Nomenclature Types уже
+  имеют локальный create/edit/delete default-off контур;
+- отдельная Pilot-приёмка PIN-входа и защищённых write-команд; локальный React
+  PIN-сценарий уже передаёт ввод существующему владельцу сессии, а Gantt,
+  Specifications 2.0 и Contour Admin остаются default-off;
 - удаление legacy возможно только после функциональной parity, Pilot-приёмки и
   проверенного rollback для каждого сценария.

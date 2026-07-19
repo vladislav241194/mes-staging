@@ -80,6 +80,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     getActiveSpecificationForModule,
     getBomImportRows = () => [],
     getBomList,
+    getFallbackNomenclatureType = () => "",
     getGanttSlotStatusView,
     getManualPlanningAssignmentForRouteStep,
     getMesDocumentKind,
@@ -1812,6 +1813,20 @@ function deleteDirectoryRow(sectionId, rowIndex) {
 
 function deleteDirectoryStateRow(sectionId, row) {
   const rowId = row.id;
+  const deletedNomenclatureTypeKey = sectionId === "nomenclatureTypes"
+    ? normalizeLookupText(normalizeNomenclatureType(row.name))
+    : "";
+  const priorNomenclatureTypeStructureItems = sectionId === "nomenclatureTypes"
+    ? new Map((directoryState.specifications || []).map((specification) => {
+      const items = getSpecificationStructureItems(specification);
+      return [specification.id, {
+        items,
+        matchingItemIds: new Set(items
+          .filter((item) => normalizeLookupText(normalizeNomenclatureType(item.nomenclatureType)) === deletedNomenclatureTypeKey)
+          .map((item) => item.id)),
+      }];
+    }))
+    : null;
   recordDirectoryEntityDeletion(sectionId, rowId);
   directoryState = {
     ...directoryState,
@@ -1876,14 +1891,17 @@ function deleteDirectoryStateRow(sectionId, row) {
         ? { ...item, type: fallbackType, updatedAt: new Date().toISOString() }
         : item
     ));
-    directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
-      ...specification,
-      structureItems: getSpecificationStructureItems(specification).map((item) => (
-        normalizeLookupText(item.nomenclatureType) === normalizeLookupText(row.name)
-          ? { ...item, nomenclatureType: fallbackType }
-          : item
-      )),
-    }));
+    directoryState.specifications = (directoryState.specifications || []).map((specification) => {
+      const priorStructure = priorNomenclatureTypeStructureItems?.get(specification.id);
+      return {
+        ...specification,
+        structureItems: (priorStructure?.items || getSpecificationStructureItems(specification)).map((item) => (
+          priorStructure?.matchingItemIds.has(item.id)
+            ? { ...item, nomenclatureType: fallbackType }
+            : item
+        )),
+      };
+    });
     if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(row.name)) {
       ui.nomenclatureTypeFilter = fallbackType || "all";
     }

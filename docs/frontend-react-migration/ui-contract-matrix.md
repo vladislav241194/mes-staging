@@ -387,9 +387,10 @@ four-column legacy contract and status filter. The adapter reads the runtime
 projection only after legacy normalization, so the existing synchronization
 from Nomenclature items and Specifications remains in the command owner rather
 than React. Production-shell QA matched five normalized rows, every visible
-cell and source order, then proved local RBAC-gated create/edit, both reference
+cell and source order, then proved local RBAC-gated create/edit/delete, typed
+usage disclosure, byte-stable cancellation, both rename and fallback reference
 projections, legacy read-back and loop-free return to the current full legacy
-section using a disposable snapshot. Delete remains legacy-only.
+section using a disposable snapshot.
 
 ## Directories Statuses production evidence
 

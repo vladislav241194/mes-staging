@@ -276,24 +276,61 @@ async function main() {
     assert(persistedAfterRename.specifications[0].structureItems.find((item) => item.id === "spec-item-mech")?.nomenclatureType === "Механика React", "rename must synchronize Specifications structure references through the legacy owner");
     assert(persistedAfterRename.nomenclature.find((item) => item.id === "nom-rea")?.type === "РЭА компоненты", `rename must preserve unrelated Nomenclature references: ${JSON.stringify({ types: persistedAfterRename.nomenclatureTypes, nomenclature: persistedAfterRename.nomenclature })}`);
 
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => row.textContent.includes("Механика React"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "Механика React", { message: "renamed Nomenclature Type did not become selected for delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Редактировать")?.click());
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Механика React", { message: "Nomenclature Type editor did not reopen for delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[role="alertdialog"]')), { message: "Nomenclature Type delete confirmation did not open" });
+    const deleteConfirmation = await evaluate(client, () => document.querySelector('[role="alertdialog"]')?.textContent?.replace(/\s+/g, " ").trim() || "");
+    assert(deleteConfirmation.includes("1 позиций") && deleteConfirmation.includes("1 строк составов") && deleteConfirmation.includes("РЭА компоненты"), `delete impact must disclose both references and fallback: ${deleteConfirmation}`);
+    const beforeDeleteCancel = await readFile(writeSharedStateFile, "utf8");
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Не удалять")?.click());
+    await waitForCondition(client, () => !document.querySelector('[role="alertdialog"]') && Boolean(document.querySelector('.react-nomenclature-editor')), { message: "Nomenclature Type delete cancel did not return to editor" });
+    await delay(200);
+    assert(await readFile(writeSharedStateFile, "utf8") === beforeDeleteCancel, "Nomenclature Type delete cancel mutated state");
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[role="alertdialog"]')), { message: "Nomenclature Type delete confirmation did not reopen" });
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => (
+      ![...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("Механика React"))
+      && !document.querySelector('[role="alertdialog"]')
+    ), { message: "Nomenclature Type delete did not remove the selected type" });
+
+    let persistedAfterDelete = null;
+    let persistedAfterDeleteSnapshot = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      persistedAfterDeleteSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      persistedAfterDelete = JSON.parse(persistedAfterDeleteSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (!persistedAfterDelete.nomenclatureTypes.some((item) => item.id === "type-mech")) break;
+      await delay(120);
+    }
+    assert(!persistedAfterDelete.nomenclatureTypes.some((item) => item.id === "type-mech"), "delete must persist removal of the selected Nomenclature Type");
+    assert(persistedAfterDelete.nomenclatureTypes.some((item) => item.name === "React QA раздел"), "delete changed the unrelated React-created type");
+    assert(persistedAfterDelete.nomenclature.find((item) => item.id === "nom-mech")?.type === "РЭА компоненты", "delete must move linked Nomenclature positions to the owner-selected fallback type");
+    assert(persistedAfterDelete.specifications[0].structureItems.find((item) => item.id === "spec-item-mech")?.nomenclatureType === "РЭА компоненты", `delete must move linked Specifications rows to the owner-selected fallback type: ${JSON.stringify(persistedAfterDelete.specifications[0])}`);
+    assert(persistedAfterDelete.nomenclature.find((item) => item.id === "nom-rea")?.type === "РЭА компоненты", "delete changed an unrelated Nomenclature position");
+
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=directories&qa-auth-bypass=1` });
     await openLegacySection(client);
     await waitForCondition(client, (expectedCount) => (
       document.querySelectorAll('[data-directory-row]').length === expectedCount
-      && [...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("Механика React"))
-    ), { arg: writeInitialCount + 1, message: "legacy projection did not expose the React-created and renamed Nomenclature Types" });
+      && [...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("React QA раздел"))
+      && ![...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("Механика React"))
+    ), { arg: writeInitialCount, message: "legacy projection did not expose the exact post-delete Nomenclature Types set" });
     const planningDomainRows = (raw) => {
       const state = JSON.parse(raw);
       return { routes: state.routes || [], routeSteps: state.routeSteps || [], slots: state.slots || [] };
     };
-    assert(JSON.stringify(planningDomainRows(persistedAfterRenameSnapshot.values[STATE_STORAGE_KEY])) === JSON.stringify(planningDomainRows(snapshot.values[STATE_STORAGE_KEY])), "Nomenclature Types commands must not modify Planning routes, steps or slots");
+    assert(JSON.stringify(planningDomainRows(persistedAfterDeleteSnapshot.values[STATE_STORAGE_KEY])) === JSON.stringify(planningDomainRows(snapshot.values[STATE_STORAGE_KEY])), "Nomenclature Types commands must not modify Planning routes, steps or slots");
     assert(consoleProblems.length === 0, `write-evaluation browser console must stay clean:\n${consoleProblems.join("\n")}`);
 
     console.log("Directory Nomenclature Types React production-shell functional QA: OK");
     console.log(`- same payload: ${legacyRows.length} legacy rows = ${initial.rows.length} React rows, four cells and order match`);
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- default legacy, status filter, selection, detail, legacy return, unchanged state and clean console: pass");
-    console.log("- local RBAC-gated create/edit through the existing owner, Nomenclature/Specifications rename synchronization and legacy read-back in a disposable snapshot: pass");
+    console.log("- local RBAC-gated create/edit/delete through the existing owner, cancel safety, Nomenclature/Specifications rename and fallback reassignment, unchanged Planning and legacy read-back: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     if (legacyOutput.trim()) console.error(legacyOutput.trim());

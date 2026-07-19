@@ -62,10 +62,12 @@ in existing runtime order with user-facing work-center labels already resolved
 by production MES logic. React does not own work-center aliasing or routing.
 
 `mountNomenclatureTypesReactIsland(...)` consumes the normalized
-`nomenclatureTypes` read slice and may dispatch one typed create/edit save
-command when the exact write capability is present. Existing directory logic
-remains authoritative for validation, persistence and automatic Nomenclature
-and Specifications type synchronization; delete stays legacy. The shared host
+`nomenclatureTypes` read slice and may dispatch typed create/edit save and
+delete commands when their exact capabilities are present. The host supplies a
+read-only delete-impact projection; React owns confirmation but not fallback
+selection or cleanup. Existing directory logic remains authoritative for
+validation, persistence and automatic Nomenclature and Specifications rename/
+fallback synchronization. The shared host
 uses one explicit legacy override so returning from any migrated directory
 cannot cycle into a different React section.
 

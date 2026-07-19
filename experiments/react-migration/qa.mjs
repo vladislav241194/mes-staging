@@ -705,8 +705,13 @@ try {
     ["type-old", "—", "—", "neutral"],
   ]);
   assert.deepEqual(adaptNomenclatureTypes({ nomenclatureTypes: {} }), [], "invalid nomenclature-types payload must fail closed");
-  assert.equal(adaptNomenclatureTypesModel({ nomenclatureTypes: [], capabilities: { createEdit: true } }).canCreateEdit, true, "explicit Nomenclature Types write capability must cross the typed adapter");
-  assert.equal(adaptNomenclatureTypesModel({ nomenclatureTypes: [], capabilities: { createEdit: "true" } }).canCreateEdit, false, "non-boolean Nomenclature Types write capability must fail closed");
+  const nomenclatureTypesCommandModel = adaptNomenclatureTypesModel({ nomenclatureTypes: [{ id: "type-qa", name: "QA" }], deleteUsageById: { "type-qa": { nomenclatureCount: 2, specificationRowsCount: 1, fallbackType: "РЭА" } }, capabilities: { createEdit: true, delete: true } });
+  assert.equal(nomenclatureTypesCommandModel.canCreateEdit, true, "explicit Nomenclature Types write capability must cross the typed adapter");
+  assert.equal(nomenclatureTypesCommandModel.canDelete, true, "explicit Nomenclature Types delete capability must cross the typed adapter");
+  assert.deepEqual(nomenclatureTypesCommandModel.deleteUsageById["type-qa"], { nomenclatureCount: 2, specificationRowsCount: 1, fallbackType: "РЭА" });
+  const nomenclatureTypesFailClosed = adaptNomenclatureTypesModel({ nomenclatureTypes: [], capabilities: { createEdit: "true", delete: "true" } });
+  assert.equal(nomenclatureTypesFailClosed.canCreateEdit, false, "non-boolean Nomenclature Types write capability must fail closed");
+  assert.equal(nomenclatureTypesFailClosed.canDelete, false, "non-boolean Nomenclature Types delete capability must fail closed");
   const nomenclatureTypesViewModelOutput = join(temporaryRoot, "nomenclature-types-view-model.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/nomenclature-types/view-model.ts")], outfile: nomenclatureTypesViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
   const nomenclatureTypesViewModel = await import(`${pathToFileURL(nomenclatureTypesViewModelOutput).href}?qa=${Date.now()}`);
@@ -1040,6 +1045,7 @@ try {
   assert.match(productsEventsSource, /getBomImportRows,/, "Board delete command must receive the lazy BOM row owner explicitly");
   const appEventsSource = await readFile(join(repositoryRoot, "src/modules/app_events/service.js"), "utf8");
   assert.match(appEventsSource, /function getRoutesEventsDependencies\(\)[\s\S]*getBomImportRows,/, "App Events must pass the BOM row owner into the lazy Routes bridge");
+  assert.match(appEventsSource, /getFallbackNomenclatureType = \(\) => ""/, "App Events must receive the Nomenclature Type fallback owner explicitly");
   assert.match(productsEventsSource, /getSpecificationStructureItems\(specification\)\.some\(\(item\) => item\.bomListId === bomId\)/, "Board delete command must report structure references before cleanup");
   assert.match(productsEventsSource, /withDirectoryEntityRemovalAllowed\(\(\) => persistDirectoryState\(\)\)/, "Board delete command must use the existing removal owner");
   assert.match(productsEventsSource, /\.\.\.\(previousBom \|\| \{\}\)/, "Board edit must retain hidden metadata before applying typed fields");
@@ -1461,7 +1467,9 @@ try {
   assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /canEditDirectorySection\("nomenclatureTypes"\)/);
+  assert.match(productionAppSource, /getFallbackNomenclatureType: \(\.\.\.args\) => typeof getFallbackNomenclatureType === "function" \? getFallbackNomenclatureType\(\.\.\.args\) : ""/, "production App Events must inject the real Nomenclature Type fallback owner");
   assert.match(productionAppSource, /saveDirectoryRow\("nomenclatureTypes"/);
+  assert.match(productionAppSource, /deleteDirectoryStateRow\("nomenclatureTypes"/);
   assert.match(productionAppSource, /directoryNomenclatureTypesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_STATUSES === true/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION === true/);

@@ -538,3 +538,11 @@ and detail through the scoped common UI contract without overflow. Selecting
 disabled, no write command was invoked, and the clean tab had no warnings or
 errors. Evaluation was removed; the retained URL mounted zero React targets
 and restored the 10-row legacy directory. Pilot remained healthy on `.86`.
+
+Local command parity now additionally covers create/edit/delete through the
+existing RBAC-protected directory owner. Disposable production-shell QA proves
+usage disclosure, byte-stable delete cancellation and exact fallback
+reassignment for linked Nomenclature and Specifications rows while Planning
+stays unchanged. This does not alter the accepted live read checkpoint: there
+is still no Pilot write flag, all evaluation flags remain off, and no Pilot
+data was written.

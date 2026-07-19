@@ -3804,9 +3804,19 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
   },
   getPayload: () => {
     const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
+    const deleteUsageById = Object.fromEntries((directoryState.nomenclatureTypes || []).flatMap((row) => {
+      const itemId = String(row?.id || "").trim();
+      if (!itemId) return [];
+      const typeKey = normalizeLookupText(normalizeNomenclatureType(row.name));
+      const nomenclatureCount = (directoryState.nomenclature || []).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.type)) === typeKey).length;
+      const specificationRowsCount = (directoryState.specifications || []).reduce((count, specification) => count + getSpecificationStructureItems(specification).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.nomenclatureType)) === typeKey).length, 0);
+      return [[itemId, { nomenclatureCount, specificationRowsCount, fallbackType: getFallbackNomenclatureType(row.name) }]];
+    }));
+    const canWrite = localQa.writeEvaluation && canEditDirectorySection("nomenclatureTypes");
     return {
       ...directoryState,
-      capabilities: { createEdit: localQa.writeEvaluation && canEditDirectorySection("nomenclatureTypes") },
+      deleteUsageById,
+      capabilities: { createEdit: canWrite, delete: canWrite },
     };
   },
   getTargetRoot: () => app,
@@ -3819,8 +3829,20 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
     if (!localQa.writeEvaluation || !canEditDirectorySection("nomenclatureTypes")) {
       return { ok: false, message: "Запись типов номенклатуры недоступна для текущей роли." };
     }
-    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда типов номенклатуры." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "delete") {
+      const itemId = String(input.itemId || "").trim();
+      const rowIndex = (directoryState.nomenclatureTypes || []).findIndex((item) => String(item.id || "") === itemId);
+      if (rowIndex < 0) return { ok: false, message: "Тип номенклатуры уже отсутствует." };
+      const nextDirectoryState = deleteDirectoryStateRow("nomenclatureTypes", directoryState.nomenclatureTypes[rowIndex]);
+      if (!nextDirectoryState) return { ok: false, message: "Не удалось удалить тип номенклатуры." };
+      await persistDirectoryStateWithRemoval();
+      ui.selectedDirectoryRows.nomenclatureTypes = Math.max(0, Math.min(rowIndex, (directoryState.nomenclatureTypes || []).length - 1));
+      persistUiState();
+      render({ skipRememberScroll: true });
+      return { ok: true, id: itemId };
+    }
+    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда типов номенклатуры." };
     const isNew = input.isNew === true;
     const itemId = isNew ? makeId("nt") : String(input.itemId || "").trim();
     const rowIndex = isNew ? -1 : (directoryState.nomenclatureTypes || []).findIndex((item) => String(item.id || "") === itemId);
@@ -8844,6 +8866,7 @@ appEventsService = createAppEventsServiceModule({
   getActiveSpecificationForModule,
   getBomImportRows: (...args) => typeof getBomImportRows === "function" ? getBomImportRows(...args) : [],
   getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null,
+  getFallbackNomenclatureType: (...args) => typeof getFallbackNomenclatureType === "function" ? getFallbackNomenclatureType(...args) : "",
   getNomenclatureDeleteUsage: (...args) => typeof getNomenclatureDeleteUsage === "function" ? getNomenclatureDeleteUsage(...args) : { specificationsCount: 0, bomRowsCount: 0 },
   getNomenclatureItem: (...args) => typeof getNomenclatureItem === "function" ? getNomenclatureItem(...args) : null,
   getGanttSlotStatusView,

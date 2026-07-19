@@ -18,6 +18,8 @@ export interface NomenclatureTypeReadItem {
 export interface NomenclatureTypesModel {
   items: NomenclatureTypeReadItem[];
   canCreateEdit: boolean;
+  canDelete: boolean;
+  deleteUsageById: Record<string, { nomenclatureCount: number; specificationRowsCount: number; fallbackType: string }>;
 }
 
 function text(value: unknown): string {
@@ -53,8 +55,17 @@ export function adaptNomenclatureTypesModel(payload: unknown): NomenclatureTypes
   const capabilities = root.capabilities && typeof root.capabilities === "object"
     ? root.capabilities as Record<string, unknown>
     : {};
+  const items = adaptNomenclatureTypes(payload);
+  const usageRoot = root.deleteUsageById && typeof root.deleteUsageById === "object" && !Array.isArray(root.deleteUsageById) ? root.deleteUsageById as Record<string, unknown> : {};
+  const deleteUsageById = Object.fromEntries(items.map((item) => {
+    const entry = usageRoot[item.id] && typeof usageRoot[item.id] === "object" && !Array.isArray(usageRoot[item.id]) ? usageRoot[item.id] as Record<string, unknown> : {};
+    const count = (value: unknown) => Math.max(0, Math.trunc(Number(value) || 0));
+    return [item.id, { nomenclatureCount: count(entry.nomenclatureCount), specificationRowsCount: count(entry.specificationRowsCount), fallbackType: text(entry.fallbackType) }];
+  }));
   return {
-    items: adaptNomenclatureTypes(payload),
+    items,
     canCreateEdit: capabilities.createEdit === true,
+    canDelete: capabilities.delete === true,
+    deleteUsageById,
   };
 }

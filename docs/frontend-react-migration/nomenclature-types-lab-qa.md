@@ -6,25 +6,32 @@ Pilot status: authenticated read-only acceptance complete on `v.1.499.86-6b5cec6
 
 ## Scope
 
-Locally complete create/edit vertical scenario:
+Locally complete create/edit/delete vertical scenario:
 
-`open Directories -> Nomenclature Types -> filter/select -> create or edit -> save -> verify Nomenclature and Specifications references -> read the result through legacy`.
+`open Directories -> Nomenclature Types -> filter/select -> create or edit -> save -> inspect delete impact -> cancel without mutation -> confirm delete -> verify fallback references -> read the result through legacy`.
 
 The typed adapter consumes the existing normalized
-`directoryState.nomenclatureTypes` projection. React owns only the editor and a
-typed `save` command. The existing directory command owner remains responsible
-for validation, persistence, reference synchronization, notifications and
-rerendering. Delete remains legacy-only.
+`directoryState.nomenclatureTypes` projection. React owns only the editor,
+usage-aware confirmation and typed `save`/`delete` commands. The host computes
+delete impact; the existing directory command owner remains responsible for
+validation, fallback selection, persistence, reference synchronization,
+notifications and rerendering.
 
 ## Contract and evidence
 
 - invalid containers and rows without stable ID/name fail closed;
 - the four legacy cells remain `Тип номенклатуры`, `Код`, `Описание`, `Статус`;
 - status filtering keeps one valid selection and matching detail;
-- write capability crosses the adapter only as the exact boolean `true` and is
+- create/edit and delete capabilities cross the adapter only as exact boolean
+  `true` values and are
   also protected by the existing `directories:edit` RBAC owner;
 - create/edit uses the existing `saveDirectoryRow("nomenclatureTypes", ...)`
   command path rather than duplicating persistence in React;
+- delete discloses linked Nomenclature positions, Specifications rows and the
+  owner-selected fallback type before calling the existing
+  `deleteDirectoryStateRow("nomenclatureTypes", ...)` owner;
+- cancelling delete is byte-stable and confirming it moves both reference
+  families to the fallback without changing unrelated Planning state;
 - rename propagation updates Nomenclature item types and Specifications 2.0
   structure-item type references while unrelated Planning rows stay unchanged;
 - “Все справочники” restores the same section in the full legacy renderer.
@@ -32,16 +39,18 @@ rerendering. Delete remains legacy-only.
 `npm run qa:directory-nomenclature-types-react-island` compares the same
 runtime payload in two production shells, then enables the local-only write
 gate against a disposable owner-only `0600` snapshot. It creates a type, edits
-its name, proves both reference projections, reads the result through legacy
-and removes the temporary snapshot without touching Pilot or real data.
+an existing linked type, proves both rename projections, cancels one delete,
+confirms the next delete, proves both fallback projections, reads the exact
+result through legacy and removes the temporary snapshot without touching
+Pilot or real data.
 
 Legacy startup normalized the fixture to five rows. All five rows, four cells
 and source order matched React. Default mode stayed legacy; status filtering,
 selection/detail, legacy return, unchanged read-only state and a clean console
-passed. The first React commit was `22.40 ms`, below the `2000 ms` local gate.
+passed. The latest first React commit was `15.50 ms`, below the `2000 ms` local gate.
 
-The independent entry is `207,259 B` raw / `63,928 B` gzip. The production
-artifact is `203,085 B` raw / `63,699 B` gzip / `54,776 B` Brotli.
+The independent entry is `210,301 B` raw / `64,630 B` gzip. The production
+artifact is `205,408 B` raw / `64,243 B` gzip / `55,514 B` Brotli.
 
 ## Legacy defects repaired
 
@@ -56,13 +65,21 @@ React command path:
    items. Both synchronization paths now reject raw empty names before
    normalization.
 
-Both boundaries are covered by source-contract and production-shell
+3. The App Events service declared a fallback-type dependency but production
+   did not inject the real owner, so delete could persist an empty
+   Specifications type while later normalization masked the problem in
+   Nomenclature.
+4. Type removal could make normalized Specifications references disappear
+   before reassignment. The owner now captures normalized linked row IDs before
+   removing the source type and applies its fallback to that exact set.
+
+All four boundaries are covered by source-contract and production-shell
 regressions.
 
 ## Production boundary
 
 The production host is false by default. Read-only activation still requires
-explicit runtime permissions plus a per-session request. Create/edit is
+explicit runtime permissions plus a per-session request. Create/edit/delete is
 available only through the local query
 `react-directory-nomenclature-types-write=1` and existing RBAC; there is no
 server or Pilot write flag.
