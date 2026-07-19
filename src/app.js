@@ -1789,6 +1789,7 @@ function ensureAccessRolesModule() {
 }
 
 let bindContourAdminEvents = () => {};
+let getContourAdminModel = () => ({ contours: [], scenarios: [], speedRows: [], guardrails: [] });
 let renderContourAdminPage = () => renderUiModulePage({
   ariaLabel: "Администрирование контура",
   className: "contour-admin-page",
@@ -1799,6 +1800,7 @@ let contourAdminModuleLoad = null;
 function initializeContourAdminModule(factory) {
   ({
     bindContourAdminEvents,
+    getContourAdminModel,
     renderContourAdminPage,
   } = factory({
   appendLocalDataSafetyAudit,

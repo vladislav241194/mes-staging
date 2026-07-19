@@ -1433,6 +1433,7 @@ try {
   assert.match(performanceBudget, /"shiftWorkOrders"/);
   assert.match(performanceBudget, /"shiftMasterBoard"/);
   assert.match(performanceBudget, /"employeeDesktop"/);
+  assert.match(performanceBudget, /"contourAdmin"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });

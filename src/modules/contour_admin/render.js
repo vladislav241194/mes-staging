@@ -229,6 +229,15 @@ export function createContourAdminModule(dependencies = {}) {
       "Prod появится отдельным контуром после стабилизации stage и регламента релизов.",
     ];
   }
+
+  function getContourAdminModel() {
+    return {
+      contours: getContourAdminContours(),
+      scenarios: getContourAdminScenarios(),
+      speedRows: getContourAdminSpeedRows(),
+      guardrails: getContourAdminGuardrails(),
+    };
+  }
   
   function renderContourAdminPage() {
     return renderUiModulePage({
@@ -560,6 +569,7 @@ export function createContourAdminModule(dependencies = {}) {
 
   return {
     bindContourAdminEvents,
+    getContourAdminModel,
     renderContourAdminPage,
   };
 }

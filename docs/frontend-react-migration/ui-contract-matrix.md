@@ -244,6 +244,16 @@ PostgreSQL-backed task in legacy and React, exact fact fallback, zero writes and
 unchanged state. A direct module entry also hydrates the Planning PostgreSQL
 graph before deriving its bounded dispatch scope.
 
+## Contour Admin isolated evidence
+
+The administrative proof consumes a completed host read model containing the
+three contour passports, five rollout scenarios, iteration measurements and
+safety guardrails. It reuses OperationalPage, ModuleHeader, Panel, MetricGrid,
+MetricCard, TableWrap, StatusToken and ActionButton. Local contour selection
+stays in React; every backup, sync, deploy, promote and rollback scope returns
+to the protected legacy Ops API. No production host or admin-route activation
+is claimed yet.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,
