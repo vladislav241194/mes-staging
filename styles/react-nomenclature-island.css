@@ -258,6 +258,16 @@ html body #app main.app-shell [data-react-planning-workbench-island].mes-react-p
 [data-react-planning-workbench-island].mes-react-planning-workbench-island .panel > .metric-grid { grid-template-columns: repeat(5, minmax(104px, 1fr)); padding: 16px 18px; }
 
 @media (max-width: 760px) {
+  [data-react-specifications2-island].mes-react-specifications2-island .module-page { min-height: 0; padding: 14px; }
+  [data-react-specifications2-island].mes-react-specifications2-island .module-header { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+  [data-react-specifications2-island].mes-react-specifications2-island .module-layout { grid-template-columns: minmax(0, 1fr); }
+  [data-react-specifications2-island].mes-react-specifications2-island .module-sidebar { display: grid; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 12px; }
+  [data-react-specifications2-island].mes-react-specifications2-island .module-sidebar > strong { grid-column: 1 / -1; margin-bottom: 6px; }
+  [data-react-specifications2-island].mes-react-specifications2-island .filter { min-width: 0; margin: 0; }
+  [data-react-specifications2-island].mes-react-specifications2-island .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-react-specifications2-island].mes-react-specifications2-island .panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 14px; }
+  [data-react-specifications2-island].mes-react-specifications2-island .detail { padding: 14px; }
+  [data-react-specifications2-island].mes-react-specifications2-island .specifications2-react-publication { align-items: flex-start; }
   [data-react-directory-statuses-island].mes-react-nomenclature-island .module-page { min-height: 0; padding: 14px; }
   [data-react-directory-statuses-island].mes-react-nomenclature-island .module-header { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
   [data-react-directory-statuses-island].mes-react-nomenclature-island .module-layout { grid-template-columns: minmax(0, 1fr); }
