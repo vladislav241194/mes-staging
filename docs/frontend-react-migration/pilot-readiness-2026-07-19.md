@@ -243,3 +243,28 @@ Deactivation removed all React flags. Health stayed green, the retained session
 query mounted no island, and the same `19` legacy rows remained unchanged. The
 temporary rollout directory was removed and no Pilot data was written. Org
 Units is currently legacy for every session.
+
+## Structure Work Centers read-only Pilot evaluation
+
+The fifth live slice evaluated the PostgreSQL-backed Work Centers registry.
+Rollout controls from commit `fda32cc` ran from an isolated root-only directory
+without changing the immutable release.
+
+- only `MES_REACT_STRUCTURE_WORK_CENTERS=1` and
+  `MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION=1` were active;
+- the authenticated session requested
+  `react-structure-work-centers-evaluation=1`;
+- the island reached `ready`, revision `1`, in `33.80 ms`;
+- all `19` React rows matched all `19` legacy rows in order and in all five
+  read fields: center, organization unit, parent, planning and status;
+- selecting `Участок упаковки и маркировки изделий` preserved the `Склад`
+  parent, planning state and stable-ID passport;
+- registry counts remained `19 / 19 / 49 / 76 / 6 / 0`, and create stayed
+  disabled;
+- requesting `Оборудование` unmounted React and opened the exact six-row legacy
+  registry with its command surface.
+
+Deactivation removed all React flags. Health stayed green, the retained query
+mounted no island, and the same `19` legacy rows remained unchanged. The
+temporary rollout directory was removed and no Pilot data was written. Work
+Centers is currently legacy for every session.
