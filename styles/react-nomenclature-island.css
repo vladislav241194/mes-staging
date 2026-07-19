@@ -244,6 +244,17 @@
 [data-react-directory-nomenclature-types-island].mes-react-nomenclature-island .module-layout .panel { border-radius:18px !important; }
 [data-react-directory-statuses-island].mes-react-nomenclature-island .module-layout .panel { border-radius:18px !important; }
 
+@media (max-width: 760px) {
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .module-page { min-height: 0; padding: 14px; }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .module-header { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .module-layout { grid-template-columns: minmax(0, 1fr); }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .module-sidebar { display: grid; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 12px; }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .module-sidebar > strong { grid-column: 1 / -1; margin-bottom: 6px; }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .filter { min-width: 0; margin: 0; }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 14px; }
+  [data-react-directory-statuses-island].mes-react-nomenclature-island .detail { padding: 14px; }
+}
+
 @media (max-width: 1180px) {
   .mes-react-specifications2-island .workspace { grid-template-columns: minmax(0, 1fr); }
 }

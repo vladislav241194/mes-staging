@@ -37,6 +37,9 @@ editor was enabled in legacy.
   visible cell and order;
 - application-area filtering, selection/detail, current-section legacy return,
   unchanged read-only state and clean console passed;
+- compact-shell QA at `487 px` proves a one-column module/workspace contract,
+  two-column filter rail, document-level overflow protection and table-local
+  horizontal scrolling;
 - a disposable owner-only `0600` snapshot proves custom create/edit,
   persistence, stable authority, system-row immutability, legacy read-back and
   unchanged Planning routes/steps/slots;
@@ -52,5 +55,10 @@ artifact is `204,911 B` raw / `64,133 B` gzip / `55,175 B` Brotli.
 Read-only activation remains protected by explicit runtime permissions and a
 session request. Custom create/edit has only the local
 `react-directory-statuses-write=1` gate; there is no Pilot/server write flag.
-No release, Pilot activation or real-data mutation was performed. Disabling
-the evaluation immediately retains the unchanged legacy Statuses view.
+Pilot read-only evaluation on `v.1.499.87-2415a84` proved 82 live rows,
+selection/detail, group filtering, disabled commands and a `135.9 ms` first
+commit in the authenticated UI. The initial compact-shell check exposed the
+fixed-width registry rail; `v.1.499.88` adds the bounded responsive contract
+and automated regression gate. No Pilot write or real-data mutation was
+performed. Disabling the evaluation immediately retains the unchanged legacy
+Statuses view.

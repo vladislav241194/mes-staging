@@ -81,6 +81,24 @@ try {
   assert(initial.layoutDisplay === "grid" && initial.layoutColumns === 2 && initial.panelRadius >= 16 && initial.detailRadius >= 16 && initial.actionRadius >= 8 && initial.panelBackground !== "rgba(0, 0, 0, 0)", `Statuses production UI contract failed: ${JSON.stringify(initial)}`);
   const filtered = await evaluate(client, async () => { const items = [...document.querySelectorAll('[data-ui-component="SidebarItem"]')]; items.find((item, index) => index > 1 && !item.textContent?.includes("Все справочники"))?.click(); await new Promise((resolve) => setTimeout(resolve, 50)); return [document.querySelectorAll('[data-ui-component="SelectableRow"]').length, document.querySelectorAll('[data-ui-component="SelectableRow"].is-selected').length]; });
   assert(filtered[0] > 0 && filtered[0] < initial.rows.length && filtered[1] === 1, "Statuses group filter failed");
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 487, height: 844, deviceScaleFactor: 1, mobile: false });
+  const compact = await evaluate(client, () => {
+    const target = document.querySelector("[data-react-directory-statuses-island]");
+    const layout = getComputedStyle(target.querySelector(".module-layout"));
+    const workspace = getComputedStyle(target.querySelector(".workspace"));
+    const sidebar = getComputedStyle(target.querySelector(".module-sidebar"));
+    const tableWrap = target.querySelector(".table-wrap");
+    return {
+      layoutColumns: layout.gridTemplateColumns.split(" ").length,
+      workspaceColumns: workspace.gridTemplateColumns.split(" ").length,
+      sidebarColumns: sidebar.gridTemplateColumns.split(" ").length,
+      sidebarMinHeight: parseFloat(sidebar.minHeight),
+      documentOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth,
+    };
+  });
+  assert(compact.layoutColumns === 1 && compact.workspaceColumns === 1 && compact.sidebarColumns === 2 && compact.sidebarMinHeight === 0 && !compact.documentOverflow && compact.tableScroll, `Statuses compact UI contract failed: ${JSON.stringify(compact)}`);
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Все справочники"))?.click());
   await waitForCondition(client, () => Boolean(!document.querySelector("[data-react-directory-statuses-island]") && document.querySelector('[data-directory-id="statuses"].is-active')), { message: "Statuses legacy return failed" });
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
@@ -160,7 +178,7 @@ try {
   assert(consoleProblems.length === 0, `browser console problems after custom write:\n${consoleProblems.join("\n")}`);
   console.log("Directory Statuses React production-shell functional QA: OK");
   console.log(`- exact parity: ${legacyRows.length} rows, seven cells and order; first commit ${initial.commitMs.toFixed(2)} ms`);
-  console.log("- default legacy, group filter, selection/detail, legacy return, unchanged state and clean console: pass");
+  console.log("- default legacy, group filter, compact layout, selection/detail, legacy return, unchanged state and clean console: pass");
   console.log("- local RBAC-gated custom create/edit, system-row protection, persistence, legacy read-back and unchanged Planning state: pass");
 } catch (error) {
   if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); if (writeOutput.trim()) console.error(writeOutput.trim()); throw error;
