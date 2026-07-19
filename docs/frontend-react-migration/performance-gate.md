@@ -114,9 +114,10 @@ acceptance.
 
 The bundled production Structure Positions island is `209,090 B` raw /
 `65,196 B` gzip / `56,283 B` Brotli. Its production-shell first commit was
-`18.30 ms` across 49 PostgreSQL-backed rows; create/edit/archive QA proves
-ID-bound confirmation, reference/hidden-field preservation and archived legacy
-read-back. This is regression evidence, not Pilot acceptance.
+`19.60 ms` in the latest full run across 49 PostgreSQL-backed rows;
+create/edit/archive QA proves ID-bound confirmation, rejection of active
+employment references before PUT, reference/hidden-field preservation and
+archived legacy read-back. This is regression evidence, not Pilot acceptance.
 
 The bundled production Structure Org Units island is `213,588 B` raw /
 `65,204 B` gzip. Its production-shell first commit was `17.70 ms` across 19

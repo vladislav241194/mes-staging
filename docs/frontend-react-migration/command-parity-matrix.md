@@ -196,7 +196,8 @@ local-only editor creates and edits position name, code, category, organization,
 work center, base schedule and active state, and separately confirms archive.
 QA proves exact reference IDs, conflict-without-mutation plus retry,
 `isActive=false`/`archivedAt`, hidden-field preservation, archived `50`-row
-legacy read-back and unchanged disposable compatibility state. The audit also
+legacy read-back, rejection of positions with active employment assignments
+before PUT and unchanged disposable compatibility state. The audit also
 fixed Structure active-host routing so a write-gated registry cannot disable
 legacy event binding while another host is selected.
 

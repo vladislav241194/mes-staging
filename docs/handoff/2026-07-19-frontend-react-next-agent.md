@@ -202,3 +202,6 @@ actions/console, затем немедленно деактивировать и
 - Размеры: independent `216176 / 65692 B`; bundled production
   `209090 / 65196 / 56283 B`; full lab `556577 / 126099 B`; first commit
   `18.30 ms`.
+- Corrective audit после checkpoint добавил обязательный host guard: должность
+  с действующим employment assignment отклоняется до PUT. QA доказывает нулевую
+  ревизию/attempt для такой команды; latest first commit `19.60 ms`.

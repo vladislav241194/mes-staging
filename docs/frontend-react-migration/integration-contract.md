@@ -101,6 +101,7 @@ Domains snapshot in a separate bundle and feature policy. It owns the Positions
 read table/passport and a local-only create/edit/archive evaluation delegated to
 the host System Domains command owner. Archive requires ID-bound second-step
 confirmation and a still-active target before `archiveSystemDomainEntity`.
+Positions with an active employment assignment are rejected before delegation.
 Every unsupported Structure command remains in the legacy renderer.
 
 `mountStructureOrgUnitsReactIsland(...)` owns the Org Units read table/passport

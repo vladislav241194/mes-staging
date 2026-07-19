@@ -26,7 +26,8 @@ PostgreSQL read readiness, the `production-structure` command surface and
 schedule IDs must exist in the current projection. The owner refreshes the
 revision, checks exact compatibility parity and sends the full candidate with
 `If-Match` plus an idempotency key. Fields not exposed by the editor are merged
-from the existing entity.
+from the existing entity. Archive additionally fails closed before PUT when an
+active employment assignment still references the position.
 
 ## Evidence
 
@@ -44,11 +45,13 @@ from the existing entity.
   conflict without mutation, retries successfully and reads archive through legacy;
 - confirmation does not follow selection to another position; archive persists
   `isActive=false` plus valid `archivedAt`;
+- a position referenced by an active employment assignment is rejected before
+  any PostgreSQL attempt;
 - organization, work-center and base-schedule references plus a hidden server
   field survive the write cycle;
 - every command carries the production surface, matching `If-Match` revision
   and a non-empty idempotency key;
-- latest local production-shell commit was `18.30 ms`, below the `2000 ms`
+- latest local production-shell commit was `19.60 ms`, below the `2000 ms`
   local gate.
 
 The independent island is `216,176 B` raw / `65,692 B` gzip; bundled production

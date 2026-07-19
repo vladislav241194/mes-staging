@@ -280,7 +280,8 @@ literal parity for 49 rows, five visible cells and order, selection/passport,
 all seven registry links, six metrics, exact Org Units fallback, unchanged
 state and clean console. Command QA additionally proves conflict/retry,
 ID-bound confirmation, `isActive=false`/`archivedAt`, unchanged references and
-hidden fields, and archived legacy read-back. Employees regression remains
+hidden fields, rejection of active employment references before PUT, and
+archived legacy read-back. Employees regression remains
 76/76. Its independent artifact is `216,176 B` / `65,692 B`; bundled production
 is `209,090 B` / `65,196 B` / `56,283 B` raw/gzip/Brotli. It has not been released
 or activated on Pilot.
