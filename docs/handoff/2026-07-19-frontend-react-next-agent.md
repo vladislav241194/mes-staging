@@ -769,3 +769,32 @@ actions/console, затем немедленно деактивировать и
   к локально доказанному assignment scope Журнала СЗН. Оставшийся объём —
   подтверждённые owner/schema gaps и отдельно разрешаемые Pilot write/default-
   on решения; их нельзя закрыть одной frontend-реализацией.
+
+## Финальный доступный остаток 2026-07-20
+
+- Повторная сверка executable command matrix: `22` production scenarios имеют
+  `local-complete`, два продуктовых read-only scenarios — `not-applicable`, ни
+  одного implicit/pending command status нет; у всех `24` сохранён legacy
+  rollback.
+- Устаревшие next-scope формулировки в JSON синхронизированы с фактическим
+  состоянием: Statuses, Weekly Control, Shift Master Board и Employee Desktop
+  уже имеют Pilot read baseline; Roles immediate assignment и Specifications
+  exact-revision work-order локально завершены и больше не перечисляются как
+  полностью legacy.
+- Оставшиеся frontend-visible команды без безопасного owner по-прежнему
+  подтверждены кодом: Responsibility Policy lifecycle; Roles `readOnly`,
+  multiple/effective-window и personal/assignment scopes; Planning dates/labor;
+  Specifications attachment binding/route structure; Gantt dependency editing,
+  drag/resize/optimization и Workshop manual lane movement.
+- Остальные next scopes — не frontend implementation: root-gated Pilot read,
+  отдельно разрешаемые disposable write/cleanup acceptance и default-on
+  решения. Без новой authority их выполнять нельзя.
+- Финальная live read-only проверка: Pilot health `ok`, version `v.1.500.03`,
+  shared state `ready`. Deploy, flags, targets и Pilot data этим продолжением не
+  менялись.
+- Implementation checkpoint `2386934` уже был чисто отправлен в origin с
+  divergence `0/0`; финальная ledger-синхронизация оформляется отдельным docs
+  checkpoint.
+- Доказательная оценка остаётся `99.5%` (`+0 п.п.`, осталось `0.5%`), потому что
+  финальный аудит исправляет ledger, но не выдаёт внешний owner/approval за
+  реализованный React scope.
