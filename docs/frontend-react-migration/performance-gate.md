@@ -33,14 +33,14 @@ Current minified measurements:
 | Employee Desktop production island | 224,501 B | 67,204 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 206,680 B | 64,121 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 207,695 B | 63,983 B | 225,000 B | 68,000 B |
-| Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
+| Specifications 2.0 production island | 215,962 B | 65,770 B | 225,000 B | 68,000 B |
 | Gantt production island | 210,560 B | 64,962 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 219,016 B | 66,400 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 212,161 B | 64,999 B | 225,000 B | 68,000 B |
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 213,503 B | 65,173 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 557,139 B | 126,312 B | 558,000 B | 127,000 B |
+| Full twenty-four-scenario lab | 559,658 B | 126,669 B | 561,000 B | 127,000 B |
 | Shared lab CSS | 29,860 B | 5,345 B | 30,000 B | 5,350 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -50,7 +50,7 @@ The same isolation check now covers the Gantt artifact.
 The Shift Work Orders base-entry check additionally rejects the print-sheet
 marker, while the dedicated lazy entry must contain it. This preserves
 independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `558,000 B / 127,000 B` limit
+individual island. The larger `561,000 B / 127,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increases only for an accepted isolated scenario or
 bounded vertical capability; every production entry retains the unchanged
@@ -228,10 +228,11 @@ stayed below `20 ms`; cancellation emitted no call and one confirmed mock
 emitted the exact allowlisted action/token. This is regression evidence, not
 Admin/Pilot acceptance.
 
-The bundled production Specifications 2.0 island is `204,557 B` raw /
-`64,193 B` gzip / `60,833 B` Brotli. Its four-row PostgreSQL revision production-
-shell first commit stayed below `20 ms`; this is regression evidence, not Pilot
-acceptance.
+The bundled production Specifications 2.0 island is `209,860 B` raw /
+`65,493 B` gzip / `56,412 B` Brotli. Its four-row PostgreSQL revision production-
+shell first commit was `17.20 ms`; the same run proves exact-ID confirmation,
+cancel, conflict/retry, revision `7 -> 8`, forced PostgreSQL read-back and legacy
+read-back. This is regression evidence, not Pilot write acceptance.
 
 The bundled production Gantt island is `204,190 B` raw / `63,874 B` gzip /
 `55,121 B` Brotli. Its three-row/two-slot PostgreSQL production-shell first

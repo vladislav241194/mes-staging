@@ -130,6 +130,7 @@ export function adaptSpecifications2Payload(payload: unknown) {
   return {
     registry,
     canEditDraft: Boolean(capabilities.draftEdit),
+    canPublish: Boolean(capabilities.publication),
     serverStatus: text(model.serverStatus, "empty"),
     serverError: text(model.serverError),
     selectedEntry: selected.id ? {

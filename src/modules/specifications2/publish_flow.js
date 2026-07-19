@@ -118,7 +118,7 @@ export async function publishSpecifications2EntryWithServerFirst({
     // A 409 after the primary check means the rollout changed or the server
     // is unhealthy. It is still unsafe to create a local revision.
     if (serverResult?.disabled && !primaryConfigured) return publishLegacy();
-    return { ok: false, mode: "server-first", error: serverResult?.error || "Серверная публикация не выполнена" };
+    return { ok: false, mode: "server-first", conflict: serverResult?.conflict === true, currentRevision: Number(serverResult?.currentRevision || 0), error: serverResult?.error || "Серверная публикация не выполнена" };
   }
   const publication = acknowledgedPublication(prepared.publication, serverResult);
   if (!publication) {

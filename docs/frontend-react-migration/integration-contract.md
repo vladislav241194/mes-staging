@@ -287,14 +287,17 @@ Deploy requests without an API action remain legacy. A public host, missing
 local write gate or missing session request retains legacy.
 
 `mountSpecifications2ReactIsland(...)` owns inspection of the selected immutable
-published revision and its PostgreSQL tree plus a localhost-only command proof
-for updating one existing pre-publication draft row. The host exposes a compact
-read model only after source entry, revision number and fingerprint all match
-the server projection, rechecks the write gate and delegates the typed command
-to `updateSpecifications2DraftRow`. React owns local branch collapse; registry
-switching, XLSX upload, add/remove/reparent, routes, norms, attachments,
-publication and work-order creation return through `unsupported-scope`. Missing
-or mismatched PostgreSQL data or a missing evaluation request retains legacy.
+published revision and its PostgreSQL tree plus localhost-only typed proofs for
+updating one existing pre-publication row and publishing that draft. The host
+exposes a compact read model only after source entry, revision number and
+fingerprint match the server projection. Publication requires an exact stable
+ID plus the expected previous revision, delegates to the existing server-first
+owner, exposes conflict/retry, then invalidates the short read cache and accepts
+success only after PostgreSQL confirms the next revision. React owns local
+branch collapse and two-step confirmation; registry switching, XLSX upload,
+add/remove/reparent, routes, norms, attachments and work-order creation return
+through `unsupported-scope`. Missing/mismatched PostgreSQL data, a non-loopback
+write request or a missing evaluation request retains legacy.
 
 `mountGanttReactIsland(...)` owns the read-only schedule canvas, local slot-
 passport selection and inspection of visible dependencies, plus a loopback-only

@@ -37,9 +37,25 @@ function makeId(prefix, seed = "") {
 }
 
 function getRows(entry = {}) {
-  return Array.isArray(entry.treeRows) && entry.treeRows.length
-    ? entry.treeRows
-    : Array.isArray(entry.editorRows) ? entry.editorRows : [];
+  if (!Array.isArray(entry.editorRows) || !entry.editorRows.length) {
+    return Array.isArray(entry.treeRows) ? entry.treeRows : [];
+  }
+  const byId = new Map(entry.editorRows.map((row) => [clean(row.id || row.selectionKey || row.nodeKey), row]));
+  const depthById = new Map();
+  const depthOf = (row, path = new Set()) => {
+    const id = clean(row.id || row.selectionKey || row.nodeKey);
+    if (depthById.has(id)) return depthById.get(id);
+    const parentId = clean(row.parentId || row.parentKey);
+    if (!parentId || !byId.has(parentId) || parentId === id || path.has(id)) return 0;
+    const depth = depthOf(byId.get(parentId), new Set([...path, id])) + 1;
+    depthById.set(id, depth);
+    return depth;
+  };
+  return entry.editorRows.map((row) => ({
+    ...row,
+    parentKey: clean(row.parentKey || row.parentId),
+    level: depthOf(row),
+  }));
 }
 
 function getRootRow(entry = {}) {

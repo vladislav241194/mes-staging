@@ -7,35 +7,40 @@ Status: authenticated Pilot read acceptance complete; disabled by default
 
 `Open Specifications 2.0 -> inspect the selected published PostgreSQL revision
 -> edit one existing row in its pre-publication draft through the legacy owner
--> keep the published revision immutable -> return structural editing, routes,
-attachments, work orders and publication to legacy.`
+-> keep the published revision immutable -> confirm the exact specification ID
+and previous revision -> publish through the existing server-primary owner ->
+force PostgreSQL read-back -> verify the same revision and tree in React and
+legacy. Structural add/remove/reparent, routes, attachments and work orders
+remain legacy.`
 
 The legacy module exposes one compact `getSpecifications2ReactModel()` boundary.
 It contains registry summaries, allowlisted selected draft-row fields and the
 selected published revision only after source entry and revision number match
 the PostgreSQL read model and the server exposes either the original legacy
 fingerprint or its immutable `sha256:` migration digest.
-React receives no storage handle, publication callback, attachment command,
-work-order command or API client. Its typed `save-draft-row` callback is admitted
-only by the localhost QA write gate and delegates to the existing editor owner.
+React receives no storage handle, API client, attachment or work-order command.
+Its typed `save-draft-row` and `publish-draft` callbacks are admitted only by
+the localhost QA write gate. Publication uses a two-step exact-ID confirmation,
+rechecks the immutable previous revision, delegates to the existing server-first
+owner, handles `409` conflict/retry and forces a PostgreSQL read after `201`.
 
 ## Evidence
 
 `npm run qa:specifications2-react-lab` passes:
 
-- 109 typed sources and the frozen-backend guard;
+- 132 typed sources and the frozen-backend guard;
 - two registry entries, PostgreSQL revision 7, four hierarchy rows and four
   revision metrics;
 - local tree collapse and payload revision `7 -> 8`;
 - upload, registry switch, editor, routes, norms and attachments return to
   legacy; disabled flag restores legacy;
 - no viewport overflow and a clean browser console;
-- independent entry `213,439 B` raw / `65,398 B` gzip under the unchanged
+- independent entry `215,962 B` raw / `65,770 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full aggregate lab `509,333 B / 117,430 B` under its development-only
-  `512,000 B / 124,000 B` budget;
-- shared lab CSS `20,207 B / 4,010 B` under its development-only
-  `20,500 B / 4,200 B` budget.
+- full aggregate lab `559,658 B / 126,669 B` under its development-only
+  `561,000 B / 127,000 B` budget;
+- shared lab CSS `29,860 B / 5,345 B` under its development-only
+  `30,000 B / 5,350 B` budget.
 
 ## Production integration
 
@@ -46,11 +51,15 @@ mismatched projections keep the legacy UI.
 
 Production-shell QA proves default legacy, the same PostgreSQL revision and four
 tree rows, scoped CSS, one existing-row save through the current owner, exactly
-one compatibility persistence, unchanged revision 7 metadata and published
-tree, zero publication/attachment/work-order API writes, unchanged disposable
-`0600` server state and a clean console. It also covers the compact PostgreSQL
-SHA-256 fingerprint form used by the real migrated revision. The isolated
-bundle is `213,439 B` raw / `65,398 B` gzip. The write gate is localhost-only.
+one compatibility persistence, unchanged revision 7 until confirmation,
+cancel-without-write, one simulated conflict and one successful retry to
+revision 8, forced PostgreSQL read-back, promoted legacy tree baseline, zero
+attachment/work-order writes, unchanged disposable `0600` server state and a
+clean console. The owner repair also makes publication fingerprints prefer the
+actual `editorRows` instead of stale imported `treeRows`; a newer concurrent
+draft remains separate. The isolated entry is `215,962 B` raw / `65,770 B`
+gzip; the built production artifact is `209,860 B` raw / `65,493 B` gzip /
+`56,412 B` Brotli. The write gate is localhost-only.
 
 ## Pilot acceptance
 

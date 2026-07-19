@@ -89,11 +89,12 @@ dependency editing, drag, resize and optimization remain legacy. The remaining s
 retain their explicit next vertical scopes.
 
 Specifications 2.0 now has locally complete editing of one existing draft row
-through its unchanged compatibility owner. React receives only the selected
-draft row fields, while add/remove/reparent, publication, attachments, routes
-and work-order commands remain legacy. Production-shell QA proves one
-compatibility persistence, unchanged published revision metadata/tree and zero
-Specifications API writes.
+and exact-ID publication through its existing server-primary owner. React owns
+the two-step confirmation and conflict/retry UI; the host rechecks the previous
+revision, forces PostgreSQL read-back and accepts only the next immutable
+revision. Production-shell QA proves cancel-without-write, conflict/retry,
+revision `7 -> 8`, React and legacy read-back and one draft compatibility write.
+Add/remove/reparent, attachments, routes and work-order commands remain legacy.
 
 Authorization now has locally complete PIN entry and failed-attempt feedback.
 The five digits remain only in React component memory and cross one transient
@@ -129,7 +130,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy; Pilot read accepted | Critical | Keep default-off; assignment/fact remain separate command scopes owned by Workshop and Employee Desktop |
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
-| 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
+| 20 | Specifications 2.0 | Local complete: existing draft-row edit plus exact-ID server-primary publication with conflict/retry and PostgreSQL/legacy read-back; add/remove/reparent, attachments, routes and work orders remain legacy | Critical | Separately gated disposable Pilot publication acceptance before any default-on decision |
 | 21 | Gantt | Local complete: dependency inspection, target-slot selection and revision-checked start-time reschedule; Pilot read accepted | Critical | Keep default-off; dependency editing, drag, resize and optimization remain separate command scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |

@@ -1674,6 +1674,110 @@ export function createSpecifications2Module(dependencies = {}) {
     }, options);
   }
 
+  function promoteSpecifications2PublishedRows(currentEntry, publishedSourceEntry, draftChanged) {
+    const rows = normalizeSpecifications2EditorRows(publishedSourceEntry?.editorRows || []);
+    if (!rows.length) return currentEntry;
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const depthById = new Map();
+    const depthOf = (row, path = new Set()) => {
+      if (depthById.has(row.id)) return depthById.get(row.id);
+      if (!row.parentId || !byId.has(row.parentId) || path.has(row.id)) return 0;
+      const depth = depthOf(byId.get(row.parentId), new Set([...path, row.id])) + 1;
+      depthById.set(row.id, depth);
+      return depth;
+    };
+    const previousRows = Array.isArray(currentEntry?.treeRows) ? currentEntry.treeRows : [];
+    const treeRows = rows.map((row) => {
+      const previous = previousRows.find((item) => [item.id, item.selectionKey, item.nodeKey].map(String).includes(row.id)) || {};
+      return {
+        ...previous,
+        id: row.id,
+        selectionKey: String(previous.selectionKey || row.id),
+        nodeKey: String(previous.nodeKey || row.id),
+        parentKey: row.parentId,
+        level: depthOf(row),
+        label: row.label,
+        designation: row.designation,
+        type: row.type,
+        quantity: row.quantity,
+        unitOfMeasure: row.unitOfMeasure,
+        source: row.source,
+        status: row.status,
+        message: row.message,
+      };
+    });
+    const nextEntry = { ...currentEntry, treeRows, stats: { ...currentEntry.stats, rows: treeRows.length } };
+    if (!draftChanged) {
+      delete nextEntry.editorRows;
+      delete nextEntry.editedAt;
+    }
+    return nextEntry;
+  }
+
+  async function publishSpecifications2EntryById(entryId, options = {}) {
+    const normalizedEntryId = String(entryId || "").trim();
+    const store = readStore();
+    const entry = store.registry.find((item) => item.id === normalizedEntryId);
+    if (!entry || typeof publishSpecifications2Entry !== "function") {
+      return { ok: false, error: "Спецификация для публикации больше не существует" };
+    }
+    const result = await publishSpecifications2EntryWithServerFirst({
+      entry,
+      getServerPublicationCapability,
+      preparePublication: prepareSpecifications2Publication,
+      commitPublication: commitSpecifications2Publication,
+      publishServerRevision,
+      publishLegacyEntry: publishSpecifications2Entry,
+      readCurrentEntry: (id) => readStore().registry.find((item) => item.id === id) || null,
+      getFingerprint: (item) => buildSpecifications2ReleaseFingerprint(item),
+      serverPrimaryPolicy: serverPublicationPrimaryPolicy,
+    });
+    if (!result.ok) {
+      if (options.notify !== false) {
+        notifySaveSuccess(result.serverSaved
+          ? `Серверная ревизия сохранена; совместимая проекция будет восстановлена автоматически: ${result.error}`
+          : `Публикация не выполнена: ${result.error || "ошибка подготовки данных"}`);
+      }
+      if (result.serverSaved) hydratePublishedRevision({ ...entry, publication: result.publication });
+      return result;
+    }
+    if (!result.mirrored && result.mode === "server-first") {
+      if (result.publishedEntry) {
+        const latestStore = readStore();
+        const publishedEntry = promoteSpecifications2PublishedRows(result.publishedEntry, entry, result.draftChanged);
+        const registry = latestStore.registry.map((item) => item.id === normalizedEntryId ? publishedEntry : item);
+        writeStore({ ...latestStore, registry, selectedId: normalizedEntryId }, { suppressSharedStatePush: true });
+        if (options.render !== false) render({ skipRememberScroll: true });
+      }
+      hydratePublishedRevision(result.publishedEntry || { ...entry, publication: result.publication });
+      if (options.notify !== false) {
+        notifySaveSuccess(result.recoveryPending
+          ? "Серверная ревизия сохранена; совместимая проекция будет восстановлена автоматически"
+          : (result.serverProjection
+            ? "Серверная ревизия подтверждена; производственная проекция создана сервером"
+            : (result.error || "Серверная ревизия сохранена; локальный черновик больше не существует")));
+      }
+      return result;
+    }
+    const latestStore = readStore();
+    const publishedEntry = result.mode === "server-first"
+      ? promoteSpecifications2PublishedRows(result.publishedEntry, entry, result.draftChanged)
+      : result.publishedEntry;
+    const registry = latestStore.registry.map((item) => item.id === normalizedEntryId ? publishedEntry : item);
+    writeStore({ ...latestStore, registry, selectedId: normalizedEntryId });
+    if (options.render !== false) render({ skipRememberScroll: true });
+    if (options.notify !== false) {
+      notifySaveSuccess(`Опубликована производственная ревизия ${result.publication.revision}`);
+      if (result.mode === "server-first") {
+        hydratePublishedRevision(result.publishedEntry);
+        notifySaveSuccess(result.draftChanged
+          ? "Серверная ревизия сохранена; изменения, внесённые во время публикации, остались новым черновиком"
+          : (result.serverResult?.created ? "Серверная ревизия PostgreSQL подтверждена" : "Серверная ревизия PostgreSQL уже актуальна"));
+      }
+    }
+    return result;
+  }
+
   function bindSpecifications2Events() {
     if (!editorOutsideClickBound) {
       editorOutsideClickBound = true;
@@ -1727,68 +1831,10 @@ export function createSpecifications2Module(dependencies = {}) {
     });
     document.querySelector("[data-specifications2-publish]")?.addEventListener("click", async (event) => {
       const entryId = event.currentTarget.dataset.specifications2Publish || "";
-      const store = readStore();
-      const entry = store.registry.find((item) => item.id === entryId);
-      if (!entry || typeof publishSpecifications2Entry !== "function") return;
       const button = event.currentTarget;
       button.disabled = true;
       try {
-        const result = await publishSpecifications2EntryWithServerFirst({
-          entry,
-          getServerPublicationCapability,
-          preparePublication: prepareSpecifications2Publication,
-          commitPublication: commitSpecifications2Publication,
-          publishServerRevision,
-          publishLegacyEntry: publishSpecifications2Entry,
-          readCurrentEntry: (id) => readStore().registry.find((item) => item.id === id) || null,
-          getFingerprint: (item) => buildSpecifications2ReleaseFingerprint(item),
-          serverPrimaryPolicy: serverPublicationPrimaryPolicy,
-        });
-        if (!result.ok) {
-          if (result.serverSaved) {
-            hydratePublishedRevision({ ...entry, publication: result.publication });
-            notifySaveSuccess(`Серверная ревизия сохранена; совместимая проекция будет восстановлена автоматически: ${result.error}`);
-          } else {
-            notifySaveSuccess(`Публикация не выполнена: ${result.error || "ошибка подготовки данных"}`);
-          }
-          return;
-        }
-        if (!result.mirrored && result.mode === "server-first") {
-          // Server-primary publication deliberately does not call the legacy
-          // directory/planning mirror in this browser. Persist only the
-          // editor acknowledgement; the durable server outbox owns the full
-          // compatibility projection and will reconcile it independently.
-          if (result.publishedEntry) {
-            const latestStore = readStore();
-            const registry = latestStore.registry.map((item) => item.id === entryId
-              ? result.publishedEntry
-              : item);
-            writeStore({ ...latestStore, registry, selectedId: entryId }, { suppressSharedStatePush: true });
-            render({ skipRememberScroll: true });
-          }
-          hydratePublishedRevision(result.publishedEntry || { ...entry, publication: result.publication });
-          notifySaveSuccess(result.recoveryPending
-            ? "Серверная ревизия сохранена; совместимая проекция будет восстановлена автоматически"
-            : (result.serverProjection
-              ? "Серверная ревизия подтверждена; производственная проекция создана сервером"
-              : (result.error || "Серверная ревизия сохранена; локальный черновик больше не существует")));
-          return;
-        }
-        const latestStore = readStore();
-        const registry = latestStore.registry.map((item) => item.id === entryId
-          ? result.publishedEntry
-          : item);
-        writeStore({ ...latestStore, registry, selectedId: entryId });
-        render({ skipRememberScroll: true });
-        notifySaveSuccess(`Опубликована производственная ревизия ${result.publication.revision}`);
-        if (result.mode === "server-first") {
-          hydratePublishedRevision(result.publishedEntry);
-          if (result.draftChanged) {
-            notifySaveSuccess("Серверная ревизия сохранена; изменения, внесённые во время публикации, остались новым черновиком");
-          } else {
-            notifySaveSuccess(result.serverResult?.created ? "Серверная ревизия PostgreSQL подтверждена" : "Серверная ревизия PostgreSQL уже актуальна");
-          }
-        }
+        await publishSpecifications2EntryById(entryId);
       } catch (error) {
         notifySaveSuccess(`Публикация не выполнена: ${error?.message || "ошибка подготовки данных"}`);
       } finally {
@@ -2681,6 +2727,7 @@ export function createSpecifications2Module(dependencies = {}) {
   return {
     bindSpecifications2Events,
     getSpecifications2ReactModel,
+    publishSpecifications2EntryById,
     renderSpecifications2Page,
     updateSpecifications2DraftRow,
   };

@@ -22,10 +22,22 @@ const entry = {
     { id: "resistor", selectionKey: "resistor", nodeKey: "resistor", parentKey: "board", level: 2, label: "Резистор 10 кОм", designation: "RC0603-10K", type: "Покупное", quantity: 8, unitOfMeasure: "шт." },
     { id: "housing", selectionKey: "housing", nodeKey: "housing", parentKey: "root", level: 1, label: "Корпус", designation: "АБВГ.745211.010", type: "Деталь", quantity: 1, unitOfMeasure: "шт." },
   ],
-  routeDrafts: [],
+  routeDrafts: [{
+    id: "route-root", productKey: "root", productLabel: "Контроллер КТ-7", designation: "АБВГ.469659.001", status: "ready",
+    operations: [{ id: "op-root", operationId: "OP-ASSEMBLY", name: "Сборка", workCenterId: "D3", nextWorkCenterId: "D4", changesProperty: true, inputState: "Комплект", outputState: "Собрано", laborNorm: { calculationMode: "rate", unitsPerHour: 40, activeRevisionId: "norm-root" } }],
+  }, {
+    id: "route-board", productKey: "board", productLabel: "Плата управления", designation: "АБВГ.468332.002", status: "ready",
+    operations: [{ id: "op-board", operationId: "OP-SMT", name: "SMT-монтаж", workCenterId: "D3", nextWorkCenterId: "D4", changesProperty: true, inputState: "Плата", outputState: "Смонтировано", laborNorm: { calculationMode: "fixed", fixedMinutes: 30, activeRevisionId: "norm-board" } }],
+  }, {
+    id: "route-resistor", productKey: "resistor", productLabel: "Резистор 10 кОм", designation: "RC0603-10K", status: "ready",
+    operations: [{ id: "op-resistor", operationId: "OP-INCOMING", name: "Входной контроль", workCenterId: "D4", changesProperty: false, laborNorm: { calculationMode: "fixed", fixedMinutes: 5, activeRevisionId: "norm-resistor" } }],
+  }, {
+    id: "route-housing", productKey: "housing", productLabel: "Корпус", designation: "АБВГ.745211.010", status: "ready",
+    operations: [{ id: "op-housing", operationId: "OP-MECHANICAL", name: "Механическая подготовка", workCenterId: "D5", nextWorkCenterId: "D3", changesProperty: true, inputState: "Заготовка", outputState: "Готово", laborNorm: { calculationMode: "fixed", fixedMinutes: 20, activeRevisionId: "norm-housing" } }],
+  }],
 };
 entry.publication = { revision: 7, fingerprint: buildSpecifications2ReleaseFingerprint(entry), releasedAt: "2026-07-19T08:30:00.000Z", status: "released" };
-const serverItem = {
+let serverItem = {
   id: "revision-kt7-7", sourceEntryId: entry.id, specificationId: "document-kt7", title: "Контроллер КТ-7", designation: "АБВГ.469659.001", revisionNo: 7, fingerprint: `sha256:${createHash("sha256").update(entry.publication.fingerprint).digest("hex")}`, releasedAt: entry.publication.releasedAt, sourceUpdatedAt: entry.updatedAt,
   treeItems: [
     { sourceRowId: "root", parentSourceRowId: "", designation: "АБВГ.469659.001", name: "Контроллер КТ-7", kind: "Изделие", quantity: 1, unit: "шт." },
@@ -33,7 +45,7 @@ const serverItem = {
     { sourceRowId: "resistor", parentSourceRowId: "board", designation: "RC0603-10K", name: "Резистор 10 кОм", kind: "Покупное", quantity: 8, unit: "шт." },
     { sourceRowId: "housing", parentSourceRowId: "root", designation: "АБВГ.745211.010", name: "Корпус", kind: "Деталь", quantity: 1, unit: "шт." },
   ],
-  routes: [{ sourceDraftId: "route-root", designation: "АБВГ.469659.001", productLabel: "Контроллер КТ-7", status: "released", operations: [{ sourceOperationId: "op-1" }, { sourceOperationId: "op-2" }] }],
+  routes: [{ sourceDraftId: "route-root", designation: "АБВГ.469659.001", productLabel: "Контроллер КТ-7", status: "released", operations: [{ sourceOperationId: "op-root" }] }, { sourceDraftId: "route-board", designation: "АБВГ.468332.002", productLabel: "Плата управления", status: "released", operations: [{ sourceOperationId: "op-board" }] }, { sourceDraftId: "route-resistor", designation: "RC0603-10K", productLabel: "Резистор 10 кОм", status: "released", operations: [{ sourceOperationId: "op-resistor" }] }, { sourceDraftId: "route-housing", designation: "АБВГ.745211.010", productLabel: "Корпус", status: "released", operations: [{ sourceOperationId: "op-housing" }] }],
 };
 
 async function waitPreview(origin) {
@@ -55,9 +67,9 @@ await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 
 assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state permissions changed");
 const original = await readFile(sharedStateFile, "utf8");
 const port = await getFreePort(); const origin = `http://127.0.0.1:${port}`;
-const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_SPECIFICATIONS2: "1", MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION: "1" }, stdio: ["ignore", "pipe", "pipe"] });
+const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_SPECIFICATIONS2: "1", MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION: "1", MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: "1" }, stdio: ["ignore", "pipe", "pipe"] });
 let previewOutput = ""; preview.stdout.on("data", (chunk) => { previewOutput += chunk; }); preview.stderr.on("data", (chunk) => { previewOutput += chunk; });
-let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0; let sharedStateWrites = 0;
+let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0; let sharedStateWrites = 0; let publishAttempts = 0; let forcePublishConflictOnce = false; const publishRequests = [];
 try {
   await waitPreview(origin); chrome = await launchChrome("mes-specifications2-react-island-qa-"); const { client } = chrome;
   client.socket.addEventListener("message", (event) => {
@@ -72,14 +84,37 @@ try {
     }
     if (requestUrl.pathname === `/api/v1/specifications2/revisions/by-source/${entry.id}`) {
       revisionReads += 1;
-      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: '"spec-kt7-r7"' }], body: Buffer.from(JSON.stringify({ ok: true, item: serverItem })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: `"spec-kt7-r${serverItem.revisionNo}"` }], body: Buffer.from(JSON.stringify({ ok: true, item: serverItem })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      return;
+    }
+    if (requestUrl.pathname === "/api/v1/specifications2/capabilities" && method === "GET") {
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }], body: Buffer.from(JSON.stringify({ ok: true, capabilities: { revisionPublicationEnabled: true, revisionPublicationServerPrimary: true } })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      return;
+    }
+    if (requestUrl.pathname === "/api/v1/specifications2/revisions" && method === "POST") {
+      specificationWrites += 1;
+      publishAttempts += 1;
+      const body = JSON.parse(message.params.request.postData || "{}");
+      const headers = message.params.request.headers || {};
+      const idempotencyKey = Object.entries(headers).find(([key]) => key.toLowerCase() === "idempotency-key")?.[1] || "";
+      publishRequests.push({ expectedPreviousRevision: Number(body.expectedPreviousRevision), entryId: String(body.entry?.id || ""), idempotencyKey: String(idempotencyKey) });
+      if (forcePublishConflictOnce) {
+        forcePublishConflictOnce = false;
+        void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 409, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }], body: Buffer.from(JSON.stringify({ ok: false, conflict: true, currentRevision: 7, error: "revision conflict" })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+        return;
+      }
+      const releasedAt = "2026-07-20T10:00:00.000Z";
+      const sourceFingerprint = String(body.entry?.publication?.fingerprint || "");
+      const boardLabel = body.entry?.editorRows?.find((row) => row.id === "board")?.label || "Плата управления КТ-7";
+      serverItem = { ...serverItem, id: "revision-kt7-8", revisionNo: 8, releasedAt, sourceUpdatedAt: body.entry?.updatedAt || releasedAt, fingerprint: `sha256:${createHash("sha256").update(sourceFingerprint).digest("hex")}`, treeItems: serverItem.treeItems.map((row) => row.sourceRowId === "board" ? { ...row, name: boardLabel } : row) };
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 201, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }], body: Buffer.from(JSON.stringify({ ok: true, created: true, item: serverItem, publication: { revision: 8, releasedAt, status: "released" }, snapshotSync: { applied: 1 } })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
       return;
     }
     if (requestUrl.pathname.startsWith("/api/v1/specifications2") && method !== "GET") specificationWrites += 1;
     void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
   });
   await client.send("Page.enable"); await client.send("Runtime.enable");
-  await client.send("Page.addScriptToEvaluateOnNewDocument", { source: `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify({ selectedId: entry.id, registry: [entry] }))}); localStorage.setItem("mes-specifications-2-tab-v1", "tree");` });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", { source: `if (!localStorage.getItem(${JSON.stringify(STORAGE_KEY)})) localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify({ selectedId: entry.id, registry: [entry] }))}); localStorage.setItem("mes-specifications-2-tab-v1", "tree");` });
   await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/specifications2*", requestStage: "Request" }, { urlPattern: "*api/shared-state*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await client.send("Page.navigate", { url: `${origin}/?module=specifications2&qa-auth-bypass=1` });
@@ -145,12 +180,57 @@ try {
   assert(writeResult.draftLabel === "Плата управления КТ-7" && writeResult.publishedLabel === "АБВГ.468332.002", `draft/published separation failed: ${JSON.stringify(writeResult)}`);
   assert(writeResult.badge === "React · draft edit evaluation", `write-evaluation badge missing: ${JSON.stringify(writeResult)}`);
   assert(specificationWrites === 0, "draft editor must not call publication, attachment or work-order APIs");
+
+  await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Опубликовать ревизию 8"), { message: "changed draft did not expose typed publication action", timeoutMs: 10_000 });
+  const clickPublicationAction = async (label) => evaluate(client, (text) => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === text)?.click(), label);
+  await clickPublicationAction("Опубликовать ревизию 8");
+  await waitForCondition(client, () => document.querySelector('[data-specifications2-publish-confirm="spec-kt7"]')?.textContent?.includes("stable ID spec-kt7"), { message: "publication confirmation was not bound to exact specification ID" });
+  await clickPublicationAction("Отмена");
+  await waitForCondition(client, () => !document.querySelector("[data-specifications2-publish-confirm]"), { message: "publication confirmation did not cancel" });
+  assert(specificationWrites === 0, "cancelled publication reached the server API");
+
+  await clickPublicationAction("Опубликовать ревизию 8");
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-specifications2-publish-confirm="spec-kt7"]')), { message: "publication confirmation did not reopen" });
+  forcePublishConflictOnce = true;
+  await clickPublicationAction("Подтвердить ревизию 8");
+  try {
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("другом сеансе"), { message: "publication revision conflict was not visible" });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({ alert: document.querySelector('[role="alert"]')?.textContent?.replace(/\s+/g, " ").trim() || "", confirmation: document.querySelector("[data-specifications2-publish-confirm]")?.textContent?.replace(/\s+/g, " ").trim() || "", publication: document.querySelector(".specifications2-react-publication")?.textContent?.replace(/\s+/g, " ").trim() || "" }));
+    throw new Error(`${error.message}: ${JSON.stringify({ specificationWrites, publishAttempts, publishRequests, diagnostic })}`);
+  }
+  assert(specificationWrites === 1 && publishAttempts === 1 && serverItem.revisionNo === 7, "conflicted publication must not advance the server revision");
+  await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить ревизию 8" && !button.disabled), { message: "publication confirmation did not unlock after conflict" });
+  await clickPublicationAction("Подтвердить ревизию 8");
+  try {
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-specifications2-island][data-react-island-state="ready"]')) && document.querySelector('[data-specifications2-revision="revision-kt7-8"]') && [...document.querySelectorAll("[data-specifications2-tree-row]")].some((row) => row.textContent?.includes("Плата управления КТ-7")), { message: "published revision 8 did not return through PostgreSQL read model", timeoutMs: 20_000 });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({ store: JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}"), reactState: document.querySelector("[data-react-specifications2-island]")?.getAttribute("data-react-island-state") || "", legacy: Boolean(document.querySelector(".specifications2-page")), page: document.body.textContent?.replace(/\s+/g, " ").slice(0, 1000) || "" }));
+    throw new Error(`${error.message}: ${JSON.stringify({ specificationWrites, publishAttempts, revisionReads, serverItem, diagnostic })}`);
+  }
+  const publicationResult = await evaluate(client, () => {
+    const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
+    const selected = store.registry?.[0];
+    return { revision: selected?.publication?.revision, fingerprint: selected?.publication?.fingerprint, state: document.querySelector(".specifications2-react-publication")?.textContent?.replace(/\s+/g, " ").trim() || "" };
+  });
+  assert(specificationWrites === 2 && publishAttempts === 2 && serverItem.revisionNo === 8, "publication retry must create exactly one next server revision");
+  assert(publishRequests.length === 2 && publishRequests.every((request) => request.entryId === entry.id && request.expectedPreviousRevision === 7 && request.idempotencyKey.startsWith("specifications2-publish:")), `publication requests lost exact owner coordinates: ${JSON.stringify(publishRequests)}`);
+  assert(publicationResult.revision === 8 && publicationResult.fingerprint !== entry.publication.fingerprint && publicationResult.state.toLowerCase().includes("ревизия 8"), `publication acknowledgement did not preserve the next immutable revision: ${JSON.stringify(publicationResult)}`);
+  assert(sharedStateWrites === 1, "server-primary publication must not add a browser compatibility write");
+
+  await client.send("Page.navigate", { url: `${origin}/?module=specifications2&qa-auth-bypass=1&qa-reload=specifications2-publication-legacy-readback` });
+  try {
+    await waitForCondition(client, () => Boolean(document.querySelector(".specifications2-page")) && document.querySelector(".specifications2-publication-bar")?.textContent?.toLowerCase().includes("ревизия 8") && [...document.querySelectorAll(".specifications2-table tbody tr")].some((row) => row.textContent?.includes("Плата управления КТ-7")), { message: "legacy Specifications 2.0 did not read back revision 8", timeoutMs: 20_000 });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({ publication: document.querySelector(".specifications2-publication-bar")?.textContent?.replace(/\s+/g, " ").trim() || "", rows: [...document.querySelectorAll(".specifications2-table tbody tr")].map((row) => row.textContent?.replace(/\s+/g, " ").trim()), state: localStorage.getItem("mes-specifications-2-registry-v1"), page: document.body.textContent?.replace(/\s+/g, " ").slice(0, 700) || "" }));
+    throw new Error(`${error.message}: ${JSON.stringify({ revisionReads, serverItem, diagnostic })}`);
+  }
   assert(await readFile(sharedStateFile, "utf8") === original, "intercepted draft QA changed the disposable server snapshot");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Specifications 2.0 React production-shell functional QA: OK");
   console.log(`- PostgreSQL revision ${serverItem.revisionNo}, ${react.rows} tree rows, ${react.metrics} metrics; first commit ${react.commitMs.toFixed(2)} ms`);
-  console.log("- one existing draft row saved through the legacy owner; published revision 7 remained unchanged");
-  console.log("- default legacy, read-only parity, one compatibility persistence, zero Specifications API writes and clean console: pass");
+  console.log("- one existing draft row saved through the legacy owner; published revision 7 stayed immutable until exact-ID publication");
+  console.log("- cancel, publication conflict/retry, server revision 8, PostgreSQL and legacy read-back, one compatibility persistence and clean console: pass");
 } catch (error) {
   if (previewOutput.trim()) console.error(previewOutput.trim());
   throw error;

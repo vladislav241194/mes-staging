@@ -479,14 +479,17 @@ Specifications 2.0 is the twenty-second production-integrated scenario and the
 first bounded protected-canvas proof. The legacy module exposes a compact read
 model only after the selected source entry and publication revision match the
 PostgreSQL projection with an immutable legacy or SHA-256 fingerprint. React renders the immutable revision
-passport, four metrics and published tree with local branch collapse. Registry
-switching, XLSX upload, editing, routes, norms, attachments, publication and
-work-order creation all return to legacy. Lab QA proves revision `7 -> 8`, tree
-collapse, disabled fallback and clean console. Production-shell QA proves
-default legacy, exact PostgreSQL revision/digest parity, four rows, first
-commit near `20 ms`, editor fallback, zero Specifications API writes and
-unchanged `0600` state. The production artifact is `204,557 B` raw /
-`64,193 B` gzip / `60,833 B` Brotli. Authenticated Pilot acceptance completed
+passport, four metrics and published tree with local branch collapse. Its
+localhost-only write evaluation now edits one existing draft row and publishes
+through the existing server-primary owner with exact-ID confirmation,
+conflict/retry and forced PostgreSQL read-back. The accepted revision becomes
+the legacy tree baseline; a newer concurrent draft is preserved separately.
+Registry switching, XLSX upload, add/remove/reparent, routes, norms, attachments
+and work-order creation return to legacy. Production-shell QA proves cancel,
+one conflict plus retry, immutable revision `7 -> 8`, React/legacy read-back,
+one draft compatibility write and unchanged `0600` state. The production
+artifact is `209,860 B` raw / `65,493 B` gzip / `56,412 B` Brotli. The earlier
+authenticated read-only Pilot acceptance completed
 on `v.1.499.97-1304535`: the immutable revision 6 rendered 91 positions, 18
 routes, 66 operations and four metrics; root collapse restored `1 -> 91`
 visible rows without writes. Evaluation is disabled and retained-query

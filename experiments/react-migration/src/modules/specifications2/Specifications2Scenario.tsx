@@ -16,6 +16,7 @@ interface Specifications2DraftRowValue {
 }
 
 export type Specifications2ReactCommand = { type: "save-draft-row"; payload: { entryId: string; rowId: string; value: Specifications2DraftRowValue } };
+export type Specifications2PublishCommand = { type: "publish-draft"; payload: { entryId: string; confirmEntryId: string; expectedPreviousRevision: number } };
 
 const createDraft = (row: Specifications2DraftRow): Specifications2DraftRowValue & { rowId: string } => ({
   rowId: row.id,
@@ -26,12 +27,14 @@ const createDraft = (row: Specifications2DraftRow): Specifications2DraftRowValue
   unitOfMeasure: row.unitOfMeasure,
 });
 
-export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: Specifications2ReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
+export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: Specifications2ReactCommand | Specifications2PublishCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptSpecifications2Payload(payload), [payload]);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [draft, setDraft] = useState<(Specifications2DraftRowValue & { rowId: string }) | null>(null);
   const [saving, setSaving] = useState(false);
   const [commandError, setCommandError] = useState("");
+  const [publishConfirm, setPublishConfirm] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const selected = model.selectedEntry;
   const revision = selected?.serverRevision;
   const visibleRows = useMemo(() => {
@@ -69,6 +72,16 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
       setSaving(false);
     }
   };
+  const publishDraft = async () => {
+    if (!selected || !onCommand || publishing) return;
+    setPublishing(true); setCommandError("");
+    try {
+      const result = await onCommand({ type: "publish-draft", payload: { entryId: selected.id, confirmEntryId: selected.id, expectedPreviousRevision: selected.publicationRevision } });
+      if (result?.ok === false) setCommandError(result.message || "Не удалось опубликовать ревизию.");
+      else setPublishConfirm(false);
+    } catch (error) { setCommandError(error instanceof Error ? error.message : "Не удалось опубликовать ревизию."); }
+    finally { setPublishing(false); }
+  };
   return <ModulePage
     header={<ModuleHeader eyebrow="Технологии" title="Спецификации 2.0" badge={<span className="lab-badge">{model.canEditDraft ? "React · draft edit evaluation" : "PostgreSQL · read-only React"}</span>} />}
     sidebar={<ModuleSidebar label="Реестр Спецификаций 2.0" title="Реестр 2.0">
@@ -81,9 +94,10 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
         <Panel heading={<div className="panel-heading"><div><p>{revision.designation || "Опубликованная спецификация"}</p><h2>{revision.title}</h2></div><StatusToken label={`Ревизия ${revision.revisionNo}`} tone="success" /></div>}>
           <div className="specifications2-react-summary" data-specifications2-revision={revision.id}>
             <MetricGrid label="Сводка опубликованной ревизии"><MetricCard label="Позиции" value={revision.treeItems.length} /><MetricCard label="Маршруты" value={revision.routes.length} /><MetricCard label="Операции" value={revision.operationCount} /><MetricCard label="Опубликовано" value={dateTime(revision.releasedAt)} /></MetricGrid>
-            <div className="specifications2-react-publication"><StatusToken label={selected.publicationLabel} tone={publicationTone(selected.publicationState)} /><span>PostgreSQL подтвердил ревизию {revision.revisionNo} и неизменяемый состав.</span>{model.canEditDraft && selected.draftRows.length ? <ActionButton onClick={() => setDraft(createDraft(selected.draftRows[0]))} variant="secondary">Изменить строку черновика</ActionButton> : null}<ActionButton onClick={() => onRequestLegacy?.("edit")} variant="secondary">Полный редактор и публикация</ActionButton><ActionButton onClick={() => onRequestLegacy?.("routes")} variant="secondary">Маршруты и нормы</ActionButton></div>
+            <div className="specifications2-react-publication"><StatusToken label={selected.publicationLabel} tone={publicationTone(selected.publicationState)} /><span>PostgreSQL подтвердил ревизию {revision.revisionNo} и неизменяемый состав.</span>{model.canEditDraft && selected.draftRows.length ? <ActionButton onClick={() => { setDraft(createDraft(selected.draftRows[0])); setPublishConfirm(false); }} variant="secondary">Изменить строку черновика</ActionButton> : null}{model.canPublish && selected.publicationState === "changed" ? <ActionButton onClick={() => { setPublishConfirm(true); setDraft(null); setCommandError(""); }}>Опубликовать ревизию {selected.publicationRevision + 1}</ActionButton> : null}<ActionButton onClick={() => onRequestLegacy?.("edit")} variant="secondary">Полный редактор и публикация</ActionButton><ActionButton onClick={() => onRequestLegacy?.("routes")} variant="secondary">Маршруты и нормы</ActionButton></div>
           </div>
         </Panel>
+        {publishConfirm ? <Panel heading={<div className="panel-heading"><div><p>Server-primary publication</p><h2>Подтвердить публикацию ревизии {selected.publicationRevision + 1}</h2></div></div>}><div className="react-nomenclature-delete-confirm" data-specifications2-publish-confirm={selected.id} role="alertdialog"><p>Публикуется черновик <strong>{selected.title}</strong> со stable ID <code>{selected.id}</code>. Предыдущая неизменяемая ревизия: {selected.publicationRevision}.</p>{commandError ? <p className="specifications2-react-command-error" role="alert">{commandError}</p> : null}<div className="specifications2-react-editor-actions"><ActionButton disabled={publishing} onClick={() => { setPublishConfirm(false); setCommandError(""); }} variant="secondary">Отмена</ActionButton><ActionButton disabled={publishing} onClick={() => void publishDraft()}>{publishing ? "Публикация…" : `Подтвердить ревизию ${selected.publicationRevision + 1}`}</ActionButton></div></div></Panel> : null}
         {draft ? <Panel heading={<div className="panel-heading"><div><p>Черновик до публикации</p><h2>Редактирование существующей строки</h2></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
           <form className="specifications2-react-editor" data-specifications2-draft-editor onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
             <label className="full"><span>Строка черновика</span><select data-specifications2-draft-row onChange={(event) => selectDraftRow(event.currentTarget.value)} value={draft.rowId}>{selected.draftRows.map((row) => <option key={row.id} value={row.id}>{row.designation ? `${row.designation} — ` : ""}{row.label}</option>)}</select></label>

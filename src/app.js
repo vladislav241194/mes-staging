@@ -2182,6 +2182,7 @@ let renderSpecifications2Page = () => renderUiModulePage({
 });
 let getSpecifications2ReactModel = () => ({ registry: [], selectedEntry: null, serverStatus: "empty", serverError: "" });
 let updateSpecifications2DraftRow = () => ({ ok: false, message: "Модуль Specifications 2.0 ещё не загружен." });
+let publishSpecifications2EntryById = () => Promise.resolve({ ok: false, error: "Модуль Specifications 2.0 ещё не загружен." });
 let specifications2ModuleLoad = null;
 let specifications2ModuleReady = false;
 let specifications2RevisionsReadModel = null;
@@ -2190,20 +2191,24 @@ let specifications2AttachmentCommands = null;
 function getSpecifications2PublishedRevision(sourceEntryId) {
   return specifications2RevisionsReadModel?.getBySource?.(sourceEntryId) || null;
 }
-function hydrateSpecifications2PublishedRevision(entry) {
-  if (!entry?.publication?.revision || !entry?.id) return;
-  void ensureSpecifications2Module().then(() => {
-    const beforeRefresh = getSpecifications2PublishedRevision(entry.id);
+async function refreshSpecifications2PublishedRevision(sourceEntryId, { force = false } = {}) {
+  const normalizedSourceEntryId = String(sourceEntryId || "").trim();
+  if (!normalizedSourceEntryId) return { ok: false, changed: false };
+  await ensureSpecifications2Module();
+  const beforeRefresh = getSpecifications2PublishedRevision(normalizedSourceEntryId);
     const completionChangesEligibility = Boolean(beforeRefresh?.loading)
       || (!beforeRefresh?.fetchedAt && !beforeRefresh?.item && !beforeRefresh?.error);
-    return Promise.resolve(specifications2RevisionsReadModel?.refreshBySource?.(entry.id) || { ok: false }).then((result) => {
-      // An expired cache may already contain the exact immutable revision while
-      // its revalidation is in flight. React intentionally waits for that
-      // request, so completion must repaint even when the server returns the
-      // same payload (`changed: false`) or an error that legacy must expose.
-      if ((result.changed || completionChangesEligibility) && ui.activeModule === "specifications2") render();
-    });
-  });
+  const result = await Promise.resolve(specifications2RevisionsReadModel?.refreshBySource?.(normalizedSourceEntryId, { force }) || { ok: false });
+  // An expired cache may already contain the exact immutable revision while
+  // its revalidation is in flight. React intentionally waits for that
+  // request, so completion must repaint even when the server returns the
+  // same payload (`changed: false`) or an error that legacy must expose.
+  if ((result.changed || completionChangesEligibility) && ui.activeModule === "specifications2") render();
+  return result;
+}
+function hydrateSpecifications2PublishedRevision(entry) {
+  if (!entry?.publication?.revision || !entry?.id) return;
+  void refreshSpecifications2PublishedRevision(entry.id);
 }
 normalizeLookupText = (value) => String(value || "").trim().toLowerCase();
 function bindSpekiEvents(...args) { return appEventsService.bindSpekiEvents(...args); }
@@ -2235,6 +2240,7 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
   ({
     bindSpecifications2Events,
     getSpecifications2ReactModel,
+    publishSpecifications2EntryById,
     renderSpecifications2Page,
     updateSpecifications2DraftRow,
   } = factory({
@@ -3760,15 +3766,39 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
   },
   getPayload: () => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
-    return { model: getSpecifications2ReactModel(), capabilities: { draftEdit: localQa.writeEvaluation } };
+    return { model: getSpecifications2ReactModel(), capabilities: { draftEdit: localQa.writeEvaluation, publication: localQa.writeEvaluation } };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save-draft-row") {
-      return { ok: false, message: "Редактирование черновика Specifications 2.0 недоступно." };
+    if (!localQa.writeEvaluation || !["save-draft-row", "publish-draft"].includes(command.type)) {
+      return { ok: false, message: "Изменение Specifications 2.0 недоступно." };
     }
     const payload = command.payload || {};
+    if (command.type === "publish-draft") {
+      const entryId = String(payload.entryId || "").trim();
+      const confirmEntryId = String(payload.confirmEntryId || "").trim();
+      const expectedPreviousRevision = Number(payload.expectedPreviousRevision);
+      const model = getSpecifications2ReactModel();
+      const selected = model?.selectedEntry;
+      if (!entryId || confirmEntryId !== entryId) return { ok: false, message: "Подтверждение относится к другой спецификации." };
+      if (!selected || selected.id !== entryId) return { ok: false, message: "Выбранная спецификация изменилась." };
+      if (!Number.isInteger(expectedPreviousRevision) || expectedPreviousRevision !== Number(selected.publicationRevision || 0)) return { ok: false, message: "Ревизия черновика изменилась. Обновите экран." };
+      if (selected.publicationState !== "changed") return { ok: false, message: "Для публикации нет подтверждённых изменений черновика." };
+      const result = await publishSpecifications2EntryById(entryId, { notify: false, render: false });
+      if (!result?.ok) return { ok: false, conflict: result?.conflict === true, message: result?.conflict ? "Спецификация изменилась в другом сеансе. Обновите данные и повторите публикацию." : result?.error || "Сервер не принял публикацию." };
+      const revision = Number(result.publication?.revision || 0);
+      if (!Number.isInteger(revision) || revision !== expectedPreviousRevision + 1) return { ok: false, message: "Сервер не подтвердил следующую ревизию спецификации." };
+      // A successful publication invalidates the short-lived read cache. The
+      // next React paint must come from the new immutable PostgreSQL revision,
+      // not from the previously confirmed revision still inside its TTL.
+      await refreshSpecifications2PublishedRevision(entryId, { force: true });
+      const authoritative = getSpecifications2ReactModel()?.selectedEntry;
+      if (!authoritative || authoritative.id !== entryId || Number(authoritative.publicationRevision || 0) !== revision || Number(authoritative.serverRevision?.revisionNo || 0) !== revision) return { ok: false, message: "PostgreSQL read-model не подтвердил опубликованную ревизию." };
+      notifySaveSuccess(`Опубликована серверная ревизия ${revision}`);
+      if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      return { ok: true, id: entryId, revision };
+    }
     const result = updateSpecifications2DraftRow(payload.entryId, payload.rowId, payload.value, { renderOnChange: false });
     if (!result?.ok) return result;
     notifySaveSuccess("Элемент спецификации изменён");

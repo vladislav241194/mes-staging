@@ -14,7 +14,11 @@ assert.match(script, /"MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak|ADMIN_PASSWORD/);
 
 const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const refreshSource = appSource.match(/async function refreshSpecifications2PublishedRevision\(sourceEntryId,[\s\S]*?\n\}/)?.[0] || "";
 const hydrationSource = appSource.match(/function hydrateSpecifications2PublishedRevision\(entry\) \{[\s\S]*?\n\}/)?.[0] || "";
-assert.match(hydrationSource, /completionChangesEligibility/);
-assert.match(hydrationSource, /result\.changed \|\| completionChangesEligibility/);
+assert.match(refreshSource, /completionChangesEligibility/);
+assert.match(refreshSource, /refreshBySource\?\.\(normalizedSourceEntryId, \{ force \}\)/);
+assert.match(refreshSource, /result\.changed \|\| completionChangesEligibility/);
+assert.match(hydrationSource, /refreshSpecifications2PublishedRevision\(entry\.id\)/);
+assert.match(appSource, /refreshSpecifications2PublishedRevision\(entryId, \{ force: true \}\)/);
 console.log("Specifications 2.0 React runtime policy QA: OK");

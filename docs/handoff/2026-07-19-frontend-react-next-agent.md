@@ -593,3 +593,30 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `5%` осталось (`+1 п.п.`). Прирост относится только к
   unassigned-role lifecycle; assignments, scopes, `readOnly`, assigned-role
   lifecycle, Pilot acceptance и остальные legacy-only scopes не переоценены.
+
+## Продолжение 2026-07-20: Specifications 2.0 server-primary publication checkpoint
+
+- React получил typed `publish-draft` поверх существующего server-first owner:
+  двухшаговое подтверждение exact stable ID, expected previous revision,
+  cancel, `409` conflict/retry и fail-closed проверку следующей ревизии.
+- После server ack короткий read cache принудительно инвалидируется. Успех
+  принимается только после PostgreSQL read-back той же ревизии; затем React и
+  legacy показывают ревизию 8 и одно опубликованное дерево.
+- Исправлен owner gap: fingerprint и публикация используют актуальные
+  `editorRows`, а не stale `treeRows`. Подтверждённые строки становятся новым
+  legacy baseline; concurrent newer draft не теряется.
+- Production-shell QA доказывает cancel без API, один конфликт и один retry,
+  exact ID/revision/idempotency, PostgreSQL + legacy read-back, ровно одну
+  compatibility-запись черновика и clean console. First commit `17.20 ms`.
+- Performance: independent `215962 / 65770 B`, bundled production
+  `209860 / 65493 / 56412 B`, full lab `559658 / 126669 B`; production limits
+  не менялись, aggregate-only raw headroom `561000 B`. Pilot write/deploy/
+  version/flags не менялись, legacy rollback сохранён.
+- Planning Workbench dates/labor audited but intentionally not migrated: они
+  всё ещё используют local `persistState()` без revision-checked PostgreSQL
+  owner. Сначала нужен настоящий server owner/schema contract.
+- После блока доказательная оценка глобальной миграции: примерно `96%`
+  выполнено, примерно `4%` осталось (`+1 п.п.`). Прирост относится только к
+  локально замкнутой server-primary publication; Pilot write acceptance,
+  Specifications attachments/routes/work orders и другие owner gaps не
+  переоценены.
