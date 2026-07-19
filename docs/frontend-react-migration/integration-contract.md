@@ -144,6 +144,13 @@ assignment, fact, carryover, transfer and print scopes return through
 `unsupported-scope`. Missing coverage, an open legacy overlay, editor access
 or a missing session request retains legacy.
 
+`mountEmployeeDesktopReactIsland(...)` is currently an isolated read-only
+employee-task proof. Its adapter consumes the completed legacy
+`getAuthSessionPrototypeModel()` and owns only local task selection. Person
+switching plus start, fact, Report, structure, route and PDF scopes return
+through `unsupported-scope`; authentication, fact drafts, keypad input, photos
+and every save command stay in legacy. No production flag or host is claimed.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

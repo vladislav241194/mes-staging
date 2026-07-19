@@ -96,3 +96,21 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .shift-master-board-react-lane button.is-active { border-color: #2f6fe4; box-shadow: 0 0 0 2px rgba(47,111,228,.12); }
 .shift-master-board-react-lane button small { color: #718296; font-size: 9px; }
 .shift-master-board-react-lane button > span:not(.status) { font-size: 10px; }
+.employee-desktop-react { display: grid; gap: 14px; }
+.employee-desktop-react-grid { display: grid; grid-template-columns: minmax(430px, .9fr) minmax(560px, 1.2fr); align-items: start; gap: 14px; }
+.employee-desktop-react-detail { display: grid; gap: 14px; padding: 16px; }
+.employee-desktop-react-summary, .employee-desktop-react-route { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 8px; }
+.employee-desktop-react-summary article, .employee-desktop-react-route article { display: grid; gap: 4px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
+.employee-desktop-react-summary span, .employee-desktop-react-route span { color: #718296; font-size: 9px; text-transform: uppercase; }
+.employee-desktop-react-summary strong, .employee-desktop-react-route strong { font-size: 12px; }
+.employee-desktop-react-route article.is-current { border-color: #2f6fe4; background: #eef4ff; }
+.employee-desktop-react-detail .metric-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+.employee-desktop-react-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.employee-desktop-react-viewer { padding: 8px 10px; border: 0; border-radius: 9px; color: #18314d; background: #edf3fa; cursor: pointer; }
+.employee-desktop-react-kpis { padding: 12px; border-bottom: 1px solid #e3ebf3; background: #f8fafc; }
+.employee-desktop-react-tasks { display: grid; gap: 8px; padding: 12px; }
+.employee-desktop-react-tasks > button { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 11px; color: #18314d; background: #fff; text-align: left; cursor: pointer; }
+.employee-desktop-react-tasks > button.is-current { border-color: #2f6fe4; box-shadow: 0 0 0 2px rgba(47,111,228,.12); }
+.employee-desktop-react-tasks > button > span { display: grid; min-width: 0; gap: 3px; }
+.employee-desktop-react-tasks small, .employee-desktop-react-tasks em { overflow: hidden; color: #718296; font-size: 9px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.employee-desktop-react-tasks b { font-size: 11px; white-space: nowrap; }

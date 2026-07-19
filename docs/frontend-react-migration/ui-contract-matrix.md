@@ -229,6 +229,16 @@ Production-shell QA proves identical three-lane/one-card density from the same
 PostgreSQL-backed runtime projection, default legacy, explicit read-only
 activation, assignment fallback, zero commands and unchanged state.
 
+## Employee Desktop isolated evidence
+
+The third operational-family proof consumes the completed legacy
+`getAuthSessionPrototypeModel()` boundary. It reuses ModuleHeader,
+OperationalPage, Panel, MetricGrid, MetricCard, StatusToken and ActionButton
+while retaining the task board, route chain and employee fact passport. The
+fixture proves three assignments, seven metrics, local task selection and a
+payload update. Start, fact, Report, structure, route, PDF and person switching
+return to legacy. Production integration remains a separate gate.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,

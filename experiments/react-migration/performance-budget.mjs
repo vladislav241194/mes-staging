@@ -40,12 +40,13 @@ const timesheet = await measureEntry("timesheet-island.tsx", { raw: 225_000, gzi
 const planningWorkbench = await measureEntry("planning-workbench-island.tsx", { raw: 225_000, gzip: 68_000 });
 const shiftWorkOrders = await measureEntry("shift-work-orders-island.tsx", { raw: 225_000, gzip: 68_000 });
 const shiftMasterBoard = await measureEntry("shift-master-board-island.tsx", { raw: 225_000, gzip: 68_000 });
+const employeeDesktop = await measureEntry("employee-desktop-island.tsx", { raw: 225_000, gzip: 68_000 });
 const roles = await measureEntry("roles-island.tsx", { raw: 225_000, gzip: 68_000 });
 const componentTypes = await measureEntry("component-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const operations = await measureEntry("operations-island.tsx", { raw: 225_000, gzip: 68_000 });
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
-const lab = await measureEntry("main.tsx", { raw: 405_000, gzip: 108_000 });
+const lab = await measureEntry("main.tsx", { raw: 420_000, gzip: 111_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -74,6 +75,8 @@ const shiftWorkOrdersText = new TextDecoder().decode(shiftWorkOrders.bytes);
 assert.doesNotMatch(shiftWorkOrdersText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Work Orders island must not bundle unrelated scenarios");
 const shiftMasterBoardText = new TextDecoder().decode(shiftMasterBoard.bytes);
 assert.doesNotMatch(shiftMasterBoardText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Master Board island must not bundle unrelated scenarios");
+const employeeDesktopText = new TextDecoder().decode(employeeDesktop.bytes);
+assert.doesNotMatch(employeeDesktopText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Employee Desktop island must not bundle unrelated scenarios");
 const rolesText = new TextDecoder().decode(roles.bytes);
 assert.doesNotMatch(rolesText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Roles production island must not bundle unrelated scenarios");
 const componentTypesText = new TextDecoder().decode(componentTypes.bytes);
@@ -87,8 +90,8 @@ assert.doesNotMatch(statusesText, /Вся номенклатура|SMT-монт�
 
 const css = await readFile(join(sourceRoot, "styles.css"));
 const cssMeasurement = { raw: css.length, gzip: gzipSync(css).length };
-assert.ok(cssMeasurement.raw <= 9_500, `styles raw bundle ${cssMeasurement.raw} exceeds 9500`);
-assert.ok(cssMeasurement.gzip <= 2_800, `styles gzip bundle ${cssMeasurement.gzip} exceeds 2800`);
+assert.ok(cssMeasurement.raw <= 12_000, `styles raw bundle ${cssMeasurement.raw} exceeds 12000`);
+assert.ok(cssMeasurement.gzip <= 3_500, `styles gzip bundle ${cssMeasurement.gzip} exceeds 3500`);
 
 console.log(JSON.stringify({
   nomenclature: nomenclature.measurement,
@@ -105,6 +108,7 @@ console.log(JSON.stringify({
   planningWorkbench: planningWorkbench.measurement,
   shiftWorkOrders: shiftWorkOrders.measurement,
   shiftMasterBoard: shiftMasterBoard.measurement,
+  employeeDesktop: employeeDesktop.measurement,
   roles: roles.measurement,
   componentTypes: componentTypes.measurement,
   operations: operations.measurement,
