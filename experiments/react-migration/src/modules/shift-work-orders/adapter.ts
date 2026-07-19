@@ -17,6 +17,7 @@ export interface ShiftWorkOrderRow {
   factQuantity: number; defectQuantity: number; remainingQuantity: number; unit: string; status: ShiftWorkOrderStatus; stageLabel: string;
   issuedAt: string; dateLabel: string; shiftDateKey: string; issueReportCount: number; issuePhotoCount: number;
   issueReports: ShiftWorkOrderIssueReport[];
+  factEditable?: boolean; hasFact?: boolean; actualQuantity?: number; laborMinutes?: number; executorCount?: number; factComment?: string; deviationComment?: string;
   transfer: { fromOperationName: string; fromWorkCenterLabel: string; toOperationName: string; toWorkCenterLabel: string; targetLabel: string; remainingQuantity: number };
 }
 export interface WorkOrderPrintPackageOperation { id: string; index: number; taskLabel: string; operationName: string; workCenterLabel: string; durationLabel: string; plannedQuantity: number; assignedQuantity: number; factQuantity: number; remainingQuantity: number; documentCount: number; shiftCount: number; executorCount: number; statusLabel: string }
@@ -36,10 +37,11 @@ function adaptExecutor(value: unknown, index: number): ShiftWorkOrderExecutor | 
   return name ? { id, name: personName(name), quantity: number(source.quantity), note: text(source.note) } : null;
 }
 
-function adaptRow(value: unknown): ShiftWorkOrderRow | null {
+function adaptRow(value: unknown, factContexts = new Map<string, UnknownRecord>()): ShiftWorkOrderRow | null {
   const source = record(value); const status = record(source.status); const transfer = record(source.transfer); const issueSummary = record(source.issueSummary);
   const id = text(source.id || source.sourceRowId); const documentNumber = text(source.documentNumber);
   if (!id || !documentNumber) return null;
+  const factContext = factContexts.get(id) || {};
   const issueReports = list(source.issueReports).map((value): ShiftWorkOrderIssueReport | null => { const report = record(value); const photo = record(report.photo); const reportId = text(report.id); return reportId ? { id: reportId, employeeName: personName(report.employeeName), text: text(report.text, "Описание не заполнено."), createdAt: text(report.createdAt, "без даты"), operationName: text(report.operationName), workCenterLabel: text(report.workCenterLabel), photoId: text(photo.id || reportId), photoName: text(photo.name, "Фото проблемы"), photoUrl: text(photo.dataUrl).startsWith("data:image/") ? text(photo.dataUrl) : "", storageNote: text(photo.storageNote) } : null; }).filter(Boolean) as ShiftWorkOrderIssueReport[];
   return {
     id, routeId: text(source.routeId || source.planningOrderId), documentNumber, orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel),
@@ -52,6 +54,8 @@ function adaptRow(value: unknown): ShiftWorkOrderRow | null {
     stageLabel: text(source.stageLabel, "сменное задание"), issuedAt: text(source.issuedAt), dateLabel: text(source.dateLabel, "дата не задана"), shiftDateKey: text(source.shiftDateKey),
     issueReportCount: number(issueSummary.reportCount || source.issueReportCount), issuePhotoCount: number(issueSummary.photoCount || source.issuePhotoCount),
     issueReports,
+    factEditable: factContext.canEdit === true, hasFact: factContext.hasFact === true, actualQuantity: number(factContext.actualQuantity),
+    laborMinutes: number(factContext.laborMinutes), executorCount: number(factContext.executorCount), factComment: text(factContext.comment), deviationComment: text(factContext.deviationComment),
     transfer: {
       fromOperationName: text(transfer.fromOperationName || source.operationName, "Операция"),
       fromWorkCenterLabel: text(transfer.fromWorkCenterLabel || source.workCenterLabel, "Участок не задан"),
@@ -64,30 +68,31 @@ function adaptRow(value: unknown): ShiftWorkOrderRow | null {
 
 export function adaptWorkOrderPrintPackage(value: unknown): WorkOrderPrintPackage {
   const source = record(value); const view = record(source.workOrderView); const route = record(source.route); const status = record(view.status);
-  const journalRows = list(source.journalRows).map(adaptRow).filter(Boolean) as ShiftWorkOrderRow[];
+  const journalRows = list(source.journalRows).map((row) => adaptRow(row)).filter(Boolean) as ShiftWorkOrderRow[];
   const operations = list(source.operations).map((value, index): WorkOrderPrintPackageOperation | null => { const row = record(value); const id = text(row.id, `operation-${index + 1}`); return id ? { id, index: number(row.index) || index + 1, taskLabel: text(row.taskLabel), operationName: text(row.operationName, "Операция"), workCenterLabel: text(row.workCenterLabel, "Участок не задан"), durationLabel: text(row.durationLabel, "не рассчитано"), plannedQuantity: number(row.plannedQuantity), assignedQuantity: number(row.assignedQuantity), factQuantity: number(row.factQuantity), remainingQuantity: number(row.remainingQuantity), documentCount: number(row.documentCount), shiftCount: number(row.shiftCount), executorCount: number(row.executorCount), statusLabel: text(row.statusLabel, "нет СЗН") } : null; }).filter(Boolean) as WorkOrderPrintPackageOperation[];
   const executors = list(source.executorRows).map((value, index): WorkOrderPrintPackageExecutor | null => { const row = record(value); const employeeName = personName(row.employeeName); return employeeName ? { id: text(row.id, `executor-${index + 1}`), employeeName, quantity: number(row.quantity), unit: text(row.unit, "шт."), shifts: strings(row.shifts), documents: strings(row.documents), operations: strings(row.operations) } : null; }).filter(Boolean) as WorkOrderPrintPackageExecutor[];
   const title = text(view.title, "Заказ-наряд"); const objectLabel = meaningfulText(view.objectLabel, route.name, journalRows[0]?.orderLabel, view.queueTitle, title);
   return { title, objectLabel, routeName: text(route.name || route.number, "Маршрутная карта"), statusLabel: text(status.label, "статус не задан"), documentDate: text(source.documentDate), planningQuantity: number(source.planningQuantity), unit: text(source.unit, "шт."), shiftCount: number(source.shiftCount), operationCount: number(source.operationCount), finalFactQuantity: number(source.finalFactQuantity), finalRemainingQuantity: number(source.finalRemainingQuantity), journalRows, operations, executors, canActivate: Boolean(objectLabel && operations.length) };
 }
 
-function adaptOperation(value: unknown): ShiftWorkOrderOperationGroup | null {
-  const source = record(value); const id = text(source.id); const operationName = text(source.operationName); const rows = list(source.rows).map(adaptRow).filter(Boolean) as ShiftWorkOrderRow[];
+function adaptOperation(value: unknown, factContexts = new Map<string, UnknownRecord>()): ShiftWorkOrderOperationGroup | null {
+  const source = record(value); const id = text(source.id); const operationName = text(source.operationName); const rows = list(source.rows).map((row) => adaptRow(row, factContexts)).filter(Boolean) as ShiftWorkOrderRow[];
   if (!id || !operationName || !rows.length) return null;
   return { id, operationName, workCenterLabel: text(source.workCenterLabel, "Участок не задан"), routePartLabel: text(source.routePartLabel), plannedQuantity: number(source.plannedQuantity), assignedQuantity: number(source.assignedQuantity), factQuantity: number(source.factQuantity), remainingQuantity: number(source.remainingQuantity), unit: text(source.unit, "шт."), latestLabel: text(source.latestLabel, "дата не задана"), rows };
 }
 
-function adaptDocument(value: unknown): ShiftWorkOrderDocumentGroup | null {
-  const source = record(value); const id = text(source.id); const label = text(source.label); const operations = list(source.operationGroups || source.operations).map(adaptOperation).filter(Boolean) as ShiftWorkOrderOperationGroup[];
-  const rows = list(source.rows).map(adaptRow).filter(Boolean) as ShiftWorkOrderRow[];
+function adaptDocument(value: unknown, factContexts = new Map<string, UnknownRecord>()): ShiftWorkOrderDocumentGroup | null {
+  const source = record(value); const id = text(source.id); const label = text(source.label); const operations = list(source.operationGroups || source.operations).map((operation) => adaptOperation(operation, factContexts)).filter(Boolean) as ShiftWorkOrderOperationGroup[];
+  const rows = list(source.rows).map((row) => adaptRow(row, factContexts)).filter(Boolean) as ShiftWorkOrderRow[];
   if (!id || !label || !operations.length) return null;
   return { id, label, meta: text(source.meta), plannedQuantity: number(source.plannedQuantity), assignedQuantity: number(source.assignedQuantity), factQuantity: number(source.factQuantity), remainingQuantity: number(source.remainingQuantity), unit: text(source.unit, "шт."), latestLabel: text(source.latestLabel, "дата не задана"), rows, operations };
 }
 
 export function adaptShiftWorkOrders(payload: unknown) {
-  const source = record(record(payload).model || payload);
-  const rows = list(source.rows).map(adaptRow).filter(Boolean) as ShiftWorkOrderRow[];
-  const documents = list(source.documentTree).map(adaptDocument).filter(Boolean) as ShiftWorkOrderDocumentGroup[];
+  const root = record(payload); const source = record(root.model || payload); const capabilities = record(root.capabilities);
+  const factContexts = new Map(list(root.factContexts).map((value) => { const context = record(value); return [text(context.rowId), context] as const; }).filter(([rowId]) => rowId));
+  const rows = list(source.rows).map((row) => adaptRow(row, factContexts)).filter(Boolean) as ShiftWorkOrderRow[];
+  const documents = list(source.documentTree).map((document) => adaptDocument(document, factContexts)).filter(Boolean) as ShiftWorkOrderDocumentGroup[];
   const selectedId = text(record(source.selectedRow).id);
   const selectedRow = rows.find((row) => row.id === selectedId) || rows[0] || null;
   const sourceWindow = record(source.sourceWindow);
@@ -95,6 +100,6 @@ export function adaptShiftWorkOrders(payload: unknown) {
     rows, documents, selectedRow,
     sourceWindowLabel: text(sourceWindow.label, "текущая смена"),
     operationCount: documents.reduce((sum, document) => sum + document.operations.length, 0),
-    canActivate: Boolean(rows.length && documents.length && selectedRow),
+    canActivate: Boolean(rows.length && documents.length && selectedRow), canSaveFact: capabilities.factSave === true,
   };
 }

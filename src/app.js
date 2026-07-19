@@ -3312,12 +3312,39 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     return { ok: true, id: routeId, quantity };
   },
 });
+async function executeShiftExecutionFactCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
+  const rowId = String(command.rowId || "").trim();
+  const model = getShiftMasterBoardModel();
+  const row = (model.allRows || []).find((item) => item.id === rowId) || null;
+  if (!row) return { ok: false, message: "Задание больше не доступно в текущем PostgreSQL-окне смены." };
+  if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit")) return { ok: false, message: "Нет права вносить факт смены." };
+  if (!getShiftExecutionServerAssignment(row)?.id) return { ok: false, message: "Сначала выпустите сменное задание и дождитесь подтверждения PostgreSQL." };
+  const values = [command.actualQuantity, command.defectQuantity, command.laborMinutes, command.executorCount].map(Number);
+  if (values.some((value) => !Number.isSafeInteger(value) || value < 0 || value > 9_999_999)) return { ok: false, message: "Количества факта должны быть целыми неотрицательными числами." };
+  const [actualQuantity, defectQuantity, laborMinutes, executorCount] = values;
+  if (defectQuantity > actualQuantity) return { ok: false, message: "Количество брака не может превышать выпуск." };
+  const comment = String(command.comment || "").trim().slice(0, 500); const deviationComment = String(command.deviationComment || "").trim().slice(0, 500);
+  const saved = saveShiftMasterBoardFact(row.id, { actualQuantity, defectQuantity, laborMinutes, executorCount, comment, deviationComment, updatedAt: new Date().toISOString() }, { notifyOwner: false });
+  if (!saved?.fact) return { ok: false, message: "Факт не сохранён владельцем доски мастера." };
+  const factResult = await mirrorShiftMasterBoardFactToServer(row, saved.fact);
+  if (factResult?.ok !== true) return { ok: false, message: factResult?.error || "PostgreSQL не подтвердил факт смены." };
+  if (saved.carryover && saved.carryoverChanged) {
+    const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(row, saved.carryover, saved.replacedCarryover);
+    if (carryoverResult?.ok !== true) return { ok: false, message: carryoverResult?.error || "Факт принят, но остаток не подтверждён PostgreSQL." };
+  }
+  for (const removedCarryover of saved.removedCarryovers || []) {
+    const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, removedCarryover, { reason: "Задача закрыта фактом из React" });
+    if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
+  }
+  queueMicrotask(() => { if (ui.activeModule === activeModule) render({ skipRememberScroll: true }); });
+  return { ok: true, id: row.id };
+}
 function getShiftWorkOrdersReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-shift-work-orders") === "1", readOnlyEvaluation: params.get("react-shift-work-orders-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-shift-work-orders") === "1", readOnlyEvaluation: params.get("react-shift-work-orders-readonly") === "1", writeEvaluation: params.get("react-shift-work-orders-write") === "1" };
 }
 function isShiftWorkOrdersReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
@@ -3332,10 +3359,19 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_SHIFT_WORK_ORDERS === true || localQa.featureFlagEnabled,
       serverReadReady: systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
-      accessMode: (serverEvaluationAllowed && isShiftWorkOrdersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isShiftWorkOrdersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => ({ model: getShiftWorkOrderJournalViewModel() }),
+  getPayload: () => {
+    const model = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const localQa = getShiftWorkOrdersReactLocalQaOverrides();
+    const roleCanRecordFact = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "edit");
+    const commandsReady = localQa.writeEvaluation && shiftExecutionServerState.commandsEnabled === true;
+    const factContexts = (board.allRows || []).map((row) => {
+      const fact = normalizePlainRecord(row.boardFact);
+      return { rowId: row.id, canEdit: commandsReady && roleCanRecordFact && Boolean(getShiftExecutionServerAssignment(row)?.id), hasFact: Boolean(fact.updatedAt), actualQuantity: Number(fact.actualQuantity || 0), laborMinutes: Number(fact.laborMinutes || 0), executorCount: Number(fact.executorCount || 0), comment: String(fact.comment || ""), deviationComment: String(fact.deviationComment || "") };
+    });
+    return { model, capabilities: { factSave: commandsReady && roleCanRecordFact }, factContexts };
+  },
   getTargetRoot: () => app,
   loadPrintPackage: async (rowId = "") => {
     const model = getShiftWorkOrderJournalViewModel();
@@ -3364,6 +3400,11 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     }
     persistUiState();
     render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getShiftWorkOrdersReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true || command.type !== "save-fact") return { ok: false, message: "Изменение факта в React недоступно." };
+    return executeShiftExecutionFactCommand(command, { activeModule: "shiftWorkOrders" });
   },
 });
 function getShiftMasterBoardReactLocalQaOverrides() {
@@ -3479,27 +3520,7 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
       return { ok: true, id: row.id };
     }
     if (command.type === "save-fact") {
-      if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit")) return { ok: false, message: "Нет права вносить факт смены." };
-      if (!getShiftExecutionServerAssignment(row)?.id) return { ok: false, message: "Сначала выпустите сменное задание и дождитесь подтверждения PostgreSQL." };
-      const values = [command.actualQuantity, command.defectQuantity, command.laborMinutes, command.executorCount].map(Number);
-      if (values.some((value) => !Number.isSafeInteger(value) || value < 0 || value > 9_999_999)) return { ok: false, message: "Количества факта должны быть целыми неотрицательными числами." };
-      const [actualQuantity, defectQuantity, laborMinutes, executorCount] = values;
-      if (defectQuantity > actualQuantity) return { ok: false, message: "Количество брака не может превышать выпуск." };
-      const comment = String(command.comment || "").trim().slice(0, 500); const deviationComment = String(command.deviationComment || "").trim().slice(0, 500);
-      const saved = saveShiftMasterBoardFact(row.id, { actualQuantity, defectQuantity, laborMinutes, executorCount, comment, deviationComment, updatedAt: new Date().toISOString() }, { notifyOwner: false });
-      if (!saved?.fact) return { ok: false, message: "Факт не сохранён владельцем доски мастера." };
-      const factResult = await mirrorShiftMasterBoardFactToServer(row, saved.fact);
-      if (factResult?.ok !== true) return { ok: false, message: factResult?.error || "PostgreSQL не подтвердил факт смены." };
-      if (saved.carryover && saved.carryoverChanged) {
-        const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(row, saved.carryover, saved.replacedCarryover);
-        if (carryoverResult?.ok !== true) return { ok: false, message: carryoverResult?.error || "Факт принят, но остаток не подтверждён PostgreSQL." };
-      }
-      for (const removedCarryover of saved.removedCarryovers || []) {
-        const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, removedCarryover, { reason: "Задача закрыта фактом из React" });
-        if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
-      }
-      queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
-      return { ok: true, id: row.id };
+      return executeShiftExecutionFactCommand(command, { activeModule: "shiftMasterBoard" });
     }
     return { ok: false, message: "Неизвестная команда доски мастера." };
   },

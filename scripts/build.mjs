@@ -475,6 +475,9 @@ const shiftWorkOrdersReactIslandVersion = await fileHash(shiftWorkOrdersReactIsl
 const shiftWorkOrdersPrintOutput = join(stagingDistDir, "src", "react-islands", "shift-work-orders-print.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "modules", "shift-work-orders", "ShiftWorkOrderPrintPreviews.tsx"), shiftWorkOrdersPrintOutput);
 const shiftWorkOrdersPrintVersion = await fileHash(shiftWorkOrdersPrintOutput);
+const shiftWorkOrdersFactOutput = join(stagingDistDir, "src", "react-islands", "shift-work-orders-fact.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "modules", "shift-work-orders", "ShiftWorkOrderFactEditor.tsx"), shiftWorkOrdersFactOutput);
+const shiftWorkOrdersFactVersion = await fileHash(shiftWorkOrdersFactOutput);
 const shiftWorkOrdersReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_work_orders", "react_island_host.js");
 let shiftWorkOrdersReactIslandHostSource = await readFile(shiftWorkOrdersReactIslandHostPath, "utf8");
 const shiftWorkOrdersReactIslandVersionMarker = "__MES_SHIFT_WORK_ORDERS_REACT_BUNDLE_VERSION__";
@@ -482,7 +485,10 @@ if (!shiftWorkOrdersReactIslandHostSource.includes(shiftWorkOrdersReactIslandVer
 shiftWorkOrdersReactIslandHostSource = shiftWorkOrdersReactIslandHostSource.replaceAll(shiftWorkOrdersReactIslandVersionMarker, shiftWorkOrdersReactIslandVersion);
 const shiftWorkOrdersPrintVersionMarker = "__MES_SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION__";
 if (!shiftWorkOrdersReactIslandHostSource.includes(shiftWorkOrdersPrintVersionMarker)) throw new Error("Cannot find Shift Work Orders print bundle version marker");
-await writeFile(shiftWorkOrdersReactIslandHostPath, shiftWorkOrdersReactIslandHostSource.replaceAll(shiftWorkOrdersPrintVersionMarker, shiftWorkOrdersPrintVersion));
+shiftWorkOrdersReactIslandHostSource = shiftWorkOrdersReactIslandHostSource.replaceAll(shiftWorkOrdersPrintVersionMarker, shiftWorkOrdersPrintVersion);
+const shiftWorkOrdersFactVersionMarker = "__MES_SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION__";
+if (!shiftWorkOrdersReactIslandHostSource.includes(shiftWorkOrdersFactVersionMarker)) throw new Error("Cannot find Shift Work Orders fact bundle version marker");
+await writeFile(shiftWorkOrdersReactIslandHostPath, shiftWorkOrdersReactIslandHostSource.replaceAll(shiftWorkOrdersFactVersionMarker, shiftWorkOrdersFactVersion));
 
 const shiftMasterBoardReactIslandOutput = join(stagingDistDir, "src", "react-islands", "shift-master-board.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "shift-master-board-island.tsx"), shiftMasterBoardReactIslandOutput);
@@ -713,6 +719,7 @@ console.log(`- src/react-islands/timesheet.js?v=${timesheetReactIslandVersion}`)
 console.log(`- src/react-islands/planning-workbench.js?v=${planningWorkbenchReactIslandVersion}`);
 console.log(`- src/react-islands/shift-work-orders.js?v=${shiftWorkOrdersReactIslandVersion}`);
 console.log(`- src/react-islands/shift-work-orders-print.js?v=${shiftWorkOrdersPrintVersion}`);
+console.log(`- src/react-islands/shift-work-orders-fact.js?v=${shiftWorkOrdersFactVersion}`);
 console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReactIslandVersion}`);
 console.log(`- src/react-islands/employee-desktop.js?v=${employeeDesktopReactIslandVersion}`);
 console.log(`- src/react-islands/auth-picker.js?v=${authPickerReactIslandVersion}`);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+import { createShiftWorkOrdersReactIslandHost } from "../src/modules/shift_work_orders/react_island_host.js";
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS, false);
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION, false);
@@ -10,4 +11,8 @@ const script = renderRuntimeConfigScript({ MES_REACT_SHIFT_WORK_ORDERS: "1", MES
 assert.match(script, /"MES_REACT_SHIFT_WORK_ORDERS":true/);
 assert.match(script, /"MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak/);
+const makeHost = (accessMode) => createShiftWorkOrdersReactIslandHost({ getActivation: () => ({ featureFlagEnabled: true, serverReadReady: true, accessMode }), getPayload: () => ({}), getTargetRoot: () => null, requestLegacyRender: () => {} });
+assert.deepEqual(makeHost("read-only-evaluation").prepareRender(), { activateReact: true, reason: "eligible" });
+assert.deepEqual(makeHost("write-evaluation").prepareRender(), { activateReact: true, reason: "eligible" });
+assert.deepEqual(makeHost("editor").prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
 console.log("Shift Work Orders React runtime policy QA passed.");

@@ -3,8 +3,9 @@ import { createReactIslandHost } from "../react_island_host.js";
 const SHIFT_WORK_ORDERS_REACT_TARGET = "[data-react-shift-work-orders-island]";
 const SHIFT_WORK_ORDERS_REACT_BUNDLE_VERSION = "__MES_SHIFT_WORK_ORDERS_REACT_BUNDLE_VERSION__";
 const SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION = "__MES_SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION__";
+const SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION = "__MES_SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION__";
 
-export function createShiftWorkOrdersReactIslandHost({ getActivation, getPayload, getTargetRoot, loadPrintPackage, printDocument, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Work Orders React island failed", error) } = {}) {
+export function createShiftWorkOrdersReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, loadPrintPackage, printDocument, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Work Orders React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: SHIFT_WORK_ORDERS_REACT_TARGET,
@@ -12,7 +13,7 @@ export function createShiftWorkOrdersReactIslandHost({ getActivation, getPayload
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -22,6 +23,6 @@ export function createShiftWorkOrdersReactIslandHost({ getActivation, getPayload
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountShiftWorkOrdersReactIsland(target, payload, { onError, onReady, onLoadPrintPackage: loadPrintPackage, onLoadPrintRenderer: async () => { const url = new URL("./react-islands/shift-work-orders-print.js", import.meta.url); url.searchParams.set("v", SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION.startsWith("__MES_") ? String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev") : SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION); return import(url.href); }, onPrintDocument: printDocument, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountShiftWorkOrdersReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined, onLoadFactEditor: async () => { const url = new URL("./react-islands/shift-work-orders-fact.js", import.meta.url); url.searchParams.set("v", SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION.startsWith("__MES_") ? String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev") : SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION); return import(url.href); }, onLoadPrintPackage: loadPrintPackage, onLoadPrintRenderer: async () => { const url = new URL("./react-islands/shift-work-orders-print.js", import.meta.url); url.searchParams.set("v", SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION.startsWith("__MES_") ? String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev") : SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION); return import(url.href); }, onPrintDocument: printDocument, onRequestLegacy }),
   });
 }
