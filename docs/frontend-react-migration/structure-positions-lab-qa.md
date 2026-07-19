@@ -29,4 +29,24 @@ labels without changing stable IDs or domain authority.
 
 The independent entry is `209,326 B` raw / `64,392 B` gzip. The production
 artifact is `203,728 B` raw / `63,958 B` gzip / `55,098 B` Brotli. It remains
-false by default and has not been released or activated on Pilot.
+false by default.
+
+## Pilot acceptance
+
+The production host shipped disabled by default in release
+`v.1.499.73-b1b77cf`. On 2026-07-19, one authenticated session evaluated the
+read-only Positions scope.
+
+- all `49` PostgreSQL-backed rows matched legacy in order and in all five read
+  fields;
+- first React commit was `32.50 ms`;
+- selection and the full position passport passed;
+- the seven registry counts and six summary metrics stayed aligned;
+- create remained disabled;
+- an unsupported registry request returned to the exact `19`-row legacy
+  Organization Units view;
+- deactivation restored the unchanged `49`-row legacy Positions view even with
+  the evaluation query retained.
+
+The rollout flags are off, the temporary root directory has been removed, and
+no Pilot data was written. Command migration is not accepted by this slice.

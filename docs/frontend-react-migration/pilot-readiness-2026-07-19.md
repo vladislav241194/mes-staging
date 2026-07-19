@@ -192,3 +192,29 @@ Rollback evidence:
 No create, edit, archive or delete action was invoked. Structure Employees is
 currently legacy for every session. The non-empty read-only Pilot gate is now
 accepted; command migration remains a separate future slice.
+
+## Structure Positions read-only Pilot evaluation
+
+The third live slice reused the System Domains host contract for the
+PostgreSQL-backed Positions registry. Rollout controls from commit `b2c8a1b`
+were executed from an isolated root-only directory without modifying the active
+release artifact.
+
+- only `MES_REACT_STRUCTURE_POSITIONS=1` and
+  `MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION=1` were active;
+- the authenticated session requested
+  `react-structure-positions-evaluation=1`;
+- the island reached `ready`, revision `1`, in `32.50 ms`;
+- all `49` React rows matched all `49` legacy rows in order and in all five
+  read fields: position, category, organization unit, work center and status;
+- registry counts remained `19 / 19 / 49 / 76 / 6 / 0`;
+- selecting `Упаковщик` opened the expected stable ID, category, unit, work
+  center, schedule and status passport;
+- `Новая запись` remained disabled, while requesting `Подразделения` returned
+  to the exact `19`-row legacy registry.
+
+After deactivation, every `MES_REACT_*` value was absent, health remained
+green, the retained session query mounted no React island, and legacy still
+contained the same `49` rows and values. The temporary rollout directory was
+removed. No Pilot data was written. Structure Positions is currently legacy
+for every session.
