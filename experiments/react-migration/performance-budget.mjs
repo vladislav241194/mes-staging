@@ -32,12 +32,13 @@ const structureEmployees = await measureEntry("structure-employees-island.tsx", 
 const structurePositions = await measureEntry("structure-positions-island.tsx", { raw: 225_000, gzip: 68_000 });
 const structureOrgUnits = await measureEntry("structure-org-units-island.tsx", { raw: 225_000, gzip: 68_000 });
 const structureWorkCenters = await measureEntry("structure-work-centers-island.tsx", { raw: 225_000, gzip: 68_000 });
+const structureEquipment = await measureEntry("structure-equipment-island.tsx", { raw: 225_000, gzip: 68_000 });
 const roles = await measureEntry("roles-island.tsx", { raw: 225_000, gzip: 68_000 });
 const componentTypes = await measureEntry("component-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const operations = await measureEntry("operations-island.tsx", { raw: 225_000, gzip: 68_000 });
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
-const lab = await measureEntry("main.tsx", { raw: 310_000, gzip: 85_000 });
+const lab = await measureEntry("main.tsx", { raw: 320_000, gzip: 85_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -50,6 +51,8 @@ const structureOrgUnitsText = new TextDecoder().decode(structureOrgUnits.bytes);
 assert.doesNotMatch(structureOrgUnitsText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Structure Org Units production island must not bundle unrelated scenarios");
 const structureWorkCentersText = new TextDecoder().decode(structureWorkCenters.bytes);
 assert.doesNotMatch(structureWorkCentersText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Structure Work Centers production island must not bundle unrelated scenarios");
+const structureEquipmentText = new TextDecoder().decode(structureEquipment.bytes);
+assert.doesNotMatch(structureEquipmentText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Structure Equipment production island must not bundle unrelated scenarios");
 const rolesText = new TextDecoder().decode(roles.bytes);
 assert.doesNotMatch(rolesText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Roles production island must not bundle unrelated scenarios");
 const componentTypesText = new TextDecoder().decode(componentTypes.bytes);
@@ -73,6 +76,7 @@ console.log(JSON.stringify({
   structurePositions: structurePositions.measurement,
   structureOrgUnits: structureOrgUnits.measurement,
   structureWorkCenters: structureWorkCenters.measurement,
+  structureEquipment: structureEquipment.measurement,
   roles: roles.measurement,
   componentTypes: componentTypes.measurement,
   operations: operations.measurement,

@@ -9,9 +9,10 @@ import { StructureEmployeesScenario } from "./modules/structure-employees/Struct
 import { StructurePositionsScenario } from "./modules/structure-positions/StructurePositionsScenario";
 import { StructureOrgUnitsScenario } from "./modules/structure-org-units/StructureOrgUnitsScenario";
 import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
+import { StructureEquipmentScenario } from "./modules/structure-equipment/StructureEquipmentScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(): void;
@@ -24,6 +25,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structurePositions") return <StructurePositionsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureOrgUnits") return <StructureOrgUnitsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureWorkCenters") return <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureEquipment") return <StructureEquipmentScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "roles") return <RolesScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -52,6 +54,7 @@ export { mountStructureEmployeesReactIsland } from "./structure-employees-island
 export { mountStructurePositionsReactIsland } from "./structure-positions-island";
 export { mountStructureOrgUnitsReactIsland } from "./structure-org-units-island";
 export { mountStructureWorkCentersReactIsland } from "./structure-work-centers-island";
+export { mountStructureEquipmentReactIsland } from "./structure-equipment-island";
 export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
 export { mountOperationsReactIsland } from "./operations-island";

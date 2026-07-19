@@ -9,7 +9,11 @@ import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondi
 
 const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
-const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "workCenters" ? {
+const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "equipment" ? {
+  label: "Equipment", registryId: "equipment", rowCount: 6, target: "data-react-structure-equipment-island",
+  featureFlag: "MES_REACT_STRUCTURE_EQUIPMENT", evaluationFlag: "MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION",
+  evaluationQuery: "react-structure-equipment-evaluation", fallbackLabel: "Подразделения", fallbackRegistry: "orgUnits", fallbackCount: 19,
+} : process.env.MES_STRUCTURE_QA_REGISTRY === "workCenters" ? {
   label: "Work Centers", registryId: "workCenters", rowCount: 19, target: "data-react-structure-work-centers-island",
   featureFlag: "MES_REACT_STRUCTURE_WORK_CENTERS", evaluationFlag: "MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-work-centers-evaluation", fallbackLabel: "Оборудование", fallbackRegistry: "equipment", fallbackCount: 6,
@@ -92,7 +96,7 @@ try {
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&${qaConfig.evaluationQuery}=1` });
   await waitForCondition(client, (config) => Boolean(document.querySelector(`[${config.target}][data-react-island-state="ready"]`) && document.querySelectorAll('[data-ui-component="SelectableRow"]').length === config.rowCount), { arg: qaConfig, message: `Structure ${qaConfig.label} React island did not render ${qaConfig.rowCount} rows`, timeoutMs: 15_000 });
   const initial = await evaluate(client, (config) => { const target = document.querySelector(`[${config.target}]`); const selected = document.querySelector('[data-ui-component="SelectableRow"].is-selected'); const metrics = Object.fromEntries([...document.querySelectorAll('[data-ui-component="MetricCard"]')].map((card) => [card.querySelector("span")?.textContent?.trim() || "", Number(card.querySelector("strong")?.textContent || 0)])); return { rows: [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].map((row) => [...row.querySelectorAll("td")].map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" ")), selectedText: selected?.textContent?.replace(/\s+/g, " ").trim() || "", detail: document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || "", disabled: document.querySelector('[data-ui-component="ActionButton"]')?.disabled === true, sidebarItems: document.querySelectorAll('[data-ui-component="SidebarItem"]').length, metrics, revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }; }, qaConfig);
-  assert(JSON.stringify(initial.rows) === JSON.stringify(legacyRows), "React and legacy position cells/order differ");
+  assert(JSON.stringify(initial.rows) === JSON.stringify(legacyRows), `React and legacy ${qaConfig.label} cells/order differ\nlegacy=${JSON.stringify(legacyRows)}\nreact=${JSON.stringify(initial.rows)}`);
   assert(initial.rows.length === qaConfig.rowCount && initial.selectedText.includes(initial.detail) && initial.disabled && initial.sidebarItems === 7 && initial.revision === "1", `${qaConfig.label} selection/detail/read-only/sidebar contract failed`);
   assert(initial.metrics["Подразделений"] === 19 && initial.metrics["Рабочих центров"] === 19 && initial.metrics["Должностей"] === 49 && initial.metrics["Сотрудников"] === 76 && initial.metrics["Оборудования"] === 6, "Positions metrics differ from System Domains");
   assert(Number.isFinite(initial.commitMs) && initial.commitMs < 2000 && !initial.overflow, "Positions commit/overflow gate failed");

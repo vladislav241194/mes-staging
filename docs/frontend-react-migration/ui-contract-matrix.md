@@ -149,6 +149,13 @@ status contracts. Its adapter preserves 19 stable IDs and resolves organization
 and parent hierarchy from one PostgreSQL projection. Five cells and order match
 legacy literally; planning, Gantt and editor commands remain outside React.
 
+## Structure Equipment read-model evidence
+
+Equipment reuses the Structure registry contracts while preserving its own
+work-center, quantity and schedule columns. All six stable IDs, five visible
+cells and Russian legacy order match the authenticated PostgreSQL projection;
+no scheduling or editor behavior moved into React.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,

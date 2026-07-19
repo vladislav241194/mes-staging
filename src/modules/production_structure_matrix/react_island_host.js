@@ -5,6 +5,7 @@ const STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_EMPLOYEES_REAC
 const STRUCTURE_POSITIONS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_POSITIONS_REACT_BUNDLE_VERSION__";
 const STRUCTURE_ORG_UNITS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_ORG_UNITS_REACT_BUNDLE_VERSION__";
 const STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_WORK_CENTERS_REACT_BUNDLE_VERSION__";
+const STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION = "__MES_STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION__";
 
 export function createStructureEmployeesReactIslandHost({
   getActivation,
@@ -123,5 +124,26 @@ export function createStructureWorkCentersReactIslandHost({ getActivation, getPa
       return import(islandUrl.href);
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureWorkCentersReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+  });
+}
+
+export function createStructureEquipmentReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Structure Equipment React island failed", error) } = {}) {
+  return createReactIslandHost({
+    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
+    targetSelector: "[data-react-structure-equipment-island]",
+    renderTarget: '<div class="mes-react-structure-equipment-island" data-react-structure-equipment-island data-react-island-state="loading" aria-live="polite"></div>',
+    getIneligibilityReason: (activation) => {
+      if (!activation.featureFlagEnabled) return "disabled";
+      if (!activation.serverReadReady) return "server-read-pending";
+      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      return "";
+    },
+    loadIsland: async () => {
+      const islandUrl = new URL("./react-islands/structure-equipment.js", import.meta.url);
+      const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
+      const bundleVersion = STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION;
+      islandUrl.searchParams.set("v", bundleVersion); return import(islandUrl.href);
+    },
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountStructureEquipmentReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
   });
 }

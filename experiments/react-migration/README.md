@@ -34,6 +34,7 @@ Available routes:
 - `/?scenario=structure-positions` — Structure Positions;
 - `/?scenario=structure-org-units` — Structure Org Units;
 - `/?scenario=structure-work-centers` — Structure Work Centers;
+- `/?scenario=structure-equipment` — Structure Equipment;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
 - `/?scenario=nomenclature-types` — Nomenclature Types directory;

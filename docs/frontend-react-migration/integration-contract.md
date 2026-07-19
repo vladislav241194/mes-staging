@@ -88,6 +88,10 @@ adapter; create/save/archive and all other registries remain legacy.
 and passport. Organization and parent-center references are resolved at the
 typed boundary; planning/Gantt commands and every editor action remain legacy.
 
+`mountStructureEquipmentReactIsland(...)` owns only the Equipment read table
+and passport. Work-center and schedule references are resolved from the same
+snapshot; create/save/archive and equipment scheduling commands remain legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

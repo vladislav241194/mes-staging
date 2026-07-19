@@ -23,6 +23,6 @@ preserves all stable IDs and resolves organization and parent-center references.
 - Employees 76/76, Positions 49/49 and Org Units 19/19 regressions pass;
 - latest local first commit was `23.8 ms`.
 
-The independent entry is `209,439 B` raw / `64,359 B` gzip. The production
+The independent entry is `209,390 B` raw / `64,349 B` gzip. The production
 artifact is `203,739 B` raw / `64,039 B` gzip / `55,095 B` Brotli. It remains
 false by default and has not been released or activated on Pilot.
