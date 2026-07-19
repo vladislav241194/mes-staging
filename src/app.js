@@ -3069,7 +3069,9 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
   getPayload: () => {
     const model = getShiftMasterBoardModel(); const localQa = getShiftMasterBoardReactLocalQaOverrides();
     const roleCanAssign = getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign");
-    return { model, capabilities: { assignmentSave: localQa.writeEvaluation && roleCanAssign && shiftExecutionServerState.commandsEnabled === true } };
+    const roleCanRecordFact = getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit");
+    const commandsReady = localQa.writeEvaluation && shiftExecutionServerState.commandsEnabled === true;
+    return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact } };
   },
   getTargetRoot: () => app,
   selectFocus: (focus = "") => {
@@ -3092,29 +3094,54 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getShiftMasterBoardReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Распределение в React недоступно." };
-    if (command.type !== "save-assignment") return { ok: false, message: "Неизвестная команда доски мастера." };
+    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Изменения в React недоступны." };
     const rowId = String(command.rowId || "").trim(); const model = getShiftMasterBoardModel();
-    if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign")) return { ok: false, message: "Нет права распределять задания." };
     const row = (model.allRows || []).find((item) => item.id === rowId) || null;
     if (!row) return { ok: false, message: "Задание больше не доступно на доске мастера." };
-    const allowedEmployees = new Map((row.employees || []).filter((employee) => employee?.id).map((employee) => [employee.id, employee])); const seen = new Set();
-    const executors = Array.isArray(command.executors) ? command.executors.map((executor) => ({ employeeId: String(executor?.employeeId || "").trim(), quantity: Number(executor?.quantity) })) : [];
-    if (!executors.length) return { ok: false, message: "Назначьте количество хотя бы одному исполнителю." };
-    const invalidExecutor = executors.some((executor) => {
-      const employee = allowedEmployees.get(executor.employeeId);
-      if (!executor.employeeId || seen.has(executor.employeeId) || !employee || employee.availability?.isAvailable !== true || !Number.isSafeInteger(executor.quantity) || executor.quantity <= 0 || executor.quantity > 9_999_999) return true;
-      seen.add(executor.employeeId); return false;
-    });
-    if (invalidExecutor) return { ok: false, message: "Исполнители или количества не прошли проверку матрицы доступа." };
-    const assignedQuantity = executors.reduce((sum, executor) => sum + executor.quantity, 0); const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-    if (assignedQuantity > plannedQuantity) return { ok: false, message: "Распределённое количество не может превышать план сменной задачи." };
-    const saved = saveShiftMasterBoardAssignment(row.id, { masterId: row.masterProfile?.id || row.boardAssignment?.masterId || model.activeProfile?.id || "", executors, updatedAt: new Date().toISOString() }, { notifyOwner: false });
-    if (!saved) return { ok: false, message: "Распределение не сохранено владельцем доски мастера." };
-    const serverResult = await mirrorShiftMasterBoardAssignmentToServer(row, saved);
-    if (serverResult?.ok !== true) return { ok: false, message: serverResult?.conflict ? "Распределение изменилось на сервере. Данные обновлены, повторите действие." : serverResult?.error || "PostgreSQL не подтвердил распределение." };
-    queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
-    return { ok: true, id: row.id };
+    if (command.type === "save-assignment") {
+      if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign")) return { ok: false, message: "Нет права распределять задания." };
+      const allowedEmployees = new Map((row.employees || []).filter((employee) => employee?.id).map((employee) => [employee.id, employee])); const seen = new Set();
+      const executors = Array.isArray(command.executors) ? command.executors.map((executor) => ({ employeeId: String(executor?.employeeId || "").trim(), quantity: Number(executor?.quantity) })) : [];
+      if (!executors.length) return { ok: false, message: "Назначьте количество хотя бы одному исполнителю." };
+      const invalidExecutor = executors.some((executor) => {
+        const employee = allowedEmployees.get(executor.employeeId);
+        if (!executor.employeeId || seen.has(executor.employeeId) || !employee || employee.availability?.isAvailable !== true || !Number.isSafeInteger(executor.quantity) || executor.quantity <= 0 || executor.quantity > 9_999_999) return true;
+        seen.add(executor.employeeId); return false;
+      });
+      if (invalidExecutor) return { ok: false, message: "Исполнители или количества не прошли проверку матрицы доступа." };
+      const assignedQuantity = executors.reduce((sum, executor) => sum + executor.quantity, 0); const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
+      if (assignedQuantity > plannedQuantity) return { ok: false, message: "Распределённое количество не может превышать план сменной задачи." };
+      const saved = saveShiftMasterBoardAssignment(row.id, { masterId: row.masterProfile?.id || row.boardAssignment?.masterId || model.activeProfile?.id || "", executors, updatedAt: new Date().toISOString() }, { notifyOwner: false });
+      if (!saved) return { ok: false, message: "Распределение не сохранено владельцем доски мастера." };
+      const serverResult = await mirrorShiftMasterBoardAssignmentToServer(row, saved);
+      if (serverResult?.ok !== true) return { ok: false, message: serverResult?.conflict ? "Распределение изменилось на сервере. Данные обновлены, повторите действие." : serverResult?.error || "PostgreSQL не подтвердил распределение." };
+      queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
+      return { ok: true, id: row.id };
+    }
+    if (command.type === "save-fact") {
+      if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit")) return { ok: false, message: "Нет права вносить факт смены." };
+      if (!getShiftExecutionServerAssignment(row)?.id) return { ok: false, message: "Сначала выпустите сменное задание и дождитесь подтверждения PostgreSQL." };
+      const values = [command.actualQuantity, command.defectQuantity, command.laborMinutes, command.executorCount].map(Number);
+      if (values.some((value) => !Number.isSafeInteger(value) || value < 0 || value > 9_999_999)) return { ok: false, message: "Количества факта должны быть целыми неотрицательными числами." };
+      const [actualQuantity, defectQuantity, laborMinutes, executorCount] = values;
+      if (defectQuantity > actualQuantity) return { ok: false, message: "Количество брака не может превышать выпуск." };
+      const comment = String(command.comment || "").trim().slice(0, 500); const deviationComment = String(command.deviationComment || "").trim().slice(0, 500);
+      const saved = saveShiftMasterBoardFact(row.id, { actualQuantity, defectQuantity, laborMinutes, executorCount, comment, deviationComment, updatedAt: new Date().toISOString() }, { notifyOwner: false });
+      if (!saved?.fact) return { ok: false, message: "Факт не сохранён владельцем доски мастера." };
+      const factResult = await mirrorShiftMasterBoardFactToServer(row, saved.fact);
+      if (factResult?.ok !== true) return { ok: false, message: factResult?.error || "PostgreSQL не подтвердил факт смены." };
+      if (saved.carryover && saved.carryoverChanged) {
+        const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(row, saved.carryover, saved.replacedCarryover);
+        if (carryoverResult?.ok !== true) return { ok: false, message: carryoverResult?.error || "Факт принят, но остаток не подтверждён PostgreSQL." };
+      }
+      for (const removedCarryover of saved.removedCarryovers || []) {
+        const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, removedCarryover, { reason: "Задача закрыта фактом из React" });
+        if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
+      }
+      queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
+      return { ok: true, id: row.id };
+    }
+    return { ok: false, message: "Неизвестная команда доски мастера." };
   },
 });
 function getEmployeeDesktopReactLocalQaOverrides() {

@@ -102,11 +102,16 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .shift-master-board-react-assignment > label { display: grid; grid-template-columns: minmax(0,1fr) 110px; align-items: center; gap: 12px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
 .shift-master-board-react-assignment > label > span { display: grid; gap: 3px; }
 .shift-master-board-react-assignment small { color: #718296; font-size: 10px; }
-.shift-master-board-react-assignment input { width: 100%; padding: 9px 10px; border: 1px solid #cdd9e6; border-radius: 8px; color: #18314d; background: #fff; font: inherit; text-align: right; }
-.shift-master-board-react-assignment input:focus { border-color: #2f6fe4; outline: 2px solid rgba(47,111,228,.14); }
+.shift-master-board-react-assignment input, .shift-master-board-react-fact input, .shift-master-board-react-fact textarea { width: 100%; padding: 9px 10px; border: 1px solid #cdd9e6; border-radius: 8px; color: #18314d; background: #fff; font: inherit; }
+.shift-master-board-react-assignment input { text-align: right; }
+.shift-master-board-react-assignment input:focus, .shift-master-board-react-fact input:focus, .shift-master-board-react-fact textarea:focus { border-color: #2f6fe4; outline: 2px solid rgba(47,111,228,.14); }
 .shift-master-board-react-assignment label.is-unavailable { opacity: .62; }
-.shift-master-board-react-assignment-modal > footer > span { color: #52667a; font-size: 11px; }
-.shift-master-board-react-assignment-modal > footer > span.is-error { color: #b83a3a; }
+.shift-master-board-react-assignment-modal > footer > span, .shift-master-board-react-fact-modal > footer > span { color: #52667a; font-size: 11px; }
+.shift-master-board-react-assignment-modal > footer > span.is-error, .shift-master-board-react-fact-modal > footer > span.is-error { color: #b83a3a; }
+.shift-master-board-react-fact { display: grid; gap: 12px; }
+.shift-master-board-react-fact-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.shift-master-board-react-fact label { display: grid; gap: 5px; color: #52667a; font-size: 11px; }
+.shift-master-board-react-fact textarea { resize: vertical; }
 .shift-master-board-react-lanes { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 8px; padding: 12px; overflow-x: auto; }
 .shift-master-board-react-lane { min-width: 150px; border: 1px solid #e3ebf3; border-radius: 12px; background: #f8fafc; overflow: hidden; }
 .shift-master-board-react-lane > header { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 10px; border-bottom: 1px solid #e3ebf3; }

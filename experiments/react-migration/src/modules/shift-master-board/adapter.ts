@@ -12,13 +12,14 @@ export interface ShiftMasterBoardRow {
   workCenterLabel: string; timeLabel: string; plannedQuantity: number; assignedQuantity: number; factQuantity: number;
   remainingQuantity: number; unit: string; laneId: string; signal: { label: string; tone: "success" | "warning" | "neutral" };
   masterName: string; executors: ShiftMasterBoardExecutor[]; assignableEmployees: ShiftMasterBoardAssignableEmployee[]; factUpdatedAt: string; riskLabel: string;
+  factReady: boolean; hasFact: boolean; actualQuantity: number; defectQuantity: number; laborMinutes: number; executorCount: number; factComment: string; deviationComment: string;
 }
 export interface ShiftMasterBoardLane { id: string; label: string; caption: string; tone: "success" | "warning" | "neutral"; rows: ShiftMasterBoardRow[] }
 export interface ShiftMasterBoardModel {
   windowLabel: string; rows: ShiftMasterBoardRow[]; lanes: ShiftMasterBoardLane[]; selectedRow: ShiftMasterBoardRow | null;
   focus: "all" | "mine" | "open" | "attention";
   activeMasterName: string; activeMasterDepartment: string; plannedQuantity: number; assignedQuantity: number; factQuantity: number; openQuantity: number;
-  canAssign: boolean;
+  canAssign: boolean; canRecordFact: boolean;
 }
 
 const focus = (value: unknown): ShiftMasterBoardModel["focus"] => ["mine", "open", "attention"].includes(text(value)) ? text(value) as ShiftMasterBoardModel["focus"] : "all";
@@ -40,6 +41,9 @@ function adaptRow(value: unknown): ShiftMasterBoardRow | null {
     masterName: personName(assignment.masterName || source.masterName, "Мастер не назначен"),
     executors, assignableEmployees,
     factUpdatedAt: text(fact.updatedAt || source.masterFactUpdatedAt, "факт не внесён"), riskLabel: text(assignment.riskLabel || assignment.riskReason || source.riskLabel),
+    factReady: assignment.issued === true || text(assignment.status) === "issued" || source.isIssued === true,
+    hasFact: Boolean(text(fact.updatedAt || source.masterFactUpdatedAt)), actualQuantity: number(fact.actualQuantity), defectQuantity: number(fact.defectQuantity), laborMinutes: number(fact.laborMinutes),
+    executorCount: number(fact.executorCount), factComment: text(fact.comment), deviationComment: text(fact.deviationComment),
   };
 }
 
@@ -47,5 +51,5 @@ export function adaptShiftMasterBoardPayload(payload: unknown): ShiftMasterBoard
   const source = record(payload); const model = record(source.model); const capabilities = record(source.capabilities); const rows = list(model.rows).map(adaptRow).filter(Boolean) as ShiftMasterBoardRow[]; const rowsById = new Map(rows.map((row) => [row.id, row]));
   const lanes = list(model.lanes).map((value, index): ShiftMasterBoardLane => { const lane = record(value); const laneId = text(lane.id, `lane-${index + 1}`); const laneRows = list(lane.rows).map((row) => rowsById.get(text(record(row).id))).filter(Boolean) as ShiftMasterBoardRow[]; return { id: laneId, label: text(lane.label, "Этап"), caption: text(lane.caption), tone: tone(lane.tone), rows: laneRows.length ? laneRows : rows.filter((row) => row.laneId === laneId) }; });
   const selectedId = text(record(model.selectedRow).id); const activeProfile = record(model.activeProfile);
-  return { windowLabel: text(record(model.window).label, "Текущая смена"), rows, lanes, selectedRow: rowsById.get(selectedId) || rows[0] || null, focus: focus(model.focus), activeMasterName: personName(activeProfile.name, "Мастер"), activeMasterDepartment: text(activeProfile.department, "Участок не указан"), plannedQuantity: number(model.plannedQuantity), assignedQuantity: number(model.assignedQuantity), factQuantity: number(model.factQuantity), openQuantity: number(model.openQuantity), canAssign: capabilities.assignmentSave === true };
+  return { windowLabel: text(record(model.window).label, "Текущая смена"), rows, lanes, selectedRow: rowsById.get(selectedId) || rows[0] || null, focus: focus(model.focus), activeMasterName: personName(activeProfile.name, "Мастер"), activeMasterDepartment: text(activeProfile.department, "Участок не указан"), plannedQuantity: number(model.plannedQuantity), assignedQuantity: number(model.assignedQuantity), factQuantity: number(model.factQuantity), openQuantity: number(model.openQuantity), canAssign: capabilities.assignmentSave === true, canRecordFact: capabilities.factSave === true };
 }

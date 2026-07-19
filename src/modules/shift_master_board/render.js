@@ -3208,8 +3208,9 @@ function markShiftMasterBoardSheetPrinted(slotId = "", employeeId = "") {
   return next.printRecords[employeeId];
 }
 
-function saveShiftMasterBoardFact(slotId = "", patch = {}) {
+function saveShiftMasterBoardFact(slotId = "", patch = {}, options = {}) {
   if (!slotId) return null;
+  const notifyOwner = options.notifyOwner !== false;
   const row = getShiftMasterBoardRowById(slotId);
   const previous = normalizePlainRecord(ui.shiftMasterBoardFacts)[slotId] || {};
   const plannedQuantity = normalizeShiftMasterBoardQuantity(row?.plannedQuantity || previous.plannedQuantity || 0);
@@ -3248,7 +3249,13 @@ function saveShiftMasterBoardFact(slotId = "", patch = {}) {
   const refreshedRow = getShiftMasterBoardRowById(slotId);
   const goodQuantity = Math.max(0, normalizeShiftMasterBoardQuantity(next.actualQuantity || 0) - normalizeShiftMasterBoardQuantity(next.defectQuantity || 0));
   const shouldCarryover = plannedQuantity > 0 && goodQuantity < plannedQuantity;
-  const carryover = shouldCarryover ? createShiftMasterBoardCarryover(slotId) : null;
+  const carryoverDateKey = toDateInput(addMs(startOfDay(getShiftWorkbenchWindow().start), DAY_MS));
+  const existingCarryover = Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))
+    .find((item) => item && item.sourceRowId === slotId && item.dateKey === carryoverDateKey)
+    || null;
+  const carryover = shouldCarryover ? createShiftMasterBoardCarryover(slotId, { notifyOwner }) : null;
+  const carryoverChanged = Boolean(carryover && (!existingCarryover
+    || normalizeShiftMasterBoardQuantity(existingCarryover.remainingQuantity || 0) !== normalizeShiftMasterBoardQuantity(carryover.remainingQuantity || 0)));
   const removedCarryovers = shouldCarryover ? [] : removeShiftMasterBoardCarryoverForSource(refreshedRow?.id || slotId);
   const finalRow = getShiftMasterBoardRowById(slotId) || refreshedRow || row;
   const finalAssignmentStore = normalizePlainRecord(ui.shiftMasterBoardAssignments);
@@ -3280,13 +3287,17 @@ function saveShiftMasterBoardFact(slotId = "", patch = {}) {
   // createShiftMasterBoardCarryover already owns its one automatic server
   // write. Passing it through this callback used to POST the same carryover
   // a second time.
-  void onShiftMasterBoardFactSaved(finalRow, finalFact);
-  removedCarryovers.forEach((removedCarryover) => {
-    void onShiftMasterBoardCarryoverRemoved(finalRow, removedCarryover);
-  });
+  if (notifyOwner) {
+    void onShiftMasterBoardFactSaved(finalRow, finalFact);
+    removedCarryovers.forEach((removedCarryover) => {
+      void onShiftMasterBoardCarryoverRemoved(finalRow, removedCarryover);
+    });
+  }
   return {
     fact: finalFact,
     carryover,
+    carryoverChanged,
+    replacedCarryover: carryoverChanged ? existingCarryover : null,
     removedCarryover: removedCarryovers[0] || null,
     removedCarryovers,
   };
@@ -3307,8 +3318,9 @@ function removeShiftMasterBoardCarryoverForSource(sourceRowId = "") {
   return removed;
 }
 
-function createShiftMasterBoardCarryover(slotId = "") {
+function createShiftMasterBoardCarryover(slotId = "", options = {}) {
   if (!slotId) return null;
+  const notifyOwner = options.notifyOwner !== false;
   const model = getShiftMasterBoardModel();
   const row = model.allRows.find((item) => item.id === slotId) || model.rows.find((item) => item.id === slotId) || null;
   if (!row) return null;
@@ -3364,7 +3376,7 @@ function createShiftMasterBoardCarryover(slotId = "") {
   // The automatic write is emitted exactly once for a new carryover.  A
   // changed partial fact replaces the old server carryover before creating a
   // new one, which keeps the server's logical (source-row, date) key unique.
-  if (!isUnchanged) void onShiftMasterBoardCarryoverCreated(row, carryover, existing);
+  if (!isUnchanged && notifyOwner) void onShiftMasterBoardCarryoverCreated(row, carryover, existing);
   return carryover;
 }
 

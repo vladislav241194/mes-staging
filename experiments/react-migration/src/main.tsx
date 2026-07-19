@@ -18,7 +18,7 @@ import { weeklyProductionControlFixture, weeklyProductionControlUpdateFixture } 
 import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fixture";
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
 import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
-import { createShiftMasterBoardAssignmentFixture, createShiftMasterBoardFocusFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
+import { createShiftMasterBoardAssignmentFixture, createShiftMasterBoardFactFixture, createShiftMasterBoardFocusFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
 import { createEmployeeDesktopFactFixture, createEmployeeDesktopReportFixture, createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
 import { specifications2Fixture, specifications2UpdateFixture } from "./modules/specifications2/fixture";
@@ -93,7 +93,7 @@ const featureGate = createReactIslandFeatureGate({
       onLoadShiftWorkOrderPrintRenderer: async () => import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews"),
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
       onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
-      onShiftMasterBoardCommand: async (command) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardAssignmentFixture(command.rowId, command.executors)); return { ok: true }; },
+      onShiftMasterBoardCommand: async (command) => { markRevisionStart(nextExpectedRevision); featureGate.update(command.type === "save-assignment" ? createShiftMasterBoardAssignmentFixture(command.rowId, command.executors) : createShiftMasterBoardFactFixture(command.rowId, command)); return { ok: true }; },
       onEmployeeDesktopCommand: async (command) => {
         if (command.type === "prepare-report-photo") { const dataUrl = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => resolve(""); reader.readAsDataURL(command.file); }); return { ok: true, photo: { id: "photo-lab", name: command.file.name, type: command.file.type, size: command.file.size, source: command.source, dataUrl, storageNote: "" } }; }
         markRevisionStart(nextExpectedRevision);

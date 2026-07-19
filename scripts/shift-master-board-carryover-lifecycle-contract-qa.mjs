@@ -27,9 +27,10 @@ const mirrorCarryover = section(app, "async function mirrorShiftMasterBoardCarry
 const mirrorRemoval = section(app, "async function mirrorShiftMasterBoardCarryoverRemovalToServer(", "async function changePlanningRouteQuantity(", "carryover removal mirror");
 
 assert(saveFact.includes("void onShiftMasterBoardFactSaved(finalRow, finalFact);"), "fact persistence must not relay an automatic carryover through the fact callback");
+assert(saveFact.includes("if (notifyOwner)"), "React fact commands must be able to await the existing owner without duplicate callbacks");
 assert(saveFact.includes("onShiftMasterBoardCarryoverRemoved(finalRow, removedCarryover)"), "completed fact correction must notify the carryover cancellation lifecycle");
 assert(createCarryover.includes("item.sourceRowId === slotId && item.dateKey === nextDate"), "carryovers must be matched by their logical source-row/date identity");
-assert(createCarryover.includes("if (!isUnchanged) void onShiftMasterBoardCarryoverCreated(row, carryover, existing);"), "an unchanged partial fact must not emit a duplicate carryover write");
+assert(createCarryover.includes("if (!isUnchanged && notifyOwner) void onShiftMasterBoardCarryoverCreated(row, carryover, existing);"), "an unchanged or explicitly awaited partial fact must not emit a duplicate carryover write");
 assert(mirrorFact.includes("async function mirrorShiftMasterBoardFactToServer(row, fact)"), "fact mirror must not accept a duplicate carryover argument");
 assert(!mirrorFact.includes("mirrorShiftMasterBoardCarryoverToServer("), "fact mirror must not issue a second automatic carryover command");
 assert(mirrorCarryover.includes("mirrorShiftMasterBoardCarryoverRemovalToServer(row, replacedCarryover"), "changed partial carryovers must cancel their active canonical predecessor first");

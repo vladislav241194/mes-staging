@@ -1,12 +1,13 @@
 # Shift Master Board React lab QA
 
 Date: 2026-07-19
-Status: production-integrated assignment island; disabled by default; no Pilot activation
+Status: production-integrated assignment and fact island; disabled by default; no Pilot activation
 
 ## Vertical scenario
 
 `Open Workshop -> inspect shift lanes -> select a task -> switch board focus ->
-distribute a bounded quantity between eligible executors -> read the assignment back.`
+distribute a bounded quantity between eligible executors -> read the assignment
+back -> record the shift fact -> read the canonical fact back.`
 
 The typed adapter consumes the completed `getShiftMasterBoardModel()` result.
 It does not read PostgreSQL, shared state, Shift Execution repositories or the
@@ -17,14 +18,17 @@ legacy DOM directly.
 - local card selection stays inside the React island;
 - all four focus controls stay inside React, but the host owner normalizes the
   focus and rebuilds rows, lanes, selection and KPIs;
-- a localhost-only write evaluation opens the shared `ModalOverlay`, validates
-  integer quantities and prevents the executor total from exceeding the task plan;
-- React sends one typed `save-assignment` command; the host rechecks RBAC,
-  access-matrix membership, Timesheet availability, duplicates and quantity bounds;
+- a localhost-only write evaluation opens shared `ModalOverlay` forms for
+  assignment and fact; both accept only bounded integer quantities;
+- React sends typed `save-assignment` and `save-fact` commands; the host rechecks
+  RBAC, access-matrix membership, Timesheet availability, duplicates, assignment
+  bounds and `defect <= actual`;
 - the existing Shift Execution owner performs the PostgreSQL command and refresh,
-  then React reads the canonical assignment back;
-- read-only evaluation still returns assignment to legacy; date/master changes,
-  fact, carryover, transfer and print remain legacy;
+  then React reads the canonical assignment or fact back;
+- a partial fact preserves the existing automatic carryover lifecycle without
+  duplicate callbacks; a completed fact cancels an earlier canonical remainder;
+- read-only evaluation still returns assignment and fact to legacy; date/master
+  changes, manual carryover actions, transfer and print remain legacy;
 - no storage handle or API client crosses the island boundary.
 
 ## Evidence
@@ -38,22 +42,24 @@ legacy DOM directly.
 - focus reduces the lab board from four to three cards and preserves all three
   lanes; a zero-row production focus keeps the toolbar available so the user
   can return to `Все`;
-- two-executor assignment `80 + 40 = 120`, owner-backed revision `1 -> 4`,
-  fact fallback, disabled flag, no page overflow and clean console;
-- independent entry `213,608 B` raw / `65,640 B` gzip under the unchanged
+- two-executor assignment `80 + 40 = 120`, partial fact `100 - 4 = 96` and
+  remainder preview `24`, owner-backed revision `1 -> 5`, print fallback,
+  disabled flag, no page overflow and clean console;
+- independent entry `218,278 B` raw / `66,521 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full twenty-four-scenario lab `536,188 B / 122,764 B` under its development-only
-  `537,000 B / 126,000 B` budget;
-- shared lab CSS `28,699 B / 5,207 B` under its development-only
-  `28,900 B / 5,250 B` budget.
+- full aggregate lab `541,827 B / 123,755 B` under its development-only
+  `542,000 B / 126,000 B` budget;
+- shared lab CSS `29,369 B / 5,268 B` under its development-only
+  `29,700 B / 5,350 B` budget.
 
 Production-shell QA proves default legacy, explicit session-only read access,
 three lanes and one PostgreSQL-backed task card on both renderers, read-only
 assignment fallback, owner-backed focus `Все -> empty Незакрытые -> Все`, then
-one write-evaluation assignment and canonical read-back. The test intercepts
-exactly one Shift Execution write, leaves the 0600 fixture unchanged and keeps a
-clean console. First commit is `26.50 ms`; the production bundle is `208,190 B`
-raw / `65,231 B` gzip / `56,256 B` Brotli. Pilot remains unchanged.
+one write-evaluation assignment and one completed fact with canonical read-back.
+The test intercepts exactly one assignment write and one fact write, leaves the
+0600 fixture unchanged and keeps a clean console. Current first commit is `27.40 ms`;
+the production bundle is `211,825 B` raw / `66,204 B` gzip / `57,004 B` Brotli.
+Pilot remains unchanged.
 
 ## Legacy lifecycle baseline restored
 
