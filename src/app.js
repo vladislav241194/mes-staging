@@ -1942,7 +1942,7 @@ function renderFatalStartupError(error) {
       <section class="startup-error-card">
         <header class="startup-error-head">
           <div class="startup-error-logo-row">
-            <span class="startup-error-logo">M</span>
+            <span class="startup-error-logo"><img src="./favicon.svg" alt="" aria-hidden="true" /></span>
             <div>
               <strong>MES</strong>
               <small>${escapeHtml(APP_VERSION)}</small>

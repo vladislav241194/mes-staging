@@ -215,9 +215,13 @@ function renderAdminLoginPage({ error = "", username = "" } = {}) {
         border-radius: 10px;
         background: linear-gradient(135deg, var(--admin-blue), #1e40af);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
-        font-size: 12px;
-        font-weight: 900;
-        letter-spacing: 0;
+        overflow: hidden;
+      }
+      .brand-mark img {
+        display: block;
+        width: 34px;
+        height: 34px;
+        object-fit: contain;
       }
       .brand strong {
         display: block;
@@ -329,7 +333,7 @@ function renderAdminLoginPage({ error = "", username = "" } = {}) {
   <body>
     <main>
       <section class="brand" aria-label="MES Admin">
-        <span class="brand-mark">MES</span>
+        <span class="brand-mark"><img src="/favicon.svg" alt="" aria-hidden="true" /></span>
         <span>
           <strong>MES Admin</strong>
           <span>Управление контурами и безопасными обновлениями</span>

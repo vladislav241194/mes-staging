@@ -11,6 +11,11 @@ const outputPath = join(projectRoot, "src", "icons", "registry.js");
 
 const runtimeRegistry = JSON.parse(await readFile(join(sourceRoot, "mappings", "runtime-mixed-registry.json"), "utf-8"));
 const mixedManifest = JSON.parse(await readFile(join(sourceRoot, "reports", "mixed-icon-manifest.json"), "utf-8"));
+const brandLogoSvg = normalizeSvg(
+  (await readFile(join(projectRoot, "favicon.svg"), "utf-8"))
+    .replaceAll('fill="#fff"', 'fill="currentColor"')
+    .replaceAll('fill="#ffffff"', 'fill="currentColor"'),
+);
 
 const LEGACY_ALIASES = {
   arrowLeft: "arrow-left",
@@ -79,6 +84,7 @@ const SOURCE_LABELS = {
   "custom-svg": "Custom MES SVG",
   "lucide-react": "Lucide React",
   "local-fallback-svg": "Local fallback SVG",
+  "brand-asset": "MES brand asset",
   "virtual-custom": "Virtual custom placeholder",
 };
 
@@ -90,8 +96,8 @@ function normalizeSvg(svg) {
   return String(svg || "")
     .replace(/\r\n/g, "\n")
     .replace(/\s+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, "")
-    .replace(/\s+width="24"/, "")
-    .replace(/\s+height="24"/, "")
+    .replace(/\s+width="[^"]*"/, "")
+    .replace(/\s+height="[^"]*"/, "")
     .replace(/\s+class="lucide[^"]*"/, "")
     .replace(/\s+aria-hidden="true"/, "")
     .replace(/\s+focusable="false"/, "")
@@ -113,8 +119,8 @@ function renderLucideSvg(componentName) {
   })));
 }
 
-function renderVirtualCustomSvg(label = "M") {
-  const safeLabel = String(label || "M").slice(0, 2).replace(/[<>&"]/g, "");
+function renderMissingIconSvg(label = "?") {
+  const safeLabel = String(label || "?").slice(0, 2).replace(/[<>&"]/g, "");
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"></rect><text x="12" y="15.2" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">${safeLabel}</text></svg>`;
 }
 
@@ -165,27 +171,27 @@ for (const [semanticSlug, componentName] of Object.entries(runtimeRegistry.openS
     ? componentName
     : LUCIDE_COMPONENT_FALLBACKS[componentName] || componentName;
   const svg = componentName === "Custom"
-    ? renderVirtualCustomSvg(semanticSlug === "favicon" ? "M" : "M")
+    ? brandLogoSvg
     : renderLucideSvg(componentName);
 
   if (!svg) lucideMissing.push(`${semanticSlug}:${componentName}`);
 
-  svgBySlug[semanticSlug] = svg || renderVirtualCustomSvg("?");
+  svgBySlug[semanticSlug] = svg || renderMissingIconSvg();
   entries.push({
     semanticSlug,
     iconName: semanticSlug,
     title: manifest.displayNameRu || slugToTitle(semanticSlug),
     group: manifest.groupRu || "System Lucide Icons",
     status: componentName === "Custom" ? "compatibility" : "approved",
-    source: componentName === "Custom" ? "virtual-custom" : "lucide-react",
-    sourceLabel: componentName === "Custom" ? SOURCE_LABELS["virtual-custom"] : SOURCE_LABELS["lucide-react"],
+    source: componentName === "Custom" ? "brand-asset" : "lucide-react",
+    sourceLabel: componentName === "Custom" ? SOURCE_LABELS["brand-asset"] : SOURCE_LABELS["lucide-react"],
     lucideComponent: resolvedLucideComponent,
     requestedLucideComponent: componentName,
     referenceAsset: "",
     runtimeIds: runtimeIdsBySlug.get(semanticSlug) || [],
     usage: "System UI icon",
     note: componentName === "Custom"
-      ? "Registry placeholder for non-icon app brand symbols; not a production MES entity icon."
+      ? "Current MES brand asset; kept outside the production action-icon set."
       : resolvedLucideComponent === componentName
         ? "Official Lucide React component rendered into the vanilla runtime registry."
         : `Archive mapping requested ${componentName}; lucide-react package does not export it, so official Lucide ${resolvedLucideComponent} is used as a review fallback.`,
@@ -317,7 +323,7 @@ export function getMesIconSummary() {
   const fallbackCount = entries.filter((entry) => entry.source === "local-fallback-svg").length;
   const readyCount = entries.filter((entry) => entry.status === "approved").length;
   const reviewCount = entries.filter((entry) => entry.status === "needs-review").length;
-  const appliedCount = entries.filter((entry) => entry.source === "custom-svg" || entry.source === "lucide-react" || entry.source === "local-fallback-svg").length;
+  const appliedCount = entries.filter((entry) => entry.source === "custom-svg" || entry.source === "lucide-react" || entry.source === "local-fallback-svg" || entry.source === "brand-asset").length;
   return {
     semanticCount: entries.length,
     uniqueSvgCount: new Set(entries.map((entry) => MES_ICON_SVG_BY_SLUG[entry.semanticSlug])).size,

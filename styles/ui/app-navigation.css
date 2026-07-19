@@ -43,20 +43,20 @@
   }
 
   main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand::before{
+    display: none;
+    content: none;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand-logo{
     grid-column: 1;
     grid-row: 1 / span 2;
-    display: grid;
-    place-items: center;
+    align-self: center;
+    justify-self: center;
+    display: block;
     width: 30px;
     height: 30px;
-    border: 1px solid var(--mes-ui-sidebar-line);
-    border-radius: var(--mes-ui-radius-xs);
-    background: var(--mes-ui-sidebar-surface);
-    color: var(--mes-ui-text-inverse);
-    content: "MES";
-    font-size: 8px;
-    font-weight: 800;
-    letter-spacing: -0.25px;
+    border: 0;
+    object-fit: contain;
   }
 
   main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand strong,

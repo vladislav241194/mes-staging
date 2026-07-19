@@ -2143,6 +2143,7 @@ function renderModuleMenu() {
   return `
     <nav class="module-menu" data-layout="sidebar" aria-label="Основное меню">
       <div class="module-menu-brand">
+        <img class="module-menu-brand-logo" src="./favicon.svg" alt="" aria-hidden="true" />
         <strong>MES Pilot</strong>
         <span>Пилотный контур для проверки изменений</span>
       </div>

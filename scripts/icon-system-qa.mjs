@@ -37,7 +37,7 @@ const counts = MES_ICON_ENTRIES.reduce((acc, entry) => {
 
 assert(counts["custom-svg"] === 47, `Expected 47 custom-svg entries, received ${counts["custom-svg"] || 0}`);
 assert(counts["lucide-react"] === 79, `Expected 79 rendered lucide-react entries, received ${counts["lucide-react"] || 0}`);
-assert(counts["virtual-custom"] === 2, `Expected 2 virtual custom brand placeholders, received ${counts["virtual-custom"] || 0}`);
+assert(counts["brand-asset"] === 2, `Expected 2 MES brand assets, received ${counts["brand-asset"] || 0}`);
 assert(counts["local-fallback-svg"] === 1, `Expected 1 local fallback entry, received ${counts["local-fallback-svg"] || 0}`);
 
 for (const entry of MES_ICON_ENTRIES) {
