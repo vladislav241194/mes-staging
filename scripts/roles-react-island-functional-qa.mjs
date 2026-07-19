@@ -169,6 +169,11 @@ async function main() {
     ), { message: "Roles React island did not render the PostgreSQL-hydrated payload", timeoutMs: 15_000 });
     const initial = await evaluate(client, () => {
       const target = document.querySelector("[data-react-roles-island]");
+      const layout = getComputedStyle(target.querySelector(".module-layout"));
+      const sidebar = getComputedStyle(target.querySelector(".module-sidebar"));
+      const panel = getComputedStyle(target.querySelector(".panel"));
+      const metrics = getComputedStyle(target.querySelector(".metric-grid"));
+      const token = getComputedStyle(target.querySelector(".status"));
       return {
         roles: document.querySelectorAll('[data-ui-component="SidebarItem"]').length,
         modules: document.querySelectorAll(".roles-grant-table tbody tr").length,
@@ -177,6 +182,12 @@ async function main() {
         revision: target?.getAttribute("data-react-island-revision"),
         commitMs: Number(target?.getAttribute("data-react-island-commit-ms")),
         pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        layoutDisplay: layout.display,
+        layoutColumns: layout.gridTemplateColumns.split(" ").length,
+        sidebarMinHeight: Number.parseFloat(sidebar.minHeight),
+        panelRadius: Number.parseFloat(panel.borderRadius),
+        metricsDisplay: metrics.display,
+        tokenBackground: token.backgroundColor,
       };
     });
     assert(initial.roles >= 3 && initial.modules > 0, "canonical roles and module definitions must render");
@@ -184,6 +195,7 @@ async function main() {
     assert(initial.writeDisabled && initial.revision === "1", "production island must remain read-only and report its first commit");
     assert(Number.isFinite(initial.commitMs) && initial.commitMs >= 0 && initial.commitMs < 2000, `first Roles commit must stay below 2000 ms, got ${initial.commitMs}`);
     assert(!initial.pageOverflow, "Roles island must not create page-level overflow");
+    assert(initial.layoutDisplay === "grid" && initial.layoutColumns === 2 && initial.sidebarMinHeight >= 600 && initial.panelRadius >= 16 && initial.metricsDisplay === "grid" && initial.tokenBackground !== "rgba(0, 0, 0, 0)", `Roles production UI contract failed: ${JSON.stringify(initial)}`);
 
     const grantsBefore = JSON.stringify(apiDomains.registries.grants);
     const assignmentsBefore = JSON.stringify(apiDomains.registries.roleAssignments);
