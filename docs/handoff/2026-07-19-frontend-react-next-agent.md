@@ -307,3 +307,29 @@ actions/console, затем немедленно деактивировать и
   содержит старый text mark. Все `49/49` опубликованных React flags остаются
   `false`, поэтому legacy rollback/default path сохранён; Pilot writes и Ops не
   выполнялись.
+
+## Продолжение: Gantt command proof и sidebar Pilot identity
+
+- Local-only Gantt write evaluation завершает один typed `reschedule-slot`
+  через существующий revision-checked `changeSlotSchedule` owner. Host повторно
+  проверяет PostgreSQL projection, RBAC, slot/route/operation binding, lock и
+  дату; Pilot write gate не добавлен. Production-shell QA доказывает locked и
+  invalid fail-closed, conflict/retry, один revision advance, сохранение
+  длительности и legacy geometry read-back. Checkpoint `ac310be` опубликован;
+  default Pilot path остаётся legacy.
+- Sidebar больше не использует contour favicon с красной подложкой: он напрямую
+  загружает `assets/brand/mes_logo_high_quality.svg`. Подписи сокращены до
+  `Pilot` и динамического `APP_VERSION`; desktop знак увеличен до `40 x 40 px`,
+  padding brand-блока убран без увеличения его итоговой высоты и без
+  горизонтального overflow. Favicon вкладки сохраняет contour-маркер.
+- Версия поднята до `v.1.500.03`; checkpoint `190fdf8` опубликован. Прошли
+  syntax, build, `qa:brand-logo`, 26-module browser smoke и отдельная локальная
+  geometry/screenshot проверка (`40 x 40`, padding `0`, source canonical SVG).
+- Staged release `v.1.500.03-190fdf8` собран с `fresh-upstream-fetch`, manifest
+  проверен и релиз активирован штатным health/rollback guard. Live service
+  `active`, `/srv/mes/pilot/app` указывает на новый immutable release; rollback
+  target сохранён как `/srv/mes/pilot/releases/v.1.500.02-05bd646/app`.
+- Authenticated live UI показывает `Pilot` / `v.1.500.03`, загруженный
+  прозрачный SVG `40 x 40`, padding `0`, zero horizontal overflow и обычный
+  legacy Gantt; React targets на проверенном пути `0`. Ни Pilot data write, ни
+  Ops-команда не выполнялись.
