@@ -473,3 +473,14 @@ application asset with a clean console while both React flags remained
 installing the required systemd drop-in, so the remaining experimental-
 permission step is a narrow external root handoff rather than a frontend code
 blocker. Release `.71` is the immediate rollback target.
+
+## Prepared all-flags-off release candidate
+
+Visible version `v.1.499.73` is prepared on the frontend migration branch with
+every React feature and evaluation flag still disabled by default. Full
+`qa:stabilize` passes. Two consecutive local production builds produced the
+same release-tree digest
+`39ea1956930450f9b0385a9aa93ecb9fc576fd4d0b02b19d9e2b1bdc72d6db8d`
+using the release procedure's compatibility-artifact exclusions. This is not a
+staged or active Pilot release: no external state changed, and staging plus
+activation still require explicit authorization.

@@ -57,5 +57,16 @@ checksummed release procedure with all React flags off first.
 ## Current decision
 
 Local source, browser and stabilization gates are green, but authenticated
-candidate acceptance is still missing. No deploy, version bump, rollout flag,
-real record or Pilot data was changed during this checkpoint.
+candidate acceptance is still missing. The next visible version is prepared as
+`v.1.499.73`; all React flags remain disabled by default. The complete
+`qa:stabilize` gate passes, including release provenance, rollback and
+activation diagnostics, and two consecutive production builds have the same
+release-tree digest
+`39ea1956930450f9b0385a9aa93ecb9fc576fd4d0b02b19d9e2b1bdc72d6db8d`
+when the operational bootstrap artifact paths are excluded exactly as in the
+release procedure.
+
+This is only a clean local release candidate. No server staging, activation,
+rollout flag, real record or Pilot data was changed. The immutable manifest and
+server-side checksums can only be created by the established staging command
+after explicit deployment authorization.
