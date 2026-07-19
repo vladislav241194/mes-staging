@@ -197,6 +197,27 @@ async function main() {
     assert(!initial.pageOverflow, "Roles island must not create page-level overflow");
     assert(initial.layoutDisplay === "grid" && initial.layoutColumns === 2 && initial.sidebarMinHeight >= 600 && initial.panelRadius >= 16 && initial.metricsDisplay === "grid" && initial.tokenBackground !== "rgba(0, 0, 0, 0)", `Roles production UI contract failed: ${JSON.stringify(initial)}`);
 
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 487, height: 844, deviceScaleFactor: 1, mobile: false });
+    const compact = await evaluate(client, () => {
+      const target = document.querySelector("[data-react-roles-island]");
+      const layout = getComputedStyle(target.querySelector(".module-layout"));
+      const workspace = getComputedStyle(target.querySelector(".workspace"));
+      const sidebar = getComputedStyle(target.querySelector(".module-sidebar"));
+      const metrics = getComputedStyle(target.querySelector(".metric-grid"));
+      const tableWrap = target.querySelector(".roles-grant-table")?.parentElement;
+      return {
+        layoutColumns: layout.gridTemplateColumns.split(" ").length,
+        workspaceColumns: workspace.gridTemplateColumns.split(" ").length,
+        sidebarColumns: sidebar.gridTemplateColumns.split(" ").length,
+        sidebarMinHeight: Number.parseFloat(sidebar.minHeight),
+        metricColumns: metrics.gridTemplateColumns.split(" ").length,
+        pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth,
+      };
+    });
+    assert(compact.layoutColumns === 1 && compact.workspaceColumns === 1 && compact.sidebarColumns === 2 && compact.sidebarMinHeight === 0 && compact.metricColumns === 2 && !compact.pageOverflow && compact.tableScroll, `Roles compact UI contract failed: ${JSON.stringify(compact)}`);
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+
     const grantsBefore = JSON.stringify(apiDomains.registries.grants);
     const assignmentsBefore = JSON.stringify(apiDomains.registries.roleAssignments);
     const adminBefore = structuredClone(apiDomains.registries.accessRoles.find((role) => role.id === "admin"));
@@ -236,7 +257,7 @@ async function main() {
     console.log("- server-enabled default without session request: legacy");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- metadata save, conflict retry, protected registries, hidden field and legacy read-back: pass");
-    console.log("- unchanged compatibility snapshot and clean console: pass");
+    console.log("- production and compact UI contracts, unchanged compatibility snapshot and clean console: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     throw error;

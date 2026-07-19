@@ -254,6 +254,15 @@
   [data-react-directory-statuses-island].mes-react-nomenclature-island .filter { min-width: 0; margin: 0; }
   [data-react-directory-statuses-island].mes-react-nomenclature-island .panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 14px; }
   [data-react-directory-statuses-island].mes-react-nomenclature-island .detail { padding: 14px; }
+  [data-react-roles-island].mes-react-roles-island .module-page { min-height: 0; padding: 14px; }
+  [data-react-roles-island].mes-react-roles-island .module-header { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+  [data-react-roles-island].mes-react-roles-island .module-layout { grid-template-columns: minmax(0, 1fr); }
+  [data-react-roles-island].mes-react-roles-island .module-sidebar { display: grid; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 12px; }
+  [data-react-roles-island].mes-react-roles-island .module-sidebar > strong { grid-column: 1 / -1; margin-bottom: 6px; }
+  [data-react-roles-island].mes-react-roles-island .filter { min-width: 0; margin: 0; }
+  [data-react-roles-island].mes-react-roles-island .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-react-roles-island].mes-react-roles-island .panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 14px; }
+  [data-react-roles-island].mes-react-roles-island .detail { padding: 14px; }
 }
 
 @media (max-width: 1180px) {
