@@ -632,3 +632,19 @@ panels. Health and all four PostgreSQL readiness domains remained green.
 Deactivation was verified with zero React targets and all three legacy lanes;
 every current session is back on legacy. Manual lane movement and any default-on
 decision remain separate future scopes.
+
+## Shift Work Orders Pilot checkpoint
+
+Release `v.1.499.79-b987e90` is active on Pilot from exact upstream commit
+`b987e90`. The preceding `.78` evaluation was rejected because the React
+actions rendered as native browser buttons; its permission was removed without
+writes. `.79` adds only a scoped action contract and a computed production
+visual gate.
+
+The accepted React journal matched the existing `2026-07-16` legacy scope:
+one work order, one operation, one assignment and eight columns. It reached
+revision `1` in `503.90 ms`, preserved the actual `61 / 1 / 0 / 60` quantities,
+master/executor and `До -> Сейчас -> После` transfer, and opened both the SZN
+and complete work-order package previews without invoking print. No command or
+data write occurred. The evaluation drop-in is removed; zero React targets and
+the same one-row legacy journal were verified after deactivation.

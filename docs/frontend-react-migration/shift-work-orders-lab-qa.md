@@ -1,7 +1,7 @@
 # Shift Work Orders React migration QA
 
 Date: 2026-07-19
-Status: production-integrated read-only island with local attachment and print/package previews; disabled by default; Pilot rollout candidate prepared
+Status: production-integrated and Pilot-accepted read-only island with attachment and print/package previews; disabled by default
 
 ## Vertical scenario
 
@@ -61,3 +61,11 @@ Root-only activation and deactivation artifacts now own an isolated
 `78-react-shift-work-orders-evaluation.conf` systemd drop-in. Both procedures
 fail closed, verify health plus the exact two public runtime values and restore
 the prior configuration after a failed transition. Write evaluation is absent.
+
+Pilot acceptance completed on immutable release `v.1.499.79-b987e90`. The
+actual one-order/one-operation/one-assignment journal reached revision `1` in
+`503.90 ms`; the SZN and package previews opened without invoking print. A
+previous `.78` evaluation was rejected because its actions were still native
+browser buttons. `.79` added the scoped action contract, passed the live visual
+gate, then returned to legacy with zero React targets and the same assignment.
+No Pilot data was written.

@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 Candidate branch: `codex/frontend-react-migration`
-Current released commit: `c97b5a9`
+Current released commit: `b987e90`
 
 ## Read-only live evidence
 
@@ -436,3 +436,41 @@ evaluation query mounted zero React targets and restored all three legacy
 lanes. The service remained active and healthy on `.77`; every session now uses
 legacy Shift Master Board. Default-on activation and manual lane movement are
 separate future checkpoints.
+
+## Shift Work Orders read-only Pilot evaluation
+
+Release `v.1.499.78-83b3976` first added a five-column React transfer matching
+the existing MES `До -> Сейчас -> После` contract, two connector slots, a
+computed-style production gate and fail-closed root rollout controls. Its live
+data, tree and transfer rendered correctly, but the three React actions still
+appeared as unstyled native buttons. The evaluation was rejected and disabled
+without invoking a command or changing data.
+
+Release `v.1.499.79-b987e90` from exact commit
+`b987e90a684615bc544b6a9063ddad070d8a227e` added the missing scoped action
+contract. Its manifest records source digest
+`07c6619d396254c3ba90b3411eda981063fe5dc4c2c8e5ea41c9e8438d05cb4e`
+and dist digest
+`b0501e6f684f0ec13baf2c392ea6efbdb71156c6fb5085346d9fbf3a614a3732`.
+
+Accepted live evidence on the existing `2026-07-16` shift scope:
+
+- public health returned `ok`, version `v.1.499.79`, and all four PostgreSQL
+  readiness domains passed;
+- legacy and React both exposed one work order, one operation, one assignment
+  and the same eight journal columns;
+- the React island reached `ready`, revision `1`, with first commit
+  `503.90 ms`;
+- the selected SZN preserved plan `61`, assigned `1`, fact `0`, remainder `60`,
+  master, executor and typed `До / Сейчас / После` transfer;
+- primary and secondary actions rendered through the scoped MES action
+  contract rather than native browser buttons;
+- both the SZN preview and the complete work-order package opened inside React,
+  including the actual executor and physical-transfer tables; `Печать / PDF`
+  was not invoked;
+- no assignment, fact, report or other Pilot write was issued.
+
+The evaluation drop-in was removed after acceptance. A reload retaining all
+three evaluation query parameters mounted zero React targets and restored the
+legacy journal with its one assignment row. Pilot remains healthy on `.79` and
+all sessions currently use legacy Shift Work Orders.

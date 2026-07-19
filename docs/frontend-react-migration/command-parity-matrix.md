@@ -20,6 +20,9 @@ including the deviation-note interaction and same-data legacy rollback.
 Shift Master Board read-only acceptance now also covers the current three-lane,
 two-card scope, date/master controls, KPI, task passport and typed physical
 transfer on immutable release `.77`; evaluation was disabled after acceptance.
+Shift Work Orders read-only acceptance covers the current one-document tree,
+selected SZN passport, typed transfer and both lazy print previews on `.79`;
+evaluation was likewise disabled and legacy restored.
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations, Nomenclature Types, user-managed Statuses and board
@@ -100,7 +103,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
-| 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Current next scope: separately gated Pilot read-only acceptance of the three React-owned presentation paths |
+| 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy; Pilot read accepted | Critical | Keep default-off; assignment/fact remain separate command scopes owned by Workshop and Employee Desktop |
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners | Critical | Separately gated Pilot acceptance of the complete worker task flow before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
