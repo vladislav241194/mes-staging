@@ -428,6 +428,22 @@ await writeFile(
   directoryComponentTypesReactIslandHostSource.replaceAll(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion),
 );
 
+const directoryOperationsReactIslandOutput = join(stagingDistDir, "src", "react-islands", "operations.js");
+await bundleReactMigrationIsland(
+  join(projectRoot, "experiments", "react-migration", "src", "operations-island.tsx"),
+  directoryOperationsReactIslandOutput,
+);
+const directoryOperationsReactIslandVersion = await fileHash(directoryOperationsReactIslandOutput);
+const directoryOperationsReactIslandHostSource = await readFile(directoryComponentTypesReactIslandHostPath, "utf8");
+const directoryOperationsReactIslandVersionMarker = "__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__";
+if (!directoryOperationsReactIslandHostSource.includes(directoryOperationsReactIslandVersionMarker)) {
+  throw new Error("Cannot find Directory Operations React island bundle version marker");
+}
+await writeFile(
+  directoryComponentTypesReactIslandHostPath,
+  directoryOperationsReactIslandHostSource.replaceAll(directoryOperationsReactIslandVersionMarker, directoryOperationsReactIslandVersion),
+);
+
 // The token is intentionally calculated before esbuild emits dynamic chunks.
 // Deriving it from output chunk names creates a circular hash graph and makes
 // identical source produce different cache URLs on consecutive builds.
@@ -517,5 +533,6 @@ console.log(`- src/react-islands/boards.js?v=${boardsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-employees.js?v=${structureEmployeesReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
+console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

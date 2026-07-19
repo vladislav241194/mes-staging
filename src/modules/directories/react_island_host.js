@@ -1,44 +1,74 @@
 import { createReactIslandHost } from "../react_island_host.js";
 
-const DIRECTORY_COMPONENT_TYPES_REACT_TARGET = "[data-react-directory-component-types-island]";
-const DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
+const COMPONENT_TYPES_VERSION = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
+const OPERATIONS_VERSION = "__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__";
 
-export function createDirectoryComponentTypesReactIslandHost({
+function createDirectoryReadIslandHost({
+  bundleName,
+  bundleVersion,
+  className,
   getActivation,
   getPayload,
   getTargetRoot,
+  mountExport,
+  reportError,
   requestLegacyRender,
-  reportError = (error) => console.error("[MES] Directory Component Types React island failed", error),
-} = {}) {
+  scope,
+  targetAttribute,
+}) {
+  const targetSelector = `[${targetAttribute}]`;
   return createReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
     requestLegacyRender,
     reportError,
-    targetSelector: DIRECTORY_COMPONENT_TYPES_REACT_TARGET,
-    renderTarget: '<div class="mes-react-directory-component-types-island" data-react-directory-component-types-island data-react-island-state="loading" aria-live="polite"></div>',
+    targetSelector,
+    renderTarget: `<div class="${className}" ${targetAttribute} data-react-island-state="loading" aria-live="polite"></div>`,
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
-      if (activation.activeSection !== "componentTypes") return "unsupported-scope";
+      if (activation.activeSection !== scope) return "unsupported-scope";
       if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
-      const islandUrl = new URL("./react-islands/component-types.js", import.meta.url);
+      const islandUrl = new URL(`./react-islands/${bundleName}.js`, import.meta.url);
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
-      const bundleVersion = DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION.startsWith("__MES_")
-        ? deployVersion
-        : DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION;
-      islandUrl.searchParams.set("v", bundleVersion);
+      islandUrl.searchParams.set("v", bundleVersion.startsWith("__MES_") ? deployVersion : bundleVersion);
       return import(islandUrl.href);
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => (
-      loadedIsland.mountComponentTypesReactIsland(target, payload, {
+      loadedIsland[mountExport](target, payload, {
         onError,
         onReady,
-        onRequestLegacy: () => onRequestLegacy("operations"),
+        onRequestLegacy: () => onRequestLegacy("nomenclatureTypes"),
       })
     ),
+  });
+}
+
+export function createDirectoryComponentTypesReactIslandHost(options = {}) {
+  return createDirectoryReadIslandHost({
+    ...options,
+    bundleName: "component-types",
+    bundleVersion: COMPONENT_TYPES_VERSION,
+    className: "mes-react-directory-component-types-island",
+    mountExport: "mountComponentTypesReactIsland",
+    reportError: options.reportError || ((error) => console.error("[MES] Directory Component Types React island failed", error)),
+    scope: "componentTypes",
+    targetAttribute: "data-react-directory-component-types-island",
+  });
+}
+
+export function createDirectoryOperationsReactIslandHost(options = {}) {
+  return createDirectoryReadIslandHost({
+    ...options,
+    bundleName: "operations",
+    bundleVersion: OPERATIONS_VERSION,
+    className: "mes-react-directory-operations-island",
+    mountExport: "mountOperationsReactIsland",
+    reportError: options.reportError || ((error) => console.error("[MES] Directory Operations React island failed", error)),
+    scope: "operations",
+    targetAttribute: "data-react-directory-operations-island",
   });
 }

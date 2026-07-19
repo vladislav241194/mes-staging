@@ -49,6 +49,11 @@ section, and a per-session evaluation request. Choosing “Все справоч
 other section, or editor access restores or retains the legacy Directories
 runtime and its commands.
 
+`mountOperationsReactIsland(...)` uses the same directory host contract but a
+separate bundle, scope, flags, and typed adapter. The host supplies operations
+in existing runtime order with user-facing work-center labels already resolved
+by production MES logic. React does not own work-center aliasing or routing.
+
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
 the read-only Boards/BOM scenario. Its production host requires a separate
 false-by-default feature permission, read-only permission, session request and

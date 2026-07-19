@@ -5,15 +5,16 @@ import { boardsFixture, boardsUpdateFixture } from "./modules/boards/fixture";
 import { nomenclatureFixture, nomenclatureUpdateFixture } from "./modules/nomenclature/fixture";
 import { structureEmployeesFixture, structureEmployeesUpdateFixture } from "./modules/structure-employees/fixture";
 import { rolesFixture, rolesUpdateFixture } from "./modules/roles/fixture";
+import { operationsFixture, operationsUpdateFixture } from "./modules/operations/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
 
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) throw new Error("React migration lab root is missing");
 const searchParams = new URL(window.location.href).searchParams;
 const scenarioParam = searchParams.get("scenario");
-const scenario: ReactMigrationScenarioId = scenarioParam === "component-types" ? "componentTypes" : scenarioParam === "boards" ? "boards" : scenarioParam === "structure-employees" ? "structureEmployees" : scenarioParam === "roles" ? "roles" : "nomenclature";
-const initialPayload = scenario === "componentTypes" ? componentTypesFixture : scenario === "boards" ? boardsFixture : scenario === "structureEmployees" ? structureEmployeesFixture : scenario === "roles" ? rolesFixture : nomenclatureFixture;
-const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : scenario === "boards" ? boardsUpdateFixture : scenario === "structureEmployees" ? structureEmployeesUpdateFixture : scenario === "roles" ? rolesUpdateFixture : nomenclatureUpdateFixture;
+const scenario: ReactMigrationScenarioId = scenarioParam === "component-types" ? "componentTypes" : scenarioParam === "boards" ? "boards" : scenarioParam === "structure-employees" ? "structureEmployees" : scenarioParam === "roles" ? "roles" : scenarioParam === "operations" ? "operations" : "nomenclature";
+const initialPayload = scenario === "componentTypes" ? componentTypesFixture : scenario === "boards" ? boardsFixture : scenario === "structureEmployees" ? structureEmployeesFixture : scenario === "roles" ? rolesFixture : scenario === "operations" ? operationsFixture : nomenclatureFixture;
+const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : scenario === "boards" ? boardsUpdateFixture : scenario === "structureEmployees" ? structureEmployeesUpdateFixture : scenario === "roles" ? rolesUpdateFixture : scenario === "operations" ? operationsUpdateFixture : nomenclatureUpdateFixture;
 const featureFlagEnabled = searchParams.get("react") !== "0";
 const accessMode = searchParams.get("access") === "editor" ? "editor" : "read-only-evaluation";
 const nomenclatureActivation = resolveNomenclatureActivation({

@@ -54,7 +54,7 @@ other directory sections and every edit-capable session remain legacy.
 Production-shell QA compares the same four-row runtime payload in legacy and
 React. All eight formatted cells and row order match, including Russian decimal
 format and the `комп./ч`, `сек`, and `шт.` units. Family filtering, selection,
-detail, return to legacy Operations, disabled React writes, unchanged state,
+detail, return to the full legacy directories list, disabled React writes, unchanged state,
 clean console, and a `< 25 ms` local first commit pass. The production artifact
 is `201,269 B` raw / `63,156 B` gzip / `54,455 B` Brotli.
 

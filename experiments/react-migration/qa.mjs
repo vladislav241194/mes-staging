@@ -592,6 +592,26 @@ try {
   assert.equal(componentTypesViewModel.formatDecimal(0.7), "0,7");
   assert.equal(componentTypesViewModel.formatDecimal(0.226), "0,23");
 
+  const operationsAdapterOutput = join(temporaryRoot, "operations-adapter.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/operations/adapter.ts")], outfile: operationsAdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { adaptOperations } = await import(`${pathToFileURL(operationsAdapterOutput).href}?qa=${Date.now()}`);
+  const operations = adaptOperations({ operations: [
+    { id: "op-b", name: "SMT-монтаж", code: "SMT-010", workCenterId: "D3", workCenterLabel: "SMT-монтаж", unitsPerHour: 55, status: "Активен" },
+    { id: "", name: "invalid" },
+    { id: "op-a", name: "Отмывка", workCenterId: "D3_UW", workCenterLabel: "Отмывка", unitsPerHour: -1, status: "Отключен" },
+  ] });
+  assert.deepEqual(operations.map((item) => [item.id, item.name, item.workCenterLabel, item.unitsPerHour, item.statusTone]), [
+    ["op-b", "SMT-монтаж", "SMT-монтаж", 55, "success"],
+    ["op-a", "Отмывка", "Отмывка", 0, "neutral"],
+  ]);
+  assert.deepEqual(adaptOperations({ operations: {} }), [], "invalid operations payload must fail closed");
+  const operationsViewModelOutput = join(temporaryRoot, "operations-view-model.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/operations/view-model.ts")], outfile: operationsViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const operationsViewModel = await import(`${pathToFileURL(operationsViewModelOutput).href}?qa=${Date.now()}`);
+  assert.deepEqual(operationsViewModel.buildOperationFilters(operations).map((entry) => [entry.label, entry.count]), [["Все операции", 2], ["SMT-монтаж", 1], ["Отмывка", 1]]);
+  assert.equal(operationsViewModel.filterOperations(operations, "Отмывка")[0]?.id, "op-a");
+  assert.equal(operationsViewModel.resolveVisibleOperation(operations, "missing")?.id, "op-b");
+
   const selectionOutput = join(temporaryRoot, "selection.mjs");
   await build({
     entryPoints: [join(sourceRoot, "ui/selection.ts")],
@@ -789,12 +809,17 @@ try {
   assert.match(componentTypesIslandSource, /export function mountComponentTypesReactIsland/);
   assert.match(componentTypesIslandSource, /onRequestLegacy/);
 
+  const operationsIslandSource = await readFile(join(sourceRoot, "operations-island.tsx"), "utf8");
+  assert.match(operationsIslandSource, /export function mountOperationsReactIsland/);
+  assert.match(operationsIslandSource, /onRequestLegacy/);
+
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
   assert.match(mainSource, /scenarioParam.*boards/);
   assert.match(mainSource, /scenarioParam.*structure-employees/);
   assert.match(mainSource, /scenarioParam.*roles/);
+  assert.match(mainSource, /scenarioParam.*operations/);
   assert.match(mainSource, /createReactIslandFeatureGate/);
   assert.match(mainSource, /featureGate\.update\(updatePayload\)/);
   assert.match(mainSource, /featureGate\.dispose\(\)/);
@@ -930,6 +955,30 @@ try {
   assert.deepEqual(eligibleDirectoryComponentTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleDirectoryComponentTypesHost.renderTarget(), /data-react-directory-component-types-island/);
 
+  const makeDirectoryOperationsHost = (activation) => directoryComponentTypesHostModule.createDirectoryOperationsReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeDirectoryOperationsHost({ featureFlagEnabled: false, activeSection: "operations", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "Directory Operations island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "unsupported-scope" },
+    "Operations React must not take over other directory sections",
+  );
+  assert.deepEqual(
+    makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "Operations editors must retain legacy commands",
+  );
+  const eligibleDirectoryOperationsHost = makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleDirectoryOperationsHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleDirectoryOperationsHost.renderTarget(), /data-react-directory-operations-island/);
+
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
@@ -971,8 +1020,17 @@ try {
   assert.match(productionAppSource, /params\.get\("react-directory-component-types"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types-readonly"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types-evaluation"\) !== "1"/);
-  assert.match(productionAppSource, /directoryComponentTypesReactIslandHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /const activeReactHost = useOperationsHost \? directoryOperationsReactIslandHost : directoryComponentTypesReactIslandHost/);
+  assert.match(productionAppSource, /inactiveReactHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /directoryComponentTypesReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS === true/);
+  assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-directory-operations"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-operations-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-operations-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /directoryOperationsReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /workCenterLabel: appEventsService\.formatDirectoryCell/);
   const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.js"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
@@ -987,7 +1045,8 @@ try {
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
   const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");
   assert.match(directoryComponentTypesHostSource, /createReactIslandHost/);
-  assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("operations"\)/);
+  assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("nomenclatureTypes"\)/);
+  assert.match(directoryComponentTypesHostSource, /createDirectoryOperationsReactIslandHost/);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
@@ -996,6 +1055,7 @@ try {
   assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
   assert.match(productionBuildSource, /react-islands", "roles\.js/);
   assert.match(productionBuildSource, /react-islands", "component-types\.js/);
+  assert.match(productionBuildSource, /react-islands", "operations\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
@@ -1003,6 +1063,7 @@ try {
   assert.match(productionBuildSource, /replaceAll\(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(rolesReactIslandVersionMarker, rolesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(directoryOperationsReactIslandVersionMarker, directoryOperationsReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
@@ -1015,6 +1076,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_OPERATIONS:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -1025,6 +1088,7 @@ try {
   assert.match(performanceBudget, /"boards"/);
   assert.match(performanceBudget, /"structureEmployees"/);
   assert.match(performanceBudget, /"componentTypes"/);
+  assert.match(performanceBudget, /"operations"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
@@ -1038,12 +1102,15 @@ try {
   assert.match(productionRolesIslandBundle, /mountRolesReactIsland/);
   const productionComponentTypesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/component-types.js"), "utf8");
   assert.match(productionComponentTypesBundle, /mountComponentTypesReactIsland/);
+  const productionOperationsBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/operations.js"), "utf8");
+  assert.match(productionOperationsBundle, /mountOperationsReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_ROLES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

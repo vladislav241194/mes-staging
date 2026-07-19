@@ -151,3 +151,11 @@ actual legacy directory renderer on the same payload and order. React preserves
 Russian number/unit formatting, family filtering, keyboard-capable selection,
 detail context, and an explicit return to the full legacy directories list.
 Create/edit/delete and every other directory section remain legacy.
+
+## Directories Operations production evidence
+
+Operations reuses page/header/sidebar/panel/table/row/detail/status primitives,
+but keeps its own three-column contract and work-center filter. The production
+runtime resolves organization semantics before the typed adapter. Browser QA
+compares the exact legacy and React cells/order and proves that switching back
+to the full legacy directories list cannot loop into another React island.

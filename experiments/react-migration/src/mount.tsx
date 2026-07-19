@@ -2,10 +2,11 @@ import { ComponentTypesScenario } from "./modules/component-types/ComponentTypes
 import { BoardsScenario } from "./modules/boards/BoardsScenario";
 import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenario";
 import { RolesScenario } from "./modules/roles/RolesScenario";
+import { OperationsScenario } from "./modules/operations/OperationsScenario";
 import { StructureEmployeesScenario } from "./modules/structure-employees/StructureEmployeesScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "roles";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "roles" | "operations";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(): void;
@@ -16,6 +17,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "roles") return <RolesScenario payload={payload} />;
+  if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   return <NomenclatureScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
 }
 
@@ -39,4 +41,5 @@ export { mountBoardsReactIsland } from "./boards-island";
 export { mountStructureEmployeesReactIsland } from "./structure-employees-island";
 export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
+export { mountOperationsReactIsland } from "./operations-island";
 export type { ReactMigrationIslandHandle, ReactMigrationIslandOptions, ReactMigrationIslandReadyEvent } from "./island-runtime";

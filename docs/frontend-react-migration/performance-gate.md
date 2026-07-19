@@ -20,7 +20,8 @@ Current minified measurements:
 | Structure Employees production island | 210,459 B | 64,768 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,857 B | 63,539 B | 225,000 B | 68,000 B |
-| Full five-scenario lab | 263,871 B | 75,519 B | 280,000 B | 85,000 B |
+| Operations independent entry | 203,364 B | 63,173 B | 225,000 B | 68,000 B |
+| Full six-scenario lab | 270,072 B | 76,284 B | 280,000 B | 85,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure
@@ -54,6 +55,10 @@ local QA contour; this is regression evidence, not Pilot acceptance.
 
 The bundled production Component Types island is `201,269 B` raw / `63,156 B`
 gzip / `54,455 B` Brotli. Its production-shell first commit measured below
+`25 ms` locally; this is regression evidence, not Pilot acceptance.
+
+The bundled production Operations island is `200,213 B` raw / `62,802 B`
+gzip / `54,111 B` Brotli. Its production-shell first commit measured below
 `25 ms` locally; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
