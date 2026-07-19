@@ -5,7 +5,7 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read and local-only create/edit vertical scenario:
+Read and local-only create/edit/archive vertical scenario:
 
 `open Structure and Employees -> Work Centers -> select a center -> inspect its passport`.
 
@@ -28,12 +28,18 @@ owner; Pilot remains read-only and default-off.
 - an indirect hierarchy cycle is rejected before PUT;
 - conflict-without-mutation, retry, hidden-field preservation and exact legacy
   read-back pass while the compatibility snapshot remains unchanged;
+- archive of a baseline center referenced by an active position, equipment or
+  employment assignment is rejected before PUT;
+- ID-bound confirmation cannot move to another selected row; the created leaf
+  is archived with `isActive=false` and a valid `archivedAt` while its cleared
+  parent, hidden marker, organization and Planning/Gantt flags are preserved;
+- legacy reads back the twentieth row as archived;
 - Planning/Gantt impact QA proves opt-out, restore, archive and new-center
   catalog behavior, plus stable employee/Shift IDs across rename;
-- latest local first commit was `141.10 ms`.
+- latest local first commit was `27.30 ms`.
 
-The independent production entry is `215,471 B` raw / `65,474 B` gzip. A
-separate read adapters keep the full lab at `502,398 B` raw / `116,007 B` gzip.
+The independent production entry is `216,718 B` raw / `65,617 B` gzip. Separate
+read adapters keep the full lab at `556,607 B` raw / `126,132 B` gzip.
 It remains false by default.
 
 ## Pilot acceptance

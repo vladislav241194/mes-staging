@@ -300,17 +300,20 @@ changing the disposable compatibility snapshot. Its independent artifact is
 `56,095 B` raw/gzip/Brotli. It has not been released or activated on Pilot.
 
 Structure Work Centers is now the eleventh production-integrated island with a
-local-only PostgreSQL create/edit evaluation gate. Production-shell QA proves
+local-only PostgreSQL create/edit/archive evaluation gate. Production-shell QA proves
 19/19 PostgreSQL rows, five cells and order,
 organization/parent references, selection/passport, seven registry links, six
 metrics, exact Equipment fallback, unchanged state and clean console. Employees,
 Positions and Org Units regressions remain exact. Command QA creates a twentieth
 row, rejects an indirect hierarchy cycle before PUT, preserves explicit
-Planning/Gantt flags, exercises conflict and retry, preserves hidden fields and
-reads the result through legacy. The runtime impact audit also repairs explicit
+Planning/Gantt flags, exercises conflict and retry, rejects archive of a
+referenced baseline center before PUT, enforces ID-bound confirmation, archives
+only the created leaf, preserves hidden/reference fields and reads the archived
+result through legacy. The runtime impact audit also repairs explicit
 parent-clear and false-flag fallback defects and proves stable employee/Shift
-references across rename. Its artifact is `215,471 B` raw / `65,474 B` gzip.
-Pilot write evaluation remains separate.
+references across rename. Its independent artifact is `216,718 B` / `65,617 B`;
+bundled production is `209,251 B` / `65,135 B` / `56,225 B`
+raw/gzip/Brotli. Reactivation and Pilot write evaluation remain separate.
 
 Structure Equipment is now the twelfth production-integrated island and has a
 local-only PostgreSQL create/edit/archive evaluation gate.
@@ -553,7 +556,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Nomenclature Types, Board metadata and custom Operations have local create/edit/delete evaluations, user-managed Statuses and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies have local create/edit evaluations, Positions, Org Units and Equipment additionally have explicit archive, Timesheet has local single-day attendance and permanent-schedule save/remove, Roles passport metadata/grant toggles/default scope and Employee Desktop task start have local owner- and RBAC-gated evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Nomenclature Types, Board metadata and custom Operations have local create/edit/delete evaluations, user-managed Statuses and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies have local create/edit evaluations, Positions, Org Units, Work Centers and Equipment additionally have explicit archive, Timesheet has local single-day attendance and permanent-schedule save/remove, Roles passport metadata/grant toggles/default scope and Employee Desktop task start have local owner- and RBAC-gated evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 20 of 24 scenarios, most recently the pre-PIN Authorization picker on `.500.01-1a8a9a4`. A live audit confirms Nomenclature `0`, Boards/BOM `0` and Responsibility Policies `0`, so their non-empty parity remains unclaimable. Contour Admin is the only measurable remaining projection. Its isolated read-only rollout (`91`) passes locally and release `v.1.500.01-16e0e86` is active/healthy with both flags still off. Root activation is pending because the deploy sudo policy permits restart/status but not installation into the root-owned systemd drop-in directory. No Ops or data write occurred.**
 7. Migrate commands one vertical scope at a time. **Nomenclature, Component
    Types and Nomenclature Types create/edit/delete are locally complete
@@ -578,9 +581,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    create/edit/archive is locally complete with parent-existence,
    indirect-cycle and active-reference rejection before mutation plus ID-bound
    confirmation; reactivation and Pilot write acceptance remain separate.
-   Structure Work Centers create/edit is locally complete with
-   organization, parent-hierarchy and explicit Planning/Gantt flag validation;
-   archive and Pilot write acceptance remain separate. Structure Equipment
+   Structure Work Centers create/edit/archive is locally complete with
+   organization, parent-hierarchy, active-reference rejection, ID-bound
+   confirmation and explicit Planning/Gantt flag validation; reactivation and
+   Pilot write acceptance remain separate. Structure Equipment
    create/edit/archive is locally complete with quantity, organization,
    work-center and schedule-reference validation plus explicit archive
    confirmation; Pilot write acceptance and scheduling commands remain

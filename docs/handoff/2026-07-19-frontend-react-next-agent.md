@@ -221,3 +221,21 @@ actions/console, затем немедленно деактивировать и
 - Размеры: independent `214582 / 65440 B`; bundled production
   `207704 / 64964 / 56095 B`; full lab `556607 / 126132 B`; first commit
   `16.40 ms`.
+
+## Продолжение: Structure Work Centers archive checkpoint
+
+- Work Centers получил typed archive с ID-bound подтверждением и existing
+  `archiveSystemDomainEntity("workCenters", ...)` owner. Host отклоняет target,
+  если на него ссылается активный child work center, position, equipment или
+  employment assignment, до PUT.
+- Production-shell QA сначала отклоняет архив referenced baseline center без
+  revision/write, затем архивирует только созданный leaf. Проверены
+  `isActive=false`, валидный `archivedAt`, сохранность hidden marker,
+  organization, очищенного parent и Planning/Gantt flags, а также архивный
+  legacy read-back. ID-bound подтверждение не переносится на другую строку;
+  `0600` compatibility snapshot остаётся byte-identical.
+- Pilot write не выполнялся. Reactivation не заявлена: generic upsert сохраняет
+  старый `archivedAt`, поэтому это отдельный owner-contract gap.
+- Размеры: independent `216718 / 65617 B`; bundled production
+  `209251 / 65135 / 56225 B`; full lab `556607 / 126132 B`; first commit
+  `27.30 ms`.

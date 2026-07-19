@@ -113,11 +113,15 @@ positions, equipment or employment assignments reference the target. The
 existing revision-checked System Domains owner remains authoritative.
 
 `mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table,
-passport and a local-only create/edit evaluation. Organization and parent-center
+passport and a local-only create/edit/archive evaluation. Organization and parent-center
 references are resolved at the typed boundary. The host validates reference
 existence and hierarchy cycles before delegating the revision-checked command;
 Planning participation and Gantt visibility remain explicit canonical fields.
-Archive and unsupported lifecycle commands remain legacy.
+Archive requires ID-bound second-step confirmation and delegates to the existing
+`archiveSystemDomainEntity` owner. The host rechecks the active target and rejects
+work centers referenced by active child centers, positions, equipment or
+employment assignments before PUT. Reactivation and unsupported lifecycle
+commands remain legacy.
 
 `mountStructureEquipmentReactIsland(...)` owns the Equipment read table,
 passport and a local-only create/edit/archive evaluation. Organization,
