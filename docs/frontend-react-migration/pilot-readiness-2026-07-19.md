@@ -2,7 +2,30 @@
 
 Date: 2026-07-19
 Candidate branch: `codex/frontend-react-migration`
-Current released commit: `bdf093c`
+Current released commit: `16e0e86`
+
+## Remaining-read live audit and Contour Admin candidate
+
+The current PostgreSQL/shared-state audit reports Nomenclature `0`, Boards/BOM
+`0` and Responsibility Policies `0`. Those three read checkpoints remain
+intentionally unclaimed because an empty-state smoke cannot prove non-empty
+React/legacy parity. Contour Admin is the only remaining scenario with a
+measurable current projection: three contours, five rollout scenarios and five
+speed rows.
+
+Release `v.1.500.01-16e0e86` from published commit `16e0e86` passed the
+Git-provenance check, stabilize suite, two matching builds, remote preflight and
+release verification, then activated with health `ok`. The isolated
+`91-react-contour-admin-evaluation.conf` rollout is present in the release but
+not installed. Both public Contour Admin flags are still `false`; the Admin
+login surface remains protected and no Ops action or data write occurred.
+
+The `deploy` account's passwordless sudo policy allows service restart/status
+only. `/etc/systemd/system/mes-pilot.service.d` is root-owned and not writable,
+so the guarded activation script correctly stops at the root boundary. The
+next live action is the root execution of
+`/srv/mes/pilot/app/ops/frontend/activate-react-contour-admin-evaluation.sh`,
+followed by authenticated read-only parity and immediate deactivation.
 
 ## Read-only live evidence
 

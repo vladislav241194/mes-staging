@@ -44,8 +44,8 @@ to an isolated local server and proves default legacy, three contours, five
 scenarios, five speed rows, scoped production CSS, a first commit below `20 ms`,
 read-only fallback, cancelled confirmation with zero calls, one exact mocked
 confirmed call, safe result rendering and a clean console. The production bundle
-is `203,825 B` raw / `63,608 B` gzip / `54,810 B` Brotli. No real Ops command,
-Admin deployment or Pilot change was performed.
+is `203,825 B` raw / `63,608 B` gzip / `54,810 B` Brotli. No real Ops command
+was performed.
 
 ## Pilot rollout preparation
 
@@ -61,3 +61,9 @@ health, both public read flags and the protected Admin login surface after
 restart, and restores the prior configuration on failure. It never enables or
 calls the protected Ops action endpoint. The rollout QA is part of
 `npm run qa:contour-admin-react-island`.
+
+Git-derived release `v.1.500.01-16e0e86` is active on Pilot with health `ok`.
+Both Contour Admin flags remain `false`, so every Admin session still uses
+legacy. The deploy account can restart/status the service but cannot install
+the root-owned `91-*` drop-in; activation therefore remains pending an actual
+root session. No Ops endpoint, shared data or PostgreSQL row was touched.
