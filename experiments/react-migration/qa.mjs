@@ -1463,6 +1463,8 @@ try {
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-org-units-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /structureOrgUnitsReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /source: "react:structure-org-units:reactivate"/, "Org Units reactivation must use the existing System Domains owner");
+  assert.match(productionAppSource, /authoritativeOrgUnit\.archivedAt/, "Org Units reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_WORK_CENTERS === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-work-centers-evaluation"\) !== "1"/);

@@ -48,8 +48,8 @@ Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner; Positions, Org Units, Work Centers and
-Equipment also have explicit archive, while Employees has explicit archive and
-reactivation.
+Equipment also have explicit archive, while Employees and Org Units have
+explicit archive and reactivation.
 Other reference-sensitive,
 lifecycle, import and other delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
@@ -119,7 +119,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 7 | Boards/BOM | Local complete: XLSX import, board metadata create/edit/delete, Nomenclature row add, all nine existing-row BOM cell edits and ID/table-bound row deletion with Specifications cleanup | Medium | Separately gated Pilot read-only evaluation, then a disposable XLSX/board full-lifecycle write with verified cleanup |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit/archive/reactivate with active-dependency rejection and ID-bound lifecycle confirmation | High | Separately gated Pilot lifecycle evaluation with a disposable unreferenced employee and verified cleanup |
 | 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
-| 10 | Structure Org Units | Local complete: create/edit/archive with hierarchy-cycle and active-reference rejection plus ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf unit; reactivation remains owner-gap |
+| 10 | Structure Org Units | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy-cycle, active-reference and active-parent guards | High | Separately gated Pilot lifecycle evaluation with a disposable leaf unit and verified cleanup |
 | 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive blocked by owner persistence gap | High | Define an owner/schema contract that persists lifecycle before archive or Pilot write evaluation |
 | 13 | Structure Work Centers | Local complete: create/edit/archive with organization, parent hierarchy, active-reference rejection and Planning/Gantt flags | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf work center; reactivation remains owner-gap |
@@ -228,14 +228,15 @@ before PUT and unchanged disposable compatibility state. The audit also
 fixed Structure active-host routing so a write-gated registry cannot disable
 legacy event binding while another host is selected.
 
-Structure Org Units adds hierarchy-safe PostgreSQL create/edit/archive. Its local-only
-editor saves name, code, type, parent and active state through the same
-revision-checked System Domains owner. Production-shell QA proves parent
+Structure Org Units adds hierarchy-safe PostgreSQL create/edit/archive/reactivate. Its local-only
+editor saves name, code, type and parent through the same revision-checked
+System Domains owner while lifecycle remains a separate command. Production-shell QA proves parent
 existence, rejects an indirect parent cycle and archive of a referenced parent
 before any PUT, preserves hidden/parent fields, exercises
 conflict-without-mutation plus retry, archives the leaf with
-`isActive=false`/`archivedAt`, returns the twentieth archived row through legacy
-and leaves the disposable compatibility snapshot unchanged. Pilot write
+`isActive=false`/`archivedAt`, then restores it with `isActive=true` and a
+cleared archive marker without changing its parent. The twentieth active row
+returns through legacy and the disposable compatibility snapshot remains unchanged. Pilot write
 acceptance is a separate controlled checkpoint.
 
 Structure Work Centers adds hierarchy-safe PostgreSQL create/edit/archive for name,

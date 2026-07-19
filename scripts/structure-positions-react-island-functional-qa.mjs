@@ -225,6 +225,7 @@ try {
     await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), parentOrgUnitId);
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать подразделение")?.click());
     await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor select[name="parentOrgUnitId"]')), { message: "parent org unit edit form did not open" });
+    assert(await evaluate(client, () => !document.querySelector('form.react-nomenclature-editor select[name="isActive"]')), "ordinary Org Unit save must not expose lifecycle state");
     await evaluate(client, (childId) => { const select = document.querySelector('select[name="parentOrgUnitId"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, childId); select.dispatchEvent(new Event("change", { bubbles: true })); document.querySelector('form.react-nomenclature-editor')?.requestSubmit(); }, created.id);
     await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("цикл"), { message: "org unit hierarchy cycle was not rejected" });
     assert(apiRevision === 2 && successfulWrites === 1 && putAttempts === 1, "cycle rejection must occur before PostgreSQL mutation");
@@ -269,12 +270,27 @@ try {
     const archived = apiDomains.registries.orgUnits.find((orgUnit) => orgUnit.id === created.id);
     assert(archived?.isActive === false && Number.isFinite(Date.parse(archived?.archivedAt || "")), "Org Unit archive owner did not persist inactive state and archivedAt");
     assert(archived?.serverOnlyMarker === "org-unit-hidden-field" && archived?.parentOrgUnitId === parentOrgUnitId, "Org Unit archive changed hidden or parent fields");
+
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Восстановить"), { message: "archived Org Unit reactivation action did not become available" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Восстановить")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить восстановление"), { message: "Org Unit reactivation confirmation was not explicit" });
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].find((row) => !row.textContent?.includes(id))?.click(), created.id);
+    assert(await evaluate(client, () => ![...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить восстановление")), "Org Unit reactivation confirmation must not follow another selected row");
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить восстановление"), { message: "Org Unit-specific reactivation confirmation was not retained" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить восстановление")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Участок PostgreSQL QA обновлён") && row.textContent?.includes("активно")), { message: "reactivated Org Unit did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 5 && successfulWrites === 4 && putAttempts === 5, "Org Unit reactivation must advance exactly one revision");
+    const reactivated = apiDomains.registries.orgUnits.find((orgUnit) => orgUnit.id === created.id);
+    assert(reactivated?.isActive === true && reactivated?.archivedAt === "", "Org Unit reactivation did not clear the lifecycle archive marker");
+    assert(reactivated?.serverOnlyMarker === "org-unit-hidden-field" && reactivated?.parentOrgUnitId === parentOrgUnitId, "Org Unit reactivation changed hidden or parent fields");
     assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "org unit commands must carry surface, If-Match and idempotency key");
 
     await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&qa-reload=org-units-legacy-readback` });
     await waitForCondition(client, () => /Подразделений\s*20/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Org Units", timeoutMs: 15_000 });
     await selectRegistry(client, "orgUnits");
-    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 20 && [...document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Участок PostgreSQL QA обновлён") && row.textContent?.includes("архив")), { message: "legacy Org Units did not read back the React archive" });
+    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 20 && [...document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Участок PostgreSQL QA обновлён") && row.textContent?.includes("активно")), { message: "legacy Org Units did not read back the React reactivation" });
   } else if (qaConfig.registryId === "workCenters") {
     primaryAuthorityReady = true;
     await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
@@ -461,7 +477,7 @@ try {
   console.log(`- same PostgreSQL payload: ${qaConfig.rowCount} legacy rows = ${qaConfig.rowCount} React rows; first commit ${initial.commitMs.toFixed(2)} ms`);
   console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, legacy fallback and unchanged state: pass`);
   if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit/archive, explicit confirmation, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
-  if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit/archive, hierarchy/dependency rejection, ID-bound confirmation, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
+  if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, hierarchy/dependency rejection, ID-bound confirmations, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "workCenters") console.log("- PostgreSQL create/edit/archive, hierarchy/dependency rejection, ID-bound confirmation, Planning/Gantt flags, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "equipment") console.log("- PostgreSQL create/edit/archive, explicit confirmation, quantity/reference validation, conflict retry, hidden fields, 7-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "responsibilityPolicies") console.log("- PostgreSQL create/edit, mode/employee validation, duplicate rejection, conflict retry, hidden fields, 2-row legacy read-back and unchanged snapshot: pass");

@@ -1,6 +1,6 @@
 # Structure Org Units React migration QA
 
-Date: 2026-07-19
+Date: 2026-07-20
 Branch: `codex/frontend-react-migration`
 
 ## Scope
@@ -15,12 +15,14 @@ hierarchy, code and archive status.
 
 Local-only command scenario:
 
-`create child unit -> reject hierarchy cycle -> edit with revision conflict -> retry -> reject referenced-parent archive -> explicitly archive leaf -> read through legacy`.
+`create child unit -> reject hierarchy cycle -> edit with revision conflict -> retry -> reject referenced-parent archive -> explicitly archive/reactivate leaf -> read through legacy`.
 
 The command owner remains in `src/app.js`, requires the PostgreSQL primary
-System Domains surface and `productionStructureMatrix.edit`. Archive is
-ID-bound, requires a second confirmation and rejects active incoming hierarchy,
-production and employment references before the existing owner.
+System Domains surface and `productionStructureMatrix.edit`. Ordinary save is
+lifecycle-neutral. Archive and reactivation are ID-bound, require a second
+confirmation and delegate to existing owners. Archive rejects active incoming
+hierarchy, production and employment references; reactivation requires an
+active parent, clears `archivedAt` and reads the authoritative result back.
 
 ## Evidence
 
@@ -36,15 +38,18 @@ production and employment references before the existing owner.
 - conflict does not mutate the revision, retry advances it exactly once;
 - a referenced parent archive is rejected before PUT;
 - leaf archive persists `isActive=false` plus valid `archivedAt`; hidden and
-  parent fields survive and the archived result reads back as 20 rows through legacy;
+  parent fields survive;
+- ordinary edit exposes no lifecycle control; explicit reactivation persists
+  `isActive=true`, clears `archivedAt`, preserves parent/hidden fields and reads
+  back as 20 active rows through legacy;
 - the disposable compatibility snapshot remains byte-for-byte unchanged;
-- latest local Org Units first commit was `16.40 ms`.
+- latest local Org Units first commit was `22.00 ms`.
 
-The independent artifact is `214,582 B` raw / `65,440 B` gzip; bundled production
-is `207,704 B` raw / `64,964 B` gzip / `56,095 B` Brotli, below the
+The independent artifact is `214,972 B` raw / `65,451 B` gzip; bundled production
+is `207,866 B` raw / `64,977 B` gzip / `56,032 B` Brotli, below the
 `225,000 B / 68,000 B` gate. The aggregate lab uses the separate read-only
-scenario and remains below `505,000 B / 122,000 B`. Both read and write remain
-false by default.
+scenario and remains `557,101 B / 126,296 B`, below its development-only gate.
+Both read and write remain false by default.
 
 ## Pilot acceptance
 

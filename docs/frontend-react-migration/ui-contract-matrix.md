@@ -174,7 +174,9 @@ separate protected command surface.
 Org Units reuses the Structure registry components while preserving the
 hierarchy-specific parent reference and department/section category. All 19
 stable IDs, five table cells and legacy order match the authenticated System
-Domains projection; no editor behavior moved into React.
+Domains projection. Its local command surface keeps ordinary save
+lifecycle-neutral; archive and reactivation use selected-unit-bound two-step
+confirmations, and restoration cannot silently change the parent hierarchy.
 
 ## Structure Work Centers read-model evidence
 

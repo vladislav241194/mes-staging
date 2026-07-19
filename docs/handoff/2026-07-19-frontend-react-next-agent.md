@@ -484,3 +484,24 @@ actions/console, затем немедленно деактивировать и
   `90%` выполнено, примерно `10%` осталось (`+1 п.п.`). Прирост относится к
   локально завершённому employee lifecycle; внешняя Pilot write acceptance и
   другие legacy-only модули не переоценены.
+
+## Продолжение 2026-07-20: Structure Org Units reactivation checkpoint
+
+- Закрыт Org Units lifecycle gap. Обычная typed save-команда больше не несёт и
+  UI не показывает `isActive`; archive/reactivate остаются отдельными командами
+  с ID-bound двухшаговым подтверждением.
+- Reactivation повторно проверяет архивный target и активного parent, затем
+  делегирует existing `upsertSystemDomainEntity("orgUnits", ...)` owner с
+  `isActive=true`/`archivedAt=""`. Успех принимается только после authoritative
+  active read-back без archive marker; parent и hidden fields сохраняются.
+- Production-shell QA доказывает lifecycle-neutral save, create/edit,
+  hierarchy-cycle и referenced-parent rejection, conflict/retry,
+  archive/reactivate, exact revision/If-Match/idempotency и active 20-row legacy
+  read-back. Snapshot byte-identical; first commit `22.00 ms`.
+- Performance: independent Org Units `214972 / 65451 B`, bundled production
+  `207866 / 64977 / 56032 B`, full lab `557101 / 126296 B`; gates зелёные.
+  Pilot write/deploy/version/flags не менялись, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `91%`
+  выполнено, примерно `9%` осталось (`+1 п.п.`). Прирост относится к полностью
+  замкнутому локальному Org Units lifecycle; Pilot write acceptance и другие
+  legacy-only scopes остаются вне этой оценки.

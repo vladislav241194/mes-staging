@@ -19,7 +19,7 @@ Current minified measurements:
 | Boards/BOM production island | 221,436 B | 67,304 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 219,262 B | 66,162 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 216,176 B | 65,692 B | 225,000 B | 68,000 B |
-| Structure Org Units production island | 214,582 B | 65,440 B | 225,000 B | 68,000 B |
+| Structure Org Units production island | 214,972 B | 65,451 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 216,718 B | 65,617 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 215,820 B | 65,636 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 215,221 B | 65,645 B | 225,000 B | 68,000 B |
@@ -129,11 +129,12 @@ create/edit/archive QA proves ID-bound confirmation, rejection of active
 employment references before PUT, reference/hidden-field preservation and
 archived legacy read-back. This is regression evidence, not Pilot acceptance.
 
-The bundled production Structure Org Units island is `207,704 B` raw /
-`64,964 B` gzip / `56,095 B` Brotli. Its production-shell first commit was
-`16.40 ms` across 19 PostgreSQL-backed rows; create/edit/archive QA additionally
+The bundled production Structure Org Units island is `207,866 B` raw /
+`64,977 B` gzip / `56,032 B` Brotli. Its production-shell first commit was
+`22.00 ms` across 19 PostgreSQL-backed rows; create/edit/archive/reactivate QA additionally
 returns a twentieth row, rejects an indirect hierarchy cycle and referenced
-parent archive before mutation, then proves archived legacy read-back. This is
+parent archive before mutation, keeps ordinary save lifecycle-neutral, clears
+`archivedAt` on restoration and proves active legacy read-back. This is
 regression evidence, not Pilot acceptance.
 
 The bundled production Structure Work Centers island is `209,251 B` raw /

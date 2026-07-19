@@ -128,12 +128,15 @@ Positions with an active employment assignment are rejected before delegation.
 Every unsupported Structure command remains in the legacy renderer.
 
 `mountStructureOrgUnitsReactIsland(...)` owns the Org Units read table/passport
-and a local-only create/edit/archive evaluation over the same snapshot. Parent
+and a local-only create/edit/archive/reactivate evaluation over the same snapshot. Parent
 labels stay inside the typed adapter; parent existence and hierarchy cycles are
 checked by the host before delegation. Archive uses ID-bound second-step
 confirmation and is rejected while active child org units, work centers,
 positions, equipment or employment assignments reference the target. The
-existing revision-checked System Domains owner remains authoritative.
+existing revision-checked System Domains owner remains authoritative. Ordinary
+save cannot change lifecycle. Reactivation uses its own ID-bound confirmation,
+requires an active parent, clears `archivedAt` through the owner and accepts only
+an authoritative active read-back.
 
 `mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table,
 passport and a local-only create/edit/archive evaluation. Organization and parent-center

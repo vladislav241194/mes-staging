@@ -2826,9 +2826,27 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "orgUnits"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureOrgUnitsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда подразделений недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда подразделений недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("orgUnits")) return { ok: false, message: "PostgreSQL-команда или право редактирования подразделений недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "reactivate") {
+      const orgUnitId = String(input.orgUnitId || "").trim();
+      const registries = getSystemDomainsRegistries();
+      const orgUnit = (registries.orgUnits || []).find((row) => row.id === orgUnitId);
+      if (!orgUnit || orgUnit.isActive !== false) return { ok: false, message: "Архивное подразделение больше не существует." };
+      const parentOrgUnitId = String(orgUnit.parentOrgUnitId || "").trim();
+      if (parentOrgUnitId && !(registries.orgUnits || []).some((row) => row.id === parentOrgUnitId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите родительское подразделение." };
+      try {
+        const result = await upsertSystemDomainEntity("orgUnits", { ...orgUnit, isActive: true, archivedAt: "" }, { source: "react:structure-org-units:reactivate", operation: "update", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Восстановление подразделения отклонено проверкой System Domains." };
+        const authoritativeOrgUnit = (getSystemDomainsRegistries().orgUnits || []).find((row) => row.id === orgUnitId);
+        if (!authoritativeOrgUnit || authoritativeOrgUnit.isActive === false || authoritativeOrgUnit.archivedAt) return { ok: false, message: "Владелец подразделений не подтвердил восстановление." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: orgUnitId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные подразделения изменились в другом сеансе. Проверьте значения и повторите восстановление." : error?.message || "Сервер не принял восстановление подразделения." };
+      }
+    }
     if (command.type === "archive") {
       const orgUnitId = String(input.orgUnitId || "").trim();
       const registries = getSystemDomainsRegistries();
@@ -2854,6 +2872,8 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
     const kind = String(input.kind || "department").trim();
     const parentOrgUnitId = String(input.parentOrgUnitId || "").trim();
     const orgUnits = getSystemDomainsRegistries().orgUnits || [];
+    const currentOrgUnit = orgUnits.find((row) => row.id === orgUnitId);
+    if (input.isNew !== true && !currentOrgUnit) return { ok: false, message: "Подразделение больше не существует." };
     if (!name) return { ok: false, message: "Заполните название подразделения." };
     if (!["department", "section"].includes(kind)) return { ok: false, message: "Выбран неизвестный тип подразделения." };
     if (parentOrgUnitId && !orgUnits.some((row) => row.id === parentOrgUnitId)) return { ok: false, message: "Выбранное родительское подразделение больше не существует." };
@@ -2867,7 +2887,7 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
       ancestorId = parents.get(ancestorId) || "";
     }
     try {
-      const result = await upsertSystemDomainEntity("orgUnits", { id: orgUnitId, name, code: String(input.code || "").trim(), kind, parentOrgUnitId, isActive: input.isActive !== false }, { source: "react:structure-org-units", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      const result = await upsertSystemDomainEntity("orgUnits", { id: orgUnitId, name, code: String(input.code || "").trim(), kind, parentOrgUnitId, isActive: currentOrgUnit?.isActive !== false }, { source: "react:structure-org-units", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
       if (result !== true) return { ok: false, message: "Изменение подразделения отклонено проверкой System Domains." };
       queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
       return { ok: true, id: orgUnitId };
