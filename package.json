@@ -228,6 +228,7 @@
     "qa:css:duplicate-budget": "node scripts/ui-corrective-phase-b-budget.mjs --scope=duplicate",
     "qa:phase-b-budget": "node scripts/ui-corrective-phase-b-budget.mjs --write-report",
     "qa:icons": "node scripts/icon-system-qa.mjs",
+    "qa:brand-logo": "node scripts/brand-logo-qa.mjs",
     "qa:performance:pilot": "node scripts/pilot-performance-check.mjs",
     "qa:performance:local": "npm run build && node scripts/run-with-dist-preview.mjs -- node scripts/boot-performance-qa.mjs",
     "qa:navigation-performance:inner": "node scripts/boot-performance-qa.mjs --navigation-contract --report=reports/performance/navigation-latest.json",

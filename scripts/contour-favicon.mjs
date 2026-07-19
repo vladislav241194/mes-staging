@@ -15,7 +15,10 @@ const FAVICON_THEMES = {
   },
 };
 
-const logoSvgSource = readFileSync(new URL("../favicon.svg", import.meta.url), "utf8");
+// Keep the user-provided vector as the canonical brand source. `favicon.svg`
+// remains the public/runtime alias because login guards and old releases rely
+// on that stable URL, while every generated contour mark comes from this file.
+const logoSvgSource = readFileSync(new URL("../assets/brand/mes_logo_high_quality.svg", import.meta.url), "utf8");
 const logoSvgBody = logoSvgSource.slice(
   logoSvgSource.indexOf(">") + 1,
   logoSvgSource.lastIndexOf("</svg>"),
