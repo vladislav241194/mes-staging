@@ -3721,8 +3721,18 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
   getPayload: () => {
     const localQa = getDirectoryOperationsReactLocalQaOverrides();
     const canWrite = localQa.writeEvaluation && canEditDirectorySection("operations");
+    const operations = getOperationMapRows();
+    const deleteUsageById = Object.fromEntries(operations.map((operation) => {
+      const usage = getOperationDeleteUsage(operation.id);
+      return [operation.id, {
+        canDelete: !MES_OPERATION_MAP.some((defaultOperation) => defaultOperation.id === operation.id),
+        routeStepsCount: usage.routeStepsCount,
+        slotsCount: usage.slotsCount,
+        specificationRowsCount: usage.specificationRowsCount,
+      }];
+    }));
     return {
-      operations: getOperationMapRows().map((operation) => ({
+      operations: operations.map((operation) => ({
         ...operation,
         workCenterLabel: appEventsService.formatDirectoryCell("operations", "workCenterId", operation.workCenterId),
       })),
@@ -3731,7 +3741,8 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
         label: center.name,
         code: center.code || "",
       })),
-      capabilities: { createEdit: canWrite, delete: false },
+      deleteUsageById,
+      capabilities: { createEdit: canWrite, delete: canWrite },
     };
   },
   getTargetRoot: () => app,
@@ -3744,8 +3755,19 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
     if (!localQa.writeEvaluation || !canEditDirectorySection("operations")) {
       return { ok: false, message: "Запись операций недоступна для текущей роли." };
     }
-    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда операций." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "delete") {
+      const itemId = String(input.itemId || "").trim();
+      const rowIndex = getOperationMapRows().findIndex((item) => String(item.id || "") === itemId);
+      if (rowIndex < 0) return { ok: false, message: "Операция уже отсутствует." };
+      if (MES_OPERATION_MAP.some((operation) => operation.id === itemId)) return { ok: false, message: "Встроенную операцию MES удалить нельзя." };
+      const nextCount = Math.max(0, getOperationMapRows().length - 1);
+      ui.selectedDirectoryRows.operations = nextCount ? Math.min(rowIndex, nextCount - 1) : 0;
+      if (deleteOperationMapItem(itemId, { deferDirectoryPersist: true }) !== true) return { ok: false, message: "Не удалось удалить операцию." };
+      await persistDirectoryStateWithRemoval();
+      return { ok: true, id: itemId };
+    }
+    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда операций." };
     const isNew = input.isNew === true;
     const itemId = isNew ? makeId("op") : String(input.itemId || "").trim();
     const rowIndex = isNew ? -1 : getOperationMapRows().findIndex((item) => String(item.id || "") === itemId);
@@ -8768,6 +8790,7 @@ function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(..
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }
+function getOperationDeleteUsage(...args) { return appEventsService.getOperationDeleteUsage(...args); }
 function deleteOperationMapItem(...args) { return appEventsService.deleteOperationMapItem(...args); }
 function openProjectInPlanning(...args) { return appEventsService.openProjectInPlanning(...args); }
 function bindDirectoryEvents(...args) { return appEventsService.bindDirectoryEvents(...args); }

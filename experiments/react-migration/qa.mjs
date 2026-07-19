@@ -674,7 +674,7 @@ try {
 
   const operationsAdapterOutput = join(temporaryRoot, "operations-adapter.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/operations/adapter.ts")], outfile: operationsAdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
-  const { adaptOperations } = await import(`${pathToFileURL(operationsAdapterOutput).href}?qa=${Date.now()}`);
+  const { adaptOperations, adaptOperationsModel } = await import(`${pathToFileURL(operationsAdapterOutput).href}?qa=${Date.now()}`);
   const operations = adaptOperations({ operations: [
     { id: "op-b", name: "SMT-монтаж", code: "SMT-010", workCenterId: "D3", workCenterLabel: "SMT-монтаж", unitsPerHour: 55, status: "Активен" },
     { id: "", name: "invalid" },
@@ -685,6 +685,14 @@ try {
     ["op-a", "Отмывка", "Отмывка", 0, "neutral"],
   ]);
   assert.deepEqual(adaptOperations({ operations: {} }), [], "invalid operations payload must fail closed");
+  const operationsCommandModel = adaptOperationsModel({ operations: [{ id: "op-b", name: "SMT-монтаж" }], deleteUsageById: { "op-b": { canDelete: true, routeStepsCount: 2, slotsCount: 3, specificationRowsCount: 1 } }, capabilities: { createEdit: true, delete: true } });
+  assert.equal(operationsCommandModel.canCreateEdit, true, "explicit Operations write capability must cross the typed adapter");
+  assert.equal(operationsCommandModel.canDelete, true, "explicit Operations delete capability must cross the typed adapter");
+  assert.deepEqual(operationsCommandModel.deleteUsageById["op-b"], { canDelete: true, routeStepsCount: 2, slotsCount: 3, specificationRowsCount: 1 });
+  assert.equal(adaptOperationsModel({ operations: [{ id: "protected", name: "Встроенная" }], capabilities: { delete: true } }).deleteUsageById.protected.canDelete, false, "missing per-row Operations delete authority must fail closed");
+  const operationsFailClosed = adaptOperationsModel({ operations: [], capabilities: { createEdit: "true", delete: "true" } });
+  assert.equal(operationsFailClosed.canCreateEdit, false, "non-boolean Operations write capability must fail closed");
+  assert.equal(operationsFailClosed.canDelete, false, "non-boolean Operations delete capability must fail closed");
   const operationsViewModelOutput = join(temporaryRoot, "operations-view-model.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/operations/view-model.ts")], outfile: operationsViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
   const operationsViewModel = await import(`${pathToFileURL(operationsViewModelOutput).href}?qa=${Date.now()}`);
@@ -1458,6 +1466,9 @@ try {
   assert.match(productionAppSource, /params\.get\("react-directory-operations-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-operations-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /canEditDirectorySection\("operations"\)/);
+  assert.match(productionAppSource, /getOperationDeleteUsage\(operation\.id\)/);
+  assert.match(productionAppSource, /MES_OPERATION_MAP\.some\(\(operation\) => operation\.id === itemId\)/);
+  assert.match(productionAppSource, /deleteOperationMapItem\(itemId, \{ deferDirectoryPersist: true \}\)/);
   assert.match(productionAppSource, /directoryOperationsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /workCenterLabel: appEventsService\.formatDirectoryCell/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true/);
@@ -1618,11 +1629,26 @@ try {
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([
+    "+  if (sharedStateStatus.valueProjection === \"metadata\") {",
+    "+    // A non-Planning module has not hydrated the authoritative Planning",
+    "+    // projection. Omitting the key preserves the server value; sending the",
+    "+    // empty/stale local compatibility copy would be rejected or destructive.",
+    "+    delete values[STORAGE_KEY];",
+    "+  } else if (hasMeaningfulPlanningState(planningState)) {",
     "+async function persistDirectoryStateWithRemoval() {",
     "+  const previousValue = directoryEntityRemovalAllowed;",
     "+  directoryEntityRemovalAllowed = true;",
     "+  try {",
     "+    persistDirectoryState();",
+    "+    // A previous debounced write may still be in flight. Waiting here makes",
+    "+    // the destructive command durable before its UI reports success; the",
+    "+    // fresh schedule below replaces any stale payload captured by that write.",
+    "+    const waitDeadline = Date.now() + 10_000;",
+    "+    while (sharedStateStatus.saveInFlight && Date.now() < waitDeadline) {",
+    "+      await new Promise((resolve) => window.setTimeout(resolve, 25));",
+    "+    }",
+    "+    if (sharedStateStatus.saveInFlight) return false;",
+    "+    scheduleSharedStatePush(\"directory-removal\");",
     "+    return await pushSharedState(\"directory-removal\");",
     "+  } finally {",
     "+    directoryEntityRemovalAllowed = previousValue;",
@@ -1631,9 +1657,12 @@ try {
     "+",
     "+    persistDirectoryStateWithRemoval,",
   ]);
+  const allowedRuntimeStateRemovals = new Set([
+    "-  if (hasMeaningfulPlanningState(planningState)) {",
+  ]);
   const unexpectedRuntimeStateLines = runtimeStateDiff.split("\n").filter((line) => (
     (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line))
-    || (line.startsWith("-") && !line.startsWith("---"))
+    || (line.startsWith("-") && !line.startsWith("---") && !allowedRuntimeStateRemovals.has(line))
   ));
   assert.deepEqual(unexpectedRuntimeStateLines, [], `frontend migration changed runtime state outside the reviewed directory-removal flush:\n${unexpectedRuntimeStateLines.join("\n")}`);
 

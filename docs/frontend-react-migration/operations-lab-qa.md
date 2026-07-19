@@ -5,9 +5,9 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read vertical scenario:
+Vertical scenario:
 
-`open Directories -> Operations -> filter by resolved work center -> select an operation -> inspect its card`.
+`open Directories -> Operations -> filter/select -> create/edit a custom operation -> inspect delete impact -> cancel or confirm -> read back through legacy`.
 
 The typed adapter consumes the production runtime projection rather than raw
 organization IDs. Existing MES logic continues to sort operations and resolve
@@ -22,8 +22,12 @@ projection and does not duplicate routing, alias, or organization rules.
 - work-center filters operate on the already resolved label;
 - the three legacy cells are `Операция`, `Отдел`, and `Статус`;
 - read-only evaluation keeps create/edit/delete disabled;
-- local write evaluation exposes create/edit only after RBAC capability
-  projection; delete remains legacy;
+- local write evaluation exposes create/edit/delete only after RBAC capability
+  projection;
+- bundled `MES_OPERATION_MAP` rows fail closed as protected; only custom rows
+  can be deleted;
+- delete confirmation reports exact Specifications references and only the
+  Planning references loaded in the current runtime;
 - “Все справочники” restores a full legacy directory section without cycling
   into another React island.
 
@@ -35,20 +39,26 @@ first commit pass.
 
 The isolated local write contour additionally creates one disposable operation,
 edits an existing operation, preserves hidden `code` and `unitsPerHour` fields,
-reads both results through the legacy table and restores the edited operation's
-original semantics. The React form exposes exactly the three legacy editor
-fields: operation name, work center and status.
+proves byte-stable delete cancellation, confirms custom-row deletion and reads
+the result through the legacy table. The linked Specifications row is cleared
+without changing an unrelated row. The React form exposes exactly the three
+legacy editor fields: operation name, work center and status.
 
 Owner-level QA uses the real `app_events` service with controlled Planning
 state. An ordinary linked route step follows operation name/work center, a step
 with `workCenterOverride` keeps its own center, and an unfinished unlocked slot
 is updated and recalculated. Locked, completed and unrelated slots remain byte-
-equivalent. This check exposed and fixed the previously missing
+equivalent. Delete-owner QA additionally proves exact cleanup of two linked
+route steps, all three linked slots (ordinary, locked and completed) and one
+Specifications row. The production-shell Directories run intentionally does
+not hydrate Planning: its metadata-only write omits that key and preserves the
+server snapshot byte-for-byte. These checks exposed and fixed the previously missing
 `applyPlanningOrderLaborToSlot` dependency between Planning Core and the legacy
-event owner.
+event owner and a stale Planning compatibility projection in non-Planning
+shared-state writes.
 
-The independent entry is `207,600 B` raw / `64,105 B` gzip. The production
-artifact is `200,213 B` raw / `62,802 B` gzip / `54,111 B` Brotli.
+The independent entry is `210,478 B` raw / `64,840 B` gzip. The production
+artifact is `205,613 B` raw / `64,439 B` gzip / `55,610 B` Brotli.
 
 ## Production boundary
 
@@ -77,9 +87,9 @@ with the evaluation query retained rendered the same 22-row legacy table and
 no island. Health remained `ok`, the temporary root directory was removed and
 no Pilot data was written.
 
-Local command QA confirms that create/edit propagates into linked route steps
-and unfinished Gantt slots through the existing owner, while delete also clears
-operation references from Specifications. Pilot write and delete remain
-disabled; the next gate is a separately controlled Pilot create/edit evaluation
-with a disposable operation and verified cleanup. Delete remains a later,
-independent Specifications-aware slice.
+Local command QA confirms complete custom-operation create/edit/delete parity.
+Create/edit propagates into linked route steps and unfinished Gantt slots;
+delete clears loaded route-step/slot references and exact Specifications
+references through the existing owner. Pilot writes remain disabled. The next
+gate is a separately controlled Pilot create/edit/custom-delete evaluation with
+a disposable operation, explicit impact review and verified cleanup.

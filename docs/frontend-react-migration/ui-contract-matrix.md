@@ -378,7 +378,10 @@ Operations reuses page/header/sidebar/panel/table/row/detail/status primitives,
 but keeps its own three-column contract and work-center filter. The production
 runtime resolves organization semantics before the typed adapter. Browser QA
 compares the exact legacy and React cells/order and proves that switching back
-to the full legacy directories list cannot loop into another React island.
+to the full legacy directories list cannot loop into another React island. The
+shared delete confirmation presents exact Specifications usage plus loaded
+Planning usage, supports byte-stable cancel and remains disabled for bundled
+MES operations. Confirmed custom deletion is read back through legacy.
 
 ## Directories Nomenclature Types production evidence
 

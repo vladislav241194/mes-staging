@@ -59,7 +59,12 @@ runtime and its commands.
 `mountOperationsReactIsland(...)` uses the same directory host contract but a
 separate bundle, scope, flags, and typed adapter. The host supplies operations
 in existing runtime order with user-facing work-center labels already resolved
-by production MES logic. React does not own work-center aliasing or routing.
+by production MES logic. A separate typed impact map allows custom-operation
+delete confirmation; the host rechecks that bundled MES operations are
+protected and delegates cleanup to the existing owner. React does not own
+work-center aliasing, routing, Specifications cleanup or persistence. In the
+Directories metadata-only runtime, Planning is omitted from shared writes and
+preserved server-side; full loaded-graph cleanup is verified at the owner.
 
 `mountNomenclatureTypesReactIsland(...)` consumes the normalized
 `nomenclatureTypes` read slice and may dispatch typed create/edit save and

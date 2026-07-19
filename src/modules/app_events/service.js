@@ -1385,28 +1385,42 @@ function applyOperationMapChangesToRoutes(operation) {
 	  });
 	}
 
-function deleteOperationMapItem(operationId) {
-  const operation = getOperationMapItem(operationId);
-  if (!operation) return;
-  directoryState.operationMap = (directoryState.operationMap || []).filter((item) => item.id !== operationId);
-  const affectedStepIds = new Set((planningState.routeSteps || [])
+function getOperationDeleteUsage(operationId) {
+  const routeStepIds = new Set((planningState.routeSteps || [])
     .filter((step) => step.operationId === operationId)
     .map((step) => step.id));
+  const specificationRowsCount = (directoryState.specifications || []).reduce((count, specification) => (
+    count + getSpecificationStructureItems(specification).filter((item) => item.operationId === operationId).length
+  ), 0);
+  return {
+    routeStepIds,
+    routeStepsCount: routeStepIds.size,
+    slotsCount: (planningState.slots || []).filter((slot) => routeStepIds.has(slot.routeStepId)).length,
+    specificationRowsCount,
+  };
+}
+
+function deleteOperationMapItem(operationId, { deferDirectoryPersist = false } = {}) {
+  const operation = getOperationMapItem(operationId);
+  if (!operation) return false;
+  const usage = getOperationDeleteUsage(operationId);
+  directoryState.operationMap = (directoryState.operationMap || []).filter((item) => item.id !== operationId);
   planningState.routeSteps = (planningState.routeSteps || []).map((step) => (
     step.operationId === operationId
       ? { ...step, operationId: "", operationName: "", updatedAt: new Date().toISOString() }
       : step
   ));
   planningState.slots = (planningState.slots || []).map((slot) => (
-    affectedStepIds.has(slot.routeStepId)
+    usage.routeStepIds.has(slot.routeStepId)
       ? { ...slot, operationId: "", operationName: "", updatedAt: new Date().toISOString() }
       : slot
   ));
   directoryState.specifications = (directoryState.specifications || []).map((specification) => {
-    if (!Array.isArray(specification.structureItems) || !specification.structureItems.some((item) => item.operationId === operationId)) return specification;
+    const structureItems = getSpecificationStructureItems(specification);
+    if (!structureItems.some((item) => item.operationId === operationId)) return specification;
     return {
       ...specification,
-      structureItems: specification.structureItems.map((item) => (
+      structureItems: structureItems.map((item) => (
         item.operationId === operationId
           ? { ...item, operationId: "", operationName: "", departmentName: "" }
           : item
@@ -1415,11 +1429,12 @@ function deleteOperationMapItem(operationId) {
     };
   });
   if (ui.activeOperationId === operationId) ui.activeOperationId = "";
-  persistDirectoryState();
+  if (!deferDirectoryPersist) persistDirectoryState();
   persistState();
   persistUiState();
   notifySaveSuccess("Операция удалена");
   render();
+  return true;
 }
 
 // The route editor is not needed to render the startup modules. Keep its
@@ -2006,6 +2021,7 @@ function updateDependencyClip(shell) {
     bindPlanningEvents,
     bindShiftCalendarEvents,
     applyOperationMapChangesToRoutes,
+    getOperationDeleteUsage,
     deleteOperationMapItem,
     openProjectInPlanning,
     bindDirectoryForm,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
 import { useCommandRunner } from "../../ui/use-command";
 import { adaptOperationsModel, type OperationReadItem } from "./adapter";
@@ -21,7 +21,9 @@ const createDraft = (defaultWorkCenterId: string, item?: OperationReadItem): Ope
   status: item?.statusLabel || "Активен",
 });
 
-export type OperationsReactCommand = { type: "save"; payload: OperationDraft };
+export type OperationsReactCommand =
+  | { type: "save"; payload: OperationDraft }
+  | { type: "delete"; payload: { itemId: string } };
 
 export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
   payload: unknown;
@@ -33,19 +35,25 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
   const [filter, setFilter] = useState<OperationFilter>("all");
   const [selectedId, setSelectedId] = useState(model.items[0]?.id || "");
   const [draft, setDraft] = useState<OperationDraft | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
   const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
   const visibleItems = filterOperations(model.items, activeFilter);
   const selected = resolveVisibleOperation(visibleItems, selectedId);
   const defaultWorkCenterId = model.workCenters[0]?.id || "";
+  const draftDeleteUsage = draft ? model.deleteUsageById[draft.itemId] : undefined;
   const setDraftField = (field: keyof OperationDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
 
   const saveDraft = async () => {
     if (!draft) return;
     await runCommand({ type: "save", payload: draft }, "Не удалось сохранить операцию.");
   };
+  const deleteDraft = async () => {
+    if (!draft || draft.isNew || !model.canDelete || draftDeleteUsage?.canDelete !== true) return;
+    await runCommand({ type: "delete", payload: { itemId: draft.itemId } }, "Не удалось удалить операцию.");
+  };
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge">{model.canCreateEdit ? "React · create/edit evaluation" : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React preview · только чтение"}</span>} />;
   const sidebar = <ModuleSidebar label="Операции по рабочим центрам" title="Рабочие центры">
     {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
     {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
@@ -60,8 +68,11 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
       </table></TableWrap> : <EmptyState title="Операций пока нет" text="В выбранном рабочем центре нет операций." />}
     </Panel>
 
-    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая операция" : "Редактирование операции"}</h2><p>Команда выполняется существующим владельцем справочника и связей планирования</p></div><ActionButton onClick={() => { setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
-      <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
+    {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новая операция" : "Редактирование операции"}</h2><p>Команда выполняется существующим владельцем справочника и связей планирования</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
+      {deletePending ? <DeleteConfirmation busy={saving} error={commandError} id="react-operation-delete-title" onCancel={() => setDeletePending(false)} onConfirm={() => { void deleteDraft(); }} title="Удалить операцию?">
+        <p>Операция «{draft.name || "без названия"}» будет удалена.</p>
+        <p>{draftDeleteUsage?.specificationRowsCount || 0} строк составов; загружено {draftDeleteUsage?.routeStepsCount || 0} этапов и {draftDeleteUsage?.slotsCount || 0} слотов.</p>
+      </DeleteConfirmation> : <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
         <label><span>Операция</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
         <label><span>Рабочий центр</span><select name="workCenterId" onChange={(event) => setDraftField("workCenterId", event.currentTarget.value)} required value={draft.workCenterId}>
           {model.workCenters.map((center) => <option key={center.id} value={center.id}>{center.label}{center.code ? ` · ${center.code}` : ""}</option>)}
@@ -69,9 +80,10 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
         <label><span>Статус</span><input name="status" onChange={(event) => setDraftField("status", event.currentTarget.value)} value={draft.status} /></label>
         {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
         <div className="react-nomenclature-editor-actions">
+          {!draft.isNew ? <ActionButton disabled={!model.canDelete || draftDeleteUsage?.canDelete !== true} onClick={() => { setDeletePending(true); clearCommandError(); }} title={draftDeleteUsage?.canDelete ? "Удалить" : "Удаление недоступно"} variant="danger">Удалить</ActionButton> : null}
           <button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : draft.isNew ? "Создать операцию" : "Сохранить операцию"}</button>
         </div>
-      </form>
+      </form>}
     </Panel> : <>
       <DetailPanel
         emptyText="Операция не выбрана"

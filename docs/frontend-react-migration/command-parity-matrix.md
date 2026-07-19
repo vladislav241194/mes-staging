@@ -39,9 +39,10 @@ Authorization picker. This brings authenticated Pilot read acceptance to 20 of
 four are non-empty Nomenclature, Boards/BOM, non-empty Responsibility Policies
 and Contour Admin on its mapped host.
 
-Nomenclature, Component Types and Nomenclature Types have locally complete
-create/edit/delete command parity. Operations and user-managed Statuses have
-locally complete create/edit parity; board metadata has create/edit/delete.
+Nomenclature, Component Types, Nomenclature Types and custom Operations have
+locally complete create/edit/delete command parity. Bundled MES operations stay
+protected. User-managed Statuses have locally complete create/edit parity;
+board metadata has create/edit/delete.
 Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
@@ -105,7 +106,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | ---: | --- | --- | --- | --- |
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
-| 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
+| 3 | Operations | Local complete: create/edit/custom delete with Specifications and loaded-Planning cleanup; bundled rows protected | Medium | Separately gated Pilot create/edit/custom-delete evaluation with a disposable row and verified cleanup |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
@@ -138,13 +139,17 @@ accepted on Pilot: all `22/22` rows and three visible fields matched legacy,
 the `Склад` filter returned seven rows, and rollback restored the same
 authenticated legacy screen. Its local RBAC-gated React contour now creates
 and edits through that same owner, preserves hidden operation fields, reads the
-result through legacy and restores the original edited row. Owner-level QA
+result through legacy and restores the original edited row. It also discloses
+usage, proves byte-stable cancel and deletes a custom row while clearing the
+exact Specifications reference. Owner-level QA
 proves propagation to ordinary and work-center-override route steps,
 recalculation of an unfinished unlocked slot, and immutability of locked,
-completed and unrelated slots. The audit also found and repaired a missing
+completed and unrelated slots on edit; delete clears every linked loaded slot,
+including locked/completed, while preserving unrelated rows. The Directories
+metadata-only persistence path preserves an unloaded Planning snapshot instead
+of sending an empty compatibility copy. The audit also found and repaired a missing
 `applyPlanningOrderLaborToSlot` dependency at the legacy service boundary.
-Delete additionally touches Specifications and therefore stays separate and
-legacy-only.
+Bundled MES operations remain non-deletable because normalization owns them.
 
 Nomenclature Types now has local RBAC-gated create/edit/delete parity through
 the existing directory owner. Its disposable-snapshot QA proves create,

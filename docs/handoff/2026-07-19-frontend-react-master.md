@@ -225,7 +225,7 @@ production logic still sorts operations and resolves each
 work-center label before the typed adapter. Production-shell QA proves literal
 parity for three rows, the three visible cells and order, plus work-center
 filtering, selection/detail, loop-free legacy return, unchanged state and clean
-console. Its artifact is `200,213 B` raw / `62,802 B` gzip / `54,111 B`
+console. Its artifact is `205,613 B` raw / `64,439 B` gzip / `55,610 B`
 Brotli. Pilot read acceptance now proves `22/22` row parity, seven warehouse
 operations, stable passport `D1_OP1`, a `25.20 ms` first commit and clean
 rollback with all flags off. A local RBAC-gated write contour now completes
@@ -233,8 +233,14 @@ create/edit through the existing owner, preserves hidden operation fields and
 reads results through legacy. Direct owner QA proves ordinary and overridden
 route-step propagation plus the unlocked/locked/completed slot boundary. It
 also repaired a missing Planning-labor dependency in the legacy event service.
-Pilot write stays off; delete remains legacy because it also clears
-Specifications references.
+Custom-operation create/edit/delete is now locally complete while bundled
+`MES_OPERATION_MAP` rows remain protected. React shows exact Specifications
+usage and loaded-Planning usage, proves byte-stable cancel, persists confirmed
+deletion immediately and reads the result through legacy. Owner-level QA proves
+cleanup of two linked route steps, three linked slots including locked/completed
+rows and the exact Specifications row. Because Directories does not hydrate the
+Planning graph, its metadata-only shared write now omits Planning and preserves
+the server snapshot byte-for-byte. Pilot write stays off.
 
 Directories Nomenclature Types is now the seventh production-integrated island
 and has locally complete create/edit/delete parity. It consumes the existing
@@ -536,7 +542,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Nomenclature Types and Board metadata have local create/edit/delete evaluations, Operations, user-managed Statuses and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies have local create/edit evaluations, Timesheet has local single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Nomenclature Types, Board metadata and custom Operations have local create/edit/delete evaluations, user-managed Statuses and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies have local create/edit evaluations, Timesheet has local single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 20 of 24 scenarios, most recently the pre-PIN Authorization picker on `.500.01-1a8a9a4`. The four remaining read checkpoints are Nomenclature with a non-empty live payload, Boards/BOM, Structure Responsibility Policies with a non-empty live policy, and Contour Admin on its mapped host. Isolated read-only rollout contours are now prepared and locally verified for Boards/BOM (`89`) and Structure Responsibility Policies (`90`), but remain unactivated until non-empty Pilot payloads make live parity measurable.**
 7. Migrate commands one vertical scope at a time. **Nomenclature, Component
    Types and Nomenclature Types create/edit/delete are locally complete
@@ -548,9 +554,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    Specifications cleanup, retained Nomenclature result and unchanged Planning;
    Excel import and BOM-row editing remain legacy. Boards Pilot write acceptance
    is separate.
-   Operations create/edit is locally complete with linked Planning reference
-   proof, while its Specifications-aware delete remains legacy. Component Types
-   and Operations still need separately gated Pilot write checkpoints. Structure
+   Operations create/edit/custom-delete is locally complete with usage-aware
+   confirmation, cancel safety, linked loaded-Planning cleanup, exact
+   Specifications cleanup and protected bundled rows. Component Types and
+   Operations still need separately gated Pilot write checkpoints. Structure
    Employees create/edit plus one primary assignment is locally complete through
    the revision-checked PostgreSQL System Domains owner; archive remains legacy
    and Pilot write acceptance is separate. Structure Positions create/edit is

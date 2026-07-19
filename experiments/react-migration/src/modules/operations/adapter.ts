@@ -30,6 +30,7 @@ export interface OperationsModel {
   workCenters: OperationWorkCenter[];
   canCreateEdit: boolean;
   canDelete: boolean;
+  deleteUsageById: Record<string, { canDelete: boolean; routeStepsCount: number; slotsCount: number; specificationRowsCount: number }>;
 }
 
 function text(value: unknown): string {
@@ -69,8 +70,24 @@ export function adaptOperationsModel(payload: unknown): OperationsModel {
     ? root.capabilities as Record<string, unknown>
     : {};
   const workCenters = Array.isArray(root.workCenters) ? root.workCenters : [];
+  const items = adaptOperations(payload);
+  const usageRoot = root.deleteUsageById && typeof root.deleteUsageById === "object" && !Array.isArray(root.deleteUsageById)
+    ? root.deleteUsageById as Record<string, unknown>
+    : {};
+  const deleteUsageById = Object.fromEntries(items.map((item) => {
+    const entry = usageRoot[item.id] && typeof usageRoot[item.id] === "object" && !Array.isArray(usageRoot[item.id])
+      ? usageRoot[item.id] as Record<string, unknown>
+      : {};
+    const count = (value: unknown) => Math.max(0, Math.trunc(Number(value) || 0));
+    return [item.id, {
+      canDelete: entry.canDelete === true,
+      routeStepsCount: count(entry.routeStepsCount),
+      slotsCount: count(entry.slotsCount),
+      specificationRowsCount: count(entry.specificationRowsCount),
+    }];
+  }));
   return {
-    items: adaptOperations(payload),
+    items,
     workCenters: workCenters.flatMap((entry): OperationWorkCenter[] => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
       const center = entry as Record<string, unknown>;
@@ -80,5 +97,6 @@ export function adaptOperationsModel(payload: unknown): OperationsModel {
     }),
     canCreateEdit: capabilities.createEdit === true,
     canDelete: capabilities.delete === true,
+    deleteUsageById,
   };
 }

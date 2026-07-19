@@ -340,7 +340,12 @@ function getSharedStateValues() {
     const value = localStorage.getItem(key);
     return value === null ? [] : [[key, value]];
   }));
-  if (hasMeaningfulPlanningState(planningState)) {
+  if (sharedStateStatus.valueProjection === "metadata") {
+    // A non-Planning module has not hydrated the authoritative Planning
+    // projection. Omitting the key preserves the server value; sending the
+    // empty/stale local compatibility copy would be rejected or destructive.
+    delete values[STORAGE_KEY];
+  } else if (hasMeaningfulPlanningState(planningState)) {
     values[STORAGE_KEY] = JSON.stringify(planningState);
   }
   values[DIRECTORY_STORAGE_KEY] = JSON.stringify(directoryState);
@@ -1881,6 +1886,15 @@ async function persistDirectoryStateWithRemoval() {
   directoryEntityRemovalAllowed = true;
   try {
     persistDirectoryState();
+    // A previous debounced write may still be in flight. Waiting here makes
+    // the destructive command durable before its UI reports success; the
+    // fresh schedule below replaces any stale payload captured by that write.
+    const waitDeadline = Date.now() + 10_000;
+    while (sharedStateStatus.saveInFlight && Date.now() < waitDeadline) {
+      await new Promise((resolve) => window.setTimeout(resolve, 25));
+    }
+    if (sharedStateStatus.saveInFlight) return false;
+    scheduleSharedStatePush("directory-removal");
     return await pushSharedState("directory-removal");
   } finally {
     directoryEntityRemovalAllowed = previousValue;

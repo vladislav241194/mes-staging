@@ -75,6 +75,44 @@ function verifyPlanningPropagationOwner(planningFixture) {
   }
 }
 
+function verifyOperationDeleteOwner(planningFixture, directoryFixture) {
+  let planningState = structuredClone(planningFixture);
+  let directoryState = structuredClone(directoryFixture);
+  let ui = { activeOperationId: "QA_OP_SMT" };
+  const service = createAppEventsServiceModule({
+    createAppInteractionsModule: () => ({}),
+    getDirectoryState: () => directoryState,
+    setDirectoryState: (nextState) => { directoryState = nextState; },
+    getOperationMapItem: (operationId) => directoryState.operationMap.find((item) => item.id === operationId),
+    getPlanningState: () => planningState,
+    setPlanningState: (nextState) => { planningState = nextState; },
+    getSpecificationStructureItems: (specification) => specification.structureItems || [],
+    getUi: () => ui,
+    setUi: (nextUi) => { ui = nextUi; },
+    notifySaveSuccess: () => {},
+    persistDirectoryState: () => {},
+    persistState: () => {},
+    persistUiState: () => {},
+    render: () => {},
+  });
+  const usage = service.getOperationDeleteUsage("QA_OP_SMT");
+  assert(usage.routeStepsCount === 2 && usage.slotsCount === 3 && usage.specificationRowsCount === 1, `operation owner must report exact loaded references: ${JSON.stringify({ routeStepsCount: usage.routeStepsCount, slotsCount: usage.slotsCount, specificationRowsCount: usage.specificationRowsCount })}`);
+  assert(service.deleteOperationMapItem("QA_OP_SMT") === true, "operation owner must delete an existing operation");
+  assert(!directoryState.operationMap.some((item) => item.id === "QA_OP_SMT"), "operation owner must remove the selected row");
+  for (const stepId of ["QA_STEP_OPEN", "QA_STEP_OVERRIDE"]) {
+    const step = planningState.routeSteps.find((item) => item.id === stepId);
+    assert(step.operationId === "" && step.operationName === "", `${stepId} must clear the deleted operation reference`);
+  }
+  for (const slotId of ["QA_SLOT_OPEN", "QA_SLOT_LOCKED", "QA_SLOT_COMPLETED"]) {
+    const slot = planningState.slots.find((item) => item.id === slotId);
+    assert(slot.operationId === "" && slot.operationName === "", `${slotId} must clear the deleted operation reference`);
+  }
+  const specification = directoryState.specifications.find((item) => item.id === "QA_SPEC");
+  assert(specification.structureItems.find((item) => item.id === "QA_SPEC_LINKED").operationId === "", "operation owner must clear the linked Specifications row");
+  assert(specification.structureItems.find((item) => item.id === "QA_SPEC_OTHER").operationId === "QA_OP_WASH", "operation owner must preserve the unrelated Specifications row");
+  assert(service.deleteOperationMapItem("missing") === false, "operation owner must fail closed for an absent operation");
+}
+
 async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-directory-operations-react-"));
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
@@ -85,6 +123,15 @@ async function main() {
       { id: "QA_OP_WASH", name: "QA Отмывка", code: "QA-UW", workCenterId: "D3_UW", unitsPerHour: 150, status: "Активен" },
       { id: "QA_OP_DISABLED", name: "QA Архивная операция", code: "QA-OFF", workCenterId: "D3", unitsPerHour: 10, status: "Отключен" },
     ],
+    specifications: [{
+      id: "QA_SPEC",
+      name: "QA спецификация",
+      structureManaged: true,
+      structureItems: [
+        { id: "QA_SPEC_LINKED", parentId: "root", type: "part", fulfillmentMode: "produce", operationId: "QA_OP_SMT", operationName: "QA SMT-монтаж", departmentName: "SMT-монтаж", name: "Связанная строка", quantity: 1, position: 1 },
+        { id: "QA_SPEC_OTHER", parentId: "root", type: "part", fulfillmentMode: "produce", operationId: "QA_OP_WASH", operationName: "QA Отмывка", departmentName: "Участок отмывки", name: "Несвязанная строка", quantity: 2, position: 2 },
+      ],
+    }],
     componentTypes: [], nomenclatureTypes: [], nomenclature: [], bomLists: [], statuses: [],
   };
   const snapshot = {
@@ -111,6 +158,7 @@ async function main() {
     sharedUi: {}, events: [],
   };
   verifyPlanningPropagationOwner(JSON.parse(snapshot.values[STATE_STORAGE_KEY]));
+  verifyOperationDeleteOwner(JSON.parse(snapshot.values[STATE_STORAGE_KEY]), directoryFixture);
   await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
   await writeFile(writeSharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
   assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state must be owner-readable only");
@@ -229,7 +277,7 @@ async function main() {
         .find((button) => button.textContent.includes("Добавить операцию"))?.disabled,
       hasDelete: [...document.querySelectorAll("button")].some((button) => button.textContent.trim() === "Удалить"),
     }));
-    assert(writeActivation.badge.includes("create/edit") && writeActivation.addDisabled === false && !writeActivation.hasDelete, `Operations write capability did not stay create/edit-only: ${JSON.stringify(writeActivation)}`);
+    assert(writeActivation.badge.includes("create/edit/delete") && writeActivation.addDisabled === false && !writeActivation.hasDelete, `Operations write capability did not expose create/edit/delete while keeping delete contextual: ${JSON.stringify(writeActivation)}`);
 
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
       .find((button) => button.textContent.includes("Добавить операцию"))?.click());
@@ -314,19 +362,69 @@ async function main() {
     const restoredOperation = finalWriteDirectory.operationMap.find((item) => item.id === "QA_OP_SMT");
     assert(restoredOperation.name === "QA SMT-монтаж" && restoredOperation.code === "QA-SMT" && restoredOperation.workCenterId === "D3" && restoredOperation.unitsPerHour === 55 && restoredOperation.status === "Активен", "React edit restore must preserve the original operation semantics");
     assert(finalWriteDirectory.operationMap.length === 4 && finalWriteDirectory.operationMap.some((item) => item.name === "React QA новая операция"), "create command must persist exactly one disposable operation in the isolated fixture");
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .find((row) => row.textContent.includes("QA SMT-монтаж"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "QA SMT-монтаж", { message: "restored operation did not become selected for delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Редактировать")?.click());
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "QA SMT-монтаж", { message: "Operations editor did not reopen for delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[role="alertdialog"]')), { message: "Operations delete confirmation did not open" });
+    const deleteConfirmation = await evaluate(client, () => document.querySelector('[role="alertdialog"]')?.textContent?.replace(/\s+/g, " ").trim() || "");
+    assert(deleteConfirmation.includes("1 строк составов; загружено 0 этапов и 0 слотов"), `Operations delete impact must disclose Specifications references and bound Planning counts to the loaded runtime: ${deleteConfirmation}`);
+    const beforeDeleteCancel = await readFile(writeSharedStateFile, "utf8");
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Не удалять")?.click());
+    await waitForCondition(client, () => !document.querySelector('[role="alertdialog"]') && Boolean(document.querySelector('.react-nomenclature-editor')), { message: "Operations delete cancel did not return to editor" });
+    await delay(200);
+    assert(await readFile(writeSharedStateFile, "utf8") === beforeDeleteCancel, "Operations delete cancel mutated state");
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[role="alertdialog"]')), { message: "Operations delete confirmation did not reopen" });
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 3
+      && ![...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("QA SMT-монтаж"))
+      && !document.querySelector('[role="alertdialog"]')
+    ), { message: "Operations delete did not return the exact three-row projection" });
+
+    let persistedAfterDeleteSnapshot = null;
+    let persistedAfterDeleteDirectory = null;
+    let persistedAfterDeletePlanning = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      persistedAfterDeleteSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      persistedAfterDeleteDirectory = JSON.parse(persistedAfterDeleteSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      persistedAfterDeletePlanning = JSON.parse(persistedAfterDeleteSnapshot.values[STATE_STORAGE_KEY]);
+      if (!persistedAfterDeleteDirectory.operationMap.some((item) => item.id === "QA_OP_SMT")) break;
+      await delay(120);
+    }
+    assert(!persistedAfterDeleteDirectory.operationMap.some((item) => item.id === "QA_OP_SMT"), "delete must persist removal of the selected operation");
+    assert(persistedAfterDeleteDirectory.operationMap.some((item) => item.name === "React QA новая операция"), "delete changed the unrelated React-created operation");
+    assert(JSON.stringify(persistedAfterDeletePlanning) === snapshot.values[STATE_STORAGE_KEY], "Directories metadata-only write must preserve the unloaded Planning snapshot byte-for-byte");
+    const persistedSpecification = persistedAfterDeleteDirectory.specifications.find((item) => item.id === "QA_SPEC");
+    const linkedStructureItem = persistedSpecification.structureItems.find((item) => item.id === "QA_SPEC_LINKED");
+    const unrelatedStructureItem = persistedSpecification.structureItems.find((item) => item.id === "QA_SPEC_OTHER");
+    assert(linkedStructureItem.operationId === "" && linkedStructureItem.operationName === "" && linkedStructureItem.departmentName === "", "delete must clear the linked Specifications operation fields");
+    assert(unrelatedStructureItem.operationId === "QA_OP_WASH" && unrelatedStructureItem.operationName === "QA Отмывка", "delete changed the unrelated Specifications row");
+
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')]
       .find((item) => item.textContent?.includes("Все справочники"))?.click());
-    await waitForCondition(client, () => document.querySelectorAll('[data-directory-row]').length === 4, { message: "legacy Operations did not expose the React command results" });
+    await waitForCondition(client, () => document.querySelectorAll('[data-directory-row]').length === 3, { message: "legacy Operations did not expose the exact post-delete operation set" });
     const legacyWriteRows = await evaluate(client, () => [...document.querySelectorAll('[data-directory-row]')].map((row) => row.textContent.replace(/\s+/g, " ").trim()));
-    assert(legacyWriteRows.some((row) => row.includes("React QA новая операция")) && legacyWriteRows.some((row) => row.includes("QA SMT-монтаж")), "same-runtime legacy read-back must expose React create and restored edit results");
+    assert(legacyWriteRows.some((row) => row.includes("React QA новая операция")) && !legacyWriteRows.some((row) => row.includes("QA SMT-монтаж")), "same-runtime legacy read-back must expose React create and confirmed delete results");
     assert(consoleProblems.length === 0, `write-evaluation browser console must stay clean:\n${consoleProblems.join("\n")}`);
     console.log("Directory Operations React production-shell functional QA: OK");
     console.log(`- same payload: ${legacyRows.length} legacy rows = ${initial.rows.length} React rows, three cells and order match`);
     console.log("- resolved work-center labels, filtering, selection/detail and legacy return: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- editable legacy default, disabled React writes, unchanged state and clean console: pass");
-    console.log("- local RBAC-gated create/edit, legacy read-back and hidden-field preservation: pass");
+    console.log("- local RBAC-gated create/edit/delete, usage disclosure, cancel safety, legacy read-back and hidden-field preservation: pass");
     console.log("- linked route-step propagation, override preservation and unlocked/locked/completed slot boundaries: pass");
+    console.log("- delete clears linked route steps, all linked slots and the exact Specifications row while preserving unrelated references: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     if (legacyOutput.trim()) console.error(legacyOutput.trim());
