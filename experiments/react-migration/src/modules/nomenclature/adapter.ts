@@ -21,11 +21,14 @@ export interface NomenclatureTypeDto {
 export interface NomenclatureItem {
   id: string;
   article: string;
+  articleValue: string;
   name: string;
   type: string;
   unit: string;
   packageName: string;
+  packageValue: string;
   manufacturer: string;
+  manufacturerValue: string;
   description: string;
   statusLabel: string;
   statusTone: "success" | "neutral";
@@ -42,6 +45,7 @@ export interface NomenclatureReadModel {
   items: NomenclatureItem[];
   types: NomenclatureTypeOption[];
   boardCount: number;
+  canCreateEdit: boolean;
 }
 
 const inactiveStatuses = new Set(["отключен", "удален", "архив"]);
@@ -76,11 +80,14 @@ export function adaptNomenclatureItems(payload: unknown): NomenclatureItem[] {
     return [{
       id,
       article: text(dto.article) || "-",
+      articleValue: text(dto.article),
       name,
       type: normalizeType(dto.type),
       unit: text(dto.unit) || "шт.",
       packageName: text(dto.package) || "-",
+      packageValue: text(dto.package),
       manufacturer: text(dto.manufacturer) || "-",
+      manufacturerValue: text(dto.manufacturer),
       description: text(dto.description),
       statusLabel,
       statusTone: lookup(statusLabel).includes("актив") ? "success" : "neutral",
@@ -118,5 +125,6 @@ export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadMo
     return [{ id: `inferred-${key.replace(/[^a-zа-я0-9]+/gi, "-")}`, label: item.type, code: "", description: "" }];
   });
   const boardCount = Array.isArray(record.bomLists) ? record.bomLists.length : 0;
-  return { items, types: [...declaredTypes, ...inferredTypes], boardCount };
+  const capabilities = record.capabilities && typeof record.capabilities === "object" ? record.capabilities as Record<string, unknown> : {};
+  return { items, types: [...declaredTypes, ...inferredTypes], boardCount, canCreateEdit: capabilities.createEdit === true };
 }

@@ -15,7 +15,7 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 205,544 B | 63,733 B | 225,000 B | 68,000 B |
+| Nomenclature production island | 210,915 B | 64,817 B | 225,000 B | 68,000 B |
 | Boards/BOM production island | 208,691 B | 64,506 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 210,534 B | 64,790 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 209,401 B | 64,418 B | 225,000 B | 68,000 B |
@@ -39,16 +39,16 @@ Current minified measurements:
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full twenty-two-scenario lab | 438,958 B | 104,836 B | 445,000 B | 118,000 B |
-| Shared lab CSS | 18,256 B | 3,685 B | 18,500 B | 4,000 B |
+| Full twenty-four-scenario lab | 444,311 B | 106,286 B | 445,000 B | 118,000 B |
+| Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
 Specifications 2.0 and Roles artifacts and rejects unrelated scenario labels.
 The same isolation check now covers the Gantt artifact.
 This preserves independent vertical slices instead of shipping every lab
-scenario with an individual island. The larger `430,000 B / 114,000 B` limit
-applies only to the twenty-two-scenario development lab, never to a production
+scenario with an individual island. The larger `445,000 B / 118,000 B` limit
+applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increased only as isolated scenarios were added; every
 production entry retains the unchanged `225,000 B / 68,000 B` gate.
 
@@ -68,6 +68,11 @@ Browser evidence from one local run:
 | Nomenclature | 21.2 ms | 3.0 ms | 1 row, one selected row |
 | Component Types | 9.6 ms | 1.4 ms | 1 row, detail updated |
 | Boards/BOM | measured by the same callback | 3.80 ms | 2 rows, 5 components, revision 2 |
+
+The current production Nomenclature artifact with the default-off create/edit
+form is `205,773 B` raw / `64,539 B` gzip / `55,547 B` Brotli. The disposable
+production-shell checkpoint committed its first React view below `20 ms` and
+then proved one create plus one edit through the existing command owner.
 | Structure Employees | measured by the same callback | 2.90 ms | 1 employee, metric and detail updated, revision 2 |
 | Roles and Access | measured by the same callback | browser gate passed | selected role passport updated, revision 2 |
 | Weekly Production Control | measured by the same callback | browser gate passed | weekly fact total updated, revision 2 |

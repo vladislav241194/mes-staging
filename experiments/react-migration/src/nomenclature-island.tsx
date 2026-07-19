@@ -1,13 +1,14 @@
-import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenario";
+import { NomenclatureScenario, type NomenclatureReactCommand } from "./modules/nomenclature/NomenclatureScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
 export interface NomenclatureReactIslandOptions extends ReactMigrationIslandOptions {
-  onRequestLegacy?(): void;
+  onRequestLegacy?(scope?: string): void;
+  onCommand?(command: NomenclatureReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }
 
 export function mountNomenclatureReactIsland(target: HTMLElement, initialPayload: unknown, options: NomenclatureReactIslandOptions = {}) {
-  const { onRequestLegacy, ...runtimeOptions } = options;
-  return mountReactIsland(target, (payload) => <NomenclatureScenario payload={payload} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions);
+  const { onCommand, onRequestLegacy, ...runtimeOptions } = options;
+  return mountReactIsland(target, (payload) => <NomenclatureScenario payload={payload} onCommand={onCommand} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions);
 }
 
 export type {

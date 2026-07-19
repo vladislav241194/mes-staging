@@ -384,6 +384,16 @@ System Domains writes and clean console. The production artifact is `199,896 B`
 raw / `62,906 B` gzip / `54,098 B` Brotli. No authentication policy or Pilot
 release was changed.
 
+The first write-parity milestone is now implemented for Nomenclature create and
+edit behind a third false-by-default permission and an explicit session request.
+React never writes storage directly: the host allowlists the typed payload and
+delegates to the same `products/events.saveNomenclatureCommand` used by the
+legacy form. Disposable production-shell QA proves exactly one create and one
+edit, all nine fields, unchanged Planning state, read-only byte identity, and
+exact selected-row legacy fallback for delete. Delete and all other module
+writes remain legacy. The production artifact is `205,773 B` raw / `64,539 B`
+gzip / `55,547 B` Brotli; Pilot was not changed.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -406,9 +416,12 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; each requires two explicit runtime flags plus a session request, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature write evaluation requires its independent third permission, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
-7. Only then propose default-on activation or the next integrated registry scope.
+7. Migrate commands one vertical scope at a time. **Nomenclature create/edit is
+   the first default-off write evaluation; delete and all remaining commands
+   are pending.**
+8. Only then propose default-on activation or the next command scope.
 
 The second integrated scope is prepared independently of the outstanding root
 operation: Structure Employees is committed only as default-off source and QA.

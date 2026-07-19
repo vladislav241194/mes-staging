@@ -2316,12 +2316,13 @@ let renderNomenclatureModulePage = null;
 let nomenclatureRenderModuleLoad = null;
 function getNomenclatureReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-nomenclature") === "1",
     readOnlyEvaluation: params.get("react-nomenclature-readonly") === "1",
+    writeEvaluation: params.get("react-nomenclature-write") === "1",
   };
 }
 function isNomenclatureReactEvaluationRequested() {
@@ -2329,23 +2330,69 @@ function isNomenclatureReactEvaluationRequested() {
   if (params.get("react-nomenclature-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function isNomenclatureReactWriteEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("react-nomenclature-write-evaluation") === "1" && Boolean(getAuthenticatedAccessPerson());
+}
 const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
   getActivation: () => {
     const localQa = getNomenclatureReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true;
+    const serverWriteEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true;
+    const writeEvaluation = localQa.writeEvaluation || (serverWriteEvaluationAllowed && isNomenclatureReactWriteEvaluationRequested());
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true || localQa.featureFlagEnabled,
       activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
-      accessMode: (serverEvaluationAllowed && isNomenclatureReactEvaluationRequested()) || localQa.readOnlyEvaluation
+      accessMode: writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isNomenclatureReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor",
     };
   },
-  getPayload: () => directoryState,
+  getPayload: () => {
+    const localQa = getNomenclatureReactLocalQaOverrides();
+    const canCreateEdit = localQa.writeEvaluation
+      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested());
+    return { ...directoryState, capabilities: { createEdit: canCreateEdit } };
+  },
   getTargetRoot: () => app,
-  requestLegacyRender: (reason) => {
-    if (reason === "unsupported-scope") ui.activeNomenclaturePane = "boards";
+  requestLegacyRender: (reason, scope = "") => {
+    if (reason === "unsupported-scope" && !String(scope).startsWith("write:")) ui.activeNomenclaturePane = "boards";
+    if (reason === "unsupported-scope" && String(scope).startsWith("write:")) {
+      ui.activeNomenclaturePane = "items";
+      ui.activeNomenclatureId = scope === "write:create" ? "__new__" : decodeURIComponent(String(scope).replace(/^write:edit:/, ""));
+      persistUiState();
+    }
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getNomenclatureReactLocalQaOverrides();
+    const writeAllowed = localQa.writeEvaluation
+      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested());
+    if (!writeAllowed) throw new Error("Nomenclature React write evaluation is disabled");
+    if (command.type !== "save") throw new Error("Unsupported Nomenclature React command");
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const result = await saveNomenclatureCommand({
+      isNew: input.isNew === true,
+      itemId: String(input.itemId || ""),
+      name: String(input.name || ""),
+      article: String(input.article || ""),
+      type: String(input.type || ""),
+      customType: String(input.customType || ""),
+      package: String(input.package || ""),
+      unit: String(input.unit || ""),
+      manufacturer: String(input.manufacturer || ""),
+      description: String(input.description || ""),
+      status: String(input.status || ""),
+    });
+    return {
+      ok: result?.ok === true,
+      id: String(result?.id || ""),
+      isNew: result?.isNew === true,
+      code: String(result?.code || ""),
+      message: String(result?.message || ""),
+    };
   },
 });
 function getBoardsReactLocalQaOverrides() {
@@ -7808,7 +7855,7 @@ function bindGlobalNavigation(...args) { return appEventsService.bindGlobalNavig
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
 function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }
-function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); }
+function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); }
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }
@@ -7882,6 +7929,7 @@ appEventsService = createAppEventsServiceModule({
   directorySections,
   ensurePlanningRuntimeProjection: () => hydratePlanningRuntimeProjection(),
   ensurePlanningSystemDomains,
+  ensureNomenclatureTypeExists: (...args) => ensureNomenclatureTypeExists(...args),
   ensureRouteTaskSeedSteps,
   escapeAttribute,
   escapeHtml,

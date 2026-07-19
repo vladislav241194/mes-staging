@@ -64,6 +64,13 @@ The first React table therefore keeps the legacy visible columns:
 `Наименование`, `Артикул`, `Раздел`, `Корпус`, `Ед.`, `Производитель`, and
 `Статус`. This prevents the migration lab from inventing a narrower data model.
 
+The first write-parity boundary reuses the same nine-field editor contract for
+create/edit. The typed callback contains only normalized field values; the host
+validates and delegates to the existing `products/events` command owner.
+Read-only activation still exposes no command. Delete deliberately returns to
+the selected legacy editor until its confirmation and removal contract is
+migrated separately.
+
 ## Component Types read-model evidence
 
 The second proof mirrors `directoryState.componentTypes`: `id`, `name`,

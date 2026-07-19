@@ -85,10 +85,13 @@ async function main() {
   const originalSnapshot = await readFile(sharedStateFile, "utf8");
   const previewPort = await getFreePort();
   const legacyPreviewPort = await getFreePort();
+  const writePreviewPort = await getFreePort();
   const origin = `http://127.0.0.1:${previewPort}`;
   const legacyOrigin = `http://127.0.0.1:${legacyPreviewPort}`;
+  const writeOrigin = `http://127.0.0.1:${writePreviewPort}`;
   let previewOutput = "";
   let legacyPreviewOutput = "";
+  let writePreviewOutput = "";
   const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], {
     cwd: process.cwd(),
     env: {
@@ -119,9 +122,23 @@ async function main() {
   });
   legacyPreview.stdout.on("data", (chunk) => { legacyPreviewOutput += chunk.toString(); });
   legacyPreview.stderr.on("data", (chunk) => { legacyPreviewOutput += chunk.toString(); });
+  const writePreview = spawn(process.execPath, ["scripts/preview-dist.mjs"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      HOST: "127.0.0.1",
+      PORT: String(writePreviewPort),
+      APP_ENV: "local",
+      MES_ADMIN_HOSTS: "admin.mes-line.ru",
+      MES_SHARED_STATE_FILE: sharedStateFile,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  writePreview.stdout.on("data", (chunk) => { writePreviewOutput += chunk.toString(); });
+  writePreview.stderr.on("data", (chunk) => { writePreviewOutput += chunk.toString(); });
   let chrome = null;
   try {
-    await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin)]);
+    await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin), waitForPreview(writeOrigin)]);
     chrome = await launchChrome("mes-nomenclature-react-qa-");
     const { client } = chrome;
     const consoleProblems = [];
@@ -231,6 +248,128 @@ async function main() {
 
     const finalSnapshot = await readFile(sharedStateFile, "utf8");
     assert(finalSnapshot === originalSnapshot, "read-only React scenario must not modify the temporary shared-state file");
+
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=nomenclature&qa-auth-bypass=1&react-nomenclature=1&react-nomenclature-write=1` });
+    await delay(800);
+    const writeMountDebug = await evaluate(client, () => ({
+      url: window.location.href,
+      targetState: document.querySelector("[data-react-nomenclature-island]")?.getAttribute("data-react-island-state") || "",
+      legacyRows: document.querySelectorAll("[data-nomenclature-row-open]").length,
+      boardPanes: document.querySelectorAll(".bom-lists-page.is-boards-pane").length,
+      appText: document.querySelector("#app")?.textContent?.replace(/\s+/g, " ").trim().slice(0, 240) || "",
+    }));
+    assert(writeMountDebug.targetState === "ready", `write-evaluation Nomenclature island did not mount: ${JSON.stringify(writeMountDebug)}`);
+    const writeActivation = await evaluate(client, () => ({
+      url: window.location.href,
+      badge: document.querySelector(".lab-badge")?.textContent || "",
+      actions: [...document.querySelectorAll('[data-ui-component="ActionButton"]')].map((button) => ({ text: button.textContent.trim(), disabled: button.disabled })),
+      targets: document.querySelectorAll("[data-react-nomenclature-island]").length,
+    }));
+    assert(writeActivation.actions.some((button) => button.text.includes("Добавить позицию") && !button.disabled), `write-evaluation Nomenclature island did not expose create/edit: ${JSON.stringify(writeActivation)}`);
+    await evaluate(client, () => {
+      const addButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Добавить позицию"));
+      addButton?.click();
+    });
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "React create editor did not open" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const setValue = (name, value) => {
+        const control = form?.elements.namedItem(name);
+        if (!control) throw new Error(`Missing React editor field: ${name}`);
+        const prototype = control instanceof HTMLSelectElement
+          ? HTMLSelectElement.prototype
+          : control instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, "value").set.call(control, value);
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+        control.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      setValue("name", "Тестовая позиция React");
+      setValue("article", "REACT-WRITE-001");
+      setValue("type", "Механика");
+      setValue("package", "QA-CASE");
+      setValue("unit", "шт.");
+      setValue("manufacturer", "MES QA");
+      setValue("description", "Временная запись из изолированного write QA");
+      setValue("status", "Активен");
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 5
+      && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("Тестовая позиция React"))
+    ), { message: "React create command did not return the five-row persisted projection" });
+    await evaluate(client, () => {
+      const row = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+        .find((entry) => entry.textContent.includes("Тестовая позиция React"));
+      row?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "Тестовая позиция React", { message: "created row did not become the active React detail" });
+    await evaluate(client, () => {
+      const editButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Редактировать"));
+      editButton?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Тестовая позиция React", { message: "React edit editor did not open the created row" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const name = form?.elements.namedItem("name");
+      const article = form?.elements.namedItem("article");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(name, "Тестовая позиция React изменена");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(article, "REACT-WRITE-002");
+      article.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 5
+      && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("Тестовая позиция React изменена") && row.textContent.includes("REACT-WRITE-002"))
+    ), { message: "React edit command did not return the updated persisted projection" });
+    await evaluate(client, () => {
+      const row = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+        .find((entry) => entry.textContent.includes("Тестовая позиция React изменена"));
+      row?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "Тестовая позиция React изменена", { message: "updated row did not become the active React detail" });
+    await evaluate(client, () => {
+      const editButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Редактировать"));
+      editButton?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Тестовая позиция React изменена", { message: "updated row editor did not open before legacy fallback" });
+    await evaluate(client, () => {
+      const deleteButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Удалить в legacy"));
+      deleteButton?.click();
+    });
+    await waitForCondition(client, () => (
+      !document.querySelector("[data-react-nomenclature-island]")
+      && document.querySelector('#nomenclatureForm input[name="name"]')?.value === "Тестовая позиция React изменена"
+    ), { message: "unsupported delete scope did not restore the exact legacy editor" });
+    await evaluate(client, () => {
+      const form = document.querySelector("#nomenclatureForm");
+      const description = form?.elements.namedItem("description");
+      description.value = "Legacy и React используют один command owner";
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => document.querySelector('#nomenclatureForm textarea[name="description"]')?.value === "Legacy и React используют один command owner", { message: "legacy form did not preserve its save path after command extraction" });
+    let writeSnapshot = null;
+    let persistedDirectory = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      writeSnapshot = JSON.parse(await readFile(sharedStateFile, "utf8"));
+      persistedDirectory = JSON.parse(writeSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (persistedDirectory.nomenclature.length === 5 && persistedDirectory.nomenclature.some((item) => item.article === "REACT-WRITE-002")) break;
+      await delay(120);
+    }
+    const persistedState = writeSnapshot.values[STATE_STORAGE_KEY];
+    const created = persistedDirectory.nomenclature.find((item) => item.article === "REACT-WRITE-002");
+    assert(persistedDirectory.nomenclature.length === 5, `write evaluation must create exactly one position, got ${persistedDirectory.nomenclature.length}`);
+    assert(created?.name === "Тестовая позиция React изменена" && created?.type === "Механика", "create/edit must preserve the typed command values");
+    assert(created?.package === "QA-CASE" && created?.manufacturer === "MES QA", "create/edit must preserve all legacy editor fields");
+    assert(created?.description === "Legacy и React используют один command owner", "legacy form and React must delegate to the same save contract");
+    assert(persistedState === snapshot.values[STATE_STORAGE_KEY], "Nomenclature command must not modify Planning state");
+    assert(consoleProblems.length === 0, `write-evaluation browser console must stay clean:\n${consoleProblems.join("\n")}`);
     console.log("Nomenclature React production-shell functional QA: OK");
     console.log("- same server payload: 4 legacy rows = 4 React rows");
     console.log("- server-enabled default without session request: legacy");
@@ -238,13 +377,17 @@ async function main() {
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log("- legacy Boards fallback with 2 boards: pass");
+    console.log("- React create + edit through the legacy command owner: pass");
+    console.log("- legacy edit through the extracted command owner: pass");
+    console.log("- delete scope returns to the exact legacy editor: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     if (legacyPreviewOutput.trim()) console.error(legacyPreviewOutput.trim());
+    if (writePreviewOutput.trim()) console.error(writePreviewOutput.trim());
     throw error;
   } finally {
     if (chrome) await cleanupChrome(chrome);
-    await Promise.all([stopProcess(preview), stopProcess(legacyPreview)]);
+    await Promise.all([stopProcess(preview), stopProcess(legacyPreview), stopProcess(writePreview)]);
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 }

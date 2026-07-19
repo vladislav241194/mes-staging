@@ -42,6 +42,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     doesAuthSessionFactNeedDeviationComment,
     directorySections,
     ensureRouteTaskSeedSteps,
+    ensureNomenclatureTypeExists,
     ensurePlanningRuntimeProjection = async () => false,
     ensurePlanningSystemDomains = async () => false,
     element = null,
@@ -1489,6 +1490,7 @@ function getRoutesEventsDependencies() {
     importHeaders,
     importRows,
     importBomFromXlsxFile,
+    ensureNomenclatureTypeExists,
     input,
     isGanttSlotCompleted,
     isManufacturingOutputReceiptOperation,
@@ -1587,6 +1589,13 @@ function callRoutesEvents(method, ...args) {
   return typeof handler === "function" ? handler(...args) : undefined;
 }
 
+async function callRoutesEventsAsync(method, ...args) {
+  const api = await ensureRoutesEvents();
+  const handler = api?.[method];
+  if (typeof handler !== "function") throw new Error(`Routes events command is unavailable: ${method}`);
+  return handler(...args);
+}
+
 function bindRoutesEventsMethod(method, ...args) {
   const bind = (api) => api?.[method]?.(...args);
   if (routesEventsApi) return bind(routesEventsApi);
@@ -1612,6 +1621,7 @@ function createRouteStepFromOperationMapItem(...args) { return callRoutesEvents(
 function createEmptyRouteModuleStep(...args) { return callRoutesEvents("createEmptyRouteModuleStep", ...args); }
 function bindSpekiEvents(...args) { return bindRoutesEventsMethod("bindSpekiEvents", ...args); }
 function bindNomenclatureEvents(...args) { return bindRoutesEventsMethod("bindNomenclatureEvents", ...args); }
+function saveNomenclatureCommand(...args) { return callRoutesEventsAsync("saveNomenclatureCommand", ...args); }
 function bindBomListsEvents(...args) { return bindRoutesEventsMethod("bindBomListsEvents", ...args); }
 function getRouteStepAddTargetTaskId(...args) { return callRoutesEvents("getRouteStepAddTargetTaskId", ...args); }
 function addRouteModuleStep(...args) { return callRoutesEvents("addRouteModuleStep", ...args); }
@@ -1921,6 +1931,7 @@ function updateDependencyClip(shell) {
     bindRoutesEvents,
     bindSpekiEvents,
     bindNomenclatureEvents,
+    saveNomenclatureCommand,
     bindBomListsEvents,
     bindPlanningEvents,
     bindShiftCalendarEvents,
@@ -1940,6 +1951,15 @@ function updateDependencyClip(shell) {
     syncRuntimeState();
     try {
       const result = fn(...args);
+      if (result && typeof result.then === "function") {
+        return result.then((value) => {
+          commitRuntimeState();
+          return value;
+        }, (error) => {
+          commitRuntimeState();
+          throw error;
+        });
+      }
       commitRuntimeState();
       return result;
     } catch (error) {

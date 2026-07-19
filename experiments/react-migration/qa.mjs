@@ -68,11 +68,14 @@ try {
   assert.deepEqual(adapted[0], {
     id: "ok",
     article: "A-1",
+    articleValue: "A-1",
     name: "Valid",
     type: "РЭА компоненты",
     unit: "шт.",
     packageName: "-",
+    packageValue: "",
     manufacturer: "-",
+    manufacturerValue: "",
     description: "",
     statusLabel: "Активен",
     statusTone: "success",
@@ -86,6 +89,7 @@ try {
     ],
   });
   assert.equal(readModel.items[0]?.type, "РЭА компоненты", "legacy REA alias must normalize");
+  assert.equal(readModel.canCreateEdit, false, "write capability must fail closed");
   assert.deepEqual(readModel.types.map((entry) => entry.label), ["РЭА компоненты"], "inactive types must be hidden");
 
   const viewModelOutput = join(temporaryRoot, "view-model.mjs");

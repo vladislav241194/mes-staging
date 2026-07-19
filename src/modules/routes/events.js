@@ -20,6 +20,7 @@ export function createRoutesEventsModule(dependencies = {}) {
     departmentName,
     element,
     ensureRouteTaskSeedSteps,
+    ensureNomenclatureTypeExists,
     entry,
     field,
     findOperationMapItemByNameAndWorkCenter,
@@ -836,6 +837,7 @@ function deleteRouteStepConfirmed(stepId) {
       departmentName,
       element,
       entry,
+      ensureNomenclatureTypeExists,
       findOperationMapItemByNameAndWorkCenter,
       form,
       getDefaultStructureFulfillmentMode,
@@ -937,12 +939,23 @@ function deleteRouteStepConfirmed(stepId) {
       .catch((error) => console.error(`[MES routes] ${method} runtime failed to load`, error));
   }
 
+  async function callProductsEvents(method, ...args) {
+    const api = await ensureProductsEvents();
+    const handler = api?.[method];
+    if (typeof handler !== "function") throw new Error(`Products events command is unavailable: ${method}`);
+    return handler(...args);
+  }
+
   function bindSpekiEvents(...args) {
     bindProductsEvents("bindSpekiEvents", ...args);
   }
 
   function bindNomenclatureEvents(...args) {
     bindProductsEvents("bindNomenclatureEvents", ...args);
+  }
+
+  function saveNomenclatureCommand(...args) {
+    return callProductsEvents("saveNomenclatureCommand", ...args);
   }
 
   function bindBomListsEvents(...args) {
@@ -963,6 +976,7 @@ function deleteRouteStepConfirmed(stepId) {
     createRouteStepFromOperationMapItem,
     createEmptyRouteModuleStep,
     bindNomenclatureEvents,
+    saveNomenclatureCommand,
     bindBomListsEvents,
     getRouteStepAddTargetTaskId,
     addRouteModuleStep,

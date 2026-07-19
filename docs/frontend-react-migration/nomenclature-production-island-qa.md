@@ -7,27 +7,39 @@ Base: accepted PostgreSQL/main handoff `fc71e01`
 
 The existing Nomenclature runtime now has a real React island host. The host
 reads the current `directoryState` payload through the already validated typed
-adapter. It does not add a command, mutate application state, or change an API
-or PostgreSQL contract.
+adapter. Read-only mode remains unchanged. A separate write-evaluation boundary
+can invoke create/edit through the same `products/events` command owner as the
+legacy form; React receives neither storage handles nor mutable global state,
+and no API or PostgreSQL contract changes.
 
-The server-side rollout requires both runtime values to be exactly `true`:
+The read-only server rollout requires the first two runtime values to be exactly
+`true`; write evaluation additionally requires the third:
 
 - `MES_REACT_NOMENCLATURE`;
-- `MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION`.
+- `MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION`;
+- `MES_REACT_NOMENCLATURE_WRITE_EVALUATION` for the separately gated
+  create/edit evaluation.
 
 The second value permits an evaluation request; it does not switch every
 session into read-only mode. A session must also request
 `react-nomenclature-evaluation=1` and be either authenticated or explicitly
 running with `qa-auth-bypass=1`. Without that per-session request, editors and
-ordinary users stay in legacy even when both server switches are enabled.
+ordinary users stay in legacy even when both read switches are enabled.
 
-Both switches are absent by default, so the production and Pilot behavior
+All switches are absent by default, so the production and Pilot behavior
 remains the legacy renderer and the React bundle is not requested.
 
 The server publishes these booleans from the non-secret environment switches
 `MES_REACT_NOMENCLATURE=1` and
-`MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION=1`. Any missing value or value
-other than `1` publishes `false`.
+`MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION=1`, plus the independent
+`MES_REACT_NOMENCLATURE_WRITE_EVALUATION=1`. Any missing value or value other
+than `1` publishes `false`.
+
+Production write evaluation additionally requires an authenticated session
+request `react-nomenclature-write-evaluation=1`. The write permission is false
+by default and independent of the read-only permission. Local disposable QA
+uses `react-nomenclature=1&react-nomenclature-write=1` under the existing
+loopback plus `qa-auth-bypass=1` restriction.
 
 Local browser QA can use query overrides `react-nomenclature=1` and
 `react-nomenclature-readonly=1`. They are accepted only on
@@ -41,8 +53,9 @@ remote host.
 - server rollout enabled without an authenticated/QA session evaluation
   request: legacy;
 - Boards/BOM pane: legacy (`unsupported-scope`);
-- editor-capable session without the explicit evaluation flag: legacy
+- editor-capable session without the explicit write-evaluation flag: legacy
   (`write-parity-incomplete`);
+- delete remains an explicit handoff to the exact selected legacy editor;
 - dynamic bundle load or React render failure: the island is unmounted and the
   module rerenders once in legacy for the rest of the page session;
 - the Boards sidebar action inside React requests the same legacy fallback and
@@ -50,7 +63,8 @@ remote host.
 
 The production bundle is emitted separately at
 `dist/src/react-islands/nomenclature.js`, so it is not part of the default app
-startup path. Current minified size is `201,600 B` raw / `63,457 B` gzip,
+startup path. Current production artifact is `205,773 B` raw / `64,539 B` gzip /
+`55,547 B` Brotli,
 inside the isolated `225,000 B` raw / `68,000 B` gzip budget.
 Its request URL uses the content hash of the island artifact rather than the
 human-readable application version, so an island-only update cannot reuse a
@@ -101,8 +115,12 @@ shared-state file containing four positions and two boards. It proves the
 same seven visible cells and row order in legacy and React, initial
 selection/detail agreement, counts `4 / 2 / 2`, the
 single-row Mechanics filter, disabled writes, legacy Boards fallback and an
-unchanged state file after the complete scenario. The temporary directory and
-browser profile are removed after every run.
+unchanged state file after the complete read-only scenario. A separate preview
+over the same disposable `0600` fixture proves one React create, one React edit,
+exact field persistence through the existing command owner, unchanged Planning
+state, a legacy-form edit through the extracted same owner, and selected-row
+fallback to the legacy editor for delete. The temporary
+directory and browser profile are removed after every run.
 
 The production target records `data-react-island-commit-ms` when revision `1`
 commits. The automated local gate requires this end-to-end value (dynamic

@@ -8,6 +8,7 @@ export function createNomenclatureReactIslandHost({
   getPayload,
   getTargetRoot,
   requestLegacyRender,
+  executeCommand,
   reportError = (error) => console.error("[MES] Nomenclature React island failed", error),
 } = {}) {
   return createReactIslandHost({
@@ -21,7 +22,7 @@ export function createNomenclatureReactIslandHost({
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.activePane !== "items") return "unsupported-scope";
-      if (activation.accessMode !== "read-only-evaluation") {
+      if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") {
         return "write-parity-incomplete";
       }
       return "";
@@ -39,7 +40,8 @@ export function createNomenclatureReactIslandHost({
       loadedIsland.mountNomenclatureReactIsland(target, payload, {
         onError,
         onReady,
-        onRequestLegacy: () => onRequestLegacy(),
+        onRequestLegacy: (scope) => onRequestLegacy(scope),
+        onCommand: (command) => executeCommand?.(command),
       })
     ),
   });

@@ -175,6 +175,14 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .auth-picker-react-people { display:grid; gap:12px; padding:16px; }
 .auth-picker-react-people label { display:grid; gap:5px; }
 .auth-picker-react-people input { width:100%; min-height:40px; padding:8px 11px; border:1px solid #cbd8e6; border-radius:9px; }
+.react-nomenclature-editor { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:16px 18px; }
+.react-nomenclature-editor label { display:grid; gap:6px; color:#52667a; font-size:11px; font-weight:650; }
+.react-nomenclature-editor label.full { grid-column:1/-1; }
+.react-nomenclature-editor :is(input,select,textarea) { width:100%; min-width:0; padding:9px 10px; border:1px solid #cbd8e6; border-radius:9px; color:#18314d; background:#fff; font:inherit; }
+.react-nomenclature-editor textarea { resize:vertical; }
+.react-nomenclature-editor-actions { display:flex; grid-column:1/-1; justify-content:flex-end; gap:8px; }
+.react-nomenclature-command-error { grid-column:1/-1; margin:0; color:#a52f2f; font-size:12px; }
+.react-nomenclature-detail-actions { display:flex; justify-content:flex-end; margin-top:-4px; }
 .auth-picker-react-people > div { display:grid; grid-template-columns:repeat(3,minmax(200px,1fr)); gap:9px; }
 .auth-picker-react-people button { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:72px; padding:12px; border:1px solid #dce5ef; border-radius:11px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
 .auth-picker-react-people button > span { display:grid; gap:4px; }

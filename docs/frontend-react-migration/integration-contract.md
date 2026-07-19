@@ -19,8 +19,10 @@ The legacy host will remain responsible for:
 - falling back to the existing renderer if mount fails;
 - removing the React island before restoring the legacy renderer.
 
-The host must not pass shared mutable state, DOM renderer functions, command
-callbacks, or storage handles into the React island.
+The host must not pass shared mutable state, DOM renderer functions, or storage
+handles into the React island. A write-capable vertical slice may receive only
+a capability-scoped typed command callback; the host validates the command and
+delegates it to the existing command owner.
 
 ## React island responsibilities
 
@@ -40,8 +42,11 @@ The island does not read global MES state, call an API, write data, persist
 browser storage, or manipulate DOM outside its target.
 
 `mountNomenclatureReactIsland(...)` remains a narrow convenience wrapper for
-the first feature-flag integration. Component Types proves the generic boundary
-in the lab but is not approved for production activation yet.
+the first feature-flag integration. Its read-only mode remains unchanged. The
+separate write-evaluation capability owns only the create/edit form and calls
+the existing `products/events.saveNomenclatureCommand`; delete returns to the
+selected legacy editor. Component Types proves the generic boundary in the lab
+but is not approved for production activation yet.
 
 `mountComponentTypesReactIsland(...)` owns only the Directories `componentTypes`
 read slice. Its host requires two explicit server permissions, the active
@@ -220,10 +225,12 @@ creation, it unmounts that root before rethrowing to the feature gate.
 ## Feature flag rules
 
 - Default: off.
-- Scope: Nomenclature item list in explicit read-only evaluation mode only.
+- Scope: Nomenclature item list in explicit read-only mode, plus a separately
+  gated create/edit write evaluation.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
-- Editor mode: legacy until create/edit/delete command parity is implemented
-  and accepted; do not mount the read-only island.
+- Editor mode: legacy by default. Create/edit may mount only with the independent
+  write permission and session request; delete remains legacy until separately
+  implemented and accepted.
 - Boards pane: local host payload, feature flag, same-data and rollback gates
   pass; authenticated Pilot acceptance remains pending.
 - Structure registries other than Employees: legacy until separately migrated;
@@ -239,8 +246,11 @@ creation, it unmounts that root before rethrowing to the feature gate.
 2. Frontend branch rebased on that exact accepted commit.
 3. Nomenclature read payload frozen and covered by adapter fixtures.
 4. Shared build-file ownership released and `package-lock.json` reconciled once.
-5. Feature flag and mount point added without changing business commands.
-6. Activation policy proves disabled, unsupported pane, editor fallback and
-   eligible read-only decisions.
+5. Feature flag and mount point added; write evaluation delegates to the
+   unchanged command owner rather than duplicating persistence.
+6. Activation policy proves disabled, unsupported pane, editor fallback,
+   eligible read-only and separately eligible create/edit decisions.
 7. Legacy and React paths compared on identical data and viewport.
 8. Performance and browser smoke pass before any default-on proposal.
+9. Write QA uses disposable data and proves exact mutation scope plus legacy
+   fallback for every command not yet migrated.

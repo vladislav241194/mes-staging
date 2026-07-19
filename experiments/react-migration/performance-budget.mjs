@@ -102,7 +102,7 @@ assert.doesNotMatch(statusesText, /Вся номенклатура|SMT-монт�
 
 const css = await readFile(join(sourceRoot, "styles.css"));
 const cssMeasurement = { raw: css.length, gzip: gzipSync(css).length };
-assert.ok(cssMeasurement.raw <= 18_500, `styles raw bundle ${cssMeasurement.raw} exceeds 18500`);
+assert.ok(cssMeasurement.raw <= 19_500, `styles raw bundle ${cssMeasurement.raw} exceeds 19500`);
 assert.ok(cssMeasurement.gzip <= 4_000, `styles gzip bundle ${cssMeasurement.gzip} exceeds 4000`);
 
 console.log(JSON.stringify({

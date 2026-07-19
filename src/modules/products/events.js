@@ -15,6 +15,7 @@ export function createProductsEventsModule(dependencies = {}) {
     departmentName,
     element,
     entry,
+    ensureNomenclatureTypeExists,
     findOperationMapItemByNameAndWorkCenter,
     form,
     getDefaultStructureFulfillmentMode,
@@ -838,29 +839,25 @@ function bindNomenclatureEvents() {
   });
 }
 
-function saveNomenclatureForm(form) {
-  const data = new FormData(form);
-  const isNew = data.get("isNew") === "yes";
-  const id = isNew ? makeId("nom") : String(data.get("itemId") || makeId("nom"));
-  const name = String(data.get("name") || "").trim();
-  if (!name) {
-    alert("Заполните наименование позиции номенклатуры.");
-    return;
-  }
-  const customType = String(data.get("customType") || "").trim();
-  const type = normalizeNomenclatureType(customType || data.get("type"));
+function saveNomenclatureCommand(command = {}) {
+  const isNew = command.isNew === true;
+  const id = isNew ? makeId("nom") : String(command.itemId || makeId("nom"));
+  const name = String(command.name || "").trim();
+  if (!name) return { ok: false, code: "name-required", message: "Заполните наименование позиции номенклатуры." };
+  const customType = String(command.customType || "").trim();
+  const type = normalizeNomenclatureType(customType || command.type);
   ensureNomenclatureTypeExists(type);
 
   const row = normalizeDirectoryRow("nomenclature", {
     id,
     name,
-    article: String(data.get("article") || "").trim(),
+    article: String(command.article || "").trim(),
     type,
-    package: String(data.get("package") || "").trim(),
-    unit: String(data.get("unit") || "шт.").trim(),
-    manufacturer: String(data.get("manufacturer") || "").trim(),
-    description: String(data.get("description") || "").trim(),
-    status: String(data.get("status") || "Активен").trim(),
+    package: String(command.package || "").trim(),
+    unit: String(command.unit || "шт.").trim(),
+    manufacturer: String(command.manufacturer || "").trim(),
+    description: String(command.description || "").trim(),
+    status: String(command.status || "Активен").trim(),
     updatedAt: new Date().toISOString(),
   });
 
@@ -874,6 +871,26 @@ function saveNomenclatureForm(form) {
   persistUiState();
   notifySaveSuccess(isNew ? "Позиция номенклатуры создана" : "Позиция номенклатуры сохранена");
   render();
+  return { ok: true, id, isNew, row };
+}
+
+function saveNomenclatureForm(form) {
+  const data = new FormData(form);
+  const result = saveNomenclatureCommand({
+    isNew: data.get("isNew") === "yes",
+    itemId: String(data.get("itemId") || ""),
+    name: data.get("name"),
+    article: data.get("article"),
+    type: data.get("type"),
+    customType: data.get("customType"),
+    package: data.get("package"),
+    unit: data.get("unit"),
+    manufacturer: data.get("manufacturer"),
+    description: data.get("description"),
+    status: data.get("status"),
+  });
+  if (!result.ok) alert(result.message);
+  return result;
 }
 
 function deleteNomenclatureItem(itemId) {
@@ -1088,6 +1105,7 @@ function deleteBomList(bomId) {
     moveSpecificationStructureItem,
     deleteSpecificationStructureItem,
     bindNomenclatureEvents,
+    saveNomenclatureCommand,
     saveNomenclatureForm,
     deleteNomenclatureItem,
     bindBomListsEvents,
