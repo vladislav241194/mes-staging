@@ -1,7 +1,7 @@
 # Planning Workbench React migration QA
 
 Date: 2026-07-19
-Status: production-integrated island with React-owned navigation and local-only quantity write evaluation; disabled by default
+Status: authenticated Pilot read-only acceptance complete; evaluation disabled, quantity writes remain local-only
 
 ## Vertical scenario
 
@@ -58,6 +58,36 @@ Production command:
 npm run qa:planning-workbench-react-island
 ```
 
-It is not activated on Pilot. Pilot quantity acceptance is a separate gate;
-start-date, labor settings, send-to-Gantt, cancellation and all other commands
-remain legacy.
+Pilot read-only acceptance is complete. Pilot quantity acceptance is a
+separate gate; start-date, labor settings, send-to-Gantt, cancellation and all
+other commands remain legacy.
+
+## Planning Workbench Pilot checkpoint
+
+Release `v.1.499.95-2c7dc1c` from upstream commit `2c7dc1c` is active on Pilot.
+Its source digest is
+`245e0e7f7cea2ac77e285b00b4cd4841e081279b4f3df9414b412af1d1df1460`
+and its dist digest is
+`f82a5f134ea55e5c83612712daaf98cfad8fc6d5eb2a64960c2ae2b8d626c321`.
+The `.94` evaluation exposed one warm-cache lifecycle defect: after normal
+authentication into Gantt, navigation to Planning restored the canonical
+order from the PostgreSQL cache but skipped the final render because the
+payload itself was unchanged. `.95` renders when either the payload or the
+canonical selection changes, and production QA now reproduces the exact
+module-away/module-back path.
+
+Authenticated live acceptance then reached React `ready` through the normal
+`Gantt -> Modules -> Work orders` flow. React matched two live work orders,
+five readiness metrics and 88 hierarchy rows, with a `482.4 ms` first commit.
+Desktop rendered two module columns, one workspace column, five KPI columns and
+18 px panels without page overflow. The compact viewport rendered one module
+column, two sidebar columns and two KPI columns without page overflow. Selecting
+the second 1,000-unit order stayed inside React and retained all 88 rows. The
+only visible domain command, `Send to planning`, remained disabled; no write
+was invoked.
+
+The root-only evaluation drop-in was removed after acceptance. A fresh
+authorized session with the evaluation query retained proved zero React
+targets and the exact legacy projection: two work orders, 88 rows and active
+route `r2-eb5260e9`. The active immutable release remains `.95`; only its
+false-by-default runtime permission was removed.

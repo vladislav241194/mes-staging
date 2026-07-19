@@ -372,7 +372,15 @@ authoritative slot/end time and reads the same value through legacy while the
 compatibility snapshot remains unchanged. Its independent entry is `206,952 B`
 raw / `64,065 B` gzip; the bundled artifact is `203,294 B` raw / `63,828 B`
 gzip / `54,880 B` Brotli. Date, labor, Gantt and cancel remain legacy; this slice
-has not been released or activated on Pilot.
+completed authenticated read-only Pilot acceptance on
+`v.1.499.95-2c7dc1c`. The accepted normal login and warm-cache navigation path
+matched two live work orders, five readiness metrics and 88 hierarchy rows,
+committed in `482.4 ms`, preserved the desktop and compact UI contracts and
+kept `Send to planning` disabled. Release `.94` exposed and `.95` fixed the
+missing final render when a cached bootstrap restored a cleared canonical
+selection. The evaluation drop-in is removed; retained-query fallback proves
+zero React targets and exact legacy `2 / 88` with route `r2-eb5260e9`. No data
+was written. Quantity and every other Planning command remain separate gates.
 
 Shift Work Orders is the eighteenth production-integrated scenario and the
 first operational-family proof. Its typed
