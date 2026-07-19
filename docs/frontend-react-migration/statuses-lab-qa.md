@@ -56,9 +56,11 @@ Read-only activation remains protected by explicit runtime permissions and a
 session request. Custom create/edit has only the local
 `react-directory-statuses-write=1` gate; there is no Pilot/server write flag.
 Pilot read-only evaluation on `v.1.499.87-2415a84` proved 82 live rows,
-selection/detail, group filtering, disabled commands and a `135.9 ms` first
-commit in the authenticated UI. The initial compact-shell check exposed the
-fixed-width registry rail; `v.1.499.88` adds the bounded responsive contract
-and automated regression gate. No Pilot write or real-data mutation was
-performed. Disabling the evaluation immediately retains the unchanged legacy
-Statuses view.
+selection/detail, group filtering and disabled commands in the authenticated
+UI. The initial compact-shell check exposed the fixed-width registry rail.
+The accepted `v.1.499.88-c507868` release keeps 82/82 live rows, reduced the
+first commit to `43.4 ms`, and proved the bounded responsive contract in the
+effective `487 x 1055` compact viewport: one-column module/workspace,
+two-column filters, no document overflow and table-local horizontal scrolling.
+The in-page return restored 82-row legacy Statuses with no React island. No
+Pilot write or real-data mutation was performed.

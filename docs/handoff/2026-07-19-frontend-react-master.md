@@ -248,12 +248,14 @@ and dispatches one typed custom-status command. The owner requires both a
 cannot mutate any of the 85 system rows. Disposable-snapshot QA proves custom
 create/edit, persistence, system-row protection, legacy read-back and unchanged
 Planning rows. Its artifact is `204,911 B` raw / `64,133 B` gzip / `55,175 B`
-Brotli. Pilot read-only evaluation on `v.1.499.87-2415a84` proved 82 live rows,
-group filtering, selection/detail, disabled commands and a `135.9 ms` first
-commit. Compact-shell inspection found the fixed 230 px rail too narrow for the
-remaining workspace; `v.1.499.88` replaces it below 760 px with a one-column
-module/workspace and two-column filter rail, guarded by automated 487 px QA.
-Write remains local-only and no Pilot data was mutated.
+Brotli. Initial Pilot read-only evaluation on `v.1.499.87-2415a84` found the
+fixed 230 px rail too narrow in the compact shell. The accepted
+`v.1.499.88-c507868` release proved 82/82 live rows, group filtering,
+selection/detail, disabled commands and a `43.4 ms` first commit. Below 760 px
+it now uses a one-column module/workspace and two-column filter rail; effective
+`487 x 1055` Pilot QA confirmed no document overflow, table-local scrolling and
+an 82-row in-page legacy fallback with no React island. Write remains
+local-only and no Pilot data was mutated.
 
 Structure Positions is now the ninth production-integrated read-only island.
 It consumes the authenticated PostgreSQL System Domains payload in a separate
