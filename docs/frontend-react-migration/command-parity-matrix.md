@@ -41,7 +41,7 @@ and Contour Admin on its mapped host.
 
 Nomenclature, Component Types, Nomenclature Types and custom Operations have
 locally complete create/edit/delete command parity. Bundled MES operations stay
-protected. User-managed Statuses have locally complete create/edit parity;
+protected. User-managed Statuses have locally complete create/edit/delete parity;
 board metadata has create/edit/delete.
 Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
@@ -109,7 +109,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 3 | Operations | Local complete: create/edit/custom delete with Specifications and loaded-Planning cleanup; bundled rows protected | Medium | Separately gated Pilot create/edit/custom-delete evaluation with a disposable row and verified cleanup |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
-| 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
+| 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
 | 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
 | 9 | Structure Positions | Local complete: create/edit with organization, work-center and schedule references; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable position and cleanup |
@@ -161,13 +161,14 @@ state, empty-previous-name normalization, a missing production fallback-owner
 dependency and loss of normalized Specifications references during delete.
 Pilot remains default-off and has no write runtime flag for this scenario.
 
-Statuses now has local create/edit parity only for explicitly user-managed
-rows. Both `custom-status-` ID and persisted `statusAuthority: "user"` are
-required at the command owner; system rows remain hard read-only even if input
-forges the marker. Disposable production-shell QA proves create/edit,
-persistence, unchanged system contracts, legacy read-back and unchanged
-Planning rows. Pilot remains default-off and has no Statuses write runtime
-flag.
+Statuses now has local create/edit/delete parity only for explicitly
+user-managed rows. Both `custom-status-` ID and persisted
+`statusAuthority: "user"` are required at the command owner; system, forged,
+missing and RBAC-denied delete targets fail closed. Disposable
+production-shell QA proves create/edit, byte-identical delete cancellation,
+confirmed removal persistence, unchanged system contracts, legacy read-back
+without the disposable row and unchanged Planning rows. Pilot remains
+default-off and has no Statuses write runtime flag.
 
 Boards/BOM now has local metadata create/edit/delete parity through the
 existing lazy Products command owner. Production-shell QA preserves hidden
