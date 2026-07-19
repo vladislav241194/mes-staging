@@ -124,6 +124,7 @@ function getDirectoryData(sectionId) {
           nextDocumentView: getStatusNextDocumentView(normalizedRow),
           impactView: getStatusImpactView(normalizedRow),
           registryKind: getStatusRegistryKindLabel(normalizedRow.registryKind),
+          registryKindValue: normalizedRow.registryKind,
           audit: getStatusAuditInfo(normalizedRow).label,
         };
       }),

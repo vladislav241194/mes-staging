@@ -19,9 +19,9 @@ Production Control is accepted on its current `25 x 11` Pilot projection,
 including the deviation-note interaction and same-data legacy rollback.
 
 Nomenclature and Component Types have locally complete create/edit/delete
-command parity. Operations and Nomenclature Types have locally complete
-create/edit parity while their reference-sensitive deletes remain explicit
-legacy-only slices. Structure
+command parity. Operations, Nomenclature Types and user-managed Statuses have
+locally complete create/edit parity while reference-sensitive or lifecycle
+deletes remain explicit legacy-only slices. Structure
 Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. The remaining scenarios
 retain their explicit next vertical scopes.
@@ -33,7 +33,7 @@ retain their explicit next vertical scopes.
 | 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot read-only evaluation, then write evaluation with a disposable type and reference audit |
-| 6 | Statuses | Pending | High | Non-system status create/edit with lifecycle protection |
+| 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
 | 7 | Boards/BOM | Pending | High | Board create/edit before import, row editing and delete |
 | 8 | Structure registries | Pending | High/Critical | One registry and one command at a time, preserving PostgreSQL references |
 | 9 | Timesheet | Pending | High | One attendance-day save/remove scenario |
@@ -69,6 +69,14 @@ owner audit also repaired two legacy defects: synchronization previously used
 an unavailable/stale state boundary, and a new row's empty previous name could
 normalize to `РЭА компоненты` and recategorize existing items. Pilot remains
 default-off and has no write runtime flag for this scenario.
+
+Statuses now has local create/edit parity only for explicitly user-managed
+rows. Both `custom-status-` ID and persisted `statusAuthority: "user"` are
+required at the command owner; system rows remain hard read-only even if input
+forges the marker. Disposable production-shell QA proves create/edit,
+persistence, unchanged system contracts, legacy read-back and unchanged
+Planning rows. Pilot remains default-off and has no Statuses write runtime
+flag.
 
 Weekly Production Control's earlier “week selection” command scope was removed
 after source audit: no such legacy command exists, and the module explicitly

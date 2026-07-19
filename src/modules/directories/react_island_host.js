@@ -97,6 +97,7 @@ export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
 export function createDirectoryStatusesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowWriteEvaluation: true,
     bundleName: "statuses", bundleVersion: STATUSES_VERSION,
     className: "mes-react-directory-statuses-island", mountExport: "mountStatusesReactIsland",
     reportError: options.reportError || ((error) => console.error("[MES] Directory Statuses React island failed", error)),

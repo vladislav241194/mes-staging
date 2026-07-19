@@ -38,8 +38,8 @@ Current minified measurements:
 | Component Types independent entry | 211,805 B | 64,829 B | 225,000 B | 68,000 B |
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
-| Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 464,289 B | 109,275 B | 465,000 B | 118,000 B |
+| Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
+| Full twenty-four-scenario lab | 469,758 B | 109,905 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -47,7 +47,7 @@ Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
 Specifications 2.0 and Roles artifacts and rejects unrelated scenario labels.
 The same isolation check now covers the Gantt artifact.
 This preserves independent vertical slices instead of shipping every lab
-scenario with an individual island. The larger `465,000 B / 118,000 B` limit
+scenario with an individual island. The larger `475,000 B / 118,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increased only as isolated scenarios were added; every
 production entry retains the unchanged `225,000 B / 68,000 B` gate.
@@ -100,8 +100,8 @@ The bundled production Nomenclature Types island is `203,085 B` raw /
 `63,699 B` gzip / `54,776 B` Brotli. Its production-shell first commit was
 `22.40 ms` locally; this is regression evidence, not Pilot acceptance.
 
-The bundled production Statuses island is `200,980 B` raw / `62,993 B` gzip /
-`54,248 B` Brotli. Its production-shell first commit was below `20 ms` while
+The bundled production Statuses island is `204,911 B` raw / `64,133 B` gzip /
+`55,175 B` Brotli. Its production-shell first commit was below `20 ms` while
 rendering all 85 current runtime rows; this is regression evidence, not Pilot
 acceptance.
 

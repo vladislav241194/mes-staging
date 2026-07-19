@@ -71,8 +71,10 @@ cannot cycle into a different React section.
 
 `mountStatusesReactIsland(...)` consumes the host-computed Statuses projection,
 including lifecycle, contract, transition, audit and impact semantics. React
-owns only application-area filtering, selection and the read passport; it does
-not reproduce MES status policy.
+owns application-area filtering, selection, the read passport and a typed
+custom-status editor. It does not reproduce MES status policy: the existing
+owner accepts create/edit only for persisted user-authority rows, while every
+system lifecycle row and delete remain read-only.
 
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
 the read-only Boards/BOM scenario. Its production host requires a separate

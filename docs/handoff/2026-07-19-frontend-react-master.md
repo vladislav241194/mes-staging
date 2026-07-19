@@ -232,13 +232,15 @@ Its artifact is `203,085 B` raw / `63,699 B` gzip / `54,776 B` Brotli. Write is
 local-only with no server runtime flag; it has not been released or activated
 on Pilot and delete remains legacy.
 
-Directories Statuses is now the eighth production-integrated read-only island.
-The host retains lifecycle, contract, transition, audit and impact semantics;
-React renders the resulting projection. Production-shell QA matches all 85
-runtime rows, seven visible cells and order, plus group filtering, the full
-read passport, loop-free legacy return, unchanged state and clean console. Its
-artifact is `200,980 B` raw / `62,993 B` gzip / `54,248 B` Brotli. It has not
-been released or activated on Pilot.
+Directories Statuses is now the eighth production-integrated island with local
+create/edit parity for user-managed rows only. The host retains lifecycle,
+contract, transition, audit and impact semantics; React renders the projection
+and dispatches one typed custom-status command. The owner requires both a
+`custom-status-` ID and persisted `statusAuthority: "user"`, so forged input
+cannot mutate any of the 85 system rows. Disposable-snapshot QA proves custom
+create/edit, persistence, system-row protection, legacy read-back and unchanged
+Planning rows. Its artifact is `204,911 B` raw / `64,133 B` gzip / `55,175 B`
+Brotli. Write is local-only; it has not been released or activated on Pilot.
 
 Structure Positions is now the ninth production-integrated read-only island.
 It consumes the authenticated PostgreSQL System Domains payload in a separate
@@ -433,7 +435,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations and Nomenclature Types have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types and user-managed Statuses have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;

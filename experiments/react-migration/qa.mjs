@@ -703,14 +703,16 @@ try {
 
   const statusesAdapterOutput = join(temporaryRoot, "statuses-adapter.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/statuses/adapter.ts")], outfile: statusesAdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
-  const { adaptStatuses } = await import(`${pathToFileURL(statusesAdapterOutput).href}?qa=${Date.now()}`);
-  const statuses = adaptStatuses({ statuses: [{ id: "ready", name: "Готов", group: "Документы", code: "ready" }, { id: "", name: "invalid" }] });
-  assert.deepEqual(statuses.map((item) => [item.id, item.name, item.group, item.code]), [["ready", "Готов", "Документы", "ready"]]);
+  const { adaptStatuses, adaptStatusesModel } = await import(`${pathToFileURL(statusesAdapterOutput).href}?qa=${Date.now()}`);
+  const statuses = adaptStatuses({ statuses: [{ id: "ready", name: "Готов", group: "Документы", code: "ready" }, { id: "custom-status-qa", name: "QA", group: "Документы", code: "qa", statusAuthority: "user" }, { id: "", name: "invalid" }] });
+  assert.deepEqual(statuses.map((item) => [item.id, item.name, item.group, item.code, item.isUserManaged]), [["ready", "Готов", "Документы", "ready", false], ["custom-status-qa", "QA", "Документы", "qa", true]]);
   assert.deepEqual(adaptStatuses({ statuses: {} }), []);
+  assert.equal(adaptStatusesModel({ statuses: [], capabilities: { createEditCustom: true } }).canCreateEditCustom, true);
+  assert.equal(adaptStatusesModel({ statuses: [], capabilities: { createEditCustom: "true" } }).canCreateEditCustom, false, "non-boolean custom Status capability must fail closed");
   const statusesViewModelOutput = join(temporaryRoot, "statuses-view-model.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/statuses/view-model.ts")], outfile: statusesViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
   const statusesViewModel = await import(`${pathToFileURL(statusesViewModelOutput).href}?qa=${Date.now()}`);
-  assert.deepEqual(statusesViewModel.buildStatusFilters(statuses).map((entry) => [entry.label, entry.count]), [["Все статусы", 1], ["Документы", 1]]);
+  assert.deepEqual(statusesViewModel.buildStatusFilters(statuses).map((entry) => [entry.label, entry.count]), [["Все статусы", 2], ["Документы", 2]]);
   assert.equal(statusesViewModel.resolveVisibleStatus(statuses, "missing")?.id, "ready");
 
   const specifications2AdapterOutput = join(temporaryRoot, "specifications2-adapter.mjs");
@@ -1003,6 +1005,13 @@ try {
   const appEventsServiceSource = await readFile(join(repositoryRoot, "src/modules/app_events/service.js"), "utf8");
   assert.match(appEventsServiceSource, /syncNomenclatureTypeRenameInCurrentDirectoryState/);
   assert.match(appEventsServiceSource, /!String\(previousName \|\| ""\)\.trim\(\)/, "Nomenclature Type create must not normalize an empty previous name into the default REA type");
+  assert.match(appEventsServiceSource, /options\.customStatusWrite === true/);
+  assert.match(appEventsServiceSource, /isUserManagedDirectoryStatus\(rows\[rowIndex\]\)/, "custom Status owner must verify the persisted row rather than trusting command input");
+
+  const statusesIslandSource = await readFile(join(sourceRoot, "statuses-island.tsx"), "utf8");
+  assert.match(statusesIslandSource, /export function mountStatusesReactIsland/);
+  assert.match(statusesIslandSource, /onRequestLegacy/);
+  assert.match(statusesIslandSource, /onCommand/);
 
   const specifications2IslandSource = await readFile(join(sourceRoot, "specifications2-island.tsx"), "utf8");
   assert.match(specifications2IslandSource, /export function mountSpecifications2ReactIsland/);
@@ -1272,6 +1281,7 @@ try {
   const eligibleDirectoryStatusesHost = makeDirectoryStatusesHost({ featureFlagEnabled: true, activeSection: "statuses", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryStatusesHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleDirectoryStatusesHost.renderTarget(), /data-react-directory-statuses-island/);
+  assert.deepEqual(makeDirectoryStatusesHost({ featureFlagEnabled: true, activeSection: "statuses", accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Statuses must accept its explicit local custom-write evaluation mode");
 
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
@@ -1377,8 +1387,11 @@ try {
   assert.match(productionAppSource, /directoryNomenclatureTypesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_STATUSES === true/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-directory-statuses-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-statuses-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /statuses: getDirectoryData\("statuses"\)\.rows/);
+  assert.match(productionAppSource, /canEditCustomStatusDirectorySection\(\)/);
+  assert.match(productionAppSource, /saveDirectoryRow\("statuses"/);
   assert.match(productionAppSource, /directoryStatusesReactIslandHost\.mount\(\)/);
   const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.js"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
@@ -1526,9 +1539,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes"], "Nomenclature, Component Types, Operations and Nomenclature Types create/edit must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses"], "five registry scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 18, "all 18 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 17, "all 17 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

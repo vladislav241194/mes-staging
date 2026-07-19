@@ -347,4 +347,6 @@ Statuses is the dense registry proof: 85 current runtime rows, seven table
 columns and a fourteen-field passport. The host computes all domain-specific
 lifecycle and impact text before the typed boundary. React reuses registry
 primitives without turning the five-part impact composition into a universal
-table variant.
+table variant. Its editor is deliberately narrower than the reader: it creates
+or edits only user-authority rows, while system lifecycle rows have no edit
+action and remain protected by the command owner.

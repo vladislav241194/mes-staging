@@ -3227,10 +3227,14 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
 });
 function getDirectoryStatusesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-directory-statuses") === "1", readOnlyEvaluation: params.get("react-directory-statuses-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-directory-statuses") === "1",
+    readOnlyEvaluation: params.get("react-directory-statuses-readonly") === "1",
+    writeEvaluation: params.get("react-directory-statuses-write") === "1",
+  };
 }
 function isDirectoryStatusesReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
@@ -3244,14 +3248,66 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
     return {
       featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_STATUSES === true || localQa.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: (serverEvaluationAllowed && isDirectoryStatusesReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isDirectoryStatusesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
     };
   },
-  getPayload: () => ({ statuses: getDirectoryData("statuses").rows }),
+  getPayload: () => {
+    const localQa = getDirectoryStatusesReactLocalQaOverrides();
+    return {
+      statuses: getDirectoryData("statuses").rows,
+      capabilities: { createEditCustom: localQa.writeEvaluation && canEditCustomStatusDirectorySection() },
+    };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getDirectoryStatusesReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || !canEditCustomStatusDirectorySection()) {
+      return { ok: false, message: "Создание пользовательских статусов недоступно для текущей роли." };
+    }
+    if (command.type !== "save-custom") return { ok: false, message: "Неподдерживаемая команда реестра статусов." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const isNew = input.isNew === true;
+    const itemId = isNew ? makeId("custom-status") : String(input.itemId || "").trim();
+    const rows = directoryState.statuses || [];
+    const rowIndex = isNew ? -1 : rows.findIndex((item) => String(item.id || "") === itemId);
+    if (!isNew && (rowIndex < 0 || !isUserManagedDirectoryStatus(rows[rowIndex]))) {
+      return { ok: false, message: "Системные статусы нельзя изменять из пользовательского редактора." };
+    }
+    const name = String(input.name || "").trim();
+    const code = String(input.code || "").trim();
+    const group = String(input.group || "").trim();
+    if (!name || !code || !group) return { ok: false, message: "Заполните область, название и код статуса." };
+    const duplicate = rows.some((item, index) => index !== rowIndex
+      && normalizeLookupText(item.code) === normalizeLookupText(code)
+      && normalizeLookupText(item.group) === normalizeLookupText(group));
+    if (duplicate) return { ok: false, message: "В этой области уже существует статус с таким кодом." };
+    const previous = rowIndex >= 0 ? rows[rowIndex] : {};
+    const row = {
+      ...previous,
+      id: itemId,
+      statusAuthority: "user",
+      registryKind: "status",
+      group,
+      name,
+      code,
+      type: String(input.type || "Пользовательский статус").trim() || "Пользовательский статус",
+      annotation: String(input.annotation || "").trim(),
+      impact: String(input.impact || "").trim(),
+    };
+    const result = saveDirectoryRow("statuses", rowIndex, row, { customStatusWrite: true });
+    if (result === false) return { ok: false, message: "Не удалось сохранить пользовательский статус." };
+    ui.selectedDirectoryRows.statuses = rowIndex >= 0 ? rowIndex : Math.max(0, (directoryState.statuses || []).length - 1);
+    persistUiState();
+    render({ skipRememberScroll: true });
+    return { ok: true, id: itemId, isNew };
   },
 });
 function ensureNomenclatureRenderModule() {
@@ -6090,6 +6146,15 @@ function canEditDirectorySection(sectionId = "") {
   return authorizeSystemDomainAction("directories", "edit", { resourceId: normalizedSectionId });
 }
 
+function canEditCustomStatusDirectorySection() {
+  return authorizeSystemDomainAction("directories", "edit", { resourceId: "statuses" });
+}
+
+function isUserManagedDirectoryStatus(row = {}) {
+  return String(row.statusAuthority || "") === "user"
+    && String(row.id || "").startsWith("custom-status-");
+}
+
 function canEditTimesheetEmployee(employeeId = "") {
   const normalizedEmployeeId = String(employeeId || "").trim();
   return Boolean(normalizedEmployeeId
@@ -8061,6 +8126,7 @@ appEventsService = createAppEventsServiceModule({
   buildDefaultSpecificationStructureItems,
   calculateProjectProgress,
   cancelPlanningRoute,
+  canEditCustomStatusDirectorySection,
   canEditDirectorySection,
   cascadeBatchFromSlot,
   changePlanningRouteQuantity,
@@ -8161,6 +8227,7 @@ appEventsService = createAppEventsServiceModule({
   icon,
   importBomFromXlsxFile,
   isGanttSlotCompleted,
+  isUserManagedDirectoryStatus,
   isAuthPrototypePinFeedbackLocked,
   isManufacturingOutputReceiptOperation,
   isManufacturingOutputReceiptRouteStep,

@@ -51,7 +51,7 @@ const operations = await measureEntry("operations-island.tsx", { raw: 225_000, g
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
 // The aggregate lab intentionally contains every scenario; production islands keep their stricter per-entry budgets above.
-const lab = await measureEntry("main.tsx", { raw: 465_000, gzip: 118_000 });
+const lab = await measureEntry("main.tsx", { raw: 475_000, gzip: 118_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);

@@ -23,6 +23,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     button = null,
     calculateProjectProgress,
     cancelPlanningRoute,
+    canEditCustomStatusDirectorySection = () => false,
     canEditDirectorySection = () => false,
     cascadeBatchFromSlot,
     changePlanningRouteQuantity = async (routeId, quantity, options) => syncPlanningRouteQuantity(routeId, quantity, options),
@@ -140,6 +141,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     importBomFromXlsxFile,
     input = null,
     isGanttSlotCompleted,
+    isUserManagedDirectoryStatus = () => false,
     isManufacturingOutputReceiptOperation,
     isManufacturingOutputReceiptRouteStep,
     isPlanningWorkCenterCompatibleWithRouteStep,
@@ -1697,9 +1699,16 @@ function bindDirectoryForm() {
   });
 }
 
-function saveDirectoryRow(sectionId, rowIndex, row) {
+function saveDirectoryRow(sectionId, rowIndex, row, options = {}) {
   sectionId = normalizeDirectorySectionId(sectionId);
-  if (!canEditDirectorySection(sectionId)) return false;
+  const rows = directoryState[sectionId] || [];
+  const customStatusWrite = sectionId === "statuses"
+    && options.customStatusWrite === true
+    && canEditCustomStatusDirectorySection()
+    && (rowIndex < 0
+      ? isUserManagedDirectoryStatus(row)
+      : isUserManagedDirectoryStatus(rows[rowIndex]) && String(rows[rowIndex]?.id || "") === String(row?.id || ""));
+  if (!customStatusWrite && !canEditDirectorySection(sectionId)) return false;
   if (sectionId === "operations") {
     const normalizedOperation = normalizeDirectoryRow("operations", {
       ...row,
@@ -1719,7 +1728,6 @@ function saveDirectoryRow(sectionId, rowIndex, row) {
     return;
   }
 
-  const rows = directoryState[sectionId] || [];
   const previousTypeName = sectionId === "nomenclatureTypes" && rowIndex >= 0
     ? rows[rowIndex]?.name || ""
     : "";
