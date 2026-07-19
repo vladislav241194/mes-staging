@@ -498,3 +498,25 @@ current node and PDF three instruction steps. A clean `.81` tab had no browser
 warnings or errors. After deactivation a retained-query reload mounted zero
 React targets and restored legacy; Pilot remained healthy and all sessions use
 legacy by default.
+
+## Specifications 2.0 and Gantt checkpoints
+
+Specifications 2.0 release `.82-fe0ba0c` correctly stayed in legacy on Pilot.
+The selected source `АБВГ.469659.001 Калоша` has a current 91-row draft marked
+changed after published revision 6, so its fingerprint does not match the
+immutable published projection. The fail-closed gate was not weakened and no
+draft, revision, attachment or work-order data was changed.
+
+Gantt `.83-d8d81dd` was rejected because KPI and passport styles were absent in
+the production shell. `.84-f4a851d` fixed those elements, but the fifth toolbar
+action wrapped to a second row and was also rejected. Release
+`v.1.499.85-9120f56` from exact commit
+`9120f560b8db43dd37470aeb546ea8f47e321621` was accepted. Its manifest records
+source digest `35adb66b22bd2248e901b1fc052476fb0fcb1ed20b261a2722a164bfb7b7ce70`
+and dist digest `a0b4f5ecf0fc7146bdc0b6e23c3a8cbf82823e9d9730ddb46e2c8c8d926f88c6`.
+Authenticated QA reached `ready` in `192.6 ms` with one route, nine rows, 69
+slots, 50 dependencies, four styled KPI cards, one-row toolbar, bounded slot
+passport and no page overflow. The dependency inspector opened a real
+production relationship; no schedule write was invoked. Evaluation was
+disabled, retained-query reload mounted zero React targets, legacy returned,
+and health remained `ok` on `.85`.

@@ -440,7 +440,13 @@ Production-shell QA proves default legacy, revision-19 PostgreSQL projection,
 three rows, two slots, one `Монтаж -> Контроль` dependency with a 60-minute
 interval, target-slot selection, first commit `17.10 ms`, editor fallback and
 zero Planning writes. The production artifact is `204,190 B` raw / `63,874 B`
-gzip / `55,121 B` Brotli. It has not been released or activated on Pilot.
+gzip / `55,121 B` Brotli. Pilot rejected `.83` for missing production
+card/panel styling and `.84` for a wrapped toolbar action. Authenticated
+`.85-9120f56` acceptance then proved one real route, nine rows, 69 slots, 50
+dependency pairs, scoped KPI cards, a bounded passport panel, single-row
+toolbar and no overflow. An actual dependency was inspected without invoking
+any schedule write. Evaluation was removed and retained-query reload restored
+legacy with zero React targets.
 
 Authorization picker is the twenty-fourth production-integrated scenario. It
 owns only department, unit and employee selection from PostgreSQL System
@@ -485,7 +491,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
 5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
-6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
+6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 13 of 24 scenarios, most recently Gantt on `.85`.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
    Operations create/edit is locally complete with linked Planning reference

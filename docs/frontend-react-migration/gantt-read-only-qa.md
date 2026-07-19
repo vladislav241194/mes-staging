@@ -1,7 +1,7 @@
 # Gantt read-only React QA
 
 Date: 2026-07-19
-Status: production-integrated dependency-inspection proof; disabled by default; not deployed
+Status: authenticated Pilot read accepted on `v.1.499.85-9120f56`; disabled by default
 
 ## Vertical scenario
 
@@ -46,4 +46,13 @@ Existing full Gantt guardrail QA currently requires a root
 gate independently proves default legacy rendering and exact runtime-owned
 slot geometry; the missing external fixture is not treated as a pass.
 
-No Pilot/Admin deploy, version bump or feature activation was performed.
+Pilot evaluation first rejected `.83-d8d81dd` because the production shell did
+not style KPI cards and the slot passport. `.84-f4a851d` fixed those contracts
+but visual QA found the fifth toolbar action wrapping onto a separate row.
+Accepted release `.85-9120f56` adds a five-column toolbar and an executable
+single-row visual gate. Authenticated real-data QA reached `ready` in `192.6 ms`
+with one route, nine rows, 69 slots and 50 dependency pairs. The inspector
+opened an actual `Выдача в производство -> Слесарная операция` relationship;
+no schedule mutation or write command was invoked. The evaluation drop-in was
+then removed, a retained evaluation URL mounted zero React targets, legacy
+Gantt returned, and Pilot remained healthy.

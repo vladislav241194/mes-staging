@@ -26,6 +26,10 @@ evaluation was likewise disabled and legacy restored.
 Employee Desktop read-only acceptance covers the current completed assignment,
 seven metrics and the Structure, Route and PDF overlays on `.81`; task/fact/
 Report commands were not invoked, evaluation was disabled and legacy restored.
+Gantt read-only acceptance now covers one real route, nine rows, 69 slots and
+50 dependency pairs on `.85`; the dependency inspector was exercised, no
+schedule write was invoked, evaluation was disabled and legacy restored. This
+brings authenticated Pilot read acceptance to 13 of 24 scenarios.
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations, Nomenclature Types, user-managed Statuses and board
@@ -110,7 +114,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
-| 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
+| 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy; Pilot read accepted | Critical | Keep default-off; dependency editing, drag, resize and optimization remain separate command scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
