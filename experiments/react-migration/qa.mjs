@@ -547,6 +547,8 @@ try {
   const equipmentAdapter = await import(`${pathToFileURL(equipmentAdapterOutput).href}?qa=${Date.now()}`);
   assert.deepEqual(equipmentAdapter.adaptStructureEquipment({ registries: { equipment: {} } }).equipment, []);
   const equipmentModel = equipmentAdapter.adaptStructureEquipment(structureEmployeesFixture);
+  assert.equal(equipmentModel.canArchive, false, "Equipment archive capability must fail closed");
+  assert.equal(equipmentAdapter.adaptStructureEquipment({ ...structureEmployeesFixture, capabilities: { archive: true } }).canArchive, true, "Equipment archive capability must be explicit");
   assert.deepEqual(equipmentModel.equipment.map((entry) => [entry.id, entry.workCenterLabel, entry.quantityLabel, entry.scheduleLabel, entry.statusLabel]), [["EQ-001", "Влагозащита", "1", "—", "активно"]]);
   assert.equal(equipmentAdapter.adaptStructureEquipment({ registries: canonicalMigration.domains.registries }).equipment.length, 6, "no canonical equipment may be dropped");
 

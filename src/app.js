@@ -2776,13 +2776,26 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
     const localQa = getStructureEquipmentReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION === true;
     return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureEquipmentReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
   },
-  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructureEquipmentReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("equipment") } }), getTargetRoot: () => app,
+  getPayload: () => { const commandReady = getStructureEquipmentReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("equipment"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; }, getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "equipment"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureEquipmentReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования оборудования недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда оборудования недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("equipment")) return { ok: false, message: "PostgreSQL-команда или право редактирования оборудования недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "archive") {
+      const equipmentId = String(input.equipmentId || "").trim();
+      const equipment = (getSystemDomainsRegistries().equipment || []).find((row) => row.id === equipmentId);
+      if (!equipment || equipment.isActive === false) return { ok: false, message: "Активное оборудование больше не существует." };
+      try {
+        const result = await archiveSystemDomainEntity("equipment", equipmentId, { source: "react:structure-equipment:archive", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Архивирование оборудования отклонено проверкой System Domains." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: equipmentId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные оборудования изменились в другом сеансе. Проверьте значения и повторите архивирование." : error?.message || "Сервер не принял архивирование оборудования." };
+      }
+    }
     const equipmentId = String(input.equipmentId || "").trim() || makeId("equipment");
     const name = String(input.name || "").trim().replace(/\s+/g, " ");
     const orgUnitId = String(input.orgUnitId || "").trim();
