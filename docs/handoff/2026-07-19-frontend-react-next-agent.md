@@ -134,3 +134,22 @@ actions/console, затем немедленно деактивировать и
   сохранён. Следующий локальный command scope нужно снова выбирать из реально
   существующего owner-кода; Pilot write остаётся отдельным разрешённым
   disposable/cleanup checkpoint.
+
+## Продолжение: Roles grants checkpoint
+
+- После Timesheet выбран следующий подтверждённый owner-backed scope: один
+  grant роли. React теперь отправляет typed `set-grant`, а host повторно
+  проверяет `roles:configure`, существование роли/модуля/action, read-only
+  ограничение и зависимость `view`, затем вызывает существующий
+  `setAccessGrant` на revision-checked поверхности `access-control`.
+- QA обнаружил и закрыл прежнюю потерю канонического `readOnly` при
+  legacy-to-System-Domains миграции; authority, API и schema не менялись.
+- Production-shell QA доказал conflict без мутации, retry, React и legacy
+  read-back, cleanup к исходному effective deny, неизменные посторонние grants,
+  assignments и hidden role field, default legacy и чистую консоль.
+- Последние размеры: Roles independent `214116 / 65691 B` raw/gzip;
+  production `208250 / 65235 / 56291 B` raw/gzip/Brotli; latest first commit
+  `120.90 ms` при локальном gate `2000 ms`. Full lab `556476 / 126054 B`.
+- Pilot writes/flags не выполнялись и не менялись. В остатке Roles явно остаются
+  assignments, responsibility scopes и lifecycle (`readOnly`/`active`); каждый
+  из них требует отдельного вертикального среза и собственного cleanup proof.

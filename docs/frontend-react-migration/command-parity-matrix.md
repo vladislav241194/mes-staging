@@ -49,9 +49,9 @@ Equipment and Structure Responsibility Policies now have locally complete Postgr
 parity through the System Domains owner, while reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
-schedule save/remove. Roles and Access now has locally
-complete passport metadata editing through the `access-control` owner; grants,
-assignments, scopes, read-only and active remain legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
+schedule save/remove. Roles and Access now has locally complete passport
+metadata editing and six-action grant toggles through the `access-control`
+owner; assignments, scopes, read-only and active remain legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. Planning Workbench now has
 locally complete route/item navigation and quantity editing through its current
 PostgreSQL-backed owner; dates, labor, Gantt transfer and cancel remain legacy.
@@ -118,7 +118,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
-| 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
+| 15 | Roles and Access | Local complete: role label, description, default module and six-action grant toggles; assignments, scopes and lifecycle remain legacy | Critical | Separately gated Pilot metadata/grant write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy; Pilot read accepted | Critical | Keep default-off; assignment/fact remain separate command scopes owned by Workshop and Employee Desktop |
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |

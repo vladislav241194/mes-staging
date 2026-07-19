@@ -271,12 +271,15 @@ renderer. An unlocked gate, non-server projection or missing evaluation retains
 legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice plus a
-localhost-only passport metadata write evaluation over a host-supplied System
-Domains snapshot and module registry. The command can change only label,
-description and a view-allowed default module through the revision-checked
-`access-control` owner. Grants, assignments, scopes, read-only, active and reset
-remain legacy. Missing configure permission, PostgreSQL readiness or explicit
-write evaluation fails closed before React exposes the editor.
+localhost-only passport metadata and grant write evaluation over a host-supplied
+System Domains snapshot and module registry. Typed commands can change only
+label, description, a view-allowed default module, or one existing six-action
+grant coordinate through the revision-checked `access-control` owner. The host
+rechecks module/action existence, `roles:configure`, read-only-role restrictions
+and the `view` dependency rule before delegating. Assignments, scopes,
+read-only/active lifecycle and reset remain legacy. Missing configure
+permission, PostgreSQL readiness or explicit write evaluation fails closed
+before React exposes either command surface.
 
 The Nomenclature wrapper has its own entry point and does not bundle Component
 Types. The multi-scenario lab keeps a separate entry for development QA.
