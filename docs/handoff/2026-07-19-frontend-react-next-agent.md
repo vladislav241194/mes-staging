@@ -333,3 +333,29 @@ actions/console, затем немедленно деактивировать и
   прозрачный SVG `40 x 40`, padding `0`, zero horizontal overflow и обычный
   legacy Gantt; React targets на проверенном пути `0`. Ни Pilot data write, ни
   Ops-команда не выполнялись.
+
+## Продолжение: Boards/BOM quantity command checkpoint
+
+- Следующим owner-backed scope выбран edit количества одной существующей строки
+  BOM. Planning start-date отклонён как кандидат из-за compatibility-only
+  `persistState()` без revision-checked work-order owner; Roles read-only также
+  не выбран, потому что это не существующая legacy UI-команда.
+- React показывает компактный quantity editor только в локальном write-evaluation
+  contour. Host повторно проверяет `nomenclature:edit`, существование платы и
+  строки, целое неотрицательное значение и полный expected-row signature, затем
+  делегирует существующему `updateBomImportCell` и читает результат обратно у
+  владельца. Excel import, другие BOM cells и удаление строк остаются legacy.
+- Production-shell QA доказывает invalid rejection без изменения state-файла,
+  успешное `10 -> 12`, сохранность остальных восьми значений строки, трёх
+  соседних строк, hidden board metadata и Planning, а затем legacy input
+  read-back значения `12`. Board create/edit/delete regression остаётся зелёным.
+- Полный `npm run qa:boards-react-island` прошёл: typed QA, runtime/rollout
+  policy, production build и browser functional flow. First commit `20.20 ms`;
+  island `216117 / 66259 B`, full lab `556666 / 126148 B`, бюджеты сохранены.
+- Pilot write/release не выполнялся, server write flag отсутствует. Live Pilot
+  остаётся на `v.1.500.03-190fdf8`, все React flags выключены, legacy rollback
+  target — `v.1.500.02-05bd646`.
+- После этого блока доказательная оценка глобальной миграции: примерно `85%`
+  выполнено, примерно `15%` осталось (`+1 п.п.`). Процент отражает закрытие
+  bounded owner-backed slice, а не объявляет готовыми оставшиеся команды Boards,
+  Planning/Gantt, role lifecycle и Pilot acceptance.

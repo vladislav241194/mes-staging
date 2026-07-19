@@ -84,11 +84,14 @@ owner accepts create/edit only for persisted user-authority rows, while every
 system lifecycle row and delete remain read-only.
 
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
-Boards/BOM read and board-metadata create/edit/delete. Its production host
+Boards/BOM read, board-metadata create/edit/delete and one existing-row BOM
+quantity command. Its production host
 requires a separate false-by-default feature policy and the `boards` pane.
-React dispatches only typed board save/delete commands to the existing Products
-owner and renders the host-owned delete-usage projection; Excel import and BOM
-rows do not transfer from legacy. The aggregate fixture lab uses a separate
+React dispatches only typed board save/delete or quantity commands to the
+existing Products owner and renders the host-owned delete-usage projection.
+The host verifies board/row existence, integer quantity and the complete
+expected normalized row before invoking `updateBomImportCell`; Excel import,
+other cells and row deletion do not transfer from legacy. The aggregate fixture lab uses a separate
 read-only Boards scenario, so command UI does not leak into read evaluation.
 
 `mountStructureEmployeesReactIsland(...)` provides the canonical Employees

@@ -16,7 +16,7 @@ Current minified measurements:
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
 | Nomenclature production island | 213,718 B | 65,421 B | 225,000 B | 68,000 B |
-| Boards/BOM production island | 215,189 B | 66,015 B | 225,000 B | 68,000 B |
+| Boards/BOM production island | 216,117 B | 66,259 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 218,171 B | 66,062 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 216,176 B | 65,692 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 214,582 B | 65,440 B | 225,000 B | 68,000 B |
@@ -34,13 +34,13 @@ Current minified measurements:
 | Authorization picker production island | 206,680 B | 64,121 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 207,695 B | 63,983 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
-| Gantt production island | 207,957 B | 64,254 B | 225,000 B | 68,000 B |
+| Gantt production island | 210,560 B | 64,962 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 215,726 B | 65,944 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 212,161 B | 64,999 B | 225,000 B | 68,000 B |
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
-| Statuses independent entry | 210,133 B | 64,574 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 553,851 B | 125,981 B | 555,000 B | 126,000 B |
+| Statuses independent entry | 213,503 B | 65,173 B | 225,000 B | 68,000 B |
+| Full twenty-four-scenario lab | 556,666 B | 126,148 B | 558,000 B | 127,000 B |
 | Shared lab CSS | 29,860 B | 5,345 B | 30,000 B | 5,350 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -50,7 +50,7 @@ The same isolation check now covers the Gantt artifact.
 The Shift Work Orders base-entry check additionally rejects the print-sheet
 marker, while the dedicated lazy entry must contain it. This preserves
 independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `555,000 B / 126,000 B` limit
+individual island. The larger `558,000 B / 127,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increases only for an accepted isolated scenario or
 bounded vertical capability; every production entry retains the unchanged

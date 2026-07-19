@@ -72,9 +72,10 @@ export function BoardsScenario({
           <TableWrap><table className="bom-table">
             <thead><tr>{selected.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead>
             <tbody>{selected.rows.map((row, rowIndex) => <tr key={`${selected.id}-${rowIndex}`}>
-              {row.values.map((value, columnIndex) => <td className={columnIndex === 1 ? "primary-cell" : ""} key={columnIndex}>{formatBomCell(value)}</td>)}
+              {row.values.map((value, columnIndex) => <td className={columnIndex === 1 ? "primary-cell" : ""} key={columnIndex}>{columnIndex === 6 && model.canEditBomRows ? <form data-react-bom-quantity-form={`${selected.id}:${rowIndex}`} onSubmit={(event) => { event.preventDefault(); const quantity = String(new FormData(event.currentTarget).get("quantity") ?? ""); void runCommand({ type: "update-bom-quantity", payload: { bomId: selected.id, rowIndex, expectedValues: [...row.values], quantity } }, "Количество BOM не сохранено."); }}><input aria-label={`Количество BOM, строка ${rowIndex + 1}`} defaultValue={String(row.quantity)} disabled={saving} min="0" name="quantity" required step="1" type="number" /><button disabled={saving} type="submit">Сохранить</button></form> : formatBomCell(value)}</td>)}
             </tr>)}</tbody>
           </table></TableWrap>
+          {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
         </> : <EmptyState title="Пока нет импортированных строк" text="Карточка платы сохранена, но компонентный состав ещё не импортирован." /> : <EmptyState title="Платы пока не созданы" text="Read-only сценарий покажет платы после появления данных BOM." />}
       </Panel>
 
@@ -113,4 +114,5 @@ interface BoardDraft { isNew: boolean; bomId: string; name: string; boardCode: s
 const createBoardDraft = (board?: BoardItem): BoardDraft => ({ isNew: !board, bomId: board?.id || "", name: board?.name || "", boardCode: board?.boardCode === "-" ? "" : board?.boardCode || "", resultItem: board?.resultItem === "-" ? "" : board?.resultItem || "" });
 export type BoardsReactCommand =
   | { type: "save"; payload: BoardDraft }
-  | { type: "delete"; payload: { bomId: string } };
+  | { type: "delete"; payload: { bomId: string } }
+  | { type: "update-bom-quantity"; payload: { bomId: string; rowIndex: number; expectedValues: readonly (string | number)[]; quantity: string } };

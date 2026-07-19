@@ -249,14 +249,16 @@ try {
   const boardsCommandModel = boardsAdapter.adaptBoardsModel({
     bomLists: [{ id: "board-qa", name: "QA", importRows: [{ values: [1, "R", "R1", "", "", "0603", 1, "", ""] }] }],
     deleteUsageById: { "board-qa": { specificationsCount: 1, bomRowsCount: 1 } },
-    capabilities: { createEdit: true, delete: true },
+    capabilities: { createEdit: true, delete: true, bomRowEdit: true },
   });
   assert.equal(boardsCommandModel.canCreateEdit, true);
   assert.equal(boardsCommandModel.canDelete, true);
+  assert.equal(boardsCommandModel.canEditBomRows, true);
   assert.deepEqual(boardsCommandModel.deleteUsageById["board-qa"], { specificationsCount: 1, bomRowsCount: 1 });
-  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true" } });
+  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true", bomRowEdit: "true" } });
   assert.equal(boardsFailClosedModel.canCreateEdit, false, "non-boolean Boards write capability must fail closed");
   assert.equal(boardsFailClosedModel.canDelete, false, "non-boolean Boards delete capability must fail closed");
+  assert.equal(boardsFailClosedModel.canEditBomRows, false, "non-boolean BOM-row capability must fail closed");
 
   const boardsViewModelOutput = join(temporaryRoot, "boards-view-model.mjs");
   await build({
@@ -1710,7 +1712,7 @@ try {
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot acceptance of the complete owner-backed flow.*PostgreSQL date rehydration.*productionHead master switching.*manual lane movement/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /Pilot acceptance of the complete worker task flow/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "specifications2")?.nextVerticalScope || "", /Pilot draft-row edit acceptance/);
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /Pilot dependency-inspection acceptance/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /start-time reschedule is locally complete.*dependency editing.*drag.*resize.*optimization remain separate/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "authPicker")?.nextVerticalScope || "", /Pilot PIN acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "contourAdmin")?.nextVerticalScope || "", /authenticated Admin acceptance/);
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");

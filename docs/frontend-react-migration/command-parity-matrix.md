@@ -42,14 +42,14 @@ and Contour Admin on its mapped host.
 Nomenclature, Component Types, Nomenclature Types and custom Operations have
 locally complete create/edit/delete command parity. Bundled MES operations stay
 protected. User-managed Statuses have locally complete create/edit/delete parity;
-board metadata has create/edit/delete.
+board metadata has create/edit/delete and one existing-row BOM quantity edit.
 Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner; Positions, Org Units, Work Centers and
 Equipment also have explicit archive.
 Other reference-sensitive,
-lifecycle, import, BOM-row and delete commands remain explicit legacy-only
+lifecycle, import, other BOM-cell/row and delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
 schedule save/remove. Roles and Access now has locally complete passport
 metadata editing, six-action grant toggles and the role default scope through
@@ -81,8 +81,9 @@ photo preparation and Report creation reuse the existing journal owner. The
 Report journal remains compatibility UI-state rather than PostgreSQL.
 Structure, Route and PDF instruction are now React read-only overlays over the
 same task payload; person switching remains the module rollback. Gantt now also keeps dependency inspection
-inside React using the existing `getDependencyPairs` owner; drag, resize,
-optimization and all schedule mutations remain legacy. The remaining scenarios
+inside React using the existing `getDependencyPairs` owner and a local-only
+typed start-time move through the revision-checked `changeSlotSchedule` owner;
+dependency editing, drag, resize and optimization remain legacy. The remaining scenarios
 retain their explicit next vertical scopes.
 
 Specifications 2.0 now has locally complete editing of one existing draft row
@@ -113,7 +114,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
-| 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
+| 7 | Boards/BOM | Local complete: board metadata create/edit/delete plus existing-row BOM quantity with Specifications cleanup; Excel import, other cells and row deletion remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata/quantity write with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit/archive with active-dependency rejection and ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable unreferenced employee; reactivation remains legacy |
 | 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: create/edit/archive with hierarchy-cycle and active-reference rejection plus ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf unit; reactivation remains owner-gap |
@@ -127,7 +128,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
-| 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy; Pilot read accepted | Critical | Keep default-off; dependency editing, drag, resize and optimization remain separate command scopes |
+| 21 | Gantt | Local complete: dependency inspection, target-slot selection and revision-checked start-time reschedule; Pilot read accepted | Critical | Keep default-off; dependency editing, drag, resize and optimization remain separate command scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
@@ -173,15 +174,18 @@ confirmed removal persistence, unchanged system contracts, legacy read-back
 without the disposable row and unchanged Planning rows. Pilot remains
 default-off and has no Statuses write runtime flag.
 
-Boards/BOM now has local metadata create/edit/delete parity through the
-existing lazy Products command owner. Production-shell QA preserves hidden
+Boards/BOM now has local metadata create/edit/delete and existing-row quantity
+parity through the existing lazy Products command owner. Production-shell QA
+rejects invalid quantities before persistence, verifies the complete expected
+row before `updateBomImportCell`, preserves the other eight values and three
+unrelated rows, and reads the new quantity through legacy. It also preserves hidden
 fields, `projectId` and imported rows on edit, synchronizes both existing and
 new result Nomenclature, then proves usage-aware delete cancellation and exact
 Specifications cleanup. The independently addressable Nomenclature result and
 Planning remain unchanged, and legacy reads the two remaining boards. The
 owner audit also repaired the missing `upsertBomResultToNomenclature` and
-`getBomImportRows` dependencies in the lazy path. Excel import, BOM-row edits
-and counters remain separate legacy slices.
+`getBomImportRows` dependencies in the lazy path. Excel import, other BOM-cell
+edits, row deletion and counters remain separate legacy slices.
 
 Structure Employees is the first locally complete PostgreSQL-backed React
 command slice. Its local-only write gate delegates to the existing compound

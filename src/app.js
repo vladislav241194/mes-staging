@@ -2468,6 +2468,7 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
       capabilities: {
         createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         delete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomRowEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
       },
     };
   },
@@ -2486,9 +2487,23 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
-    if (command.type !== "save" && command.type !== "delete") return { ok: false, message: "Импорт и строки BOM остаются в legacy-контуре." };
+    if (!["save", "delete", "update-bom-quantity"].includes(command.type)) return { ok: false, message: "Excel-импорт и прочие строки BOM остаются в legacy-контуре." };
     if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "update-bom-quantity") {
+      const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex); const rawQuantity = String(input.quantity ?? "").trim(); const quantity = Number(rawQuantity);
+      const bom = getBomList(bomId); const rows = getBomImportRows(bom);
+      if (!bom || typeof input.rowIndex !== "number" || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return { ok: false, message: "Строка BOM больше не существует." };
+      if (!rawQuantity || !Number.isInteger(quantity) || quantity < 0) return { ok: false, message: "Количество BOM должно быть целым неотрицательным числом." };
+      const expectedValues = Array.isArray(input.expectedValues) ? normalizeBomImportRow({ values: input.expectedValues }).values : null;
+      const rowSignature = (values = []) => values.map((value, index) => index === 6 ? Number(value || 0) : String(value ?? "").trim());
+      if (!expectedValues || JSON.stringify(rowSignature(rows[rowIndex].values)) !== JSON.stringify(rowSignature(expectedValues))) return { ok: false, message: "Строка BOM изменилась в другом сеансе. Обновите экран и повторите." };
+      updateBomImportCell(bomId, rowIndex, 6, quantity);
+      const authoritativeRow = getBomImportRows(getBomList(bomId))[rowIndex];
+      if (!authoritativeRow || Number(authoritativeRow.quantity) !== quantity) return { ok: false, message: "Владелец BOM не подтвердил новое количество." };
+      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
+      return { ok: true, id: `${bomId}:${rowIndex}:quantity`, quantity };
+    }
     if (command.type === "delete") {
       const result = await deleteBomCommand({ bomId: String(input.bomId || "") });
       return {

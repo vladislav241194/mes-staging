@@ -276,6 +276,41 @@ async function main() {
     await delay(250);
     const planningBeforeWrite = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
 
+    const beforeInvalidBomQuantity = await readFile(writeSharedStateFile, "utf8");
+    await evaluate(client, () => {
+      const form = document.querySelector('[data-react-bom-quantity-form="board-control:0"]');
+      const input = form?.elements.namedItem("quantity");
+      if (!input) throw new Error("Missing React BOM quantity field");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "-1");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      form.noValidate = true;
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("неотрицательным"), { message: "invalid BOM quantity was not rejected" });
+    await delay(180);
+    assert(await readFile(writeSharedStateFile, "utf8") === beforeInvalidBomQuantity, "invalid BOM quantity mutated the disposable state");
+
+    await evaluate(client, () => {
+      const form = document.querySelector('[data-react-bom-quantity-form="board-control:0"]');
+      const input = form?.elements.namedItem("quantity");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "12");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => document.querySelector('[data-react-bom-quantity-form="board-control:0"] input[name="quantity"]')?.value === "12" && !document.querySelector('[role="alert"]'), { message: "BOM quantity owner result did not return to React", timeoutMs: 10_000 });
+    let afterBomQuantity = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const persistedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      afterBomQuantity = JSON.parse(persistedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (afterBomQuantity.bomLists.find((board) => board.id === "board-control")?.importRows?.[0]?.quantity === 12) break;
+      await delay(120);
+    }
+    const quantityBoard = afterBomQuantity.bomLists.find((board) => board.id === "board-control");
+    assert(quantityBoard.importRows[0].quantity === 12 && quantityBoard.importRows[0].description === "Резистор 10 кОм" && quantityBoard.importRows[0].manufacturerPart === "RC0603-10K", "BOM quantity edit changed row identity fields");
+    assert(quantityBoard.importRows.slice(1).length === 3 && quantityBoard.customMetadata === "preserve-me", "BOM quantity edit changed unrelated rows or hidden board metadata");
+    const planningAfterBomQuantity = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
+    assert(JSON.stringify(planningAfterBomQuantity) === JSON.stringify(planningBeforeWrite), "BOM quantity edit changed Planning state");
+
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Новая плата"))?.click());
     await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "Boards create editor did not open" });
     await evaluate(client, () => {
@@ -331,6 +366,13 @@ async function main() {
     const planningProjection = (state) => ({ routes: state.routes || [], routeSteps: state.routeSteps || [], slots: state.slots || [] });
     assert(JSON.stringify(planningProjection(planningAfterWrite)) === JSON.stringify(planningProjection(planningBeforeWrite)), "Board metadata create/edit changed Planning routes/steps/slots");
 
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-bom-open="board-control"]')), { message: "legacy Boards did not return for BOM quantity read-back" });
+    await evaluate(client, () => document.querySelector('[data-bom-open="board-control"]')?.click());
+    await waitForCondition(client, () => document.querySelector('[data-bom-import-cell="board-control"][data-bom-row-index="0"][data-bom-column-index="6"]')?.value === "12", { message: "legacy Boards did not read back React BOM quantity" });
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1&react-boards=1&react-boards-write=1` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"]')), { message: "Boards write evaluation did not remount after legacy read-back", timeoutMs: 15_000 });
+
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Редактировать плату"))?.click());
     await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Плата управления React", { message: "Board editor did not reopen for delete" });
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
@@ -379,7 +421,7 @@ async function main() {
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log(`- return to legacy Nomenclature with ${returned.legacyRows} normalized rows: pass`);
-    console.log("- local RBAC-gated board create/edit/delete, cancel safety, hidden/BOM preservation, reference cleanup, Nomenclature result retention, unchanged Planning and legacy read-back: pass");
+    console.log("- local RBAC-gated BOM quantity edit plus board create/edit/delete, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature result retention and unchanged Planning: pass");
   } catch (error) {
     if (chrome) {
       const browserState = await evaluate(chrome.client, () => ({

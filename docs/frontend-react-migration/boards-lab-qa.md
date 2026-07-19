@@ -5,15 +5,22 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Locally complete board-metadata create/edit/delete vertical scenario:
+Locally complete board-metadata create/edit/delete plus existing BOM quantity
+vertical scenario:
 
-`open Boards -> inspect BOM -> create a board card -> edit an existing board -> inspect delete impact -> cancel -> confirm delete -> verify Nomenclature result, Specifications cleanup and unchanged Planning -> read through legacy`.
+`open Boards -> inspect BOM -> reject invalid quantity -> change one existing
+row quantity -> read it through legacy -> create a board card -> edit an
+existing board -> inspect delete impact -> cancel -> confirm delete -> verify
+Nomenclature result, Specifications cleanup and unchanged Planning`.
 
 React owns the typed editor for `name`, `boardCode` and `resultItem`. The
 existing Products command owner remains responsible for normalization,
 persistence, result-Nomenclature synchronization, reference cleanup,
-notifications and rerender. Excel import, BOM row editing and component
-counters remain separate legacy slices.
+notifications and rerender. The bounded quantity control sends the row index,
+complete expected normalized row and integer quantity; the host rejects stale,
+missing, fractional or negative requests before the existing
+`updateBomImportCell` owner. Excel import, other BOM cells, row deletion and
+legacy component counters remain separate slices.
 
 ## Legacy contract preserved
 
@@ -29,7 +36,8 @@ counters remain separate legacy slices.
   result with the same `sourceBomResultId`;
 - deletion preserves the independently addressable Nomenclature result and all
   Planning routes, steps and slots;
-- unsupported import and BOM-row commands never cross the React boundary.
+- unsupported import, other-cell and row-deletion commands never cross the
+  React boundary.
 
 The owner refactor also repaired a legacy defect: `saveBomModuleForm` called
 `upsertBomResultToNomenclature` without receiving it through the lazy Products
@@ -47,6 +55,9 @@ explicit `getBomImportRows` dependency across that same lazy chain.
   table-owned overflow and return to the normalized Nomenclature pane;
 - local RBAC-gated board create/edit/delete in a disposable owner-only `0600`
   snapshot;
+- invalid BOM quantity rejection without persistence, successful `10 -> 12`
+  owner update, preservation of the other eight row values and three unrelated
+  rows, unchanged Planning and legacy input read-back;
 - unchanged hidden metadata and four imported rows during edit;
 - existing and newly created board results synchronize to Nomenclature;
 - delete confirmation reports one linked Specification and four BOM rows;
@@ -56,17 +67,18 @@ explicit `getBomImportRows` dependency across that same lazy chain.
 - the two remaining boards read back through the real legacy screen;
 - clean browser console after excluding the fixture-only critical-default
   reconciliation notice;
-- first React commit `16.60 ms`, below the `2000 ms` local gate.
+- first React commit was `20.20 ms` in the final full run, below the
+  `2000 ms` local gate.
 
-The production island is `215,189 B` raw / `66,015 B` gzip, below the unchanged
+The production island is `216,117 B` raw / `66,259 B` gzip, below the unchanged
 `225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only Boards
-scenario and remains below its unchanged budget at `549,455 B / 125,556 B`.
+scenario and remains below its unchanged budget at `556,666 B / 126,148 B`.
 
 ## Production boundary
 
 Read-only activation still requires false-by-default runtime permissions plus
-a per-session request. Board create/edit/delete exists only behind local
-`react-boards-write=1`, exact boolean capability and the existing
+a per-session request. Board create/edit/delete and BOM quantity edit exist
+only behind local `react-boards-write=1`, exact boolean capability and the existing
 `nomenclature:edit` authorization check. No Pilot/server write flag exists.
 No release, Pilot activation or real-data mutation was performed.
 
