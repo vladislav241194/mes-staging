@@ -1,6 +1,6 @@
 # React migration performance gate
 
-Date: 2026-07-19
+Date: 2026-07-20
 Branch: `codex/frontend-react-migration`
 
 ## Deterministic bundle budgets
@@ -27,8 +27,9 @@ Current minified measurements:
 | Weekly Production Control production island | 206,572 B | 63,950 B | 225,000 B | 68,000 B |
 | Timesheet production island | 214,632 B | 65,508 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 206,952 B | 64,065 B | 225,000 B | 68,000 B |
-| Shift Work Orders production island | 220,229 B | 66,740 B | 225,000 B | 68,000 B |
+| Shift Work Orders production island | 223,677 B | 67,703 B | 225,000 B | 68,000 B |
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
+| Shift Work Orders lazy fact entry | 5,269 B | 2,098 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 225,000 B | 67,932 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 224,501 B | 67,204 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 206,680 B | 64,121 B | 225,000 B | 68,000 B |
@@ -40,7 +41,7 @@ Current minified measurements:
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 213,503 B | 65,173 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 563,255 B | 127,281 B | 564,000 B | 128,000 B |
+| Full twenty-four-scenario lab | 565,019 B | 127,686 B | 566,000 B | 128,000 B |
 | Shared lab CSS | 29,860 B | 5,345 B | 30,000 B | 5,350 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -48,7 +49,8 @@ Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
 Specifications 2.0 and Roles artifacts and rejects unrelated scenario labels.
 The same isolation check now covers the Gantt artifact.
 The Shift Work Orders base-entry check additionally rejects the print-sheet
-marker, while the dedicated lazy entry must contain it. This preserves
+and fact-editor markers, while each dedicated lazy entry must contain its own
+marker. This preserves
 independent vertical slices instead of shipping every lab scenario with an
 individual island. The larger `564,000 B / 128,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
@@ -82,7 +84,7 @@ then proved one create plus one edit through the existing command owner.
 | Weekly Production Control | measured by the same callback | browser gate passed | weekly fact total updated, revision 2 |
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
 | Planning Workbench | measured by the same callback | browser gate passed | quantity conflict/retry, authoritative slot refresh and legacy read-back |
-| Shift Work Orders | measured by the same callback | browser gate passed | attachment and lazy SZN/package overlays, host print callback, selection/collapse and revision 2 |
+| Shift Work Orders | 49.10 ms in production shell | browser gate passed | attachment and lazy SZN/package/fact overlays, typed correction/cleanup through the Shift Execution owner and legacy read-back |
 | Shift Master Board | 25.90 ms in production shell | browser gate passed | PostgreSQL date rehydration, privileged master switching, focus recovery, assignment, facts, canonical carryover, typed transfer and lazy SZN print |
 | Employee Desktop | measured by the same callback | browser gate passed | task/fact/photo Report read-back, deviation guard, revision 5 |
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
@@ -187,13 +189,16 @@ and the localhost-only quantity slice proves validation, conflict without
 mutation, retry, authoritative slot refresh, legacy read-back and an unchanged
 compatibility snapshot. This is regression evidence, not Pilot acceptance.
 
-The bundled production Shift Work Orders base island is `213,696 B` raw /
-`66,343 B` gzip / `57,159 B` Brotli, and its lazy print chunk is `13,774 B`
-raw / `3,351 B` gzip / `3,145 B` Brotli. Its one-assignment PostgreSQL-backed
-production-shell gate keeps zero writes, lazily opens both SZN and package
-previews and delegates two print calls to the host; the isolated lab
-additionally proves an in-React attachment overlay with Escape close. This is
-regression evidence, not Pilot acceptance.
+The bundled production Shift Work Orders base island is `216,974 B` raw /
+`67,343 B` gzip / `63,914 B` Brotli. Its lazy print chunk is `13,774 B` raw /
+`3,378 B` gzip / `3,137 B` Brotli, and its lazy fact chunk is `4,097 B` raw /
+`1,928 B` gzip / `1,797 B` Brotli. The one-assignment PostgreSQL-backed
+production-shell gate keeps zero writes in read-only mode, lazily opens SZN,
+package and fact UI, delegates two print calls to the host, then proves typed
+fact correction, React/legacy read-back and exact cleanup through two fact-only
+owner writes. The isolated lab additionally proves an in-React attachment
+overlay with Escape close. This is regression evidence, not Pilot write
+acceptance.
 
 The bundled production Shift Master Board island is `217,258 B` raw /
 `67,589 B` gzip / `58,223 B` Brotli. Its one-card PostgreSQL-backed production-

@@ -698,3 +698,41 @@ actions/console, затем немедленно деактивировать и
   owner/schema block для одного из перечисленных scopes либо (b) явное
   разрешение на disposable Pilot write-acceptance с заранее определённым
   cleanup. До этого общая оценка остаётся `98%` (`+0 п.п.`, осталось `2%`).
+
+## Продолжение 2026-07-20: Shift Work Orders fact/correction checkpoint
+
+- Code checkpoint `ad51783` добавляет в Журнал СЗН один ограниченный typed
+  command `save-fact` для точной строки текущего PostgreSQL-окна. Assignment и
+  переход в Мастерскую остаются legacy.
+- React получает только host-computed capability и fact context по stable row
+  ID. Host заново строит Shift Master Board model, проверяет
+  `shiftMasterBoard:edit`, существование canonical server assignment,
+  целочисленные границы и `defect <= actual`, затем вызывает тот же Shift
+  Execution fact/carryover owner, который уже использует Мастерская. API,
+  PostgreSQL, RBAC и lifecycle authority в React не переносились.
+- Редактор факта вынесен в отдельный lazy chunk. Он получает hooks и
+  `ModalOverlay` основного island-runtime, поэтому в production нет второй
+  несовместимой копии React. Base entry явно проверяется на отсутствие полей
+  редактора.
+- Production-shell QA доказывает default legacy, read-only `0` writes, ленивую
+  загрузку, Escape/cancel без команды, коррекцию `58 -> 59`, ровно один POST в
+  `/assignments/assignment-react-qa/facts`, React и legacy read-back, cleanup
+  `59 -> 58` вторым fact-only POST, отсутствие assignment/carryover writes,
+  byte-stable `0600` state и clean console.
+- Регрессия общего owner проверена полным Shift Master Board flow: date/master/
+  focus, assignment, fact, canonical carryover create/navigate/cancel, typed
+  transfer и SZN print остаются зелёными.
+- Performance: independent base `223677 / 67703 B`, lazy fact
+  `5269 / 2098 B`, production base `216974 / 67343 / 63914 B`, production lazy
+  fact `4097 / 1928 / 1797 B`; production gate остался неизменным
+  `225000 / 68000 B`. Development-only aggregate `565019 / 127686 B` проходит
+  `566000 / 128000 B`.
+- Pilot не деплоился и не изменялся: `v.1.500.03`, все React flags/targets
+  остаются выключены, destructive actions выключены, реальных записей не было.
+  Legacy rollback сохранён; server/Pilot write activation для этого среза
+  отсутствует.
+- После блока доказательная оценка глобальной миграции: примерно `99%`
+  выполнено, примерно `1%` осталось (`+1 п.п.`). Прирост относится только к
+  локально доказанному fact/correction scope Журнала СЗН. Assignment,
+  подтверждённые owner/schema gaps и любые Pilot write-acceptance не
+  переоценены.

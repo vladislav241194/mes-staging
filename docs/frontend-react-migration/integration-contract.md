@@ -212,7 +212,7 @@ authoritative detail/slot projection after success. Date, labor, Gantt and
 cancellation commands remain legacy. A missing bootstrap, invalid target, API
 error or missing session request retains the previous selection or legacy.
 
-`mountShiftWorkOrdersReactIsland(...)` owns the read-only document journal
+`mountShiftWorkOrdersReactIsland(...)` owns the document journal
 behind two false-by-default server permissions, PostgreSQL System Domains and
 complete Shift Execution read readiness, plus an explicit session request.
 Its typed adapter accepts the completed legacy journal model and owns local
@@ -222,10 +222,18 @@ SZN and work-order-package previews are lazy React chunks: the host supplies
 the selected journal row, initializes the existing Routes renderer owner before
 reading `getWorkOrderPrintPackageViewModel()`, and owns `window.print()` plus
 temporary document-title restoration. React neither recalculates package
-quantities nor writes runtime state. Workshop returns through
-`unsupported-scope`; assignment, fact entry, Shift Execution repositories and
-server authority stay outside React. Missing PostgreSQL coverage, an open
-legacy overlay, editor access or a missing session request retains legacy.
+quantities nor writes runtime state. A localhost-only write evaluation exposes
+one typed `save-fact` callback for the exact current journal row. The host
+rebuilds the Shift Master Board read model, rechecks `shiftMasterBoard:edit`,
+the canonical server assignment and integer/defect bounds, then delegates to
+the same Shift Execution fact/carryover owner used by Shift Master Board and
+renders only after PostgreSQL refresh. The editor is an independent lazy chunk
+that receives the host island's React hooks and shared `ModalOverlay`, avoiding
+a second React runtime. Workshop and assignment return through
+`unsupported-scope`; Shift Execution repositories and server authority stay
+outside React. Missing coverage, a historical/non-canonical row, an open
+legacy overlay, ordinary editor access or a missing session request retains
+legacy.
 
 `mountShiftMasterBoardReactIsland(...)` owns the Workshop board
 behind two false-by-default server permissions, PostgreSQL System Domains and
