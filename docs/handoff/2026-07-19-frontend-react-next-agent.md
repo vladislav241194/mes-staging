@@ -270,3 +270,17 @@ actions/console, затем немедленно деактивировать и
 - Pilot write не выполнялся. Размеры: independent `218171 / 66062 B`; bundled
   production `210420 / 65517 / 56580 B`; full lab `556633 / 126135 B`; first
   commit `36.60 ms`.
+
+## Продолжение: Pilot read-only recheck после lifecycle checkpoint
+
+- Живой `https://pilot.mes-line.ru` открыт 2026-07-19 через штатный auth picker;
+  legacy Planning загрузился без console warning/error. Данные и Ops-команды не
+  изменялись.
+- Публичный `window.MES_APP_CONFIG` подтверждает `APP_ENV=pilot` и `false` для
+  всех React feature/read-only flags, включая Contour Admin. На проверенном пути
+  React island не смонтирован; legacy rollback фактически активен.
+- Загружен immutable asset `src/app.js?v=fc9b4a6309bb-v.1.500.01`. Локальные
+  archive checkpoint-коммиты этой продолженной ветки в Pilot не выпускались.
+- Contour Admin read acceptance по-прежнему нельзя заявить: root-controlled
+  drop-in не активирован, а обход root boundary запрещён. Переданные доступы не
+  сохранены в репозитории или документации.
