@@ -383,3 +383,32 @@ actions/console, затем немедленно деактивировать и
   отсутствует, legacy rollback сохранён. После этого блока доказательная оценка
   глобальной миграции: примерно `86%` выполнено, примерно `14%` осталось
   (`+1 п.п.`); критические owner gaps и Pilot acceptance не переоценены.
+
+## Продолжение 2026-07-20: Boards/BOM all-cell edit checkpoint
+
+- Закрыт весь оставшийся existing-row cell-edit scope: typed
+  `update-bom-cell` допускает только non-quantity columns
+  `0,1,2,3,4,5,7,8`; column `6` остаётся отдельной integer-командой. Host
+  повторно проверяет RBAC, board/index, expected visible row и тип значения,
+  затем вызывает существующий `updateBomImportCell` и принимает только полный
+  owner-normalized row-back. Persistence/normalization/Nomenclature authority в
+  React не переносились.
+- React показывает controlled text inputs только при exact-boolean
+  `bomRowEdit`; blur/Enter выполняет typed-команду, owner result возвращает
+  нормализованное значение. Read-only payload по-прежнему рендерит буквальные
+  девять ячеек без command UI.
+- Production-shell QA последовательно изменяет все восемь полей первой строки,
+  доказывает `805 -> 0805`, итоговые девять A:I values, сохранность трёх
+  соседних строк, hidden board/Nomenclature fields и Planning. Legacy читает
+  всю итоговую строку; quantity, row-delete и board create/edit/delete regression
+  остаются зелёными.
+- При owner-аудите восстановлен пропущенный ledger item: отдельная команда
+  `addNomenclatureToBom` ещё legacy-only. Вместе с Excel import это два
+  оставшихся Boards command scopes; compatibility component counters не
+  объявляются React-командой.
+- Performance gate зелёный: Boards island `218822 / 66754 B`, full lab
+  `556703 / 126149 B`; final first commit `25.90 ms`. Pilot
+  write/release/flag change не выполнялся, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `87%`
+  выполнено, примерно `13%` осталось (`+1 п.п.`). Оценка не включает два
+  оставшихся Boards scopes, Planning/Gantt/role lifecycle и внешние Pilot gates.

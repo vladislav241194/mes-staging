@@ -2488,10 +2488,26 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
-    if (!["save", "delete", "update-bom-quantity", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Excel-импорт и прочие поля BOM остаются в legacy-контуре." };
+    if (!["save", "delete", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Excel-импорт и добавление строки из номенклатуры остаются в legacy-контуре." };
     if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     const rowSignature = (values = []) => values.map((value, index) => index === 6 ? Number(value || 0) : String(value ?? "").trim());
+    if (command.type === "update-bom-cell") {
+      const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex); const columnIndex = Number(input.columnIndex);
+      const bom = getBomList(bomId); const rows = getBomImportRows(bom);
+      const editableColumns = [0, 1, 2, 3, 4, 5, 7, 8];
+      if (!bom || typeof input.rowIndex !== "number" || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return { ok: false, message: "Строка BOM больше не существует." };
+      if (typeof input.columnIndex !== "number" || !editableColumns.includes(columnIndex) || typeof input.value !== "string") return { ok: false, message: "Поле BOM недоступно для этой команды." };
+      const expectedValues = Array.isArray(input.expectedValues) ? normalizeBomImportRow({ values: input.expectedValues }).values : null;
+      if (!expectedValues || JSON.stringify(rowSignature(rows[rowIndex].values)) !== JSON.stringify(rowSignature(expectedValues))) return { ok: false, message: "Строка BOM изменилась в другом сеансе. Обновите экран и повторите." };
+      const expectedNextValues = [...rows[rowIndex].values]; expectedNextValues[columnIndex] = input.value;
+      const expectedNextRow = normalizeBomImportRow({ ...rows[rowIndex], values: expectedNextValues });
+      updateBomImportCell(bomId, rowIndex, columnIndex, input.value);
+      const authoritativeRow = getBomImportRows(getBomList(bomId))[rowIndex];
+      if (!authoritativeRow || JSON.stringify(authoritativeRow.values) !== JSON.stringify(expectedNextRow.values)) return { ok: false, message: "Владелец BOM не подтвердил новое значение поля." };
+      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
+      return { ok: true, id: `${bomId}:${rowIndex}:${columnIndex}`, value: authoritativeRow.values[columnIndex] };
+    }
     if (command.type === "update-bom-quantity") {
       const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex); const rawQuantity = String(input.quantity ?? "").trim(); const quantity = Number(rawQuantity);
       const bom = getBomList(bomId); const rows = getBomImportRows(bom);

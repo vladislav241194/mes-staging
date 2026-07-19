@@ -1413,6 +1413,10 @@ try {
   assert.match(productionAppSource, /await ensureNomenclatureRenderModule\(\)/, "Boards write must await its lazy result-Nomenclature owner before mutation");
   assert.match(productionAppSource, /saveBomCommand\(\{/);
   assert.match(productionAppSource, /deleteBomCommand\(\{ bomId:/);
+  assert.match(productionAppSource, /command\.type === "update-bom-cell"/, "Boards non-quantity cell edits must retain one typed host branch");
+  assert.match(productionAppSource, /editableColumns = \[0, 1, 2, 3, 4, 5, 7, 8\]/, "Boards generic cell command must exclude the separately validated quantity column");
+  assert.match(productionAppSource, /updateBomImportCell\(bomId, rowIndex, columnIndex, input\.value\)/, "Boards generic cell edit must delegate to the existing owner");
+  assert.match(productionAppSource, /JSON\.stringify\(authoritativeRow\.values\) !== JSON\.stringify\(expectedNextRow\.values\)/, "Boards generic cell edit must read the complete owner row back");
   assert.match(productionAppSource, /command\.type === "delete-bom-row"/, "Boards row delete must retain its own typed host branch");
   assert.match(productionAppSource, /input\.expectedRows/, "Boards row delete must carry a full expected-table snapshot");
   assert.match(productionAppSource, /deleteBomImportRow\(bomId, rowIndex\)/, "Boards row delete must delegate to the existing owner");

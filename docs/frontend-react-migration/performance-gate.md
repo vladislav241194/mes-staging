@@ -16,7 +16,7 @@ Current minified measurements:
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
 | Nomenclature production island | 213,718 B | 65,421 B | 225,000 B | 68,000 B |
-| Boards/BOM production island | 217,946 B | 66,517 B | 225,000 B | 68,000 B |
+| Boards/BOM production island | 218,822 B | 66,754 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 218,171 B | 66,062 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 216,176 B | 65,692 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 214,582 B | 65,440 B | 225,000 B | 68,000 B |
@@ -40,7 +40,7 @@ Current minified measurements:
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 213,503 B | 65,173 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 556,703 B | 126,154 B | 558,000 B | 127,000 B |
+| Full twenty-four-scenario lab | 556,703 B | 126,149 B | 558,000 B | 127,000 B |
 | Shared lab CSS | 29,860 B | 5,345 B | 30,000 B | 5,350 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,

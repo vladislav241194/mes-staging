@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { useCommandRunner } from "../../ui/use-command";
 import { adaptBoardsModel, BOM_COMPONENT_FIELDS, type BoardItem } from "./adapter";
@@ -11,7 +11,7 @@ export function BoardsScenario({
   onSelectionChange,
 }: {
   payload: unknown;
-  onCommand?(command: BoardsReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onCommand?(command: BoardsReactCommand): Promise<BoardsCommandResult | void>;
   onRequestItems?(): void;
   onSelectionChange?(boardId: string): void;
 }) {
@@ -80,7 +80,7 @@ export function BoardsScenario({
           <TableWrap><table className="bom-table">
             <thead><tr>{selected.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}{model.canDeleteBomRows ? <th>Действия</th> : null}</tr></thead>
             <tbody>{selected.rows.map((row, rowIndex) => <tr key={`${selected.id}-${rowIndex}`}>
-              {row.values.map((value, columnIndex) => <td className={columnIndex === 1 ? "primary-cell" : ""} key={columnIndex}>{columnIndex === 6 && model.canEditBomRows ? <form data-react-bom-quantity-form={`${selected.id}:${rowIndex}`} onSubmit={(event) => { event.preventDefault(); const quantity = String(new FormData(event.currentTarget).get("quantity") ?? ""); void runCommand({ type: "update-bom-quantity", payload: { bomId: selected.id, rowIndex, expectedValues: [...row.values], quantity } }, "Количество BOM не сохранено."); }}><input aria-label={`Количество BOM, строка ${rowIndex + 1}`} defaultValue={String(row.quantity)} disabled={saving} min="0" name="quantity" required step="1" type="number" /><button disabled={saving} type="submit">Сохранить</button></form> : formatBomCell(value)}</td>)}
+              {row.values.map((value, columnIndex) => <td className={columnIndex === 1 ? "primary-cell" : ""} key={columnIndex}>{columnIndex === 6 && model.canEditBomRows ? <form data-react-bom-quantity-form={`${selected.id}:${rowIndex}`} onSubmit={(event) => { event.preventDefault(); const quantity = String(new FormData(event.currentTarget).get("quantity") ?? ""); void runCommand({ type: "update-bom-quantity", payload: { bomId: selected.id, rowIndex, expectedValues: [...row.values], quantity } }, "Количество BOM не сохранено."); }}><input aria-label={`Количество BOM, строка ${rowIndex + 1}`} defaultValue={String(row.quantity)} disabled={saving} min="0" name="quantity" required step="1" type="number" /><button disabled={saving} type="submit">Сохранить</button></form> : model.canEditBomRows ? <BomTextCellEditor ariaLabel={`${selected.headers[columnIndex]}, строка ${rowIndex + 1}`} disabled={saving} id={`${selected.id}:${rowIndex}:${columnIndex}`} onCommit={(nextValue) => runCommand({ type: "update-bom-cell", payload: { bomId: selected.id, rowIndex, columnIndex, expectedValues: [...row.values], value: nextValue } }, "Поле BOM не сохранено.")} value={value} /> : formatBomCell(value)}</td>)}
               {model.canDeleteBomRows ? <td><button aria-label={`Удалить строку BOM ${rowIndex + 1}`} className="react-bom-row-delete" data-react-bom-row-delete={`${selected.id}:${rowIndex}`} disabled={saving} onClick={() => { setRowDeletePending({ bomId: selected.id, rowIndex, expectedRows: selected.rows.map((item) => [...item.values]), label: row.description || row.manufacturerPart || `строка ${rowIndex + 1}` }); clearCommandError(); }} type="button">Удалить</button></td> : null}
             </tr>)}</tbody>
           </table></TableWrap>
@@ -122,11 +122,25 @@ export function BoardsScenario({
   );
 }
 
+function BomTextCellEditor({ ariaLabel, disabled, id, onCommit, value }: { ariaLabel: string; disabled: boolean; id: string; onCommit(value: string): Promise<BoardsCommandResult | void | undefined>; value: string | number }) {
+  const ownerValue = String(value ?? "");
+  const [draft, setDraft] = useState(ownerValue);
+  useEffect(() => setDraft(ownerValue), [ownerValue]);
+  const commit = async () => {
+    if (draft === ownerValue) return;
+    const result = await onCommit(draft);
+    if (result && result.ok !== false && result.value !== undefined) setDraft(String(result.value));
+  };
+  return <input aria-label={ariaLabel} className="react-bom-cell-input" data-react-bom-cell={id} disabled={disabled} onBlur={() => { void commit(); }} onChange={(event) => setDraft(event.currentTarget.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} type="text" value={draft} />;
+}
+
 interface BoardDraft { isNew: boolean; bomId: string; name: string; boardCode: string; resultItem: string }
 interface BomRowDeleteTarget { bomId: string; rowIndex: number; expectedRows: readonly (readonly (string | number)[])[]; label: string }
+interface BoardsCommandResult { ok?: boolean; message?: string; value?: string | number }
 const createBoardDraft = (board?: BoardItem): BoardDraft => ({ isNew: !board, bomId: board?.id || "", name: board?.name || "", boardCode: board?.boardCode === "-" ? "" : board?.boardCode || "", resultItem: board?.resultItem === "-" ? "" : board?.resultItem || "" });
 export type BoardsReactCommand =
   | { type: "save"; payload: BoardDraft }
   | { type: "delete"; payload: { bomId: string } }
   | { type: "update-bom-quantity"; payload: { bomId: string; rowIndex: number; expectedValues: readonly (string | number)[]; quantity: string } }
+  | { type: "update-bom-cell"; payload: { bomId: string; rowIndex: number; columnIndex: number; expectedValues: readonly (string | number)[]; value: string } }
   | { type: "delete-bom-row"; payload: BomRowDeleteTarget };

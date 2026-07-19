@@ -53,7 +53,7 @@ function createDirectoryFixture() {
       { id: "nom-type-pcb", name: "Печатные платы", status: "Активен" },
     ],
     nomenclature: [
-      { id: "rea-001", article: "RC0603-10K", name: "Резистор 10 кОм", type: "РЭА компоненты", unit: "шт.", package: "0603", manufacturer: "Yageo", status: "Активен" },
+      { id: "rea-001", article: "RC0603-10K", name: "Резистор 10 кОм", type: "РЭА компоненты", unit: "шт.", package: "0603", manufacturer: "Yageo", status: "Активен", hiddenMarker: "preserve-existing-nomenclature" },
       { id: "rea-xp", article: "HDR-2", name: "Разъем питания", type: "РЭА компоненты", unit: "шт.", package: "Connector", manufacturer: "Amphenol", status: "Активен", sourceBomIds: ["board-control"], hiddenMarker: "preserve-row-nomenclature" },
       { id: "pcb-001", article: "АБВГ.469659.001", name: "Смонтированная плата управления", type: "Печатные платы", unit: "шт.", package: "PCB", manufacturer: "—", status: "Активен", sourceBomResultId: "board-control" },
     ],
@@ -230,17 +230,17 @@ async function main() {
     assert(initial.metrics["Компонентов"] === 16 && initial.metrics["Типов"] === 4, "Boards component summary must preserve 16 components in four groups");
     assert(!initial.pageOverflow, "Boards React island must not create page-level horizontal overflow");
 
-    const emptyBoard = await evaluate(client, async () => {
+    await evaluate(client, () => {
       const button = [...document.querySelectorAll('[data-ui-component="SidebarItem"]')]
         .find((entry) => entry.querySelector(".filter-copy > span")?.textContent?.trim() === "Плата питания");
       button?.click();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      return {
+    });
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() === "Плата питания", { message: "empty Board selection did not settle" });
+    const emptyBoard = await evaluate(client, () => ({
         detailTitle: document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || "",
         emptyTitle: document.querySelector('[data-ui-component="EmptyState"] strong')?.textContent?.trim() || "",
         selectedCount: document.querySelectorAll('[data-ui-component="SidebarItem"].is-active').length,
-      };
-    });
+    }));
     assert(emptyBoard.detailTitle === "Плата питания" && emptyBoard.emptyTitle === "Пока нет импортированных строк", "empty board selection must preserve its card and explicit empty state");
     assert(emptyBoard.selectedCount === 1, "Boards sidebar must keep exactly one selected board");
 
@@ -312,6 +312,51 @@ async function main() {
     const planningAfterBomQuantity = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
     assert(JSON.stringify(planningAfterBomQuantity) === JSON.stringify(planningBeforeWrite), "BOM quantity edit changed Planning state");
 
+    const bomCellEdits = [
+      { columnIndex: 0, value: "10", expected: "10" },
+      { columnIndex: 1, value: "Резистор 12 кОм React", expected: "Резистор 12 кОм React" },
+      { columnIndex: 2, value: "R1-R12", expected: "R1-R12" },
+      { columnIndex: 3, value: "RC0603-12K", expected: "RC0603-12K" },
+      { columnIndex: 4, value: "Yageo React", expected: "Yageo React" },
+      { columnIndex: 5, value: "805", expected: "0805" },
+      { columnIndex: 7, value: "0.5% React", expected: "0.5% React" },
+      { columnIndex: 8, value: "QA-extra", expected: "QA-extra" },
+    ];
+    for (const edit of bomCellEdits) {
+      await evaluate(client, ({ columnIndex, value }) => {
+        const input = document.querySelector(`[data-react-bom-cell="board-control:0:${columnIndex}"]`);
+        if (!input) throw new Error(`Missing React BOM cell ${columnIndex}`);
+        input.focus();
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }, edit);
+      await delay(80);
+      await evaluate(client, ({ columnIndex }) => {
+        const input = document.querySelector(`[data-react-bom-cell="board-control:0:${columnIndex}"]`);
+        if (!input) throw new Error(`Missing React BOM cell ${columnIndex} before commit`);
+        input.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      }, edit);
+      let persistedCell = "";
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const persistedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+        const persistedDirectory = JSON.parse(persistedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+        persistedCell = String(persistedDirectory.bomLists.find((board) => board.id === "board-control")?.importRows?.[0]?.values?.[edit.columnIndex] ?? "");
+        if (persistedCell === edit.expected) break;
+        await delay(120);
+      }
+      assert(persistedCell === edit.expected, `BOM field ${edit.columnIndex} did not persist through the owner: ${persistedCell}`);
+      await waitForCondition(client, ({ columnIndex, expected }) => document.querySelector(`[data-react-bom-cell="board-control:0:${columnIndex}"]`)?.value === expected && !document.querySelector('[role="alert"]'), { arg: edit, message: `BOM field ${edit.columnIndex} owner result did not return to React` });
+    }
+    const afterBomCellSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+    const afterBomCells = JSON.parse(afterBomCellSnapshot.values[DIRECTORY_STORAGE_KEY]);
+    const cellEditedBoard = afterBomCells.bomLists.find((board) => board.id === "board-control");
+    assert(JSON.stringify(cellEditedBoard.importRows[0].values) === JSON.stringify(["10", "Резистор 12 кОм React", "R1-R12", "RC0603-12K", "Yageo React", "0805", 12, "0.5% React", "QA-extra"]), `all eight BOM field values were not owner-normalized: ${JSON.stringify(cellEditedBoard.importRows[0].values)}`);
+    assert(JSON.stringify(cellEditedBoard.importRows.slice(1)) === JSON.stringify(quantityBoard.importRows.slice(1)) && cellEditedBoard.customMetadata === "preserve-me", "BOM field edits changed unrelated rows or hidden board metadata");
+    assert(afterBomCells.nomenclature.some((item) => item.id === "rea-001" && item.hiddenMarker === "preserve-existing-nomenclature") && afterBomCells.nomenclature.some((item) => item.article === "RC0603-12K"), "BOM identity-field owner side effects did not preserve existing and create the newly keyed Nomenclature projection");
+    const planningAfterBomCells = JSON.parse(afterBomCellSnapshot.values[STATE_STORAGE_KEY]);
+    assert(JSON.stringify(planningAfterBomCells) === JSON.stringify(planningBeforeWrite), "BOM field edits changed Planning state");
+
     await evaluate(client, () => document.querySelector('[data-react-bom-row-delete="board-control:3"]')?.click());
     await waitForCondition(client, () => document.querySelector('[role="alertdialog"] h3')?.textContent?.trim() === "Удалить строку BOM?", { message: "BOM row delete confirmation did not open" });
     const rowDeleteConfirmation = await evaluate(client, () => document.querySelector('[role="alertdialog"]')?.textContent?.replace(/\s+/g, " ").trim() || "");
@@ -335,7 +380,7 @@ async function main() {
     }
     const rowDeletedBoard = afterBomRowDelete.bomLists.find((board) => board.id === "board-control");
     assert(rowDeletedBoard.importRows.length === 3 && !rowDeletedBoard.importRows.some((row) => row.manufacturerPart === "HDR-2"), "BOM row delete did not remove exactly the confirmed row");
-    assert(rowDeletedBoard.importRows[0].quantity === 12 && rowDeletedBoard.importRows[0].manufacturerPart === "RC0603-10K" && rowDeletedBoard.customMetadata === "preserve-me", "BOM row delete changed the retained rows or hidden board metadata");
+    assert(rowDeletedBoard.importRows[0].quantity === 12 && rowDeletedBoard.importRows[0].manufacturerPart === "RC0603-12K" && rowDeletedBoard.customMetadata === "preserve-me", "BOM row delete changed the retained rows or hidden board metadata");
     assert(afterBomRowDelete.nomenclature.some((item) => item.id === "rea-xp" && item.article === "HDR-2" && item.hiddenMarker === "preserve-row-nomenclature"), "BOM row delete silently removed independently addressable Nomenclature");
     const planningAfterBomRowDelete = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
     assert(JSON.stringify(planningAfterBomRowDelete) === JSON.stringify(planningBeforeWrite), "BOM row delete changed Planning state");
@@ -399,9 +444,14 @@ async function main() {
     await waitForCondition(client, () => Boolean(document.querySelector('[data-bom-open="board-control"]')), { message: "legacy Boards did not return for BOM quantity read-back" });
     await evaluate(client, () => document.querySelector('[data-bom-open="board-control"]')?.click());
     await waitForCondition(client, () => document.querySelector('[data-bom-import-cell="board-control"][data-bom-row-index="0"][data-bom-column-index="6"]')?.value === "12" && document.querySelectorAll(".bom-import-table tbody tr").length === 3, { message: "legacy Boards did not read back React BOM quantity and row delete" });
+    const legacyEditedBomValues = await evaluate(client, () => {
+      const row = document.querySelector(".bom-import-table tbody tr");
+      return row ? [...row.querySelectorAll("[data-bom-import-cell]")].map((input) => input.value) : [];
+    });
+    assert(JSON.stringify(legacyEditedBomValues) === JSON.stringify(["10", "Резистор 12 кОм React", "R1-R12", "RC0603-12K", "Yageo React", "0805", "12", "0.5% React", "QA-extra"]), `legacy Boards did not read all eight React field edits: ${JSON.stringify(legacyEditedBomValues)}`);
     assert(!await evaluate(client, () => [...document.querySelectorAll('[data-bom-column-index="3"]')].some((input) => input.value === "HDR-2")), "legacy Boards still exposed the deleted BOM row");
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1&react-boards=1&react-boards-write=1` });
-    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"]')), { message: "Boards write evaluation did not remount after legacy read-back", timeoutMs: 15_000 });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"] .lab-badge')), { message: "Boards write evaluation did not remount its React content after legacy read-back", timeoutMs: 15_000 });
 
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Редактировать плату"))?.click());
     await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Плата управления React", { message: "Board editor did not reopen for delete" });
@@ -451,7 +501,7 @@ async function main() {
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log(`- return to legacy Nomenclature with ${returned.legacyRows} normalized rows: pass`);
-    console.log("- local RBAC-gated BOM quantity edit, ID/table-bound row delete and board create/edit/delete, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
+    console.log("- local RBAC-gated edits for all nine BOM cells, ID/table-bound row delete and board create/edit/delete, owner normalization, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
   } catch (error) {
     if (chrome) {
       const browserState = await evaluate(chrome.client, () => ({

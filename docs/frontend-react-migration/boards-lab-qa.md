@@ -5,12 +5,12 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Locally complete board-metadata create/edit/delete plus existing BOM quantity
+Locally complete board-metadata create/edit/delete plus all nine BOM cell edits
 and row-delete vertical scenario:
 
-`open Boards -> inspect BOM -> reject invalid quantity -> change one existing
-row quantity -> cancel row delete -> confirm exact row delete -> read both
-changes through legacy -> create a board card -> edit an
+`open Boards -> inspect BOM -> reject invalid quantity -> change quantity ->
+edit every remaining A:I field -> normalize package -> cancel row delete ->
+confirm exact row delete -> read the complete row through legacy -> create a board card -> edit an
 existing board -> inspect delete impact -> cancel -> confirm delete -> verify
 Nomenclature result, Specifications cleanup and unchanged Planning`.
 
@@ -20,8 +20,10 @@ persistence, result-Nomenclature synchronization, reference cleanup,
 notifications and rerender. The bounded quantity control sends the row index,
 complete expected normalized row and integer quantity; the host rejects stale,
 missing, fractional or negative requests before the existing
-`updateBomImportCell` owner. Excel import, other BOM cells and legacy component
-counters remain separate slices. Row deletion separately
+`updateBomImportCell` owner. The eight text inputs use the same owner with an
+exact non-quantity column allowlist and accept only its complete normalized row
+read-back. Excel import, add-from-Nomenclature and legacy component counters
+remain separate slices. Row deletion separately
 carries the complete expected table, requires accessible confirmation and
 delegates to `deleteBomImportRow`; independently addressable Nomenclature stays
 outside that delete.
@@ -41,7 +43,7 @@ outside that delete.
 - row deletion preserves independently addressable component Nomenclature;
 - board deletion preserves the independently addressable Nomenclature result
   and all Planning routes, steps and slots;
-- unsupported import and other-cell commands never cross the
+- unsupported Excel-import and add-from-Nomenclature commands never cross the
   React boundary.
 
 The owner refactor also repaired a legacy defect: `saveBomModuleForm` called
@@ -63,6 +65,9 @@ explicit `getBomImportRows` dependency across that same lazy chain.
 - invalid BOM quantity rejection without persistence, successful `10 -> 12`
   owner update, preservation of the other eight row values and three unrelated
   rows, unchanged Planning and legacy input read-back;
+- sequential edits of columns `0,1,2,3,4,5,7,8`, package normalization
+  `805 -> 0805`, complete owner-row read-back, existing/new keyed Nomenclature
+  behavior and all nine final values through legacy;
 - byte-identical row-delete cancellation, confirmed removal of only row four,
   complete expected-table recheck, preservation of three retained rows, hidden
   board metadata, component Nomenclature and unchanged Planning;
@@ -75,17 +80,17 @@ explicit `getBomImportRows` dependency across that same lazy chain.
 - the two remaining boards read back through the real legacy screen;
 - clean browser console after excluding the fixture-only critical-default
   reconciliation notice;
-- the final full run committed its first React view in `20.80 ms`, below the
+- the final full run committed its first React view in `25.90 ms`, below the
   `2000 ms` local gate.
 
-The production island is `217,946 B` raw / `66,517 B` gzip, below the unchanged
+The production island is `218,822 B` raw / `66,754 B` gzip, below the unchanged
 `225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only Boards
-scenario and remains below its unchanged budget at `556,703 B / 126,154 B`.
+scenario and remains below its unchanged budget at `556,703 B / 126,149 B`.
 
 ## Production boundary
 
 Read-only activation still requires false-by-default runtime permissions plus
-a per-session request. Board create/edit/delete, BOM quantity edit and row
+a per-session request. Board create/edit/delete, all nine BOM cell edits and row
 delete exist only behind local `react-boards-write=1`, exact boolean capability and the existing
 `nomenclature:edit` authorization check. No Pilot/server write flag exists.
 No release, Pilot activation or real-data mutation was performed.
