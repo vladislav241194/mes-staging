@@ -1,7 +1,7 @@
 # Contour Admin React lab QA
 
 Date: 2026-07-19
-Status: isolated read-only proof; protected Ops commands and production host remain legacy
+Status: production-integrated read-only proof; disabled by default; protected Ops commands remain legacy
 
 ## Vertical scenario
 
@@ -28,7 +28,13 @@ not receive `fetch`, confirmation callbacks, audit storage or command handlers.
 - shared lab CSS `12,466 B / 2,638 B` under its development-only
   `14,000 B / 4,000 B` budget.
 
-Production integration is a separate gate because `contourAdmin` is available
-only on `admin.mes-line.ru` after server authentication. The future host must
-retain that route guard, require a separate read-only evaluation permission and
-prove that backup, sync, promote and rollback still execute only in legacy.
+## Production integration
+
+The host activates only on `admin.mes-line.ru`, after the existing server route
+authentication, two false-by-default runtime permissions and an explicit
+read-only session request. Local production-shell QA maps that exact hostname
+to an isolated local server and proves default legacy, three contours, five
+scenarios, five speed rows, scoped production CSS, a first commit below `20 ms`,
+action fallback, zero Ops API writes and a clean console. The production bundle
+is `201,348 B` raw / `63,003 B` gzip / `54,161 B` Brotli. Admin and Pilot remain
+unchanged.

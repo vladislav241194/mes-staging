@@ -30,7 +30,7 @@ Current minified measurements:
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
-| Contour Admin isolated entry | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
+| Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
@@ -149,6 +149,10 @@ The bundled production Employee Desktop island is `202,416 B` raw /
 `63,416 B` gzip / `54,553 B` Brotli. Its one-task PostgreSQL-backed production-
 shell first commit stayed below `50 ms`; this is regression evidence, not Pilot
 acceptance.
+
+The bundled production Contour Admin island is `201,348 B` raw / `63,003 B`
+gzip / `54,161 B` Brotli. Its exact admin-host production-shell first commit
+stayed below `20 ms`; this is regression evidence, not Admin/Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

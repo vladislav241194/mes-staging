@@ -83,6 +83,7 @@ import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workb
 import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
+import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -1796,6 +1797,7 @@ let renderContourAdminPage = () => renderUiModulePage({
   content: renderUiEmptyState({ title: "Загружаем модуль", description: "Экран администрирования откроется автоматически." }),
 });
 let contourAdminModuleLoad = null;
+let contourAdminModuleReady = false;
 
 function initializeContourAdminModule(factory) {
   ({
@@ -1824,6 +1826,7 @@ function ensureContourAdminModule() {
   contourAdminModuleLoad = import("./modules/contour_admin/render.js")
     .then(({ createContourAdminModule }) => {
       initializeContourAdminModule(createContourAdminModule);
+      contourAdminModuleReady = true;
       if (ui.activeModule === "contourAdmin") render();
     })
     .catch((error) => {
@@ -2733,6 +2736,30 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     persistUiState();
     if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true });
   },
+});
+function getContourAdminReactLocalQaOverrides() {
+  if (!isAdminRuntimeHost()) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-contour-admin") === "1", readOnlyEvaluation: params.get("react-contour-admin-readonly") === "1" };
+}
+function isContourAdminReactEvaluationRequested() {
+  if (!isAdminRuntimeHost()) return false;
+  return new URLSearchParams(window.location.search).get("react-contour-admin-evaluation") === "1";
+}
+const contourAdminReactIslandHost = createContourAdminReactIslandHost({
+  getActivation: () => {
+    const localQa = getContourAdminReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN === true || localQa.featureFlagEnabled,
+      adminHostReady: isAdminRuntimeHost() && contourAdminModuleReady,
+      accessMode: (serverEvaluationAllowed && isContourAdminReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ model: getContourAdminModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: () => { if (ui.activeModule === "contourAdmin") render({ skipRememberScroll: true }); },
 });
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6734,9 +6761,12 @@ function initializeModuleRuntime() {
     contourAdmin: {
       render: () => {
         ensureContourAdminModule();
+        const reactDecision = contourAdminReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return contourAdminReactIslandHost.renderTarget();
         return renderContourAdminPage();
       },
-      bind: () => bindContourAdminEvents(),
+      bind: () => { if (!contourAdminReactIslandHost.isReactEligible()) bindContourAdminEvents(); },
+      afterRender: () => { void contourAdminReactIslandHost.mount(); },
     },
     nomenclature: {
       render: () => {

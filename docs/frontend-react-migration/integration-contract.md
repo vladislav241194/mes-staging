@@ -155,12 +155,13 @@ through `unsupported-scope`; authentication, fact drafts, keypad input, photos
 and every save command stay in legacy. Missing coverage, an open legacy modal,
 editor access or a missing session request retains legacy.
 
-`mountContourAdminReactIsland(...)` is currently an isolated administrative
-read proof over a completed host model. React owns only local contour selection
-and presentation of passports, rollout scenarios, timings and guardrails.
-Backup, sync, deploy, promote and rollback always request legacy. A future
-production host must additionally preserve the server-authenticated admin-only
-hostname boundary; no public-host or production activation is claimed.
+`mountContourAdminReactIsland(...)` owns the administrative read view over a
+completed host model. React owns only local contour selection and presentation
+of passports, rollout scenarios, timings and guardrails. Backup, sync, deploy,
+promote and rollback always request legacy. The production host preserves the
+server-authenticated admin-only hostname boundary and additionally requires two
+false-by-default permissions plus an explicit read-only session request. A
+public host, editor access or a missing request retains legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host

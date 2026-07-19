@@ -122,7 +122,7 @@ export async function waitForCondition(client, pageFunction, { arg, timeoutMs = 
   throw new Error(message);
 }
 
-export async function launchChrome(profilePrefix = "mes-browser-qa-") {
+export async function launchChrome(profilePrefix = "mes-browser-qa-", { extraArgs = [] } = {}) {
   const chromePath = await findChrome();
   const port = await getFreePort();
   const profileDir = await mkdtemp(join(tmpdir(), profilePrefix));
@@ -137,6 +137,7 @@ export async function launchChrome(profilePrefix = "mes-browser-qa-") {
     "--metrics-recording-only",
     "--no-first-run",
     "--no-default-browser-check",
+    ...extraArgs,
     "about:blank",
   ], { stdio: "ignore" });
   try {
