@@ -14,7 +14,7 @@ import { StructureResponsibilityPoliciesReadScenario } from "./modules/structure
 import { StructureMigrationDiagnosticsScenario } from "./modules/structure-migration-diagnostics/StructureMigrationDiagnosticsScenario";
 import { WeeklyProductionControlScenario } from "./modules/weekly-production-control/WeeklyProductionControlScenario";
 import { TimesheetReadScenario } from "./modules/timesheet/TimesheetReadScenario";
-import { PlanningWorkbenchScenario } from "./modules/planning-workbench/PlanningWorkbenchScenario";
+import { PlanningWorkbenchReadScenario } from "./modules/planning-workbench/PlanningWorkbenchReadScenario";
 import { ShiftWorkOrdersScenario } from "./modules/shift-work-orders/ShiftWorkOrdersScenario";
 import { ShiftMasterBoardScenario } from "./modules/shift-master-board/ShiftMasterBoardScenario";
 import { EmployeeDesktopScenario } from "./modules/employee-desktop/EmployeeDesktopScenario";
@@ -40,7 +40,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structureMigrationDiagnostics") return <StructureMigrationDiagnosticsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "weeklyProductionControl") return <WeeklyProductionControlScenario payload={payload} />;
   if (scenario === "timesheet") return <TimesheetReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "planningWorkbench") return <PlanningWorkbenchScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "planningWorkbench") return <PlanningWorkbenchReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "employeeDesktop") return <EmployeeDesktopScenario payload={payload} onRequestLegacy={onRequestLegacy} />;

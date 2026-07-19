@@ -49,7 +49,7 @@ retain their explicit next vertical scopes.
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
 | 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
-| 16 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
+| 16 | Planning and operational modules | Pending; Planning route/detail selection is locally React-owned | Critical | Planning quantity edit before dates, labor, Gantt transfer, assignment or fact mutations |
 | 17 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
 | 18 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |

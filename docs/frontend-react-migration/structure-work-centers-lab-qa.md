@@ -33,7 +33,7 @@ owner; Pilot remains read-only and default-off.
 - latest local first commit was `141.10 ms`.
 
 The independent production entry is `215,471 B` raw / `65,474 B` gzip. A
-separate read adapters keep the full lab at `474,206 B` raw / `110,652 B` gzip.
+separate read adapters keep the full lab at `473,977 B` raw / `110,612 B` gzip.
 It remains false by default.
 
 ## Pilot acceptance

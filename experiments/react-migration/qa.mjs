@@ -1437,6 +1437,10 @@ try {
   const weeklyProductionControlHostSource = await readFile(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js"), "utf8");
   assert.match(weeklyProductionControlHostSource, /createReactIslandHost/);
   assert.match(weeklyProductionControlHostSource, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
+  const planningWorkbenchHostSource = await readFile(join(repositoryRoot, "src/modules/planning_workbench/react_island_host.js"), "utf8");
+  assert.match(planningWorkbenchHostSource, /onNavigate: navigate/);
+  assert.match(productionAppSource, /type === "select-item"/);
+  assert.match(productionAppSource, /hydratePlanningWorkbenchBootstrap\(\{ force: true, renderOnChange: false \}\)/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");

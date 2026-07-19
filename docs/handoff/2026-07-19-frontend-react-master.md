@@ -345,12 +345,13 @@ still advance two server revisions.
 Planning Workbench is the seventeenth production-integrated scenario. The legacy renderer
 now exposes a completed read-model for PostgreSQL list/detail projection,
 snapshot fallback, readiness, labor and visible structure. Lab QA proves three
-queue entries, five readiness metrics, four hierarchy rows, payload update and
-legacy route fallback. Production-shell QA proves two-order PostgreSQL
-bootstrap parity, five readiness metrics, two hierarchy rows, unchanged state
-and clean console. Its bundled artifact is `201,793 B` raw / `63,311 B` gzip /
-`54,483 B` Brotli. It moves no quantity, date, labor, Gantt or cancel command
-and has not been released or activated on Pilot.
+queue entries, five readiness metrics, four hierarchy rows and payload update.
+Production-shell QA proves two-order PostgreSQL bootstrap parity, React-owned
+route and tree-row selection, legacy read-back, five readiness metrics, two
+hierarchy rows, unchanged state and clean console. Its bundled artifact is
+`202,251 B` raw / `63,500 B` gzip / `54,623 B` Brotli. It moves no quantity,
+date, labor, Gantt or cancel command and has not been released or activated on
+Pilot.
 
 Shift Work Orders is the eighteenth production-integrated scenario and the
 first operational-family proof. Its typed
@@ -493,7 +494,9 @@ will be repeated after the Structure Employees commit and before rebasing.
    schedule assignment and Pilot write acceptance remain separate. Roles
    passport metadata is locally complete through the `access-control` owner;
    grants, assignments, scopes, read-only, active and Pilot write acceptance
-   remain separate. Weekly
+   remain separate. Planning route and tree-row selection now stay inside
+   React and reuse the PostgreSQL bootstrap; quantity, dates, labor, Gantt
+   transfer and cancellation remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

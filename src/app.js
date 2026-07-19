@@ -2948,6 +2948,27 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     if (action === "item" && value) { ui.planningWorkItem = value; persistUiState(); }
     if (ui.activeModule === "planning") render({ skipRememberScroll: true });
   },
+  navigate: async (navigation = {}) => {
+    const type = String(navigation.type || ""); const id = String(navigation.id || "").trim(); const model = getPlanningWorkbenchModel();
+    if (!id || !["select-route", "select-item"].includes(type)) return { ok: false, message: "Неизвестный переход Planning." };
+    if (type === "select-item") {
+      if (!(model.overview?.rows || []).some((row) => row.id === id)) return { ok: false, message: "Строка заказ-наряда больше не существует." };
+      ui.planningWorkItem = id; persistUiState();
+      if (ui.activeModule === "planning") render({ skipRememberScroll: true });
+      return { ok: true, id };
+    }
+    if (!model.queue.some((route) => route.id === id)) return { ok: false, message: "Заказ-наряд больше не существует." };
+    if (id === model.activeRouteId) return { ok: true, id };
+    const previousRouteId = String(ui.activeRouteId || ""); const previousWorkItem = String(ui.planningWorkItem || "");
+    ui.activeRouteId = id; ui.planningWorkItem = ""; persistUiState();
+    const hydrated = await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
+    if (!hydrated || ui.activeRouteId !== id || !getDomainWorkOrderDetail(id)) {
+      ui.activeRouteId = previousRouteId; ui.planningWorkItem = previousWorkItem; persistUiState();
+      return { ok: false, message: "Не удалось загрузить выбранный заказ-наряд." };
+    }
+    if (ui.activeModule === "planning") render({ skipRememberScroll: true });
+    return { ok: true, id };
+  },
 });
 function getShiftWorkOrdersReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);

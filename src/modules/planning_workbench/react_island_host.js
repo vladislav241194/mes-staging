@@ -3,7 +3,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 const PLANNING_WORKBENCH_REACT_TARGET = "[data-react-planning-workbench-island]";
 const PLANNING_WORKBENCH_REACT_BUNDLE_VERSION = "__MES_PLANNING_WORKBENCH_REACT_BUNDLE_VERSION__";
 
-export function createPlanningWorkbenchReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Planning Workbench React island failed", error) } = {}) {
+export function createPlanningWorkbenchReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, navigate, reportError = (error) => console.error("[MES] Planning Workbench React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: PLANNING_WORKBENCH_REACT_TARGET,
@@ -21,6 +21,6 @@ export function createPlanningWorkbenchReactIslandHost({ getActivation, getPaylo
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountPlanningWorkbenchReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountPlanningWorkbenchReactIsland(target, payload, { onError, onReady, onNavigate: navigate ? (navigation) => navigate(navigation) : undefined }),
   });
 }
