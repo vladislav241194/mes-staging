@@ -5427,8 +5427,13 @@ async function hydratePlanningWorkbenchBootstrap({ force = false, renderOnChange
   // available order. Keep that canonical ID in UI state so the next render
   // does not issue a second list/detail request for a removed route.
   const activeRouteId = String(result.activeId || result.items?.[0]?.id || "");
-  if (ui.activeRouteId !== activeRouteId) ui.activeRouteId = activeRouteId;
-  if (renderOnChange && result.changed && ui.activeModule === "planning") render();
+  const selectionChanged = ui.activeRouteId !== activeRouteId;
+  if (selectionChanged) ui.activeRouteId = activeRouteId;
+  // Returning to Planning deliberately clears the persisted selection before
+  // its first paint. A warm PostgreSQL bootstrap can then answer from cache
+  // with `changed: false`; the restored canonical selection still changes
+  // React eligibility and therefore requires one final render.
+  if (renderOnChange && (result.changed || selectionChanged) && ui.activeModule === "planning") render();
   return true;
 }
 async function hydrateInitialPlanningServerBootstrap() {
