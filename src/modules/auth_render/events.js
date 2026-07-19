@@ -230,15 +230,20 @@ function backspaceAuthSessionFactValue(taskId = "") {
   updateAuthSessionFactField(taskId, field, String(draft[key] || "").slice(0, -1));
 }
 
-function startAuthSessionTask(taskId = "") {
-  if (!taskId) return;
+function startAuthSessionTask(taskId = "", options = {}) {
+  if (!taskId) return false;
+  const model = getAuthSessionPrototypeModel();
+  const task = (model.allTasks || []).find((item) => item.id === taskId) || null;
+  if (!task || task.isDone || task.isStarted) return false;
+  if (model.authPerson?.id && task.employeeId !== model.authPerson.id) return false;
   setAuthSessionFactDraft(taskId, {
     status: "in_progress",
     startedAt: new Date().toISOString(),
   });
   persistUiState();
   notifySaveSuccess("Задание взято в работу.");
-  render();
+  if (options.renderOnChange !== false) render();
+  return true;
 }
 
 async function saveAuthSessionTaskFact(taskId = "") {

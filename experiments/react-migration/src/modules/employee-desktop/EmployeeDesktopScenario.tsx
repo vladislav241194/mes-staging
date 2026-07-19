@@ -4,20 +4,31 @@ import { adaptEmployeeDesktopPayload } from "./adapter";
 
 const quantity = (value: number, unit = "шт.") => `${value.toLocaleString("ru-RU")} ${unit}`;
 const taskTone = (task: { isDone: boolean; isStarted: boolean }): "success" | "warning" | "neutral" => task.isDone ? "success" : task.isStarted ? "warning" : "neutral";
+export type EmployeeDesktopReactCommand = { type: "start-task"; taskId: string };
 
-export function EmployeeDesktopScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(scope?: string): void }) {
+export function EmployeeDesktopScenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: EmployeeDesktopReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptEmployeeDesktopPayload(payload), [payload]); const [selectedId, setSelectedId] = useState(model.selectedTask?.id || "");
+  const [commandError, setCommandError] = useState(""); const [startingTaskId, setStartingTaskId] = useState("");
   useEffect(() => { if (!model.tasks.some((task) => task.id === selectedId)) setSelectedId(model.selectedTask?.id || model.tasks[0]?.id || ""); }, [model, selectedId]);
+  useEffect(() => { setCommandError(""); setStartingTaskId(""); }, [model]);
   const selected = model.tasks.find((task) => task.id === selectedId) || model.selectedTask;
+  const startTask = async () => {
+    if (!selected || !onCommand || !model.canStartTask || selected.isDone || selected.isStarted || startingTaskId) return;
+    setStartingTaskId(selected.id); setCommandError("");
+    try { const result = await onCommand({ type: "start-task", taskId: selected.id }); if (result && result.ok === false) setCommandError(result.message || "Не удалось взять задание в работу."); }
+    catch (error) { setCommandError(error instanceof Error ? error.message : "Не удалось взять задание в работу."); }
+    finally { setStartingTaskId(""); }
+  };
   return <OperationalPage className="employee-desktop-react" label="Рабочий стол">
-    <ModuleHeader eyebrow="Оперативное управление" title="Рабочий стол" badge={<span className="lab-badge">read-only React</span>} />
+    <ModuleHeader eyebrow="Оперативное управление" title="Рабочий стол" badge={<span className="lab-badge">{model.canStartTask ? "React · task-start evaluation" : "read-only React"}</span>} />
     {!selected ? <SystemState title="Заданий нет" text="После распределения в Мастерской здесь появятся сменные задания." tone="neutral" /> : <section className="employee-desktop-react-grid">
       <Panel heading={<div className="panel-heading"><div><p>Рабочая карточка</p><h2>{selected.documentNumber}</h2></div><StatusToken label={selected.status} tone={taskTone(selected)} /></div>}>
         <div className="employee-desktop-react-detail" data-employee-desktop-detail={selected.id}>
           <section className="employee-desktop-react-summary"><article><span>Изделие</span><strong>{selected.orderLabel}</strong></article><article><span>Операция</span><strong>{selected.operationName}</strong></article><article><span>Маршрут</span><strong>{selected.routePartLabel}</strong></article></section>
           <section className="employee-desktop-react-route" aria-label="Маршрут задания"><article><span>До</span><strong>{selected.previousOperation}</strong></article><article className="is-current"><span>Сейчас</span><strong>{selected.operationName}</strong></article><article><span>После</span><strong>{selected.nextOperation}</strong></article></section>
           <MetricGrid label="Факт задания"><MetricCard label="Назначено" value={quantity(selected.assignedQuantity, selected.unit)} meta={selected.laborLabel} /><MetricCard label="Выполнено" value={quantity(selected.actualQuantity, selected.unit)} /><MetricCard label="Брак" value={quantity(selected.defectQuantity, selected.unit)} /><MetricCard label="Годное" value={quantity(selected.goodQuantity, selected.unit)} /></MetricGrid>
-          <div className="employee-desktop-react-actions"><ActionButton onClick={() => onRequestLegacy?.(`start:${selected.id}`)}>{selected.isStarted ? "В работе" : "Взять"}</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`fact:${selected.id}`)} variant="secondary">Внести факт</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`report:${selected.id}`)} variant="secondary">Report</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`structure:${selected.id}`)} variant="secondary">Структура</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`route:${selected.id}`)} variant="secondary">Маршрут</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`pdf:${selected.id}`)} variant="secondary">PDF</ActionButton></div>
+          <div className="employee-desktop-react-actions"><ActionButton disabled={!model.canStartTask || selected.isDone || selected.isStarted || Boolean(startingTaskId)} onClick={() => void startTask()} title={selected.isDone ? "Задание уже завершено" : selected.isStarted ? "Задание уже находится в работе" : model.canStartTask ? "Взять через существующего владельца рабочей сессии" : "Write evaluation выключен"}>{selected.isStarted ? "В работе" : startingTaskId === selected.id ? "Запуск…" : "Взять"}</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`fact:${selected.id}`)} variant="secondary">Внести факт</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`report:${selected.id}`)} variant="secondary">Report</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`structure:${selected.id}`)} variant="secondary">Структура</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`route:${selected.id}`)} variant="secondary">Маршрут</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`pdf:${selected.id}`)} variant="secondary">PDF</ActionButton></div>
+          {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
         </div>
       </Panel>
       <Panel heading={<div className="panel-heading"><div><p>{model.canViewAll ? "Все рабочие столы" : model.personName}</p><h2>Назначенные задания</h2></div>{model.canViewAll ? <button className="employee-desktop-react-viewer" onClick={() => onRequestLegacy?.("person")} type="button">{model.viewedPersonId === "__all" ? "Все сотрудники" : model.personName}</button> : null}</div>}>

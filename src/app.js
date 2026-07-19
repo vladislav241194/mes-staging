@@ -3085,10 +3085,10 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
 });
 function getEmployeeDesktopReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-employee-desktop") === "1", readOnlyEvaluation: params.get("react-employee-desktop-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-employee-desktop") === "1", readOnlyEvaluation: params.get("react-employee-desktop-readonly") === "1", writeEvaluation: params.get("react-employee-desktop-write") === "1" };
 }
 function isEmployeeDesktopReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
@@ -3103,10 +3103,16 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP === true || localQa.featureFlagEnabled,
       serverReadReady: authModulesReady && systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
-      accessMode: (serverEvaluationAllowed && isEmployeeDesktopReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isEmployeeDesktopReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => ({ model: getAuthSessionPrototypeModel() }),
+  getPayload: () => {
+    const model = getAuthSessionPrototypeModel();
+    const localQa = getEmployeeDesktopReactLocalQaOverrides();
+    const authPersonId = String(model.authPerson?.id || "");
+    const canStartTask = localQa.writeEvaluation && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
+    return { model, capabilities: { taskStart: canStartTask } };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
     const [action, taskId] = String(scope || "").split(":");
@@ -3117,6 +3123,22 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     if (["structure", "route", "pdf", "issue"].includes(modalType) && task?.id) ui.authSessionModal = { type: modalType, taskId: task.id };
     persistUiState();
     if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getEmployeeDesktopReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "start-task") return { ok: false, message: "Запуск задания недоступен." };
+    const taskId = String(command.taskId || "").trim();
+    const model = getAuthSessionPrototypeModel();
+    const task = (model.tasks || []).find((item) => item.id === taskId) || null;
+    if (!task) return { ok: false, message: "Задание больше не доступно на рабочем столе." };
+    if (task.isDone) return { ok: false, message: "Завершённое задание нельзя взять в работу." };
+    if (task.isStarted) return { ok: false, message: "Задание уже находится в работе." };
+    if (model.authPerson?.id && task.employeeId !== model.authPerson.id) return { ok: false, message: "Нет права запускать задание другого сотрудника." };
+    ui.authSessionSelectedTaskId = task.id;
+    const started = startAuthSessionTask(task.id, { renderOnChange: false });
+    if (started !== true) return { ok: false, message: "Задание не запущено: его состояние уже изменилось." };
+    queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
+    return { ok: true, id: task.id };
   },
 });
 function getAuthPickerReactLocalQaOverrides() {
@@ -3934,6 +3956,7 @@ let setAuthSessionFactDraft = () => {};
 let setAuthSessionReportDraft = () => {};
 let bindAuthPrototypeEvents = () => {};
 let bindAuthSessionEvents = () => {};
+let startAuthSessionTask = () => false;
 let authRenderModuleLoad = null;
 let authEventsModuleLoad = null;
 let authModulesReady = false;
@@ -4042,7 +4065,7 @@ function ensureAuthRenderModule() {
 }
 
 function initializeAuthEventsModule(factory) {
-  ({ bindAuthPrototypeEvents, bindAuthSessionEvents } = factory({
+  ({ bindAuthPrototypeEvents, bindAuthSessionEvents, startAuthSessionTask } = factory({
     app,
     AUTH_PIN_TEMPORARILY_DISABLED,
     bindGenericModalCloseEvents,

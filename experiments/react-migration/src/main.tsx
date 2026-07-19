@@ -19,7 +19,7 @@ import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fi
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
 import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
 import { createShiftMasterBoardFocusFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
-import { employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
+import { createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
 import { specifications2Fixture, specifications2UpdateFixture } from "./modules/specifications2/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
@@ -93,6 +93,12 @@ const featureGate = createReactIslandFeatureGate({
       onLoadShiftWorkOrderPrintRenderer: async () => import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews"),
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
       onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
+      onEmployeeDesktopCommand: async (command) => {
+        if (command.type !== "start-task") return { ok: false, message: "Неизвестная команда рабочего стола." };
+        markRevisionStart(nextExpectedRevision);
+        featureGate.update(createEmployeeDesktopStartedFixture(command.taskId));
+        return { ok: true };
+      },
       onRequestLegacy: () => featureGate.requestLegacy("unsupported-scope"),
     });
   },

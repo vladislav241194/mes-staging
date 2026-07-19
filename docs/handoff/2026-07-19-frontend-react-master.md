@@ -387,18 +387,21 @@ assignment fallback, zero Shift Execution writes and unchanged state. Its
 production artifact is `203,459 B` raw / `63,786 B` gzip / `54,849 B` Brotli.
 It has not been released or activated on Pilot.
 
-Employee Desktop is the twentieth production-integrated scenario and closes the read
-path from Planning through Workshop and Shift Work Orders to the executor. Its
-adapter consumes `getAuthSessionPrototypeModel()` and renders three fixture
-tasks, seven read metrics, route context and plan/fact values. Local selection
-and revision update pass; person switching, start, fact, Report, structure,
-route and PDF return to legacy. Production-shell QA proves one identical
-PostgreSQL-backed task in legacy and React, default legacy, explicit read-only
-activation, fact fallback, zero Shift Execution writes and unchanged state. A
-direct module entry now hydrates the Planning PostgreSQL graph before deriving
-the bounded dispatch scope. Its production artifact is `202,416 B` raw /
-`63,416 B` gzip / `54,553 B` Brotli. It has not been released or activated on
-Pilot.
+Employee Desktop is the twentieth production-integrated scenario and closes the
+read path from Planning through Workshop and Shift Work Orders to the executor.
+Its adapter consumes `getAuthSessionPrototypeModel()` and renders three fixture
+tasks, seven read metrics, route context and plan/fact values. Local selection,
+owner-backed task start and revision update pass; person switching, fact,
+Report, structure, route and PDF return to legacy. The explicit localhost write
+evaluation sends only `start-task` and a visible task ID; the host revalidates
+visibility, completion/start state and authenticated ownership, then calls the
+existing `startAuthSessionTask` owner. Production-shell QA proves one identical
+PostgreSQL-backed task in legacy and React, default legacy, read-only denial,
+one persisted transition to `В работе`, duplicate denial, fact fallback, zero
+Shift Execution writes and unchanged intercepted state. A direct module entry
+hydrates the Planning PostgreSQL graph before deriving the bounded dispatch
+scope. Its production artifact is `203,436 B` raw / `63,673 B` gzip /
+`54,892 B` Brotli. It has not been released or activated on Pilot.
 
 Contour Admin is the twenty-first production-integrated scenario. The legacy module exposes a completed
 read model with three contours, five operational scenarios, speed rows and
@@ -477,7 +480,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove and Roles passport metadata have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove, Roles passport metadata and Employee Desktop task start have local owner- and RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
@@ -513,7 +516,9 @@ will be repeated after the Structure Employees commit and before rebasing.
    writes; Pilot read-only acceptance, assignment, fact and Workshop stay
    separate. Shift Master Board card selection and owner-backed focus are also
    locally complete; Pilot read-only focus acceptance plus assignment, fact,
-   carryover and transfer remain separate. Weekly
+   carryover and transfer remain separate. Employee Desktop task start is
+   locally complete through the existing authenticated fact-draft owner;
+   Pilot task-start acceptance plus fact and report commands remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

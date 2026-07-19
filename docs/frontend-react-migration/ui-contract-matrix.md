@@ -254,14 +254,17 @@ The third operational-family proof consumes the completed legacy
 `getAuthSessionPrototypeModel()` boundary. It reuses ModuleHeader,
 OperationalPage, Panel, MetricGrid, MetricCard, StatusToken and ActionButton
 while retaining the task board, route chain and employee fact passport. The
-fixture proves three assignments, seven metrics, local task selection and a
-payload update. Start, fact, Report, structure, route, PDF and person switching
-return to legacy. The production host requires PostgreSQL System Domains,
-complete Shift Execution coverage, two false-by-default permissions and an
-explicit read-only session request. Production-shell QA proves one identical
-PostgreSQL-backed task in legacy and React, exact fact fallback, zero writes and
-unchanged state. A direct module entry also hydrates the Planning PostgreSQL
-graph before deriving its bounded dispatch scope.
+fixture proves three assignments, seven metrics, local task selection,
+owner-backed task start and a payload update. Fact, Report, structure, route,
+PDF and person switching return to legacy. The production host requires
+PostgreSQL System Domains, complete Shift Execution coverage, two
+false-by-default permissions and an explicit session request; the start command
+is available only through a separate localhost write evaluation. Production-
+shell QA proves one identical PostgreSQL-backed task in legacy and React,
+read-only denial, one persisted transition to `В работе`, duplicate denial,
+exact fact fallback, zero Shift Execution writes and unchanged intercepted test
+state. A direct module entry also hydrates the Planning PostgreSQL graph before
+deriving its bounded dispatch scope.
 
 ## Contour Admin production evidence
 

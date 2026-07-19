@@ -37,8 +37,11 @@ work-order print package inside React while reusing the existing package owner
 and host print callback; assignment, fact and Workshop remain legacy. The
 Shift Master Board now owns its four focus controls while the existing host
 owner still normalizes the focus and rebuilds rows, lanes, selection and KPIs;
-assignment, fact, carryover and transfer remain legacy. The remaining scenarios
-retain their explicit next vertical scopes.
+assignment, fact, carryover and transfer remain legacy. Employee Desktop now
+starts an available task through its existing authenticated fact-draft owner;
+React validates the visible task, disables repeats and reads back `В работе`,
+while fact and report commands remain legacy. The remaining scenarios retain
+their explicit next vertical scopes.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
@@ -60,7 +63,7 @@ retain their explicit next vertical scopes.
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Separately gated Pilot read-only acceptance of the three React-owned presentation paths |
 | 18 | Shift Master Board | Local complete: card selection and owner-backed all/mine/open/attention focus; mutations remain legacy | Critical | Separately gated Pilot read-only focus acceptance, then bounded assignment scope |
-| 19 | Employee Desktop | Pending | Critical | Task start before fact and report commands |
+| 19 | Employee Desktop | Local complete: task start through the existing owner; fact and report remain legacy | Critical | Separately gated Pilot task-start acceptance before fact and report commands |
 | 20 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
 | 21 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |

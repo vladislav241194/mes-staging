@@ -1,4 +1,4 @@
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
-import { EmployeeDesktopScenario } from "./modules/employee-desktop/EmployeeDesktopScenario";
-export interface EmployeeDesktopIslandOptions extends ReactMigrationIslandOptions { onRequestLegacy?(scope?: string): void }
-export function mountEmployeeDesktopReactIsland(target: HTMLElement, initialPayload: unknown, options: EmployeeDesktopIslandOptions = {}) { const { onRequestLegacy, ...runtimeOptions } = options; return mountReactIsland(target, (payload) => <EmployeeDesktopScenario payload={payload} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions); }
+import { EmployeeDesktopScenario, type EmployeeDesktopReactCommand } from "./modules/employee-desktop/EmployeeDesktopScenario";
+export interface EmployeeDesktopIslandOptions extends ReactMigrationIslandOptions { onRequestLegacy?(scope?: string): void; onCommand?(command: EmployeeDesktopReactCommand): Promise<{ ok?: boolean; message?: string } | void> }
+export function mountEmployeeDesktopReactIsland(target: HTMLElement, initialPayload: unknown, options: EmployeeDesktopIslandOptions = {}) { const { onCommand, onRequestLegacy, ...runtimeOptions } = options; return mountReactIsland(target, (payload) => <EmployeeDesktopScenario payload={payload} onCommand={onCommand} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions); }

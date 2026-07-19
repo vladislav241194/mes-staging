@@ -180,16 +180,20 @@ remounted. An empty focused projection retains the toolbar and can return to
 scopes return through `unsupported-scope`. Missing coverage, an open legacy
 overlay, editor access or a missing session request retains legacy.
 
-`mountEmployeeDesktopReactIsland(...)` owns the read-only executor task view
+`mountEmployeeDesktopReactIsland(...)` owns the executor task view
 behind two false-by-default server permissions, PostgreSQL System Domains and
 complete current Shift Execution coverage, plus an explicit session request.
 Its adapter consumes the completed legacy `getAuthSessionPrototypeModel()` and
-owns only local task selection. A direct module entry first hydrates the full
-Planning PostgreSQL graph, then derives the bounded dispatch scope. Person
-switching plus start, fact, Report, structure, route and PDF scopes return
-through `unsupported-scope`; authentication, fact drafts, keypad input, photos
-and every save command stay in legacy. Missing coverage, an open legacy modal,
-editor access or a missing session request retains legacy.
+owns local task selection. An additional localhost-only write evaluation sends
+only `start-task` and the visible task ID to the host. The host revalidates task
+visibility, completion/start state and authenticated ownership, then invokes
+the existing `startAuthSessionTask` owner and remounts from its read model. A
+direct module entry first hydrates the full Planning PostgreSQL graph, then
+derives the bounded dispatch scope. Person switching plus fact, Report,
+structure, route and PDF scopes return through `unsupported-scope`;
+authentication, fact input, photos and fact/report saves stay in legacy.
+Missing coverage, an open legacy modal, ordinary editor access or a missing
+session request retains legacy.
 
 `mountContourAdminReactIsland(...)` owns the administrative read view over a
 completed host model. React owns only local contour selection and presentation
