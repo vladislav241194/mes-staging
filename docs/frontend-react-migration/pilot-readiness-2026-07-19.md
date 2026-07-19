@@ -389,3 +389,6 @@ No Pilot record was created, edited or deleted. The isolated drop-in was
 removed, both Weekly runtime values are again `false`, and an authenticated
 reload with the retained query rendered legacy with the same `25 x 11` matrix.
 Pilot is healthy on `v.1.499.74`; Weekly is legacy for every session.
+The exact active release commit `7784ab4` was then fast-forward promoted to
+GitHub `main`; the later evidence-only documentation commit remains on the
+frontend migration branch.

@@ -524,3 +524,5 @@ No data was written. The isolated rollout drop-in is removed, both Weekly
 flags are false, health is `ok`, shared-state is `ready`, and every session is
 back on legacy Weekly Control. The next migration scope must remain a separate
 vertical scenario; this checkpoint does not authorize default-on activation.
+The exact active commit `7784ab4` was fast-forward promoted to `origin/main`;
+the acceptance documentation is intentionally a later branch-only commit.
