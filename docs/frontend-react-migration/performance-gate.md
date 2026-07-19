@@ -34,12 +34,12 @@ Current minified measurements:
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 208,864 B | 64,433 B | 225,000 B | 68,000 B |
 | Gantt production island | 204,733 B | 63,564 B | 225,000 B | 68,000 B |
-| Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 212,831 B | 65,382 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 211,805 B | 64,829 B | 225,000 B | 68,000 B |
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 474,631 B | 110,704 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,206 B | 110,652 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -84,9 +84,11 @@ then proved one create plus one edit through the existing command owner.
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
 
-The bundled production Roles island is `204,264 B` raw / `64,094 B` gzip /
-`55,289 B` Brotli. Its production-shell first commit measured below `25 ms` on the
-local QA contour; this is regression evidence, not Pilot acceptance.
+The bundled production Roles island is `207,239 B` raw / `65,088 B` gzip /
+`56,024 B` Brotli. Its production-shell first commit remains below `25 ms` on the
+local QA contour; metadata QA additionally proves revision-conflict retry,
+protected-registry preservation and legacy read-back. This is regression
+evidence, not Pilot acceptance.
 
 The bundled production Component Types island is `201,269 B` raw / `63,156 B`
 gzip / `54,455 B` Brotli. Its production-shell first commit measured below

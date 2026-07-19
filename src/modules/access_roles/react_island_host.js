@@ -8,6 +8,7 @@ export function createRolesReactIslandHost({
   getPayload,
   getTargetRoot,
   requestLegacyRender,
+  executeCommand,
   reportError = (error) => console.error("[MES] Roles React island failed", error),
 } = {}) {
   return createReactIslandHost({
@@ -21,7 +22,7 @@ export function createRolesReactIslandHost({
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -34,7 +35,7 @@ export function createRolesReactIslandHost({
       return import(islandUrl.href);
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => (
-      loadedIsland.mountRolesReactIsland(target, payload, { onError, onReady })
+      loadedIsland.mountRolesReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined })
     ),
   });
 }

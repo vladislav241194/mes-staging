@@ -67,6 +67,7 @@ export interface RolesReadModel {
   roles: AccessRoleReadItem[];
   modules: RolesModuleDefinition[];
   assignmentCount: number;
+  canEditMetadata: boolean;
 }
 
 function text(value: unknown): string {
@@ -118,7 +119,9 @@ export function roleAllows(role: AccessRoleReadItem, moduleId: string, action: R
 }
 
 export function adaptRoles(payload: unknown): RolesReadModel {
+  const root = record(payload);
   const { registries, modules } = getPayloadParts(payload);
+  const capabilities = record(root.capabilities);
   const roleRows = rows(registries.accessRoles);
   const grantRows = rows(registries.grants);
   const assignmentRows = rows(registries.roleAssignments);
@@ -180,5 +183,5 @@ export function adaptRoles(payload: unknown): RolesReadModel {
     return [item];
   });
 
-  return { roles, modules, assignmentCount: assignmentRows.length };
+  return { roles, modules, assignmentCount: assignmentRows.length, canEditMetadata: capabilities.metadataEdit === true };
 }

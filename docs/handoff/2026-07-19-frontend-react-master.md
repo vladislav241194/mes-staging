@@ -110,9 +110,9 @@ typed adapter consumes canonical System Domains plus the module registry and is
 checked action-by-action against the production access-control service. Browser
 QA proves three roles, four modules, mouse/keyboard selection, payload revision
 `1 -> 2`, assignment joins, table-owned overflow and editor/disabled legacy
-fallback. The independent artifact is `208,801 B` raw / `64,511 B` gzip. It
-now has the same disabled-by-default production host boundary; all commands
-remain legacy.
+fallback. The current independent artifact is `212,831 B` raw / `65,382 B`
+gzip. It now has the same disabled-by-default production host boundary; the
+later local metadata slice owns only label, description and default module.
 
 The lab also contains a host-side feature gate. A disabled flag never mounts
 React; mount/update/render failures schedule one fallback, unmount React, and
@@ -123,7 +123,7 @@ gate but does not wire or activate a production flag.
 The independent Nomenclature, Boards, Structure Employees, Roles, Component
 Types and Operations entries are
 separated from the multi-scenario lab. Each minified budget is `225,000 B` raw /
-`68,000 B` gzip; the current artifacts are respectively `205,469 B` /
+`68,000 B` gzip; the artifacts at that read-only checkpoint were respectively `205,469 B` /
 `63,705 B`, `208,616 B` / `64,478 B`, `210,459 B` / `64,768 B`, and
 `208,801 B` / `64,511 B`, `204,857 B` / `63,539 B`, and `203,364 B` /
 `63,173 B`. Each is checked not to contain unrelated scenarios.
@@ -194,9 +194,13 @@ clearing `projectId`. Its artifact is `206,793 B` raw / `65,055 B` gzip /
 Roles/Access now uses the same host with two independent runtime flags,
 PostgreSQL read readiness, and a per-session request. Production-shell QA
 renders eight canonical roles, thirteen modules and explicit assignments,
-keeps every write disabled, leaves state unchanged and records a `< 25 ms`
-local first commit. Its production artifact is `204,264 B` raw / `64,094 B`
-gzip / `55,289 B` Brotli. It has not been released or activated on Pilot.
+keeps default writes disabled and records a `< 25 ms` local first commit. A
+separate localhost-only metadata gate changes label, description and default
+module through the revision-checked `access-control` owner; conflict retry,
+legacy read-back and preservation of grants, assignments, scope, flags and a
+hidden server field pass. Its production artifact is `207,239 B` raw /
+`65,088 B` gzip / `56,024 B` Brotli. It has not been released or activated on
+Pilot.
 
 Directories Component Types is the fifth production-integrated island. Its
 read mode activates only inside `componentTypes`, behind two server flags and
@@ -462,7 +466,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit and Timesheet single-day attendance save/remove have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit, Timesheet single-day attendance save/remove and Roles passport metadata have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
@@ -486,7 +490,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    validation while Workshop assignability remains runtime-owned; archive and
    Pilot write acceptance remain separate. Timesheet single-day attendance
    save/remove is locally complete through the PostgreSQL owner; permanent
-   schedule assignment and Pilot write acceptance remain separate. Weekly
+   schedule assignment and Pilot write acceptance remain separate. Roles
+   passport metadata is locally complete through the `access-control` owner;
+   grants, assignments, scopes, read-only, active and Pilot write acceptance
+   remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

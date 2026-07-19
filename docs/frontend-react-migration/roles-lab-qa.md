@@ -6,15 +6,17 @@ Baseline: `fc71e01de31f573a4e1c0a5510e328630932aee9`
 
 ## Scope
 
-Standalone, read-only vertical scenario:
+Standalone read scenario plus a bounded local metadata command scenario:
 
-`open Roles and Access -> select role -> inspect passport -> inspect six-action grants -> inspect explicit employee assignments`.
+`open Roles and Access -> select role -> inspect passport -> edit label/description/default module -> inspect six-action grants -> inspect explicit employee assignments`.
 
 The typed adapter consumes a host-supplied System Domains snapshot plus the
 existing module registry. It joins `accessRoles`, `grants`, `roleAssignments`,
 `employees`, `employmentAssignments`, `positions`, and `orgUnits`. It does not
-call an API, persist UI/data, infer a role from position text, or expose role,
-grant, assignment, scope, or reset commands.
+call an API, persist UI/data, or infer a role from position text. The production
+host alone exposes a local-only metadata command and delegates it to the
+existing revision-checked `access-control` owner. Grant, assignment, scope,
+read-only, active and reset commands remain outside React.
 
 ## Contract preserved
 
@@ -50,7 +52,7 @@ Result:
 - the master assignment resolves `Иванов Сергей`, personnel number `0105`,
   position `Мастер участка`, and organization `Производство`;
 - auditor `print` remains allowed while `edit` is denied by the read-only rule;
-- independent Roles artifact is `208,801 B` raw / `64,511 B` gzip, within the
+- independent Roles artifact is `212,831 B` raw / `65,382 B` gzip, within the
   `225,000 B` / `68,000 B` production-island budget;
 - frozen backend and persistence/network isolation guards pass.
 
@@ -78,13 +80,17 @@ Automated Chromium/CDP check at `1280x720` proves:
 `mountRolesReactIsland(...)` now uses the shared production island host. It is
 disabled by default and requires both explicit server flags, a PostgreSQL-
 hydrated System Domains read-model, and the per-session
-`react-roles-evaluation=1` request. Editor access, missing server hydration,
-disabled flags, loading failure, and render failure retain or restore the full
-legacy Roles page and its commands.
+`react-roles-evaluation=1` request for reads. The separate localhost-only
+`react-roles-write=1` gate exposes only label, description and default-module
+editing when the current subject has `roles:configure` and the `access-control`
+server command surface is ready. Missing readiness or permission retains the
+full legacy Roles page and its commands.
 
 `npm run qa:roles-react-island` proves the production shell with eight
 canonical roles, thirteen module definitions, explicit employee assignments,
-disabled writes, unchanged state, clean console, and a `< 25 ms` first local
-React commit. The production artifact is `204,264 B` raw / `64,094 B` gzip /
-`55,289 B` Brotli. No release or Pilot activation has been made; authenticated
-Pilot acceptance and rollback proof remain pending.
+default legacy, a revision conflict without mutation, successful retry, legacy
+read-back, unchanged grants/assignments/scope/read-only/active/hidden fields,
+an unchanged compatibility snapshot, clean console, and a `< 25 ms` first
+local React commit. The production artifact is `207,239 B` raw / `65,088 B`
+gzip / `56,024 B` Brotli. No release or Pilot activation has been made;
+authenticated Pilot acceptance and rollback proof remain pending.

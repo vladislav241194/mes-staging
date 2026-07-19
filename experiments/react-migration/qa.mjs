@@ -376,6 +376,8 @@ try {
   });
   const { rolesFixture } = await import(`${pathToFileURL(rolesFixtureOutput).href}?qa=${Date.now()}`);
   const rolesModel = rolesAdapter.adaptRoles(rolesFixture);
+  assert.equal(rolesModel.canEditMetadata, false, "Roles metadata capability must fail closed");
+  assert.equal(rolesAdapter.adaptRoles({ ...rolesFixture, capabilities: { metadataEdit: true } }).canEditMetadata, true, "Roles metadata capability must be explicit");
   assert.deepEqual(rolesModel.roles.map((role) => [role.id, role.allowedModuleCount, role.assignedEmployees.length]), [
     ["admin", 4, 1],
     ["master", 2, 1],
@@ -1204,6 +1206,7 @@ try {
   const eligibleRolesProductionHost = makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleRolesProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleRolesProductionHost.renderTarget(), /data-react-roles-island/);
+  assert.deepEqual(makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Roles metadata write evaluation must use the same bounded host");
 
   const directoryComponentTypesHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/directories/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeDirectoryComponentTypesHost = (activation) => directoryComponentTypesHostModule.createDirectoryComponentTypesReactIslandHost({
@@ -1372,6 +1375,7 @@ try {
   assert.match(productionAppSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-roles"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-roles-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-roles-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-roles-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /rolesReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /rolesReactIslandHost\.mount\(\)/);
@@ -1562,9 +1566,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "timesheet"], "thirteen scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet"], "fourteen scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 9, "all 9 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 8, "all 8 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

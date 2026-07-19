@@ -1,7 +1,7 @@
 import { ComponentTypesScenario } from "./modules/component-types/ComponentTypesScenario";
 import { BoardsScenario } from "./modules/boards/BoardsScenario";
 import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenario";
-import { RolesScenario } from "./modules/roles/RolesScenario";
+import { RolesReadScenario } from "./modules/roles/RolesReadScenario";
 import { OperationsScenario } from "./modules/operations/OperationsScenario";
 import { NomenclatureTypesScenario } from "./modules/nomenclature-types/NomenclatureTypesScenario";
 import { StatusesScenario } from "./modules/statuses/StatusesScenario";
@@ -46,7 +46,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "employeeDesktop") return <EmployeeDesktopScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "contourAdmin") return <ContourAdminScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "specifications2") return <Specifications2Scenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "roles") return <RolesScenario payload={payload} />;
+  if (scenario === "roles") return <RolesReadScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "statuses") return <StatusesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;

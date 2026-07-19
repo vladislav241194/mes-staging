@@ -211,11 +211,13 @@ are absent from the React boundary. Employee selection returns through
 Any existing person/PIN state, unlocked gate, non-server projection, editor
 mode or missing evaluation request retains legacy.
 
-`mountRolesReactIsland(...)` provides the Roles and Access read slice over a
-host-supplied System Domains snapshot and module registry. Its production host
-requires two false-by-default flags, PostgreSQL read readiness, and a per-
-session evaluation request. All role/grant/assignment/scope commands remain
-legacy; editor access fails closed before React mounts.
+`mountRolesReactIsland(...)` provides the Roles and Access read slice plus a
+localhost-only passport metadata write evaluation over a host-supplied System
+Domains snapshot and module registry. The command can change only label,
+description and a view-allowed default module through the revision-checked
+`access-control` owner. Grants, assignments, scopes, read-only, active and reset
+remain legacy. Missing configure permission, PostgreSQL readiness or explicit
+write evaluation fails closed before React exposes the editor.
 
 The Nomenclature wrapper has its own entry point and does not bundle Component
 Types. The multi-scenario lab keeps a separate entry for development QA.

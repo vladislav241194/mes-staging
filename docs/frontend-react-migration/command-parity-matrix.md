@@ -26,7 +26,9 @@ Equipment and Structure Responsibility Policies now have locally complete Postgr
 parity through the System Domains owner, while reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance save/remove;
-permanent schedule assignment remains legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
+permanent schedule assignment remains legacy. Roles and Access now has locally
+complete passport metadata editing through the `access-control` owner; grants,
+assignments, scopes, read-only and active remain legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. The remaining scenarios
 retain their explicit next vertical scopes.
 
@@ -46,7 +48,7 @@ retain their explicit next vertical scopes.
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
 | 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
-| 15 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
+| 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
 | 16 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
 | 17 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
 | 18 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
