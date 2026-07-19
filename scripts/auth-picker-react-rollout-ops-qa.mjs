@@ -22,6 +22,7 @@ for (const [name, source] of [["activate", activate], ["deactivate", deactivate]
   assert.match(source, /restore_on_failure/);
 }
 assert.match(activate, /install -m 0644/);
+assert.match(activate, /MES_DOMAIN_STORAGE=postgres/);
 assert.match(deactivate, /rm -f "\$DROPIN_FILE"/);
 assert.doesNotMatch(`${activate}\n${deactivate}`, /MES_REACT_(?:SYSTEM|STRUCTURE|ROLES|EMPLOYEE_DESKTOP|AUTH_PICKER_WRITE)/);
 console.log("Authorization picker React rollout operations QA passed.");

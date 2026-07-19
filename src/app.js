@@ -3320,13 +3320,12 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
       : (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor";
-    // The authenticated System Domains API must stay closed before PIN.  The
-    // legacy picker already consumes the allowlisted bootstrap projection at
-    // this boundary, so a read-only evaluation may use the same payload only
-    // after this tab has observed the PostgreSQL-primary tombstone.
+    // Both the System Domains API and its authority tombstone stay protected
+    // before PIN. The root-only rollout verifies PostgreSQL storage before it
+    // exposes this permission, then React consumes only the same allowlisted
+    // pre-auth directory projection already rendered by legacy.
     const preAuthPrimaryProjectionReady = accessMode === "read-only-evaluation"
-      && Boolean(systemDomainsState)
-      && hasObservedSystemDomainsPrimaryAuthority();
+      && serverEvaluationAllowed;
     const activation = {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true || localQa.featureFlagEnabled,
       moduleReady: authModulesReady,

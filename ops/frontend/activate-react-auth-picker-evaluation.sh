@@ -26,6 +26,10 @@ restore_on_failure() {
 trap restore_on_failure EXIT
 
 [[ -f "$SOURCE_FILE" ]] || { echo "Missing rollout artifact: $SOURCE_FILE" >&2; exit 1; }
+systemctl show "$SERVICE" --property=Environment --value \
+  | tr ' ' '\n' \
+  | grep -Fxq 'MES_DOMAIN_STORAGE=postgres' \
+  || { echo "Authorization picker evaluation requires PostgreSQL domain storage." >&2; exit 1; }
 grep -Fq 'Environment=MES_REACT_AUTH_PICKER=1' "$SOURCE_FILE" || { echo "Feature flag is missing." >&2; exit 1; }
 grep -Fq 'Environment=MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION=1' "$SOURCE_FILE" || { echo "Evaluation flag is missing." >&2; exit 1; }
 install -d -m 0755 "$DROPIN_DIR"
