@@ -17,6 +17,7 @@ interface Specifications2DraftRowValue {
 
 export type Specifications2ReactCommand = { type: "save-draft-row"; payload: { entryId: string; rowId: string; value: Specifications2DraftRowValue } };
 export type Specifications2PublishCommand = { type: "publish-draft"; payload: { entryId: string; confirmEntryId: string; expectedPreviousRevision: number } };
+export type Specifications2WorkOrderCommand = { type: "create-work-order"; payload: { entryId: string; revisionId: string; confirmRevisionId: string; routeSourceDraftId: string; quantity: number } };
 
 const createDraft = (row: Specifications2DraftRow): Specifications2DraftRowValue & { rowId: string } => ({
   rowId: row.id,
@@ -27,7 +28,7 @@ const createDraft = (row: Specifications2DraftRow): Specifications2DraftRowValue
   unitOfMeasure: row.unitOfMeasure,
 });
 
-export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: Specifications2ReactCommand | Specifications2PublishCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
+export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: Specifications2ReactCommand | Specifications2PublishCommand | Specifications2WorkOrderCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptSpecifications2Payload(payload), [payload]);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [draft, setDraft] = useState<(Specifications2DraftRowValue & { rowId: string }) | null>(null);
@@ -35,6 +36,8 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
   const [commandError, setCommandError] = useState("");
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [workOrderDraft, setWorkOrderDraft] = useState<{ routeId: string; quantity: string } | null>(null);
+  const [creatingWorkOrder, setCreatingWorkOrder] = useState(false);
   const selected = model.selectedEntry;
   const revision = selected?.serverRevision;
   const visibleRows = useMemo(() => {
@@ -82,6 +85,16 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
     } catch (error) { setCommandError(error instanceof Error ? error.message : "Не удалось опубликовать ревизию."); }
     finally { setPublishing(false); }
   };
+  const createWorkOrder = async () => {
+    if (!selected || !revision || !workOrderDraft || !onCommand || creatingWorkOrder) return;
+    setCreatingWorkOrder(true); setCommandError("");
+    try {
+      const result = await onCommand({ type: "create-work-order", payload: { entryId: selected.id, revisionId: revision.id, confirmRevisionId: revision.id, routeSourceDraftId: workOrderDraft.routeId, quantity: Number(workOrderDraft.quantity) } });
+      if (result?.ok === false) setCommandError(result.message || "Не удалось создать заказ-наряд.");
+      else setWorkOrderDraft(null);
+    } catch (error) { setCommandError(error instanceof Error ? error.message : "Не удалось создать заказ-наряд."); }
+    finally { setCreatingWorkOrder(false); }
+  };
   return <ModulePage
     header={<ModuleHeader eyebrow="Технологии" title="Спецификации 2.0" badge={<span className="lab-badge">{model.canEditDraft ? "React · draft edit evaluation" : "PostgreSQL · read-only React"}</span>} />}
     sidebar={<ModuleSidebar label="Реестр Спецификаций 2.0" title="Реестр 2.0">
@@ -98,6 +111,7 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
           </div>
         </Panel>
         {publishConfirm ? <Panel heading={<div className="panel-heading"><div><p>Server-primary publication</p><h2>Подтвердить публикацию ревизии {selected.publicationRevision + 1}</h2></div></div>}><div className="react-nomenclature-delete-confirm" data-specifications2-publish-confirm={selected.id} role="alertdialog"><p>Публикуется черновик <strong>{selected.title}</strong> со stable ID <code>{selected.id}</code>. Предыдущая неизменяемая ревизия: {selected.publicationRevision}.</p>{commandError ? <p className="specifications2-react-command-error" role="alert">{commandError}</p> : null}<div className="specifications2-react-editor-actions"><ActionButton disabled={publishing} onClick={() => { setPublishConfirm(false); setCommandError(""); }} variant="secondary">Отмена</ActionButton><ActionButton disabled={publishing} onClick={() => void publishDraft()}>{publishing ? "Публикация…" : `Подтвердить ревизию ${selected.publicationRevision + 1}`}</ActionButton></div></div></Panel> : null}
+        {workOrderDraft ? <Panel heading={<div className="panel-heading"><div><p>PostgreSQL work order</p><h2>Создать заказ-наряд из ревизии {revision.revisionNo}</h2></div></div>}><div className="react-nomenclature-delete-confirm" data-specifications2-work-order-confirm={revision.id} role="alertdialog"><label><span>Маршрут</span><select data-specifications2-work-order-route value={workOrderDraft.routeId} onChange={(event) => setWorkOrderDraft((current) => current ? { ...current, routeId: event.currentTarget.value } : current)}>{revision.routes.map((route) => <option key={route.id} value={route.id}>{route.productLabel || route.designation}</option>)}</select></label><label><span>Количество</span><input data-specifications2-work-order-quantity min="1" step="1" type="number" value={workOrderDraft.quantity} onChange={(event) => setWorkOrderDraft((current) => current ? { ...current, quantity: event.currentTarget.value } : current)} /></label><p>Источник: immutable revision ID <code>{revision.id}</code>.</p>{commandError ? <p className="specifications2-react-command-error" role="alert">{commandError}</p> : null}<div className="specifications2-react-editor-actions"><ActionButton disabled={creatingWorkOrder} onClick={() => { setWorkOrderDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton><ActionButton disabled={creatingWorkOrder || !Number.isInteger(Number(workOrderDraft.quantity)) || Number(workOrderDraft.quantity) < 1} onClick={() => void createWorkOrder()}>{creatingWorkOrder ? "Создание…" : "Подтвердить заказ-наряд"}</ActionButton></div></div></Panel> : null}
         {draft ? <Panel heading={<div className="panel-heading"><div><p>Черновик до публикации</p><h2>Редактирование существующей строки</h2></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
           <form className="specifications2-react-editor" data-specifications2-draft-editor onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
             <label className="full"><span>Строка черновика</span><select data-specifications2-draft-row onChange={(event) => selectDraftRow(event.currentTarget.value)} value={draft.rowId}>{selected.draftRows.map((row) => <option key={row.id} value={row.id}>{row.designation ? `${row.designation} — ` : ""}{row.label}</option>)}</select></label>
@@ -115,6 +129,6 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
         </Panel>
       </>}
     </section>
-    <aside className="detail specifications2-react-detail"><p>Паспорт ревизии</p><h2>{revision ? `Ревизия ${revision.revisionNo}` : "Нет ревизии"}</h2>{revision ? <dl><div><dt>Источник</dt><dd>PostgreSQL</dd></div><div><dt>Документ</dt><dd>{revision.specificationId}</dd></div><div><dt>Опубликовано</dt><dd>{dateTime(revision.releasedAt)}</dd></div><div><dt>Исходник обновлён</dt><dd>{dateTime(revision.sourceUpdatedAt)}</dd></div></dl> : null}<ActionButton onClick={() => onRequestLegacy?.("attachments")} variant="secondary">Вложения в legacy</ActionButton></aside>
+    <aside className="detail specifications2-react-detail"><p>Паспорт ревизии</p><h2>{revision ? `Ревизия ${revision.revisionNo}` : "Нет ревизии"}</h2>{revision ? <dl><div><dt>Источник</dt><dd>PostgreSQL</dd></div><div><dt>Документ</dt><dd>{revision.specificationId}</dd></div><div><dt>Опубликовано</dt><dd>{dateTime(revision.releasedAt)}</dd></div><div><dt>Исходник обновлён</dt><dd>{dateTime(revision.sourceUpdatedAt)}</dd></div></dl> : null}{revision && model.canCreateWorkOrder && revision.routes.length ? <ActionButton onClick={() => { setWorkOrderDraft({ routeId: revision.routes[0].id, quantity: "1" }); setPublishConfirm(false); setDraft(null); setCommandError(""); }}>Создать заказ-наряд</ActionButton> : null}<ActionButton onClick={() => onRequestLegacy?.("attachments")} variant="secondary">Вложения в legacy</ActionButton></aside>
   </ModulePage>;
 }

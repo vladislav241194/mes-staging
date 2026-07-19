@@ -69,7 +69,7 @@ const original = await readFile(sharedStateFile, "utf8");
 const port = await getFreePort(); const origin = `http://127.0.0.1:${port}`;
 const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_SPECIFICATIONS2: "1", MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION: "1", MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: "1" }, stdio: ["ignore", "pipe", "pipe"] });
 let previewOutput = ""; preview.stdout.on("data", (chunk) => { previewOutput += chunk; }); preview.stderr.on("data", (chunk) => { previewOutput += chunk; });
-let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0; let sharedStateWrites = 0; let publishAttempts = 0; let forcePublishConflictOnce = false; const publishRequests = [];
+let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0; let sharedStateWrites = 0; let publishAttempts = 0; let workOrderWrites = 0; let forcePublishConflictOnce = false; const publishRequests = []; const workOrderRequests = []; const observedSpecificationsRequests = [];
 try {
   await waitPreview(origin); chrome = await launchChrome("mes-specifications2-react-island-qa-"); const { client } = chrome;
   client.socket.addEventListener("message", (event) => {
@@ -77,6 +77,7 @@ try {
     if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url); const method = message.params.request.method;
+    if (requestUrl.pathname.startsWith("/api/v1/specifications2")) observedSpecificationsRequests.push(`${method} ${requestUrl.pathname}`);
     if (requestUrl.pathname === "/api/shared-state" && method !== "GET") {
       sharedStateWrites += 1;
       void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }], body: Buffer.from(JSON.stringify({ ok: true, version: 2 })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
@@ -88,7 +89,16 @@ try {
       return;
     }
     if (requestUrl.pathname === "/api/v1/specifications2/capabilities" && method === "GET") {
-      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }], body: Buffer.from(JSON.stringify({ ok: true, capabilities: { revisionPublicationEnabled: true, revisionPublicationServerPrimary: true } })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }], body: Buffer.from(JSON.stringify({ ok: true, capabilities: { revisionPublicationEnabled: true, revisionPublicationServerPrimary: true, workOrderCreationEnabled: true, workOrderPrimaryPostgres: true } })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      return;
+    }
+    if (requestUrl.pathname.endsWith(`/revisions/${serverItem.id}/work-orders`) && method === "POST") {
+      specificationWrites += 1; workOrderWrites += 1;
+      const body = JSON.parse(message.params.request.postData || "{}");
+      const headers = message.params.request.headers || {};
+      const idempotencyKey = Object.entries(headers).find(([key]) => key.toLowerCase() === "idempotency-key")?.[1] || "";
+      workOrderRequests.push({ revisionId: serverItem.id, routeSourceDraftId: body.routeSourceDraftId, quantity: Number(body.quantity), idempotencyKey: String(idempotencyKey) });
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 201, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }], body: Buffer.from(JSON.stringify({ ok: true, created: true, item: { id: "work-order-react-1" } })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
       return;
     }
     if (requestUrl.pathname === "/api/v1/specifications2/revisions" && method === "POST") {
@@ -182,7 +192,7 @@ try {
   assert(specificationWrites === 0, "draft editor must not call publication, attachment or work-order APIs");
 
   await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Опубликовать ревизию 8"), { message: "changed draft did not expose typed publication action", timeoutMs: 10_000 });
-  const clickPublicationAction = async (label) => evaluate(client, (text) => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === text)?.click(), label);
+  const clickPublicationAction = async (label) => evaluate(client, (text) => { const button = [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((item) => item.textContent?.trim() === text); button?.click(); return Boolean(button); }, label);
   await clickPublicationAction("Опубликовать ревизию 8");
   await waitForCondition(client, () => document.querySelector('[data-specifications2-publish-confirm="spec-kt7"]')?.textContent?.includes("stable ID spec-kt7"), { message: "publication confirmation was not bound to exact specification ID" });
   await clickPublicationAction("Отмена");
@@ -218,6 +228,23 @@ try {
   assert(publicationResult.revision === 8 && publicationResult.fingerprint !== entry.publication.fingerprint && publicationResult.state.toLowerCase().includes("ревизия 8"), `publication acknowledgement did not preserve the next immutable revision: ${JSON.stringify(publicationResult)}`);
   assert(sharedStateWrites === 1, "server-primary publication must not add a browser compatibility write");
 
+  await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Создать заказ-наряд"), { message: "server work-order capability did not expose the React command" });
+  await clickPublicationAction("Создать заказ-наряд");
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-specifications2-work-order-confirm="revision-kt7-8"]')), { message: "work-order confirmation was not bound to the immutable revision" });
+  await clickPublicationAction("Отмена");
+  await waitForCondition(client, () => !document.querySelector("[data-specifications2-work-order-confirm]"), { message: "work-order confirmation did not cancel" });
+  assert(workOrderWrites === 0 && specificationWrites === 2, "cancelled work-order reached the server API");
+  await clickPublicationAction("Создать заказ-наряд");
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-specifications2-work-order-confirm]")), { message: "work-order confirmation did not reopen" });
+  assert(await clickPublicationAction("Подтвердить заказ-наряд"), "work-order confirmation action was not present");
+  try {
+    await waitForCondition(client, () => !document.querySelector("[data-specifications2-work-order-confirm]"), { message: "work-order owner did not acknowledge the exact command" });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({ alert: document.querySelector('[role="alert"]')?.textContent?.trim() || "", confirmation: document.querySelector("[data-specifications2-work-order-confirm]")?.textContent?.replace(/\s+/g, " ").trim() || "" }));
+    throw new Error(`${error.message}: ${JSON.stringify({ diagnostic, observedSpecificationsRequests })}`);
+  }
+  assert(specificationWrites === 3 && workOrderRequests.length === 1 && workOrderRequests[0].revisionId === "revision-kt7-8" && workOrderRequests[0].routeSourceDraftId === "route-root" && workOrderRequests[0].quantity === 1 && workOrderRequests[0].idempotencyKey, `work-order command lost immutable coordinates: ${JSON.stringify({ specificationWrites, workOrderWrites, workOrderRequests, observedSpecificationsRequests })}`);
+
   await client.send("Page.navigate", { url: `${origin}/?module=specifications2&qa-auth-bypass=1&qa-reload=specifications2-publication-legacy-readback` });
   try {
     await waitForCondition(client, () => Boolean(document.querySelector(".specifications2-page")) && document.querySelector(".specifications2-publication-bar")?.textContent?.toLowerCase().includes("ревизия 8") && [...document.querySelectorAll(".specifications2-table tbody tr")].some((row) => row.textContent?.includes("Плата управления КТ-7")), { message: "legacy Specifications 2.0 did not read back revision 8", timeoutMs: 20_000 });
@@ -230,7 +257,7 @@ try {
   console.log("Specifications 2.0 React production-shell functional QA: OK");
   console.log(`- PostgreSQL revision ${serverItem.revisionNo}, ${react.rows} tree rows, ${react.metrics} metrics; first commit ${react.commitMs.toFixed(2)} ms`);
   console.log("- one existing draft row saved through the legacy owner; published revision 7 stayed immutable until exact-ID publication");
-  console.log("- cancel, publication conflict/retry, server revision 8, PostgreSQL and legacy read-back, one compatibility persistence and clean console: pass");
+  console.log("- cancel, publication conflict/retry, server revision 8, exact-revision work order, PostgreSQL and legacy read-back, one compatibility persistence and clean console: pass");
 } catch (error) {
   if (previewOutput.trim()) console.error(previewOutput.trim());
   throw error;

@@ -288,14 +288,17 @@ local write gate or missing session request retains legacy.
 
 `mountSpecifications2ReactIsland(...)` owns inspection of the selected immutable
 published revision and its PostgreSQL tree plus localhost-only typed proofs for
-updating one existing pre-publication row and publishing that draft. The host
+updating one existing pre-publication row, publishing that draft and creating a
+work order from the confirmed immutable revision. The host
 exposes a compact read model only after source entry, revision number and
 fingerprint match the server projection. Publication requires an exact stable
 ID plus the expected previous revision, delegates to the existing server-first
 owner, exposes conflict/retry, then invalidates the short read cache and accepts
 success only after PostgreSQL confirms the next revision. React owns local
-branch collapse and two-step confirmation; registry switching, XLSX upload,
-add/remove/reparent, routes, norms, attachments and work-order creation return
+branch collapse and two-step confirmation. Work-order creation is visible only
+after PostgreSQL-primary capability and the host rechecks entry, revision,
+route, positive integer quantity and idempotency before the existing owner.
+Registry switching, XLSX upload, add/remove/reparent, routes, norms and attachments return
 through `unsupported-scope`. Missing/mismatched PostgreSQL data, a non-loopback
 write request or a missing evaluation request retains legacy.
 

@@ -10,19 +10,22 @@ Status: authenticated Pilot read acceptance complete; disabled by default
 -> keep the published revision immutable -> confirm the exact specification ID
 and previous revision -> publish through the existing server-primary owner ->
 force PostgreSQL read-back -> verify the same revision and tree in React and
-legacy. Structural add/remove/reparent, routes, attachments and work orders
-remain legacy.`
+legacy -> create an idempotent work order from that exact immutable revision.
+Structural add/remove/reparent, route editing and attachments remain legacy.`
 
 The legacy module exposes one compact `getSpecifications2ReactModel()` boundary.
 It contains registry summaries, allowlisted selected draft-row fields and the
 selected published revision only after source entry and revision number match
 the PostgreSQL read model and the server exposes either the original legacy
 fingerprint or its immutable `sha256:` migration digest.
-React receives no storage handle, API client, attachment or work-order command.
+React receives no storage handle, API client or attachment command.
 Its typed `save-draft-row` and `publish-draft` callbacks are admitted only by
 the localhost QA write gate. Publication uses a two-step exact-ID confirmation,
 rechecks the immutable previous revision, delegates to the existing server-first
 owner, handles `409` conflict/retry and forces a PostgreSQL read after `201`.
+The work-order command is exposed only after the existing capability reports
+PostgreSQL-primary readiness and carries exact revision, route, quantity and
+idempotency coordinates through the unchanged owner.
 
 ## Evidence
 
@@ -35,10 +38,10 @@ owner, handles `409` conflict/retry and forces a PostgreSQL read after `201`.
 - upload, registry switch, editor, routes, norms and attachments return to
   legacy; disabled flag restores legacy;
 - no viewport overflow and a clean browser console;
-- independent entry `215,962 B` raw / `65,770 B` gzip under the unchanged
+- independent entry `218,918 B` raw / `66,198 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full aggregate lab `559,658 B / 126,669 B` under its development-only
-  `561,000 B / 127,000 B` budget;
+- full aggregate lab `562,628 B / 127,063 B` under its development-only
+  `564,000 B / 128,000 B` budget;
 - shared lab CSS `29,860 B / 5,345 B` under its development-only
   `30,000 B / 5,350 B` budget.
 
@@ -54,12 +57,14 @@ tree rows, scoped CSS, one existing-row save through the current owner, exactly
 one compatibility persistence, unchanged revision 7 until confirmation,
 cancel-without-write, one simulated conflict and one successful retry to
 revision 8, forced PostgreSQL read-back, promoted legacy tree baseline, zero
-attachment/work-order writes, unchanged disposable `0600` server state and a
+attachment writes, exactly one confirmed work-order write, unchanged disposable `0600` server state and a
 clean console. The owner repair also makes publication fingerprints prefer the
 actual `editorRows` instead of stale imported `treeRows`; a newer concurrent
-draft remains separate. The isolated entry is `215,962 B` raw / `65,770 B`
-gzip; the built production artifact is `209,860 B` raw / `65,493 B` gzip /
-`56,412 B` Brotli. The write gate is localhost-only.
+draft remains separate. A second two-step proof covers work-order cancel and one
+successful exact-revision command without changing the draft. The isolated
+entry is `218,918 B` raw / `66,198 B` gzip; the built production artifact is
+`212,193 B` raw / `65,914 B` gzip / `56,703 B` Brotli. The write gate is
+localhost-only.
 
 ## Pilot acceptance
 

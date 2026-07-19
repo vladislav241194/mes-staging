@@ -2183,6 +2183,7 @@ let renderSpecifications2Page = () => renderUiModulePage({
 let getSpecifications2ReactModel = () => ({ registry: [], selectedEntry: null, serverStatus: "empty", serverError: "" });
 let updateSpecifications2DraftRow = () => ({ ok: false, message: "Модуль Specifications 2.0 ещё не загружен." });
 let publishSpecifications2EntryById = () => Promise.resolve({ ok: false, error: "Модуль Specifications 2.0 ещё не загружен." });
+let createSpecifications2WorkOrder = () => Promise.resolve({ ok: false, error: "Модуль Specifications 2.0 ещё не загружен." });
 let specifications2ModuleLoad = null;
 let specifications2ModuleReady = false;
 let specifications2RevisionsReadModel = null;
@@ -2239,6 +2240,7 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
   };
   ({
     bindSpecifications2Events,
+    createSpecifications2WorkOrder,
     getSpecifications2ReactModel,
     publishSpecifications2EntryById,
     renderSpecifications2Page,
@@ -3766,15 +3768,33 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
   },
   getPayload: () => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
-    return { model: getSpecifications2ReactModel(), capabilities: { draftEdit: localQa.writeEvaluation, publication: localQa.writeEvaluation } };
+    const model = getSpecifications2ReactModel();
+    return { model, capabilities: { draftEdit: localQa.writeEvaluation, publication: localQa.writeEvaluation, workOrder: localQa.writeEvaluation && model.workOrderReady === true } };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-draft-row", "publish-draft"].includes(command.type)) {
+    if (!localQa.writeEvaluation || !["save-draft-row", "publish-draft", "create-work-order"].includes(command.type)) {
       return { ok: false, message: "Изменение Specifications 2.0 недоступно." };
     }
     const payload = command.payload || {};
+    if (command.type === "create-work-order") {
+      const entryId = String(payload.entryId || "").trim();
+      const revisionId = String(payload.revisionId || "").trim();
+      const routeSourceDraftId = String(payload.routeSourceDraftId || "").trim();
+      const quantity = Number(payload.quantity);
+      const confirmRevisionId = String(payload.confirmRevisionId || "").trim();
+      const model = getSpecifications2ReactModel();
+      const selected = model?.selectedEntry;
+      if (!selected || selected.id !== entryId || selected.serverRevision?.id !== revisionId || confirmRevisionId !== revisionId) return { ok: false, message: "Подтверждение относится к другой опубликованной ревизии." };
+      if (!(selected.serverRevision.routes || []).some((route) => String(route.sourceDraftId || "") === routeSourceDraftId)) return { ok: false, message: "Маршрут больше не входит в опубликованную ревизию." };
+      if (!Number.isInteger(quantity) || quantity < 1) return { ok: false, message: "Количество должно быть целым положительным числом." };
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `specifications2-work-order:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+      const result = await createSpecifications2WorkOrder({ entryId, revisionId, routeSourceDraftId, quantity, idempotencyKey });
+      if (!result?.ok) return { ok: false, message: result?.error || "PostgreSQL не подтвердил заказ-наряд." };
+      notifySaveSuccess(result.created ? "Серверный заказ-наряд создан и передан в планирование" : "Существующий серверный заказ-наряд открыт без дублирования");
+      return { ok: true, id: String(result.item?.id || result.workOrder?.id || ""), created: result.created === true };
+    }
     if (command.type === "publish-draft") {
       const entryId = String(payload.entryId || "").trim();
       const confirmEntryId = String(payload.confirmEntryId || "").trim();

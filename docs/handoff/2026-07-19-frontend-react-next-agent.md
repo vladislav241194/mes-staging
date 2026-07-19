@@ -620,3 +620,26 @@ actions/console, затем немедленно деактивировать и
   локально замкнутой server-primary publication; Pilot write acceptance,
   Specifications attachments/routes/work orders и другие owner gaps не
   переоценены.
+
+## Продолжение 2026-07-20: Specifications 2.0 exact-revision work-order checkpoint
+
+- React получил typed `create-work-order` только после existing capability
+  подтверждает `workOrderCreationEnabled` и PostgreSQL-primary authority.
+- Двухшаговое подтверждение привязано к immutable revision ID. Host повторно
+  проверяет selected entry, revision, published route, целое положительное
+  quantity и генерирует idempotency key перед existing server owner.
+- Legacy work-order form переведена на тот же валидирующий owner; отдельного
+  обходного пути не осталось. Attachment upload не переносился: он пока
+  browser-storage-first и требует отдельного server-first owner repair.
+- Production-shell QA доказывает cancel без API и ровно один POST с exact
+  `revision-kt7-8`, `route-root`, quantity `1` и idempotency key; публикация,
+  PostgreSQL/legacy read-back и compatibility-write инварианты сохранены.
+  First commit `7.60 ms`.
+- Performance: independent `218918 / 66198 B`, bundled production
+  `212193 / 65914 / 56703 B`, full lab `562628 / 127063 B`; production limits
+  неизменны, aggregate-only budget `564000 / 128000 B`. Pilot не менялся,
+  legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `97%`
+  выполнено, примерно `3%` осталось (`+1 п.п.`). Прирост относится только к
+  exact-revision work-order creation; Pilot write acceptance, attachments,
+  route editing и owner gaps других модулей не переоценены.

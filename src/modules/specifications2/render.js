@@ -385,6 +385,7 @@ export function createSpecifications2Module(dependencies = {}) {
 
   function getSpecifications2ReactModel() {
     const store = readStore();
+    const workOrderCapability = getWorkOrderCapability();
     const selectedEntry = getSelectedEntry(store);
     const registry = store.registry.map((entry) => {
       const publicationState = getSpecifications2PublicationState(entry);
@@ -406,6 +407,7 @@ export function createSpecifications2Module(dependencies = {}) {
         selectedEntry: null,
         serverStatus: "empty",
         serverError: "",
+        workOrderReady: false,
       };
     }
 
@@ -419,6 +421,7 @@ export function createSpecifications2Module(dependencies = {}) {
     const serverRevision = publication?.revision ? getPublishedRevision(selectedEntry.id) : null;
     if (publication?.revision) hydratePublishedRevision(selectedEntry);
     const serverItem = serverRevision?.item || null;
+    if (serverItem) hydrateWorkOrderCapability();
     const revisionMatches = Boolean(
       serverItem
       && Number(serverItem.revisionNo) === Number(publication?.revision)
@@ -453,6 +456,7 @@ export function createSpecifications2Module(dependencies = {}) {
       registry,
       serverStatus,
       serverError: String(serverRevision?.error || ""),
+      workOrderReady: workOrderCapability.enabled && workOrderCapability.primaryPostgres,
       selectedEntry: {
         id: String(selectedEntry.id || ""),
         title: selectedEntry.title || selectedEntry.fileName || "Спецификация XLSX",
@@ -1714,6 +1718,27 @@ export function createSpecifications2Module(dependencies = {}) {
     return nextEntry;
   }
 
+  async function createSpecifications2WorkOrder(input = {}) {
+    const entryId = String(input.entryId || "").trim();
+    const revisionId = String(input.revisionId || "").trim();
+    const routeSourceDraftId = String(input.routeSourceDraftId || "").trim();
+    const quantity = Number(input.quantity);
+    const idempotencyKey = String(input.idempotencyKey || "").trim();
+    const entry = getSelectedEntry(readStore());
+    const serverRevision = entry?.publication?.revision ? getPublishedRevision(entry.id)?.item : null;
+    const capability = getWorkOrderCapability();
+    if (!entry || entry.id !== entryId || !serverRevision || serverRevision.id !== revisionId) return { ok: false, error: "Опубликованная ревизия изменилась" };
+    if (!capability.enabled || !capability.primaryPostgres || typeof createServerWorkOrder !== "function") return { ok: false, error: "PostgreSQL-команда заказ-наряда недоступна" };
+    if (!(serverRevision.routes || []).some((route) => route.sourceDraftId === routeSourceDraftId)) return { ok: false, error: "Маршрут опубликованной ревизии не найден" };
+    if (!Number.isInteger(quantity) || quantity < 1) return { ok: false, error: "Количество должно быть целым положительным числом" };
+    if (!idempotencyKey) return { ok: false, error: "Команда не содержит ключ идемпотентности" };
+    try {
+      return await createServerWorkOrder({ revisionId, routeSourceDraftId, quantity, idempotencyKey });
+    } catch (error) {
+      return { ok: false, error: error?.message || "Заказ-наряд не создан" };
+    }
+  }
+
   async function publishSpecifications2EntryById(entryId, options = {}) {
     const normalizedEntryId = String(entryId || "").trim();
     const store = readStore();
@@ -1855,7 +1880,8 @@ export function createSpecifications2Module(dependencies = {}) {
       if (submit) submit.disabled = true;
       try {
         const idempotencyKey = globalThis.crypto?.randomUUID?.() || `spec2-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        const result = await createServerWorkOrder({ revisionId: serverRevision.id, routeSourceDraftId, quantity, idempotencyKey });
+        const result = await createSpecifications2WorkOrder({ entryId: entry.id, revisionId: serverRevision.id, routeSourceDraftId, quantity, idempotencyKey });
+        if (!result?.ok) throw new Error(result?.error || "Заказ-наряд не создан");
         notifySaveSuccess(result.created ? "Серверный заказ-наряд создан и передан в планирование" : "Существующий серверный заказ-наряд открыт без дублирования");
       } catch (error) {
         notifySaveSuccess(`Заказ-наряд не создан: ${error?.message || "ошибка сервера"}`);
@@ -2726,6 +2752,7 @@ export function createSpecifications2Module(dependencies = {}) {
 
   return {
     bindSpecifications2Events,
+    createSpecifications2WorkOrder,
     getSpecifications2ReactModel,
     publishSpecifications2EntryById,
     renderSpecifications2Page,

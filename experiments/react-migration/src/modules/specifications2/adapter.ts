@@ -131,6 +131,7 @@ export function adaptSpecifications2Payload(payload: unknown) {
     registry,
     canEditDraft: Boolean(capabilities.draftEdit),
     canPublish: Boolean(capabilities.publication),
+    canCreateWorkOrder: Boolean(capabilities.workOrder),
     serverStatus: text(model.serverStatus, "empty"),
     serverError: text(model.serverError),
     selectedEntry: selected.id ? {
