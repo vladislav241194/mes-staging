@@ -6,14 +6,15 @@ Baseline: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`
 
 ## Scope
 
-Standalone, read-only vertical scenario:
+Standalone read scenario plus a local-only PostgreSQL command evaluation:
 
-`open Structure and Employees -> open Employees registry -> select employee -> inspect primary employment assignment`.
+`open Structure and Employees -> open Employees registry -> select employee -> inspect primary employment assignment -> create/edit employee and primary assignment`.
 
 The target is the canonical `productionStructureMatrix` System Domains module,
 not the older `employees` hierarchy visualization. The React adapter consumes
-only a snapshot of canonical registries. It does not read shared state, call an
-API, persist data, or expose create/archive commands.
+only a snapshot of canonical registries. The UI never owns persistence: its
+create/edit command delegates to the existing compound System Domains owner.
+Archive remains legacy-only.
 
 ## Domain boundary
 
@@ -26,7 +27,22 @@ The scenario joins these existing canonical registries without changing them:
 - `equipment` and `responsibilityPolicies`: summary/sidebar counts only.
 
 Other Structure registries continue through `unsupported-scope` to legacy.
-Editor access receives `write-parity-incomplete` before React mounts.
+Normal editor access still receives `write-parity-incomplete`; only the
+localhost-only `react-structure-employees-write=1` gate admits the command QA.
+
+## Command boundary
+
+The writable slice covers employee full name, personnel number and active flag,
+plus one primary assignment. Position and organization unit are required; work
+center and validity dates are optional.
+
+The host rechecks the local write gate, PostgreSQL read readiness, server command
+capability, the `production-structure` surface and
+`productionStructureMatrix:edit` RBAC before dispatch. Reference IDs are checked
+against the current projection. The owner validates the complete candidate,
+refreshes the current revision, compares the exact compatibility projection and
+uses `PUT /api/v1/system-domains` with `If-Match` and an idempotency key. Existing
+employee and assignment fields that are not exposed by the form are preserved.
 
 ## Automated evidence
 
@@ -105,20 +121,29 @@ Result:
   `76` React rows with identical visible values and order;
 - server flags without a per-session request preserve the legacy renderer;
 - selection, detail, seven registry entries, six metrics and page overflow pass;
-- create remains disabled and the disposable `0600` state file remains byte-for-byte
-  unchanged;
+- read-only create remains disabled;
+- the local write evaluation creates one employee and primary assignment,
+  receives the authoritative `77`-row projection, then edits the same employee;
+- one forced revision conflict is shown in the editor, performs no mutation and
+  succeeds on explicit retry;
+- every command carries the `production-structure` surface, matching `If-Match`
+  revision and a non-empty idempotency key;
+- references and hidden employee/assignment fields survive create/edit;
+- legacy reads back all `77` rows and the disposable `0600` compatibility
+  snapshot remains byte-for-byte unchanged;
 - requesting `Подразделения` unmounts React and opens the exact legacy registry
   with `19` rows;
 - the browser console is clean;
-- latest local production-shell commit was `34.70 ms`, below the `2000 ms` local
+- latest local production-shell commit was `23.10 ms`, below the `2000 ms` local
   gate;
-- the independent artifact is `204,788 B` raw / `64,411 B` gzip /
-  `61,098 B` Brotli, within its `225,000 B` raw / `68,000 B` gzip budget.
+- the independent artifact is `216,825 B` raw / `65,878 B` gzip, within its
+  `225,000 B` raw / `68,000 B` gzip budget; the full lab remains
+  `473,819 B / 110,521 B` under `475,000 B / 118,000 B`.
 
-The test intercepts only the exact read-only `GET /api/v1/system-domains` with
-one canonical generated response. This is deliberate: after the PostgreSQL
-cutover the local server correctly fails closed without `DATABASE_URL`, and the
-QA must not restore shared state as working authority.
+The test uses a disposable, stateful System Domains API double for exact
+capabilities, `GET` and revision-checked `PUT` behavior. It installs the same
+root-cutover tombstone observed by a PostgreSQL-primary browser, never connects
+to Pilot, and never writes real data or restores shared state as authority.
 
 ## Pilot acceptance
 
@@ -138,5 +163,6 @@ evaluated behind the two server flags and the explicit session query.
   when the session retained the evaluation query.
 
 The rollout flags are off and the temporary root rollout directory has been
-removed. No Pilot data was written. This accepts the non-empty read-only slice;
-it does not accept create, edit, archive or delete commands.
+removed. No Pilot data was written. Pilot acceptance still covers only the
+non-empty read slice; local create/edit completion does not authorize Pilot
+writes, archive or delete.

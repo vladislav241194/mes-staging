@@ -5,7 +5,7 @@ import { RolesScenario } from "./modules/roles/RolesScenario";
 import { OperationsScenario } from "./modules/operations/OperationsScenario";
 import { NomenclatureTypesScenario } from "./modules/nomenclature-types/NomenclatureTypesScenario";
 import { StatusesScenario } from "./modules/statuses/StatusesScenario";
-import { StructureEmployeesScenario } from "./modules/structure-employees/StructureEmployeesScenario";
+import { StructureEmployeesReadScenario } from "./modules/structure-employees/StructureEmployeesReadScenario";
 import { StructurePositionsScenario } from "./modules/structure-positions/StructurePositionsScenario";
 import { StructureOrgUnitsScenario } from "./modules/structure-org-units/StructureOrgUnitsScenario";
 import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
@@ -31,7 +31,7 @@ export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptio
 function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
-  if (scenario === "structureEmployees") return <StructureEmployeesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureEmployees") return <StructureEmployeesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structurePositions") return <StructurePositionsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureOrgUnits") return <StructureOrgUnitsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureWorkCenters") return <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;

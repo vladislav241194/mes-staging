@@ -14,6 +14,7 @@ export function createStructureEmployeesReactIslandHost({
   getPayload,
   getTargetRoot,
   requestLegacyRender,
+  executeCommand,
   reportError = (error) => console.error("[MES] Structure Employees React island failed", error),
 } = {}) {
   return createReactIslandHost({
@@ -27,7 +28,7 @@ export function createStructureEmployeesReactIslandHost({
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") {
+      if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") {
         return "write-parity-incomplete";
       }
       return "";
@@ -46,6 +47,7 @@ export function createStructureEmployeesReactIslandHost({
         onError,
         onReady,
         onRequestLegacy,
+        onCommand: (command) => executeCommand?.(command),
       })
     ),
   });

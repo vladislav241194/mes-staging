@@ -2481,12 +2481,13 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
 });
 function getStructureEmployeesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-structure-employees") === "1",
     readOnlyEvaluation: params.get("react-structure-employees-readonly") === "1",
+    writeEvaluation: params.get("react-structure-employees-write") === "1",
   };
 }
 function isStructureEmployeesReactEvaluationRequested() {
@@ -2501,16 +2502,79 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES === true || localQa.featureFlagEnabled,
       serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
-      accessMode: (serverEvaluationAllowed && isStructureEmployeesReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isStructureEmployeesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+          ? "read-only-evaluation"
+          : "editor",
     };
   },
-  getPayload: () => systemDomainsState,
+  getPayload: () => ({
+    ...systemDomainsState,
+    capabilities: {
+      createEdit: getStructureEmployeesReactLocalQaOverrides().writeEvaluation
+        && systemDomainsServerCommandState.status === "ready"
+        && systemDomainsServerCommandState.enabled === true
+        && systemDomainsServerCommandState.surfaces.includes("production-structure")
+        && canEditSystemDomainRegistry("employees"),
+    },
+  }),
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => {
     setProductionStructureMatrixActiveRegistry(registryId || "employees");
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getStructureEmployeesReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "save") {
+      return { ok: false, message: "Команда редактирования сотрудников недоступна." };
+    }
+    if (systemDomainsServerReadState.status !== "server"
+      || systemDomainsServerCommandState.status !== "ready"
+      || systemDomainsServerCommandState.enabled !== true
+      || !systemDomainsServerCommandState.surfaces.includes("production-structure")
+      || !canEditSystemDomainRegistry("employees")) {
+      return { ok: false, message: "PostgreSQL-команда или право редактирования сотрудников недоступны." };
+    }
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const employeeId = String(input.employeeId || "").trim() || makeId("employee");
+    const displayName = String(input.displayName || "").trim().replace(/\s+/g, " ");
+    const positionId = String(input.positionId || "").trim();
+    const orgUnitId = String(input.orgUnitId || "").trim();
+    const workCenterId = String(input.workCenterId || "").trim();
+    const registries = getSystemDomainsRegistries();
+    if (!displayName || !positionId || !orgUnitId) return { ok: false, message: "Заполните ФИО, должность и подразделение." };
+    if (!(registries.positions || []).some((row) => row.id === positionId)) return { ok: false, message: "Выбранная должность больше не существует." };
+    if (!(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };
+    if (workCenterId && !(registries.workCenters || []).some((row) => row.id === workCenterId)) return { ok: false, message: "Выбранный рабочий центр больше не существует." };
+    try {
+      const result = await upsertSystemDomainEntity("employees", {
+        id: employeeId,
+        displayName,
+        personnelNumber: String(input.personnelNumber || "").trim(),
+        isActive: input.isActive !== false,
+        employmentAssignment: {
+          id: `employment:${employeeId}`,
+          employeeId,
+          positionId,
+          orgUnitId,
+          workCenterId,
+          validFrom: String(input.validFrom || "").trim(),
+          validTo: String(input.validTo || "").trim(),
+          isPrimary: true,
+        },
+      }, { source: "react:structure-employees", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      if (result !== true) return { ok: false, message: "Изменение сотрудника отклонено проверкой System Domains." };
+      queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+      return { ok: true, id: employeeId };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error?.conflict === true
+          ? "Данные сотрудника изменились в другом сеансе. Проверьте значения и повторите сохранение."
+          : error?.message || "Сервер не принял изменение сотрудника.",
+      };
+    }
   },
 });
 function getStructurePositionsReactLocalQaOverrides() {
@@ -5890,6 +5954,7 @@ function upsertSystemDomainEntity(registryName = "", entity = {}, options = {}) 
   if (!id || !canEditSystemDomainRegistry(normalizedRegistryName)) return false;
   if (normalizedRegistryName === "employees" && entity.employmentAssignment) {
     const { employmentAssignment, ...employeeEntity } = entity;
+    const currentEmployee = (getSystemDomainsRegistries().employees || []).find((employee) => employee.id === id) || {};
     const currentAssignment = (getSystemDomainsRegistries().employmentAssignments || [])
       .find((assignment) => assignment.employeeId === id && assignment.isPrimary !== false) || {};
     const candidate = normalizeSystemDomains({
@@ -5903,7 +5968,7 @@ function upsertSystemDomainEntity(registryName = "", entity = {}, options = {}) 
         ...getSystemDomainsRegistries(),
         employees: [
           ...(getSystemDomainsRegistries().employees || []).filter((row) => row.id !== id),
-          { ...employeeEntity, id, updatedAt: new Date().toISOString() },
+          { ...currentEmployee, ...employeeEntity, id, updatedAt: new Date().toISOString() },
         ],
         employmentAssignments: [
           ...(getSystemDomainsRegistries().employmentAssignments || []).filter((row) => row.employeeId !== id || row.isPrimary === false),

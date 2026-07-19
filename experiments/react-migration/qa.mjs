@@ -1553,9 +1553,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards"], "six registry scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees"], "seven scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 16, "all 16 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 15, "all 15 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

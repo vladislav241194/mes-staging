@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
+import { SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
 import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 import {
@@ -66,6 +66,7 @@ async function main() {
     matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,
     legacyUi: {
       accessRoleProfiles: [
+        { id: "admin", label: "Администратор QA", scope: "global", defaultModule: "productionStructureMatrix", modulePermissions: { productionStructureMatrix: { view: true, edit: true } } },
         { id: "master", label: "Мастер производства", scope: "workCenter", defaultModule: "shiftMasterBoard", modulePermissions: { productionStructureMatrix: { view: true, edit: true } } },
         { id: "executor", label: "Исполнитель", scope: "self", defaultModule: "authSessionPrototype", modulePermissions: { productionStructureMatrix: { view: true, edit: false } } },
       ],
@@ -127,32 +128,62 @@ async function main() {
   legacyPreview.stderr.on("data", (chunk) => { legacyPreviewOutput += chunk.toString(); });
   let chrome = null;
   let interceptedReads = 0;
+  let apiDomains = structuredClone(migration.domains);
+  let apiRevision = 1;
+  let putAttempts = 0;
+  let successfulWrites = 0;
+  let forceConflictOnce = false;
+  let primaryAuthorityReady = false;
+  const commandRequests = [];
   const consoleProblems = [];
   try {
     await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin)]);
     chrome = await launchChrome("mes-structure-employees-react-qa-");
     const { client } = chrome;
-    const systemDomainsResponseBody = Buffer.from(JSON.stringify({
-      ok: true,
-      revision: 1,
-      item: migration.domains,
-    })).toString("base64");
+    const responseBody = (value) => Buffer.from(JSON.stringify(value)).toString("base64");
+    const fulfill = (requestId, payload, { statusCode = 200, revision = apiRevision } = {}) => client.send("Fetch.fulfillRequest", {
+      requestId,
+      responseCode: statusCode,
+      responseHeaders: [
+        { name: "Content-Type", value: "application/json; charset=utf-8" },
+        { name: "Cache-Control", value: "no-store" },
+        { name: "ETag", value: `"${revision}"` },
+      ],
+      body: responseBody(payload),
+    }).catch((error) => consoleProblems.push(`System Domains QA response failed: ${error.message}`));
     client.socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
       if (message.method === "Fetch.requestPaused") {
         const requestUrl = new URL(message.params.request.url);
-        if (requestUrl.pathname === "/api/v1/system-domains") {
+        const method = String(message.params.request.method || "GET").toUpperCase();
+        if (requestUrl.pathname === "/api/v1/system-domains/capabilities") {
           interceptedReads += 1;
-          void client.send("Fetch.fulfillRequest", {
-            requestId: message.params.requestId,
-            responseCode: 200,
-            responseHeaders: [
-              { name: "Content-Type", value: "application/json; charset=utf-8" },
-              { name: "Cache-Control", value: "no-store" },
-              { name: "ETag", value: '"1"' },
-            ],
-            body: systemDomainsResponseBody,
-          }).catch((error) => consoleProblems.push(`System Domains QA response failed: ${error.message}`));
+          void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...(primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}) } });
+        } else if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") {
+          interceptedReads += 1;
+          void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains });
+        } else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT") {
+          putAttempts += 1;
+          const requestHeaders = message.params.request.headers || {};
+          const header = (name) => Object.entries(requestHeaders).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || "";
+          const body = JSON.parse(message.params.request.postData || "{}");
+          commandRequests.push({
+            expectedRevision: Number(body.expectedRevision || 0),
+            ifMatch: String(header("If-Match")),
+            idempotencyKey: String(header("Idempotency-Key")),
+            surface: String(body.surface || ""),
+          });
+          if (forceConflictOnce) {
+            forceConflictOnce = false;
+            void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision, error: "System Domains revision conflict" }, { statusCode: 409 });
+          } else if (Number(body.expectedRevision) !== apiRevision || String(header("If-Match")) !== `"${apiRevision}"`) {
+            void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision, error: "stale revision" }, { statusCode: 409 });
+          } else {
+            apiDomains = structuredClone(body.domains);
+            apiRevision += 1;
+            successfulWrites += 1;
+            void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains, snapshotSync: { queued: true } });
+          }
         } else {
           void client.send("Fetch.continueRequest", { requestId: message.params.requestId })
             .catch((error) => consoleProblems.push(`Structure QA request continuation failed: ${error.message}`));
@@ -265,16 +296,106 @@ async function main() {
     }));
     assert(fallback.reactTargets === 0 && fallback.orgUnitRows === 19, "fallback must unmount React and render the requested legacy registry");
     assert(!fallback.pageOverflow, "legacy fallback must not create page-level overflow");
+
+    const writeUrl = `${origin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-employees=1&react-structure-employees-write=1`;
+    primaryAuthorityReady = true;
+    await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+    await client.send("Page.navigate", { url: writeUrl });
+    await waitForCondition(client, () => (
+      document.querySelector('[data-react-structure-employees-island][data-react-island-state="ready"]')
+      && [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Новая запись" && !button.disabled)
+    ), { message: "Structure Employees PostgreSQL write evaluation did not become ready", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Новая запись")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="displayName"]')), { message: "new employee editor did not open" });
+    const referenceIds = {
+      positionId: migration.domains.registries.positions[0].id,
+      orgUnitId: migration.domains.registries.orgUnits[0].id,
+      workCenterId: migration.domains.registries.workCenters[0].id,
+    };
+    await evaluate(client, (values) => {
+      const setControl = (selector, value) => {
+        const control = document.querySelector(selector);
+        if (!control) throw new Error(`missing form control ${selector}`);
+        const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value);
+        control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+      };
+      setControl('input[name="displayName"]', "Тестов Маркер Сергеевич");
+      setControl('input[name="personnelNumber"]', "QA-9001");
+      setControl('select[name="positionId"]', values.positionId);
+      setControl('select[name="orgUnitId"]', values.orgUnitId);
+      setControl('select[name="workCenterId"]', values.workCenterId);
+      setControl('input[name="validFrom"]', "2026-07-19");
+      document.querySelector('form.react-nomenclature-editor')?.requestSubmit();
+    }, referenceIds);
+    await waitForCondition(client, () => document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 77, { message: "created employee did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 2 && successfulWrites === 1, `employee create must advance PostgreSQL revision once: ${JSON.stringify({ apiRevision, successfulWrites, putAttempts })}`);
+    const createdEmployee = apiDomains.registries.employees.find((employee) => employee.personnelNumber === "QA-9001");
+    assert(createdEmployee?.id, "created employee missing from authoritative System Domains response");
+    const createdAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.employeeId === createdEmployee.id && assignment.isPrimary !== false);
+    assert(createdAssignment?.positionId === referenceIds.positionId && createdAssignment?.orgUnitId === referenceIds.orgUnitId && createdAssignment?.workCenterId === referenceIds.workCenterId, "created primary assignment references were not preserved");
+
+    createdEmployee.serverOnlyMarker = "employee-hidden-field";
+    createdAssignment.serverOnlyMarker = "assignment-hidden-field";
+    const enrichedWriteUrl = `${writeUrl}&qa-reload=revision-2`;
+    await client.send("Page.navigate", { url: enrichedWriteUrl });
+    await waitForCondition(client, () => location.search.includes("qa-reload=revision-2") && document.readyState === "complete", { message: "revision 2 page navigation did not complete" });
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 77
+      || /Сотрудников\s*77/.test(document.querySelector(".production-structure-content")?.textContent || "")
+    ), { message: "enriched employee projection shell did not receive revision 2", timeoutMs: 15_000 });
+    if (!await evaluate(client, () => Boolean(document.querySelector('[data-react-structure-employees-island]')))) await selectLegacyRegistry(client, "employees");
+    await waitForCondition(client, () => document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 77, { message: "enriched employee projection did not reload" });
+    await evaluate(client, (employeeId) => {
+      const row = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((entry) => entry.textContent?.includes(employeeId));
+      row?.click();
+    }, createdEmployee.id);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать сотрудника")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="displayName"]')), { message: "employee edit form did not open" });
+    await evaluate(client, () => {
+      const setInput = (selector, value) => {
+        const input = document.querySelector(selector);
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      setInput('input[name="displayName"]', "Тестов Редактор Сергеевич");
+      setInput('input[name="personnelNumber"]', "QA-9002");
+    });
+    forceConflictOnce = true;
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("изменились в другом сеансе"), { message: "revision conflict was not surfaced inside the React editor" });
+    assert(apiRevision === 2 && successfulWrites === 1 && putAttempts === 2, "conflicted edit must not mutate the authoritative projection");
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 77
+      && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("QA-9002"))
+    ), { message: "employee edit retry did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "successful edit retry must advance the revision exactly once");
+    const editedEmployee = apiDomains.registries.employees.find((employee) => employee.id === createdEmployee.id);
+    const editedAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.employeeId === createdEmployee.id && assignment.isPrimary !== false);
+    assert(editedEmployee?.displayName === "Тестов Редактор Сергеевич" && editedEmployee?.personnelNumber === "QA-9002", "edited employee fields were not persisted");
+    assert(editedEmployee?.serverOnlyMarker === "employee-hidden-field" && editedAssignment?.serverOnlyMarker === "assignment-hidden-field", "React edit must preserve hidden employee and assignment fields");
+    assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "every employee command must carry the production surface, If-Match and idempotency key");
+
+    await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-system-domain-table="orgUnits"]')), { message: "legacy read-back did not load System Domains" });
+    await selectLegacyRegistry(client, "employees");
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]').length === 77
+      && [...document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]')].some((row) => row.textContent?.includes("QA-9002"))
+    ), { message: "legacy Employees did not read back the React PostgreSQL write", timeoutMs: 15_000 });
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
 
     const finalSnapshot = await readFile(sharedStateFile, "utf8");
-    assert(finalSnapshot === originalSnapshot, "read-only Structure Employees scenario must not modify shared state");
+    assert(finalSnapshot === originalSnapshot, "intercepted PostgreSQL employee writes must not modify the compatibility snapshot");
     console.log("Structure Employees React production-shell functional QA: OK");
     console.log("- same server payload: 76 legacy rows = 76 React rows");
     console.log("- server-enabled default without session request: legacy");
     console.log("- selection, detail, seven registries and six metrics: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
-    console.log("- disabled writes and unchanged state file: pass");
+    console.log("- read-only gate keeps writes disabled; local PostgreSQL write gate creates and edits an employee + primary assignment: pass");
+    console.log("- revision conflict is visible and retryable; If-Match, idempotency, references and hidden fields: pass");
+    console.log("- 77-row legacy read-back and unchanged disposable shared-state snapshot: pass");
     console.log("- requested Org Units legacy fallback with 19 rows: pass");
   } catch (error) {
     if (chrome) {

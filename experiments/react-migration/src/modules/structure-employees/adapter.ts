@@ -41,11 +41,21 @@ export interface StructureEmployee {
   validTo: string;
   statusLabel: string;
   statusTone: "success" | "warning";
+  isActive: boolean;
+}
+
+export interface StructureReferenceOption {
+  id: string;
+  label: string;
 }
 
 export interface StructureEmployeesReadModel {
   employees: StructureEmployee[];
   counts: Record<StructureRegistryId, number>;
+  positions: StructureReferenceOption[];
+  orgUnits: StructureReferenceOption[];
+  workCenters: StructureReferenceOption[];
+  canCreateEdit: boolean;
 }
 
 function text(value: unknown): string {
@@ -92,6 +102,14 @@ function indexById(items: RegistryEntityDto[]): Map<string, RegistryEntityDto> {
   return new Map(items.flatMap((item) => text(item.id) ? [[text(item.id), item] as const] : []));
 }
 
+function referenceOptions(items: RegistryEntityDto[]): StructureReferenceOption[] {
+  return items.flatMap((item): StructureReferenceOption[] => {
+    const id = text(item.id);
+    if (!id) return [];
+    return [{ id, label: entityLabel(item, id) }];
+  }).sort((left, right) => left.label.localeCompare(right.label, "ru") || left.id.localeCompare(right.id, "en"));
+}
+
 function getRegistries(payload: unknown): { registries: Record<string, unknown>; diagnosticsCount: number } {
   const payloadRecord = record(payload);
   const item = Object.keys(record(payloadRecord.item)).length ? record(payloadRecord.item) : payloadRecord;
@@ -106,6 +124,7 @@ function getRegistries(payload: unknown): { registries: Record<string, unknown>;
 
 export function adaptStructureEmployees(payload: unknown): StructureEmployeesReadModel {
   const { registries, diagnosticsCount } = getRegistries(payload);
+  const capabilities = record(record(payload).capabilities);
   const orgUnits = rows(registries.orgUnits);
   const workCenters = rows(registries.workCenters);
   const positions = rows(registries.positions);
@@ -144,6 +163,7 @@ export function adaptStructureEmployees(payload: unknown): StructureEmployeesRea
       validTo: text(assignment.validTo) || "—",
       statusLabel: employee.isActive === false ? "архив" : "активно",
       statusTone: employee.isActive === false ? "warning" : "success",
+      isActive: employee.isActive !== false,
     }];
   }).sort((left, right) => left.displayName.localeCompare(right.displayName, "ru") || left.id.localeCompare(right.id, "en"));
 
@@ -158,5 +178,9 @@ export function adaptStructureEmployees(payload: unknown): StructureEmployeesRea
       responsibilityPolicies: rows(registries.responsibilityPolicies).length,
       migrationDiagnostics: diagnosticsCount,
     },
+    positions: referenceOptions(positions),
+    orgUnits: referenceOptions(orgUnits),
+    workCenters: referenceOptions(workCenters),
+    canCreateEdit: capabilities.createEdit === true,
   };
 }
