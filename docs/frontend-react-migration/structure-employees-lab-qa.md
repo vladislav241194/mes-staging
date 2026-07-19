@@ -138,7 +138,7 @@ Result:
   gate;
 - the independent artifact is `216,825 B` raw / `65,878 B` gzip, within its
   `225,000 B` raw / `68,000 B` gzip budget; the full lab remains
-  `473,819 B / 110,521 B` under `475,000 B / 118,000 B`.
+  `473,819 B / 110,521 B` under `478,000 B / 118,000 B`.
 
 The test uses a disposable, stateful System Domains API double for exact
 capabilities, `GET` and revision-checked `PUT` behavior. It installs the same

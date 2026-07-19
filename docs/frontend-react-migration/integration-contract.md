@@ -157,8 +157,9 @@ error or missing session request retains the previous selection or legacy.
 behind two false-by-default server permissions, PostgreSQL System Domains and
 complete Shift Execution read readiness, plus an explicit session request.
 Its typed adapter accepts the completed legacy journal model and owns local
-document-tree collapse, read-detail selection and issue-report presentation.
-Print, package, photo and Workshop scopes return through `unsupported-scope`;
+document-tree collapse, read-detail selection, issue-report presentation and
+local photo overlay navigation over already adapted `data:image/*` payloads.
+Print, package and Workshop scopes return through `unsupported-scope`;
 assignment, fact entry, Shift Execution repositories and server authority stay
 outside React. Missing PostgreSQL coverage, an open legacy overlay, editor
 access or a missing session request retains legacy.

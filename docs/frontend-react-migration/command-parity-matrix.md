@@ -52,7 +52,7 @@ retain their explicit next vertical scopes.
 | 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
-| 17 | Shift operational modules | Pending | Critical | Print/attachment and local selection before assignment or fact mutations |
+| 17 | Shift operational modules | Pending; Shift Work Orders attachment viewer is locally React-owned | Critical | Shift Work Orders print/package preview before assignment or fact mutations |
 | 18 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
 | 19 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |

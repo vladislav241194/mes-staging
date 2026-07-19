@@ -40,7 +40,7 @@ in legacy.
 
 The production artifact is `213,588 B` raw / `65,204 B` gzip, below the
 `225,000 B / 68,000 B` gate. The aggregate lab uses the separate read-only
-scenario and remains below `475,000 B / 118,000 B`. Both read and write remain
+scenario and remains below `478,000 B / 118,000 B`. Both read and write remain
 false by default.
 
 ## Pilot acceptance

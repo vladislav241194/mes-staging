@@ -27,6 +27,10 @@ try {
   const initial = await evaluate(client, () => ({ documents: document.querySelectorAll("[data-shift-work-order-package-row]").length, operations: document.querySelectorAll("[data-shift-work-order-operation-row]").length, assignments: document.querySelectorAll("[data-shift-work-order-row]").length, headers: document.querySelectorAll(".shift-work-orders-table thead th").length, metrics: document.querySelectorAll('[data-ui-component="MetricCard"]').length, selected: document.querySelector("[data-shift-work-order-row].is-active")?.getAttribute("data-shift-work-order-row"), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
   assert(initial.documents === 2 && initial.operations === 3 && initial.assignments === 3 && initial.headers === 8, "Shift Work Orders tree density must survive rendering");
   assert(initial.metrics === 8 && initial.selected === "a-1" && !initial.pageOverflow, "Shift Work Orders detail/selection/overflow contract failed");
+  await evaluate(client, () => document.querySelector(".shift-work-orders-issue-photo.has-photo")?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-react-shift-work-order-photo-viewer]") && document.querySelector('[data-react-island-scenario="shiftWorkOrders"]')), { message: "Shift Work Orders attachment viewer did not stay in React" });
+  await evaluate(client, () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+  await waitForCondition(client, () => !document.querySelector("[data-react-shift-work-order-photo-viewer]"), { message: "Shift Work Orders attachment viewer did not close" });
   await evaluate(client, () => document.querySelector('[data-shift-work-order-row="a-2"]')?.click());
   await waitForCondition(client, () => document.querySelector("[data-shift-work-order-row].is-active")?.getAttribute("data-shift-work-order-row") === "a-2", { message: "Shift Work Orders selection did not update" });
   await evaluate(client, () => document.querySelector('[data-shift-work-order-operation-row="op-mount"]')?.click());
@@ -40,5 +44,5 @@ try {
   assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
   console.log("Shift Work Orders React isolated browser QA: OK");
   console.log("- 2 work orders, 3 operations, 3 assignments, 8 columns and 8 detail metrics: pass");
-  console.log("- selection, collapse, revision 1 -> 2, command fallback, no page overflow and clean console: pass");
+  console.log("- attachment viewer, selection, collapse, revision 1 -> 2, print fallback, no page overflow and clean console: pass");
 } finally { if (chrome) await cleanupChrome(chrome); await stopServer(server); }

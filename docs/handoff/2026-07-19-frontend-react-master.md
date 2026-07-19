@@ -360,13 +360,13 @@ Shift Work Orders is the eighteenth production-integrated scenario and the
 first operational-family proof. Its typed
 adapter consumes the completed journal model and renders two fixture work
 orders, three operations, three assignments, eight columns and the selected
-read detail. Selection, tree collapse, revision update and legacy command
-fallback pass. Production-shell QA proves one PostgreSQL-backed work order,
+read detail. Selection, tree collapse, report-photo overlay with Escape close,
+revision update and legacy print fallback pass. Production-shell QA proves one PostgreSQL-backed work order,
 operation and assignment, default legacy, explicit read-only activation,
 print fallback, zero Shift Execution writes and unchanged state. Assignment,
-fact, print/photo implementation, Workshop runtime and Shift Execution authority
-remain untouched. The production artifact is `208,178 B` raw / `64,883 B`
-gzip / `55,856 B` Brotli. It has not been released or activated on Pilot.
+fact, print/package implementation, Workshop runtime and Shift Execution authority
+remain untouched. The production artifact is `210,253 B` raw / `65,375 B`
+gzip / `56,326 B` Brotli. It has not been released or activated on Pilot.
 
 The standalone Dispatch module was audited and intentionally skipped: its
 blueprint is a disabled, headerless placeholder with no reads, writes, table

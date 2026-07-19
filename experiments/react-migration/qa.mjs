@@ -945,6 +945,10 @@ try {
   assert.deepEqual([shiftWorkOrdersModel.documents.length, shiftWorkOrdersModel.operationCount, shiftWorkOrdersModel.rows.length], [2, 3, 3]);
   assert.deepEqual(shiftWorkOrdersModel.rows.map((row) => [row.documentNumber, row.status.id, row.issueReportCount]), [["СЗН-1042-01", "issued", 1], ["СЗН-1042-02", "assigned", 0], ["СЗН-1041-01", "closed", 0]]);
   assert.equal(shiftWorkOrdersAdapter.adaptShiftWorkOrders({}).canActivate, false, "invalid Shift Work Orders payload must fail closed");
+  const shiftWorkOrdersScenarioSource = await readFile(join(sourceRoot, "modules/shift-work-orders/ShiftWorkOrdersScenario.tsx"), "utf8");
+  assert.match(shiftWorkOrdersScenarioSource, /data-react-shift-work-order-photo-viewer/);
+  assert.match(shiftWorkOrdersScenarioSource, /setActivePhotoId\(report\.photoId\)/);
+  assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy\?\.\(`photo:/);
 
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
@@ -1578,6 +1582,7 @@ try {
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench"], "fifteen scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 7, "all 7 remaining command scenarios must stay explicit");
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /locally complete attachment navigation/);
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

@@ -30,7 +30,7 @@ unresolved.
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read plus metadata create/edit |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error, bounded typed form | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control read-only + Timesheet day fact + Planning Workbench quantity |
-| Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
+| Operational | Status, action, panel, table tree, metric grid, read-only attachment overlay | Workshop board, worker fact entry and print commands | Shift Work Orders document journal with local report-photo navigation |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
 | Admin/standalone | Contour controls and pre-PIN organizational picker | PIN/session authority and standalone shell | Separate security acceptance path |
 
@@ -221,8 +221,9 @@ The first operational-family proof consumes the completed legacy
 `getShiftWorkOrderJournalViewModel()` boundary and normalizes only the read
 projection: document packages, operations, assignments, eight table columns,
 selected detail, quantities, transfer, executors and issue reports. The fixture proves two
-work orders, three operations and three assignments, local selection and tree
-collapse, plus a payload revision. Print, package, photo and Workshop actions
+work orders, three operations and three assignments, local selection, tree
+collapse, a payload revision and a React-owned report-photo overlay that closes
+with Escape without unmounting the island. Print, package and Workshop actions
 request legacy; assignment, fact and Shift Execution authority are untouched.
 Production-shell QA proves the same tree density on one PostgreSQL-backed
 work order, operation and assignment, default legacy, explicit read-only
