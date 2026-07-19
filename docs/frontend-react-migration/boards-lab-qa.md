@@ -61,3 +61,21 @@ a per-session request. Board create/edit exists only behind local
 `react-boards-write=1`, exact boolean capability and the existing
 `nomenclature:edit` authorization check. No Pilot/server write flag exists.
 No release, Pilot activation or real-data mutation was performed.
+
+## Pilot rollout preparation
+
+The read-only evaluation now has an isolated root-controlled rollout contour:
+
+- `ops/frontend/mes-pilot-react-boards-evaluation.conf`;
+- `ops/frontend/activate-react-boards-evaluation.sh`;
+- `ops/frontend/deactivate-react-boards-evaluation.sh`;
+- `scripts/boards-react-rollout-ops-qa.mjs`.
+
+It owns only systemd drop-in `89-react-boards-evaluation.conf`, verifies health
+and both public read flags after restart, and restores the prior configuration
+on activation failure. The rollout QA is part of
+`npm run qa:boards-react-island`.
+
+The contour is prepared but not activated. Pilot currently has no non-empty
+Boards/BOM payload suitable for a meaningful parity claim, so the live read
+checkpoint remains pending and legacy stays the default.

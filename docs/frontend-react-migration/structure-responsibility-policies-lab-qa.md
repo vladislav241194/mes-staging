@@ -38,3 +38,23 @@ The production artifact is `215,212 B` raw / `65,557 B` gzip, below the
 `225,000 B / 68,000 B` gate. Separate read adapters keep the aggregate lab at
 `502,398 B / 116,007 B`, below its development-only budget. Read and write remain false
 by default; the command slice has not been released or activated on Pilot.
+
+## Pilot rollout preparation
+
+The read-only evaluation now has an isolated root-controlled rollout contour:
+
+- `ops/frontend/mes-pilot-react-structure-responsibility-policies-evaluation.conf`;
+- `ops/frontend/activate-react-structure-responsibility-policies-evaluation.sh`;
+- `ops/frontend/deactivate-react-structure-responsibility-policies-evaluation.sh`;
+- `scripts/structure-responsibility-policies-react-rollout-ops-qa.mjs`.
+
+It owns only systemd drop-in
+`90-react-structure-responsibility-policies-evaluation.conf`, refuses activation
+unless the service reports `MES_DOMAIN_STORAGE=postgres`, verifies health and
+both public read flags after restart, and restores the prior configuration on
+failure. The rollout QA is part of
+`npm run qa:structure-responsibility-policies-react-island`.
+
+The contour is prepared but not activated. Pilot currently reports zero
+responsibility policies, so a non-empty live parity checkpoint remains pending
+and legacy stays the default.
