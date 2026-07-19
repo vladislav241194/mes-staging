@@ -187,3 +187,18 @@ actions/console, затем немедленно деактивировать и
 - Размеры: independent `215820 / 65636 B`; bundled production
   `208849 / 65161 / 56224 B`; full lab `556534 / 126077 B`; first commit
   `19.70 ms`.
+
+## Продолжение: Structure Positions archive checkpoint
+
+- Positions получил отдельную typed archive-команду с ID-bound вторым
+  подтверждением и host recheck активной записи перед существующим
+  `archiveSystemDomainEntity("positions", ...)`.
+- Mock production-shell QA создаёт 50-ю должность, проверяет ссылки на org unit,
+  work center и schedule, conflict/retry редактирования, невозможность переноса
+  подтверждения на другую строку, `isActive=false` + `archivedAt`, hidden field
+  и архивный legacy read-back. Compatibility snapshot не изменён.
+- Pilot write не выполнялся. Влияние архива должности на действующие employment
+  assignments остаётся отдельным owner/audit вопросом и не считается закрытым.
+- Размеры: independent `216176 / 65692 B`; bundled production
+  `209090 / 65196 / 56283 B`; full lab `556577 / 126099 B`; first commit
+  `18.30 ms`.

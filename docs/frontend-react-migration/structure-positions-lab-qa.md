@@ -7,15 +7,16 @@ Branch: `codex/frontend-react-migration`
 
 Read scenario plus a local-only PostgreSQL command evaluation:
 
-`open Structure and Employees -> Positions -> select a position -> inspect its passport -> create/edit a position`.
+`open Structure and Employees -> Positions -> select a position -> inspect its passport -> create/edit -> explicitly archive a position`.
 
 The typed adapter consumes the authenticated PostgreSQL System Domains
 projection. It resolves organization unit, work center, schedule and category
 labels without changing stable IDs or domain authority.
 
 The write slice exposes the existing legacy fields only: name, code, category,
-organization unit, work center, base schedule and active state. It delegates to
-the canonical System Domains owner and keeps archive in legacy.
+organization unit, work center, base schedule and active state. Archive is a
+separate ID-bound, two-step command delegated to the canonical System Domains
+archive owner.
 
 ## Command safety
 
@@ -39,16 +40,19 @@ from the existing entity.
 - selection/detail, all seven registries, six metrics, requested Org Units
   fallback, unchanged state and clean console passed;
 - Employees regression QA still matched all 76 rows after host routing changed;
-- local create/edit QA advances `49 -> 50` rows, forces one revision conflict
-  without mutation, retries successfully and reads the edit through legacy;
+- local create/edit/archive QA advances `49 -> 50` rows, forces one revision
+  conflict without mutation, retries successfully and reads archive through legacy;
+- confirmation does not follow selection to another position; archive persists
+  `isActive=false` plus valid `archivedAt`;
 - organization, work-center and base-schedule references plus a hidden server
   field survive the write cycle;
 - every command carries the production surface, matching `If-Match` revision
   and a non-empty idempotency key;
-- latest local production-shell commit was `20.60 ms`, below the `2000 ms`
+- latest local production-shell commit was `18.30 ms`, below the `2000 ms`
   local gate.
 
-The production island is `215,168 B` raw / `65,465 B` gzip, within the unchanged
+The independent island is `216,176 B` raw / `65,692 B` gzip; bundled production
+is `209,090 B` raw / `65,196 B` gzip / `56,283 B` Brotli, within the unchanged
 `225,000 B / 68,000 B` budget. The full lab is `474,000 B / 110,581 B`, below
 `505,000 B / 122,000 B`. It remains false by default.
 
@@ -71,4 +75,4 @@ read-only Positions scope.
 
 The rollout flags are off, the temporary root directory has been removed, and
 no Pilot data was written. Pilot command migration is not accepted by this slice.
-Local create/edit completion does not authorize Pilot writes or archive.
+Local create/edit/archive completion does not authorize Pilot writes.

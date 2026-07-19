@@ -114,7 +114,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
 | 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
-| 9 | Structure Positions | Local complete: create/edit with organization, work-center and schedule references; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable position and cleanup |
+| 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: create/edit with parent existence and hierarchy-cycle validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable child unit and cleanup |
 | 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
@@ -193,8 +193,9 @@ separate controlled checkpoint.
 
 Structure Positions extends that pattern to a referenced registry. Its
 local-only editor creates and edits position name, code, category, organization,
-work center, base schedule and active state. QA proves exact reference IDs,
-conflict-without-mutation plus retry, hidden-field preservation, `50`-row
+work center, base schedule and active state, and separately confirms archive.
+QA proves exact reference IDs, conflict-without-mutation plus retry,
+`isActive=false`/`archivedAt`, hidden-field preservation, archived `50`-row
 legacy read-back and unchanged disposable compatibility state. The audit also
 fixed Structure active-host routing so a write-gated registry cannot disable
 legacy event binding while another host is selected.
