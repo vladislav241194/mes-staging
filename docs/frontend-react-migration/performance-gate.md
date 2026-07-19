@@ -17,7 +17,7 @@ Current minified measurements:
 | --- | ---: | ---: | ---: | ---: |
 | Nomenclature production island | 213,718 B | 65,421 B | 225,000 B | 68,000 B |
 | Boards/BOM production island | 215,189 B | 66,015 B | 225,000 B | 68,000 B |
-| Structure Employees production island | 216,825 B | 65,878 B | 225,000 B | 68,000 B |
+| Structure Employees production island | 218,171 B | 66,062 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 216,176 B | 65,692 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 214,582 B | 65,440 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 216,718 B | 65,617 B | 225,000 B | 68,000 B |
@@ -111,6 +111,14 @@ The bundled production Statuses island is `204,911 B` raw / `64,133 B` gzip /
 `55,175 B` Brotli. Its production-shell first commit was below `20 ms` while
 rendering all 85 current runtime rows; this is regression evidence, not Pilot
 acceptance.
+
+The bundled production Structure Employees island is `210,420 B` raw /
+`65,517 B` gzip / `56,580 B` Brotli. Its latest production-shell first commit
+was `36.60 ms` across 76 PostgreSQL-backed rows. Create/edit/archive QA proves
+dependency rejection before PUT, ID-bound confirmation, conflict retry,
+atomic employee deactivation plus primary-assignment closure, ended-secondary
+and hidden-field preservation, and archived legacy read-back. This is regression
+evidence, not Pilot write acceptance.
 
 The bundled production Structure Positions island is `209,090 B` raw /
 `65,196 B` gzip / `56,283 B` Brotli. Its production-shell first commit was

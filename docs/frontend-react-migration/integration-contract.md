@@ -95,6 +95,12 @@ read-only Boards scenario, so command UI does not leak into read evaluation.
 registry slice over a host-supplied System Domains snapshot. The host retains
 all registry navigation, authorization and command ownership; choosing any
 registry other than Employees requests unchanged legacy rendering.
+Its local-only command slice delegates create/edit and compound archive to the
+existing revision-checked System Domains owner. Archive requires ID-bound
+second-step confirmation, rejects active secondary employment, schedule,
+access-role and responsibility dependencies before PUT, then deactivates the
+employee and closes the active primary assignment in one command. Ordinary save
+cannot change lifecycle state; reactivation remains legacy.
 
 `mountStructurePositionsReactIsland(...)` uses the same authenticated System
 Domains snapshot in a separate bundle and feature policy. It owns the Positions

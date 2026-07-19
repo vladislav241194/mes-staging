@@ -252,3 +252,21 @@ actions/console, затем немедленно деактивировать и
   Pilot write не выполнялся. Следующий безопасный lifecycle-кандидат — Employees,
   где owner атомарно деактивирует сотрудника и закрывает primary assignment, а
   оба поля уже персистятся PostgreSQL repository.
+
+## Продолжение: Structure Employees archive checkpoint
+
+- Employees получил typed archive с ID-bound подтверждением через existing
+  compound `archiveSystemDomainEntity("employees", ...)` owner. Обычный save
+  больше не может менять lifecycle state; reactivation остаётся legacy.
+- Host до PUT отклоняет сотрудника с active secondary employment assignment,
+  schedule assignment, role assignment или active responsibility-policy link.
+  QA использует baseline master с role assignment для доказательства отказа без
+  mutation, затем архивирует только созданного disposable employee.
+- Owner одной revision-checked командой ставит employee `isActive=false` и
+  закрывает active primary assignment датой. QA доказывает сохранность hidden
+  employee/primary fields и уже завершённого secondary assignment, ID-bound
+  confirmation, archived 77-row legacy read-back и byte-identical `0600`
+  compatibility snapshot.
+- Pilot write не выполнялся. Размеры: independent `218171 / 66062 B`; bundled
+  production `210420 / 65517 / 56580 B`; full lab `556633 / 126135 B`; first
+  commit `36.60 ms`.

@@ -8,13 +8,13 @@ Baseline: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`
 
 Standalone read scenario plus a local-only PostgreSQL command evaluation:
 
-`open Structure and Employees -> open Employees registry -> select employee -> inspect primary employment assignment -> create/edit employee and primary assignment`.
+`open Structure and Employees -> open Employees registry -> select employee -> inspect primary employment assignment -> create/edit/archive employee and primary assignment`.
 
 The target is the canonical `productionStructureMatrix` System Domains module,
 not the older `employees` hierarchy visualization. The React adapter consumes
 only a snapshot of canonical registries. The UI never owns persistence: its
-create/edit command delegates to the existing compound System Domains owner.
-Archive remains legacy-only.
+create/edit/archive command delegates to the existing compound System Domains
+owner. Legacy remains the default and rollback surface.
 
 ## Domain boundary
 
@@ -32,9 +32,11 @@ localhost-only `react-structure-employees-write=1` gate admits the command QA.
 
 ## Command boundary
 
-The writable slice covers employee full name, personnel number and active flag,
-plus one primary assignment. Position and organization unit are required; work
-center and validity dates are optional.
+The writable slice covers employee full name and personnel number plus one
+primary assignment. Position and organization unit are required; work center
+and validity dates are optional. Lifecycle cannot be changed through ordinary
+save. Explicit archive uses the existing compound owner to deactivate the
+employee and close its active primary assignment; reactivation remains legacy.
 
 The host rechecks the local write gate, PostgreSQL read readiness, server command
 capability, the `production-structure` surface and
@@ -129,16 +131,20 @@ Result:
 - every command carries the `production-structure` surface, matching `If-Match`
   revision and a non-empty idempotency key;
 - references and hidden employee/assignment fields survive create/edit;
-- legacy reads back all `77` rows and the disposable `0600` compatibility
+- archive of an employee with an active role assignment is rejected before PUT;
+- ID-bound confirmation cannot move to another selected row;
+- the disposable employee is deactivated while the active primary assignment
+  receives a closing date and an already-ended secondary assignment is unchanged;
+- legacy reads back all `77` rows including the archived employee and the disposable `0600` compatibility
   snapshot remains byte-for-byte unchanged;
 - requesting `Подразделения` unmounts React and opens the exact legacy registry
   with `19` rows;
 - the browser console is clean;
-- latest local production-shell commit was `23.10 ms`, below the `2000 ms` local
+- latest local production-shell commit was `36.60 ms`, below the `2000 ms` local
   gate;
-- the independent artifact is `216,825 B` raw / `65,878 B` gzip, within its
+- the independent artifact is `218,171 B` raw / `66,062 B` gzip, within its
   `225,000 B` raw / `68,000 B` gzip budget; the full lab remains
-  `473,819 B / 110,521 B` under the current `505,000 B / 122,000 B` aggregate budget.
+  `556,633 B / 126,135 B` under its development-only aggregate budget.
 
 The test uses a disposable, stateful System Domains API double for exact
 capabilities, `GET` and revision-checked `PUT` behavior. It installs the same
@@ -164,5 +170,5 @@ evaluated behind the two server flags and the explicit session query.
 
 The rollout flags are off and the temporary root rollout directory has been
 removed. No Pilot data was written. Pilot acceptance still covers only the
-non-empty read slice; local create/edit completion does not authorize Pilot
-writes, archive or delete.
+non-empty read slice; local create/edit/archive completion does not authorize
+Pilot writes, reactivation or delete.

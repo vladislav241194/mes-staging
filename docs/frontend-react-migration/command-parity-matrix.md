@@ -114,7 +114,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
 | 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
-| 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
+| 8 | Structure Employees | Local complete: employee + primary assignment create/edit/archive with active-dependency rejection and ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable unreferenced employee; reactivation remains legacy |
 | 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: create/edit/archive with hierarchy-cycle and active-reference rejection plus ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf unit; reactivation remains owner-gap |
 | 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
@@ -187,10 +187,13 @@ Structure Employees is the first locally complete PostgreSQL-backed React
 command slice. Its local-only write gate delegates to the existing compound
 System Domains owner, which saves `employees` and the primary
 `employmentAssignments` row as one revision-checked command. Production-shell
-QA proves create, conflict without mutation, retry, edit, reference integrity,
-hidden-field preservation, legacy `77`-row read-back and an unchanged disposable
-compatibility snapshot. Archive remains legacy and Pilot write acceptance is a
-separate controlled checkpoint.
+QA proves create, conflict without mutation, retry, edit and explicit archive.
+Archive is rejected before PUT for active secondary employment, schedule,
+access-role or responsibility dependencies; the owner deactivates the employee
+and closes the active primary assignment atomically while preserving an ended
+secondary assignment and hidden fields. ID-bound confirmation, archived legacy
+`77`-row read-back and an unchanged disposable compatibility snapshot pass.
+Reactivation and Pilot write acceptance remain separate controlled checkpoints.
 
 Structure Positions extends that pattern to a referenced registry. Its
 local-only editor creates and edits position name, code, category, organization,
