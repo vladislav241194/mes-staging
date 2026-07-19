@@ -713,6 +713,7 @@ export function migrateLegacySystemDomains(options = {}) {
       defaultModuleId: cleanText(profile.defaultModuleId || profile.defaultModule),
       icon: cleanText(profile.icon),
       isActive: profile.isActive !== false,
+      readOnly: Boolean(profile.readOnly ?? profile.readonly),
       sourceRef: { system: asArray(legacyUi.accessRoleProfiles).some((item) => item?.id === profile.id) ? LEGACY_UI_SOURCE : "runtime-default" },
     });
     Object.entries(asRecord(profile.modulePermissions)).sort(([left], [right]) => left.localeCompare(right, "en")).forEach(([moduleId, rawPermissions]) => {

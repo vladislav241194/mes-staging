@@ -11,16 +11,18 @@ interface RoleMetadataDraft {
 }
 
 export type RolesReactCommand = { type: "save-metadata"; payload: RoleMetadataDraft };
+export type RoleGrantCommand = { type: "set-grant"; payload: { roleId: string; moduleId: string; action: typeof ROLE_ACTIONS[number]["id"]; allowed: boolean } };
 
 export function RolesScenario({ payload, onCommand }: {
   payload: unknown;
-  onCommand?(command: RolesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onCommand?(command: RolesReactCommand | RoleGrantCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }) {
   const model = useMemo(() => adaptRoles(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.roles[0]?.id || "");
   const [draft, setDraft] = useState<RoleMetadataDraft | null>(null);
   const [commandError, setCommandError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [grantSavingKey, setGrantSavingKey] = useState("");
   const selected = resolveVisibleRole(model.roles, selectedId);
   const visibleDefaultModules = selected ? model.modules.filter((moduleItem) => roleAllows(selected, moduleItem.id, "view")) : [];
   const openMetadataEditor = () => {
@@ -42,6 +44,13 @@ export function RolesScenario({ payload, onCommand }: {
     } finally {
       setSaving(false);
     }
+  };
+  const setGrant = async (moduleId: string, action: typeof ROLE_ACTIONS[number]["id"], allowed: boolean) => {
+    if (!selected || !onCommand || grantSavingKey) return;
+    const key = `${selected.id}:${moduleId}:${action}`; setGrantSavingKey(key); setCommandError("");
+    try { const result = await onCommand({ type: "set-grant", payload: { roleId: selected.id, moduleId, action, allowed } }); if (result && result.ok === false) setCommandError(result.message || "Изменение grant отклонено."); }
+    catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение grant отклонено."); }
+    finally { setGrantSavingKey(""); }
   };
   const header = <ModuleHeader eyebrow="Система · System Domains" title="Роли и доступ" badge={<span className="lab-badge">{model.canEditMetadata ? "React · metadata evaluation" : "React migration lab"}</span>} />;
   const sidebar = (
@@ -78,12 +87,13 @@ export function RolesScenario({ payload, onCommand }: {
               <div className="react-nomenclature-editor-actions"><button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : "Сохранить паспорт"}</button></div>
             </form> : <div className="ui-inline-statuses"><StatusToken label={selected.label} tone="success" /><StatusToken label={selected.defaultModuleLabel} tone="neutral" /><StatusToken label={getRoleScopeLabel(selected.scope)} tone="neutral" /></div>}
           </Panel>
-          <Panel heading={<div className="panel-heading"><div><h2>Матрица grants</h2><p>Шесть исполняемых действий · должность не является ролью</p></div><ActionButton disabled title="Изменение grants остаётся в legacy до миграции команд">Изменить права</ActionButton></div>}>
+          <Panel heading={<div className="panel-heading"><div><h2>Матрица grants</h2><p>Шесть исполняемых действий · должность не является ролью</p></div><StatusToken label={model.canEditGrants ? "PostgreSQL grant evaluation" : "только чтение"} tone={model.canEditGrants ? "success" : "neutral"} /></div>}>
+            {commandError && !draft ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
             <TableWrap><table className="roles-grant-table">
               <thead><tr><th>Модуль</th><th>Группа</th>{ROLE_ACTIONS.map((action) => <th key={action.id}>{action.label}</th>)}</tr></thead>
               <tbody>{model.modules.map((moduleItem) => <tr key={moduleItem.id}>
                 <td className="primary-cell">{moduleItem.label}</td><td>{moduleItem.group}</td>
-                {ROLE_ACTIONS.map((action) => <td key={action.id}><StatusToken label={roleAllows(selected, moduleItem.id, action.id) ? "да" : "нет"} tone={roleAllows(selected, moduleItem.id, action.id) ? "success" : "neutral"} /></td>)}
+                {ROLE_ACTIONS.map((action) => { const checked = roleAllows(selected, moduleItem.id, action.id); const dependent = action.id === "view" && ROLE_ACTIONS.some((candidate) => candidate.id !== "view" && roleAllows(selected, moduleItem.id, candidate.id)); const readOnlyBlocked = selected.readOnly && !["view", "print"].includes(action.id); const key = `${selected.id}:${moduleItem.id}:${action.id}`; const disabled = !model.canEditGrants || readOnlyBlocked || (checked && dependent) || Boolean(grantSavingKey); return <td className="access-role-check-cell" key={action.id}><label title={readOnlyBlocked ? "Read-only роль не может получить изменяющее действие" : dependent ? "Сначала отключите зависящие от view действия" : `${selected.label}: ${moduleItem.label} · ${action.label}`}><input checked={checked} data-react-role-grant={key} disabled={disabled} onChange={(event) => void setGrant(moduleItem.id, action.id, event.currentTarget.checked)} type="checkbox" /></label></td>; })}
               </tr>)}</tbody>
             </table></TableWrap>
           </Panel>

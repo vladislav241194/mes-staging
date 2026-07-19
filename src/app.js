@@ -3589,7 +3589,7 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       && systemDomainsServerCommandState.enabled === true
       && systemDomainsServerCommandState.surfaces.includes("access-control")
       && authorizeSystemDomainAction("roles", "configure");
-    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady } };
+    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: () => {
@@ -3597,13 +3597,29 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save-metadata") return { ok: false, message: "Изменение паспорта роли недоступно." };
+    if (!localQa.writeEvaluation || !["save-metadata", "set-grant"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("access-control")) return { ok: false, message: "PostgreSQL-команда ролей недоступна." };
     if (!authorizeSystemDomainAction("roles", "configure")) return { ok: false, message: "Нет права на настройку ролей." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     const roleId = String(input.roleId || "").trim(); const label = String(input.label || "").trim(); const description = String(input.description || "").trim(); const defaultModuleId = String(input.defaultModuleId || "").trim();
     const role = (getSystemDomainsRegistries().accessRoles || []).find((item) => item.id === roleId);
     if (!role) return { ok: false, message: "Роль больше не существует." };
+    if (command.type === "set-grant") {
+      const moduleId = String(input.moduleId || "").trim(); const action = String(input.action || "").trim(); const allowed = input.allowed === true;
+      if (!moduleId || moduleId === "authPrototype" || !getModuleDefinitions().some((moduleItem) => moduleItem.id === moduleId)) return { ok: false, message: "Модуль grant больше не существует." };
+      if (!ACCESS_ROLE_ACTIONS.some((item) => item.id === action)) return { ok: false, message: "Действие grant не поддерживается." };
+      if (role.readOnly === true && !["view", "print"].includes(action)) return { ok: false, message: "Read-only роль не может получить изменяющее действие." };
+      const access = getAccessControlService();
+      if (!allowed && action === "view" && ACCESS_ROLE_ACTIONS.some((item) => item.id !== "view" && access?.grants(roleId, moduleId, item.id))) return { ok: false, message: "Сначала отключите зависящие от view действия." };
+      try {
+        const updated = await setAccessGrant({ roleId, moduleId, action, allowed });
+        if (updated !== true) return { ok: false, message: "Изменение grant отклонено проверкой access-control." };
+        queueMicrotask(() => { if (ui.activeModule === "roles") render({ skipRememberScroll: true }); });
+        return { ok: true, id: `access-grant:${roleId}:${moduleId}:${action}` };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Роли изменились в другом сеансе. Проверьте данные и повторите сохранение." : error?.message || "Сервер не принял изменение grant." };
+      }
+    }
     if (!label) return { ok: false, message: "Заполните название роли." };
     if (defaultModuleId && !getModuleDefinitions().some((moduleItem) => moduleItem.id === defaultModuleId)) return { ok: false, message: "Стартовый модуль больше не существует." };
     if (defaultModuleId && !getAccessControlService()?.grants(roleId, defaultModuleId, "view")) return { ok: false, message: "Стартовый модуль должен быть разрешён роли на просмотр." };
@@ -7003,6 +7019,7 @@ function buildCanonicalAccessRegistries(profiles = [], assignments = {}) {
     defaultModuleId: profile.defaultModule || profile.defaultModuleId || "",
     icon: profile.icon || "",
     isActive: profile.isActive !== false,
+    readOnly: Boolean(profile.readOnly ?? profile.readonly),
     sourceRef: { system: "runtime-default" },
   }));
   const grants = profiles.flatMap((profile) => Object.entries(profile.modulePermissions || {}).flatMap(([moduleId, permissions]) => (

@@ -68,6 +68,7 @@ export interface RolesReadModel {
   modules: RolesModuleDefinition[];
   assignmentCount: number;
   canEditMetadata: boolean;
+  canEditGrants: boolean;
 }
 
 function text(value: unknown): string {
@@ -183,5 +184,5 @@ export function adaptRoles(payload: unknown): RolesReadModel {
     return [item];
   });
 
-  return { roles, modules, assignmentCount: assignmentRows.length, canEditMetadata: capabilities.metadataEdit === true };
+  return { roles, modules, assignmentCount: assignmentRows.length, canEditMetadata: capabilities.metadataEdit === true, canEditGrants: capabilities.grantsEdit === true };
 }
