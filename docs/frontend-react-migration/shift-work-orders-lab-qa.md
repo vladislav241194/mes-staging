@@ -1,7 +1,7 @@
 # Shift Work Orders React migration QA
 
 Date: 2026-07-19
-Status: production-integrated read-only island with local attachment and print/package previews; disabled by default; no Pilot activation
+Status: production-integrated read-only island with local attachment and print/package previews; disabled by default; Pilot rollout candidate prepared
 
 ## Vertical scenario
 
@@ -37,6 +37,10 @@ Those scopes return to legacy through the common feature gate.
 - the package adapter consumes the existing Routes owner model with two
   operations, two SZN rows and one executor; it does not reproduce calculations;
 - Workshop fallback, disabled flag, no page overflow and clean console;
+- the production visual gate asserts the real grid, panel, table, Report card
+  and five-column transfer contract; React now supplies the two semantic-free
+  connector slots and current-step marker required by the existing MES visual
+  contract instead of placing a card into an 18-pixel connector column;
 - independent base entry `220,036 B` raw / `66,703 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
 - lazy print entry `19,025 B` raw / `3,659 B` gzip under the same production-entry
@@ -52,3 +56,8 @@ production base bundle is `213,696 B` raw / `66,343 B` gzip / `57,159 B`
 Brotli; its lazy print bundle is `13,774 B` raw / `3,351 B` gzip / `2,890 B`
 Brotli. The production fixture has no report photo, so attachment behavior is
 proven by the isolated typed-payload browser gate; Pilot remains unchanged.
+
+Root-only activation and deactivation artifacts now own an isolated
+`78-react-shift-work-orders-evaluation.conf` systemd drop-in. Both procedures
+fail closed, verify health plus the exact two public runtime values and restore
+the prior configuration after a failed transition. Write evaluation is absent.
