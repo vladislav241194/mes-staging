@@ -18,7 +18,7 @@ Current minified measurements:
 | Nomenclature production island | 205,469 B | 63,705 B | 225,000 B | 68,000 B |
 | Boards/BOM production island | 208,616 B | 64,478 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 210,459 B | 64,768 B | 225,000 B | 68,000 B |
-| Roles and Access production island | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
 | Full five-scenario lab | 263,253 B | 75,469 B | 280,000 B | 85,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
@@ -46,6 +46,10 @@ Browser evidence from one local run:
 | Boards/BOM | measured by the same callback | 3.80 ms | 2 rows, 5 components, revision 2 |
 | Structure Employees | measured by the same callback | 2.90 ms | 1 employee, metric and detail updated, revision 2 |
 | Roles and Access | measured by the same callback | browser gate passed | selected role passport updated, revision 2 |
+
+The bundled production Roles island is `204,264 B` raw / `64,094 B` gzip /
+`55,289 B` Brotli. Its production-shell first commit measured below `25 ms` on the
+local QA contour; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

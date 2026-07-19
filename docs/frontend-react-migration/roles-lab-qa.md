@@ -73,11 +73,18 @@ Automated Chromium/CDP check at `1280x720` proves:
    disabled legacy fallback.
 8. Browser console remains clean.
 
-## Production boundary
+## Production integration
 
-`mountRolesReactIsland(...)` is an independently budgeted entry point, but no
-production host, runtime flag, release, or Pilot activation exists yet. The
-current production Roles renderer remains authoritative for every user and all
-commands. Production integration requires a PostgreSQL-hydrated payload,
-disabled-by-default/session-scoped activation, identical-data production-shell
-comparison, authenticated Pilot acceptance, and rollback proof.
+`mountRolesReactIsland(...)` now uses the shared production island host. It is
+disabled by default and requires both explicit server flags, a PostgreSQL-
+hydrated System Domains read-model, and the per-session
+`react-roles-evaluation=1` request. Editor access, missing server hydration,
+disabled flags, loading failure, and render failure retain or restore the full
+legacy Roles page and its commands.
+
+`npm run qa:roles-react-island` proves the production shell with eight
+canonical roles, thirteen module definitions, explicit employee assignments,
+disabled writes, unchanged state, clean console, and a `< 25 ms` first local
+React commit. The production artifact is `204,264 B` raw / `64,094 B` gzip /
+`55,289 B` Brotli. No release or Pilot activation has been made; authenticated
+Pilot acceptance and rollback proof remain pending.

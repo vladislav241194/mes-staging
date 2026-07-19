@@ -75,6 +75,7 @@ import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
+import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2396,6 +2397,39 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
   requestLegacyRender: (_reason, registryId) => {
     setProductionStructureMatrixActiveRegistry(registryId || "employees");
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  },
+});
+function getRolesReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-roles") === "1",
+    readOnlyEvaluation: params.get("react-roles-readonly") === "1",
+  };
+}
+function isRolesReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-roles-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const rolesReactIslandHost = createRolesReactIslandHost({
+  getActivation: () => {
+    const localQa = getRolesReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_ROLES_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_ROLES === true || localQa.featureFlagEnabled,
+      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
+      accessMode: (serverEvaluationAllowed && isRolesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => ({ item: systemDomainsState, moduleDefinitions: getModuleDefinitions() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: () => {
+    if (ui.activeModule === "roles") render({ skipRememberScroll: true });
   },
 });
 function ensureNomenclatureRenderModule() {
@@ -6156,9 +6190,15 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("roles", { fallbackToLegacy: false });
         }
         ensureAccessRolesModule();
+        const reactDecision = rolesReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return rolesReactIslandHost.renderTarget();
         return renderAccessRolesPage();
       },
-      bind: () => bindAccessRolesEvents(),
+      bind: () => {
+        if (rolesReactIslandHost.isReactEligible()) return;
+        bindAccessRolesEvents();
+      },
+      afterRender: () => { void rolesReactIslandHost.mount(); },
     },
     contourAdmin: {
       render: () => {

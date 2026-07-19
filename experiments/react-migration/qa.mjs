@@ -874,6 +874,31 @@ try {
   assert.deepEqual(eligibleStructureProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleStructureProductionHost.renderTarget(), /data-react-structure-employees-island/);
 
+  const rolesProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_roles/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeRolesProductionHost({ featureFlagEnabled: false, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "production Roles island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "server-read-pending" },
+    "Roles React must wait for the PostgreSQL read model",
+  );
+  assert.deepEqual(
+    makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "edit-capable Roles sessions must retain legacy commands",
+  );
+  const eligibleRolesProductionHost = makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleRolesProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleRolesProductionHost.renderTarget(), /data-react-roles-island/);
+
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
@@ -902,6 +927,14 @@ try {
   assert.match(productionAppSource, /structureEmployeesReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /structureEmployeesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "employees"\)/);
+  assert.match(productionAppSource, /MES_REACT_ROLES === true/);
+  assert.match(productionAppSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-roles"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-roles-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-roles-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /rolesReactIslandHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /rolesReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /moduleDefinitions: getModuleDefinitions\(\)/);
   const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.js"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
@@ -912,17 +945,21 @@ try {
   assert.match(structureProductionHostSource, /createReactIslandHost/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
+  const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
+  assert.match(rolesProductionHostSource, /createReactIslandHost/);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
   assert.match(productionBuildSource, /react-islands", "nomenclature\.js/);
   assert.match(productionBuildSource, /react-islands", "boards\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
+  assert.match(productionBuildSource, /react-islands", "roles\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(boardsReactIslandVersionMarker, boardsReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(rolesReactIslandVersionMarker, rolesReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
@@ -931,6 +968,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_BOARDS_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_ROLES:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -949,10 +988,13 @@ try {
   assert.match(productionBoardsIslandBundle, /mountBoardsReactIsland/);
   const productionStructureIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-employees.js"), "utf8");
   assert.match(productionStructureIslandBundle, /mountStructureEmployeesReactIsland/);
+  const productionRolesIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/roles.js"), "utf8");
+  assert.match(productionRolesIslandBundle, /mountRolesReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_ROLES_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

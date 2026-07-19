@@ -129,10 +129,16 @@ turning either process composition into a universal table variant.
 
 ## Roles and Access read-model evidence
 
-The fifth isolated scenario consumes canonical `accessRoles`, `grants`,
+The fifth scenario consumes canonical `accessRoles`, `grants`,
 `roleAssignments`, employees and employment references. It reuses the shared
 page/header/sidebar/panel/table/metric/detail/status contracts, while keeping
 the six-action grant matrix and assignment table process-specific. Role/module/
 action visibility is executable-parity checked against the production access-
 control service. Editor access, reset, role edits, grant edits, assignments and
 scope commands remain legacy.
+
+Its production host is disabled by default and additionally requires
+PostgreSQL read readiness plus a per-session evaluation request. Production-
+shell browser QA covers the legacy default, canonical role/module/assignment
+rendering, disabled writes, unchanged state, commit telemetry, and clean
+console.

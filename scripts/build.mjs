@@ -394,6 +394,23 @@ await writeFile(
   structureEmployeesReactIslandHostSource.replaceAll(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion),
 );
 
+const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
+await bundleReactMigrationIsland(
+  join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
+  rolesReactIslandOutput,
+);
+const rolesReactIslandVersion = await fileHash(rolesReactIslandOutput);
+const rolesReactIslandHostPath = join(stagingDistDir, "src", "modules", "access_roles", "react_island_host.js");
+const rolesReactIslandHostSource = await readFile(rolesReactIslandHostPath, "utf8");
+const rolesReactIslandVersionMarker = "__MES_ROLES_REACT_BUNDLE_VERSION__";
+if (!rolesReactIslandHostSource.includes(rolesReactIslandVersionMarker)) {
+  throw new Error("Cannot find Roles React island bundle version marker");
+}
+await writeFile(
+  rolesReactIslandHostPath,
+  rolesReactIslandHostSource.replaceAll(rolesReactIslandVersionMarker, rolesReactIslandVersion),
+);
+
 // The token is intentionally calculated before esbuild emits dynamic chunks.
 // Deriving it from output chunk names creates a circular hash graph and makes
 // identical source produce different cache URLs on consecutive builds.
@@ -481,5 +498,6 @@ console.log(`- src/app.js?v=${appVersion}${deployCacheSuffix}`);
 console.log(`- src/react-islands/nomenclature.js?v=${nomenclatureReactIslandVersion}`);
 console.log(`- src/react-islands/boards.js?v=${boardsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-employees.js?v=${structureEmployeesReactIslandVersion}`);
+console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

@@ -103,14 +103,15 @@ is now the third production-integrated island and preserves its process-specific
 nine-column table and component summary. All remain disabled by default; these
 integrations are not Pilot activation claims.
 
-The fifth isolated proof is `Roles and Access: select role -> inspect passport
+The fifth proof is `Roles and Access: select role -> inspect passport
 -> inspect six-action grants -> inspect explicit employee assignments`. Its
 typed adapter consumes canonical System Domains plus the module registry and is
 checked action-by-action against the production access-control service. Browser
 QA proves three roles, four modules, mouse/keyboard selection, payload revision
 `1 -> 2`, assignment joins, table-owned overflow and editor/disabled legacy
-fallback. The independent artifact is `208,801 B` raw / `64,511 B` gzip. It has
-no production host or runtime flag yet; all commands remain legacy.
+fallback. The independent artifact is `208,801 B` raw / `64,511 B` gzip. It
+now has the same disabled-by-default production host boundary; all commands
+remain legacy.
 
 The lab also contains a host-side feature gate. A disabled flag never mounts
 React; mount/update/render failures schedule one fallback, unmount React, and
@@ -183,6 +184,13 @@ disabled import, unchanged disposable state and return to the two-row legacy
 Nomenclature pane. Its artifact is `203,869 B` raw / `64,223 B` gzip /
 `60,893 B` Brotli. It has not been released or activated on Pilot.
 
+Roles/Access now uses the same host with two independent runtime flags,
+PostgreSQL read readiness, and a per-session request. Production-shell QA
+renders eight canonical roles, thirteen modules and explicit assignments,
+keeps every write disabled, leaves state unchanged and records a `< 25 ms`
+local first commit. Its production artifact is `204,264 B` raw / `64,094 B`
+gzip / `55,289 B` Brotli. It has not been released or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -205,7 +213,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState` and for Structure Employees using PostgreSQL-hydrated System Domains; no fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees and Boards/BOM; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Boards/BOM and Roles/Access; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 
