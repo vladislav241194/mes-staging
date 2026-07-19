@@ -47,9 +47,8 @@ ID/table-bound row deletion.
 Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
-parity through the System Domains owner; Positions, Org Units, Work Centers and
-Employees, Org Units, Work Centers and Equipment have explicit archive and
-reactivation.
+parity through the System Domains owner. Employees, Positions, Org Units, Work
+Centers and Equipment have explicit archive and reactivation.
 Other reference-sensitive,
 lifecycle, import and other delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
@@ -118,7 +117,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
 | 7 | Boards/BOM | Local complete: XLSX import, board metadata create/edit/delete, Nomenclature row add, all nine existing-row BOM cell edits and ID/table-bound row deletion with Specifications cleanup | Medium | Separately gated Pilot read-only evaluation, then a disposable XLSX/board full-lifecycle write with verified cleanup |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit/archive/reactivate with active-dependency rejection and ID-bound lifecycle confirmation | High | Separately gated Pilot lifecycle evaluation with a disposable unreferenced employee and verified cleanup |
-| 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
+| 9 | Structure Positions | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with active organization/work-center/schedule guards | High | Separately gated Pilot lifecycle evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy-cycle, active-reference and active-parent guards | High | Separately gated Pilot lifecycle evaluation with a disposable leaf unit and verified cleanup |
 | 11 | Structure Equipment | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with active organization/work-center/schedule guards | High | Separately gated Pilot lifecycle evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive blocked by owner persistence gap | High | Define an owner/schema contract that persists lifecycle before archive or Pilot write evaluation |
@@ -220,11 +219,14 @@ controlled checkpoint.
 
 Structure Positions extends that pattern to a referenced registry. Its
 local-only editor creates and edits position name, code, category, organization,
-work center, base schedule and active state, and separately confirms archive.
+work center and base schedule while lifecycle remains separate. Archive and
+reactivation each require position-bound confirmation.
 QA proves exact reference IDs, conflict-without-mutation plus retry,
-`isActive=false`/`archivedAt`, hidden-field preservation, archived `50`-row
-legacy read-back, rejection of positions with active employment assignments
-before PUT and unchanged disposable compatibility state. The audit also
+archive `isActive=false`/`archivedAt`, reactivation with active-reference guards
+and a cleared archive marker, hidden-field preservation, active `50`-row legacy
+read-back, rejection of positions with active employment assignments before PUT
+and unchanged disposable compatibility state. Reactivation does not create or
+reopen assignments. The audit also
 fixed Structure active-host routing so a write-gated registry cannot disable
 legacy event binding while another host is selected.
 

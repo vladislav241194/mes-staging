@@ -18,7 +18,7 @@ Current minified measurements:
 | Nomenclature production island | 213,718 B | 65,421 B | 225,000 B | 68,000 B |
 | Boards/BOM production island | 221,436 B | 67,304 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 219,262 B | 66,162 B | 225,000 B | 68,000 B |
-| Structure Positions production island | 216,176 B | 65,692 B | 225,000 B | 68,000 B |
+| Structure Positions production island | 216,543 B | 65,712 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 214,972 B | 65,451 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 217,407 B | 65,683 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 216,206 B | 65,655 B | 225,000 B | 68,000 B |
@@ -122,12 +122,13 @@ and hidden-field preservation, cleared reactivation `archivedAt`, and active
 legacy read-back. This is regression
 evidence, not Pilot write acceptance.
 
-The bundled production Structure Positions island is `209,090 B` raw /
-`65,196 B` gzip / `56,283 B` Brotli. Its production-shell first commit was
-`19.60 ms` in the latest full run across 49 PostgreSQL-backed rows;
-create/edit/archive QA proves ID-bound confirmation, rejection of active
-employment references before PUT, reference/hidden-field preservation and
-archived legacy read-back. This is regression evidence, not Pilot acceptance.
+The bundled production Structure Positions island is `209,245 B` raw /
+`65,222 B` gzip / `56,302 B` Brotli. Its production-shell first commit was
+`26.50 ms` in the latest full run across 49 PostgreSQL-backed rows;
+create/edit/archive/reactivate QA proves ID-bound confirmations, rejection of
+active employment references before PUT, active-reference guards,
+reference/hidden-field preservation, cleared archive marker and active legacy
+read-back. This is regression evidence, not Pilot acceptance.
 
 The bundled production Structure Org Units island is `207,866 B` raw /
 `64,977 B` gzip / `56,032 B` Brotli. Its production-shell first commit was

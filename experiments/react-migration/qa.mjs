@@ -1459,6 +1459,8 @@ try {
   assert.match(productionAppSource, /params\.get\("react-structure-positions-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /structurePositionsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "positions"\)/);
+  assert.match(productionAppSource, /source: "react:structure-positions:reactivate"/, "Positions reactivation must use the existing System Domains owner");
+  assert.match(productionAppSource, /authoritativePosition\.archivedAt/, "Positions reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_ORG_UNITS === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-org-units-evaluation"\) !== "1"/);

@@ -548,3 +548,24 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `7%` осталось (`+1 п.п.`). Прирост относится к замкнутому
   локальному Equipment lifecycle; scheduling/Pilot write acceptance и другие
   legacy-only scopes остаются отдельно.
+
+## Продолжение 2026-07-20: Structure Positions reactivation checkpoint
+
+- Фактический аудит Positions выявил тот же lifecycle bypass: ordinary typed
+  save несла `isActive`. Поле удалено из draft/UI; archive/reactivate теперь
+  отдельные ID-bound двухшаговые команды.
+- Reactivation валидирует архивный target и active organization/work-center/
+  base-schedule refs, вызывает existing `upsertSystemDomainEntity("positions",
+  ...)` owner с `isActive=true`/`archivedAt=""` и требует authoritative active
+  read-back. Employment assignments не создаются и не возобновляются.
+- Production-shell QA доказывает lifecycle-neutral save, referenced-position
+  archive rejection до PUT, create/edit, conflict/retry, archive/reactivate,
+  exact revision/If-Match/idempotency и active 50-row legacy read-back. First
+  commit `26.50 ms`.
+- Performance: independent `216543 / 65712 B`, bundled production
+  `209245 / 65222 / 56302 B`, full lab `557101 / 126296 B`; gates зелёные.
+  Pilot write/deploy/version/flags не менялись, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `94%`
+  выполнено, примерно `6%` осталось (`+1 п.п.`). Прирост относится к замкнутому
+  локальному Positions lifecycle; assignment/Pilot acceptance и остальные
+  legacy-only scopes не переоценены.

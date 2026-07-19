@@ -121,10 +121,13 @@ assignment closed by archive.
 
 `mountStructurePositionsReactIsland(...)` uses the same authenticated System
 Domains snapshot in a separate bundle and feature policy. It owns the Positions
-read table/passport and a local-only create/edit/archive evaluation delegated to
+read table/passport and a local-only create/edit/archive/reactivate evaluation delegated to
 the host System Domains command owner. Archive requires ID-bound second-step
 confirmation and a still-active target before `archiveSystemDomainEntity`.
 Positions with an active employment assignment are rejected before delegation.
+Ordinary save cannot change lifecycle. Reactivation requires its own ID-bound
+confirmation and active organization/work-center/schedule references, clears
+`archivedAt` through the existing upsert owner and does not modify assignments.
 Every unsupported Structure command remains in the legacy renderer.
 
 `mountStructureOrgUnitsReactIsland(...)` owns the Org Units read table/passport

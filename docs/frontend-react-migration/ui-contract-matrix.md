@@ -166,8 +166,9 @@ silently create a new employment state.
 Positions reuses the canonical Structure sidebar, metric, table, row, detail
 and status contracts. Its adapter preserves 49 stable IDs and resolves category,
 organization, work-center and schedule references from the same PostgreSQL
-snapshot. Five table cells match legacy literally; editor commands remain a
-separate protected command surface.
+snapshot. Five table cells match legacy literally. Ordinary save is
+lifecycle-neutral; archive/reactivate use position-bound two-step confirmations
+without changing employee assignments.
 
 ## Structure Org Units read-model evidence
 

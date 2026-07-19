@@ -2763,9 +2763,28 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
   },
   executeCommand: async (command = {}) => {
     const localQa = getStructurePositionsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда должностей недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда должностей недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("positions")) return { ok: false, message: "PostgreSQL-команда или право редактирования должностей недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "reactivate") {
+      const positionId = String(input.positionId || "").trim(); const registries = getSystemDomainsRegistries();
+      const position = (registries.positions || []).find((row) => row.id === positionId);
+      if (!position || position.isActive !== false) return { ok: false, message: "Архивная должность больше не существует." };
+      const orgUnitId = String(position.orgUnitId || "").trim(); const workCenterId = String(position.workCenterId || "").trim(); const defaultScheduleTemplateId = String(position.defaultScheduleTemplateId || "").trim();
+      if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите подразделение должности." };
+      if (workCenterId && !(registries.workCenters || []).some((row) => row.id === workCenterId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите рабочий центр должности." };
+      if (defaultScheduleTemplateId && !(registries.scheduleTemplates || []).some((row) => row.id === defaultScheduleTemplateId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите базовый график должности." };
+      try {
+        const result = await upsertSystemDomainEntity("positions", { ...position, isActive: true, archivedAt: "" }, { source: "react:structure-positions:reactivate", operation: "update", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Восстановление должности отклонено проверкой System Domains." };
+        const authoritativePosition = (getSystemDomainsRegistries().positions || []).find((row) => row.id === positionId);
+        if (!authoritativePosition || authoritativePosition.isActive === false || authoritativePosition.archivedAt) return { ok: false, message: "Владелец должностей не подтвердил восстановление." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: positionId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные должности изменились в другом сеансе. Проверьте значения и повторите восстановление." : error?.message || "Сервер не принял восстановление должности." };
+      }
+    }
     if (command.type === "archive") {
       const positionId = String(input.positionId || "").trim();
       const position = (getSystemDomainsRegistries().positions || []).find((row) => row.id === positionId);
@@ -2788,13 +2807,15 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
     const workCenterId = String(input.workCenterId || "").trim();
     const defaultScheduleTemplateId = String(input.defaultScheduleTemplateId || "").trim();
     const registries = getSystemDomainsRegistries();
+    const currentPosition = (registries.positions || []).find((row) => row.id === positionId);
+    if (input.isNew !== true && !currentPosition) return { ok: false, message: "Должность больше не существует." };
     if (!name) return { ok: false, message: "Заполните название должности." };
     if (!["manager", "supervisor", "worker"].includes(kind)) return { ok: false, message: "Выбрана неизвестная категория должности." };
     if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };
     if (workCenterId && !(registries.workCenters || []).some((row) => row.id === workCenterId)) return { ok: false, message: "Выбранный рабочий центр больше не существует." };
     if (defaultScheduleTemplateId && !(registries.scheduleTemplates || []).some((row) => row.id === defaultScheduleTemplateId)) return { ok: false, message: "Выбранный базовый график больше не существует." };
     try {
-      const result = await upsertSystemDomainEntity("positions", { id: positionId, name, code: String(input.code || "").trim(), kind, orgUnitId, workCenterId, defaultScheduleTemplateId, isActive: input.isActive !== false }, { source: "react:structure-positions", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      const result = await upsertSystemDomainEntity("positions", { id: positionId, name, code: String(input.code || "").trim(), kind, orgUnitId, workCenterId, defaultScheduleTemplateId, isActive: currentPosition?.isActive !== false }, { source: "react:structure-positions", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
       if (result !== true) return { ok: false, message: "Изменение должности отклонено проверкой System Domains." };
       queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
       return { ok: true, id: positionId };
