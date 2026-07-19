@@ -153,3 +153,20 @@ actions/console, затем немедленно деактивировать и
 - Pilot writes/flags не выполнялись и не менялись. В остатке Roles явно остаются
   assignments, responsibility scopes и lifecycle (`readOnly`/`active`); каждый
   из них требует отдельного вертикального среза и собственного cleanup proof.
+
+## Продолжение: Roles default-scope checkpoint
+
+- Assignment scope был проверен первым и сознательно не мигрирован: текущий
+  `setSubjectRoleAssignment` при replace/clear удаляет все строки сотрудника, а
+  PostgreSQL repository не сохраняет advertised `validFrom`/`validTo`. Это
+  owner/persistence gap, который нельзя маскировать React-selectом.
+- Вместо него завершён безопасный role default scope: typed
+  `set-default-scope` принимает только `factory`, `department`, `workCenter`
+  или `self`; host повторно проверяет `roles:configure` и вызывает существующий
+  `setResponsibilityScope -> updateAccessRole` на `access-control` surface.
+- Production-shell QA доказал conflict без мутации, retry `workCenter -> self`,
+  legacy read-back, cleanup `self -> workCenter`, неизменные assignments и
+  hidden role field. Персональные и assignment scopes остались legacy.
+- Последние размеры: Roles independent `215726 / 65944 B`; production
+  `209296 / 65475 / 56485 B`; full lab `556520 / 126067 B`. Latest first
+  commit `30.00 ms` при gate `2000 ms`.

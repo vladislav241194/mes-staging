@@ -6,17 +6,18 @@ Baseline: `fc71e01de31f573a4e1c0a5510e328630932aee9`
 
 ## Scope
 
-Standalone read scenario plus bounded local metadata and grant command scenarios:
+Standalone read scenario plus bounded local metadata, grant and default-scope command scenarios:
 
-`open Roles and Access -> select role -> inspect passport -> edit label/description/default module -> toggle one six-action grant -> inspect explicit employee assignments`.
+`open Roles and Access -> select role -> inspect passport -> edit label/description/default module -> toggle one six-action grant -> change role default scope -> inspect explicit employee assignments`.
 
 The typed adapter consumes a host-supplied System Domains snapshot plus the
 existing module registry. It joins `accessRoles`, `grants`, `roleAssignments`,
 `employees`, `employmentAssignments`, `positions`, and `orgUnits`. It does not
 call an API, persist UI/data, or infer a role from position text. The production
-host alone exposes local-only typed metadata and grant commands and delegates
-them to the existing revision-checked `access-control` owner. Assignment,
-scope, read-only, active and reset commands remain outside React.
+host alone exposes local-only typed metadata, grant and role-default-scope
+commands and delegates them to the existing revision-checked `access-control`
+owner. Assignment, personal/assignment scope, read-only, active and reset
+commands remain outside React.
 
 ## Contract preserved
 
@@ -52,7 +53,7 @@ Result:
 - the master assignment resolves `Иванов Сергей`, personnel number `0105`,
   position `Мастер участка`, and organization `Производство`;
 - auditor `print` remains allowed while `edit` is denied by the read-only rule;
-- independent Roles artifact is `214,116 B` raw / `65,691 B` gzip, within the
+- independent Roles artifact is `215,726 B` raw / `65,944 B` gzip, within the
   `225,000 B` / `68,000 B` production-island budget;
 - frozen backend and persistence/network isolation guards pass.
 
@@ -81,8 +82,8 @@ Automated Chromium/CDP check at `1280x720` proves:
 disabled by default and requires both explicit server flags, a PostgreSQL-
 hydrated System Domains read-model, and the per-session
 `react-roles-evaluation=1` request for reads. The separate localhost-only
-`react-roles-write=1` gate exposes label, description, default-module and one
-six-action grant coordinate when the current subject has `roles:configure` and
+`react-roles-write=1` gate exposes label, description, default-module, one
+six-action grant coordinate and the role default scope when the current subject has `roles:configure` and
 the `access-control` server command surface is ready. The host rejects unknown
 modules/actions, mutating grants for read-only roles and removal of `view` while
 dependent actions remain. Missing readiness or permission retains the full
@@ -90,13 +91,19 @@ legacy Roles page and its commands.
 
 `npm run qa:roles-react-island` proves the production shell with eight
 canonical roles, thirteen module definitions, explicit employee assignments,
-default legacy, metadata and grant revision conflicts without mutation,
-successful retries, React and legacy grant read-back, cleanup to the original
-effective deny, unchanged unrelated grants/assignments/protected/hidden fields,
+default legacy, metadata/grant/default-scope revision conflicts without
+mutation, successful retries, React and legacy read-back, grant cleanup to the
+original effective deny, scope cleanup to `workCenter`, unchanged unrelated grants/assignments/protected/hidden fields,
 an unchanged compatibility snapshot, clean console, production styling and a
 compact `487 px` contract. The System Domains migration also has a regression
 guard proving that an existing role `readOnly` flag is preserved. The production
-artifact is `208,250 B` raw / `65,235 B` gzip / `56,291 B` Brotli.
+artifact is `209,296 B` raw / `65,475 B` gzip / `56,485 B` Brotli.
+
+Assignment command parity is intentionally not claimed. The current owner
+removes every assignment row for an employee on replace/clear, while the
+PostgreSQL repository projection does not persist the advertised
+`validFrom`/`validTo` window. That authority/persistence contract must be fixed
+and proven separately before React may expose assignment writes.
 
 ## Pilot acceptance
 

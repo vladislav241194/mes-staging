@@ -273,11 +273,12 @@ legacy.
 `mountRolesReactIsland(...)` provides the Roles and Access read slice plus a
 localhost-only passport metadata and grant write evaluation over a host-supplied
 System Domains snapshot and module registry. Typed commands can change only
-label, description, a view-allowed default module, or one existing six-action
-grant coordinate through the revision-checked `access-control` owner. The host
+label, description, a view-allowed default module, one existing six-action
+grant coordinate, or the role default scope through the revision-checked
+`access-control` owner. The host
 rechecks module/action existence, `roles:configure`, read-only-role restrictions
-and the `view` dependency rule before delegating. Assignments, scopes,
-read-only/active lifecycle and reset remain legacy. Missing configure
+and the `view` dependency rule before delegating. Assignments,
+personal/assignment scopes, read-only/active lifecycle and reset remain legacy. Missing configure
 permission, PostgreSQL readiness or explicit write evaluation fails closed
 before React exposes either command surface.
 

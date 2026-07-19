@@ -35,7 +35,7 @@ Current minified measurements:
 | Contour Admin production island | 207,695 B | 63,983 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
 | Gantt production island | 207,957 B | 64,254 B | 225,000 B | 68,000 B |
-| Roles and Access independent entry | 214,116 B | 65,691 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 215,726 B | 65,944 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 212,161 B | 64,999 B | 225,000 B | 68,000 B |
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
@@ -88,9 +88,9 @@ then proved one create plus one edit through the existing command owner.
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
 
-The bundled production Roles island is `208,250 B` raw / `65,235 B` gzip /
-`56,291 B` Brotli. Its production-shell first commit remains below the `2,000 ms`
-local gate (`120.90 ms` in the latest full run); metadata/grant QA additionally
+The bundled production Roles island is `209,296 B` raw / `65,475 B` gzip /
+`56,485 B` Brotli. Its production-shell first commit remains below the `2,000 ms`
+local gate (`30.00 ms` in the latest full run); metadata/grant/default-scope QA additionally
 proves revision-conflict retry, read-only/dependency guards, cleanup,
 protected-registry preservation and legacy read-back. This is regression
 evidence, not Pilot acceptance.
