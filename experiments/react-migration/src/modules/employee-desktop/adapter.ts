@@ -8,8 +8,9 @@ export interface EmployeeDesktopTask {
   id: string; rowId: string; employeeId: string; employeeName: string; operationName: string; workCenterLabel: string;
   orderLabel: string; routePartLabel: string; documentNumber: string; assignedQuantity: number; actualQuantity: number;
   defectQuantity: number; goodQuantity: number; unit: string; laborLabel: string; status: string; isStarted: boolean; isDone: boolean;
-  previousOperation: string; nextOperation: string; reportCount: number; photoCount: number;
+  previousOperation: string; nextOperation: string; routeNodes: EmployeeDesktopRouteNode[]; reportCount: number; photoCount: number;
 }
+export interface EmployeeDesktopRouteNode { label: string; operationName: string; workCenterLabel: string; routePartLabel: string; current: boolean }
 export interface EmployeeDesktopPerson { id: string; name: string; department: string }
 export interface EmployeeDesktopModel {
   tasks: EmployeeDesktopTask[]; selectedTask: EmployeeDesktopTask | null; people: EmployeeDesktopPerson[]; viewedPersonId: string;
@@ -19,7 +20,9 @@ export interface EmployeeDesktopModel {
 function adaptTask(value: unknown, reportSummaries: Record<string, any>): EmployeeDesktopTask | null {
   const source = record(value); const chain = record(source.chain); const previous = record(chain.previous); const next = record(chain.next); const id = text(source.id); if (!id) return null;
   const reportSummary = record(reportSummaries[id]);
-  return { id, rowId: text(source.rowId), employeeId: text(source.employeeId), employeeName: personName(source.employeeName), operationName: text(source.operationName, "Операция"), workCenterLabel: text(source.workCenterLabel, "Участок не задан"), orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel, "Основной маршрут"), documentNumber: text(source.documentNumber, "СЗН не сформирован"), assignedQuantity: number(source.assignedQuantity), actualQuantity: number(source.actualQuantity), defectQuantity: number(source.defectQuantity), goodQuantity: number(source.goodQuantity), unit: text(source.unit, "шт."), laborLabel: text(source.laborLabel, "трудозатраты не заданы"), status: text(source.status, "назначено"), isStarted: source.isStarted === true, isDone: source.isDone === true, previousOperation: text(previous.operationName, "старт"), nextOperation: text(next.operationName, "финиш"), reportCount: number(reportSummary.reportCount), photoCount: number(reportSummary.photoCount) };
+  const operationName = text(source.operationName, "Операция"); const workCenterLabel = text(source.workCenterLabel, "Участок не задан"); const routePartLabel = text(source.routePartLabel, "Основной маршрут");
+  const routeNodes = [["До", previous, false, "старт"], ["Сейчас", record(chain.current), true, operationName], ["После", next, false, "финиш"]].map(([label, node, current, fallback]) => { const row = record(node); return { label: String(label), operationName: text(row.operationName, String(fallback)), workCenterLabel: text(row.workCenterLabel, current ? workCenterLabel : "вне текущего окна"), routePartLabel: text(row.routePartLabel, current ? routePartLabel : ""), current: current === true }; });
+  return { id, rowId: text(source.rowId), employeeId: text(source.employeeId), employeeName: personName(source.employeeName), operationName, workCenterLabel, orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel, documentNumber: text(source.documentNumber, "СЗН не сформирован"), assignedQuantity: number(source.assignedQuantity), actualQuantity: number(source.actualQuantity), defectQuantity: number(source.defectQuantity), goodQuantity: number(source.goodQuantity), unit: text(source.unit, "шт."), laborLabel: text(source.laborLabel, "трудозатраты не заданы"), status: text(source.status, "назначено"), isStarted: source.isStarted === true, isDone: source.isDone === true, previousOperation: routeNodes[0].operationName, nextOperation: routeNodes[2].operationName, routeNodes, reportCount: number(reportSummary.reportCount), photoCount: number(reportSummary.photoCount) };
 }
 
 export function adaptEmployeeDesktopPayload(payload: unknown): EmployeeDesktopModel {

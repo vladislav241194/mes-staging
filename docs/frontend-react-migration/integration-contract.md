@@ -197,9 +197,11 @@ counts are read back through `getShiftWorkOrderIssueSummary`. This journal is
 still compatibility UI-state rather than a PostgreSQL domain, so the React
 slice preserves that authority instead of introducing a parallel API. A direct
 module entry first hydrates the full Planning PostgreSQL graph, then
-derives the bounded dispatch scope. Person switching plus structure, route and
-PDF scopes return through `unsupported-scope`; authentication stays in its
-separate React/legacy session boundary.
+derives the bounded dispatch scope. Structure, Route and PDF require no host
+command: they use the existing typed task payload and shared `ModalOverlay`.
+Person switching remains the explicit
+`unsupported-scope`; authentication stays in its separate React/legacy session
+boundary.
 Missing coverage, an open legacy modal, ordinary editor access or a missing
 session request retains legacy.
 

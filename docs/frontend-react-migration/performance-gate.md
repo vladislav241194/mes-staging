@@ -30,7 +30,7 @@ Current minified measurements:
 | Shift Work Orders production island | 220,036 B | 66,703 B | 225,000 B | 68,000 B |
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 207,434 B | 64,044 B | 225,000 B | 68,000 B |
-| Employee Desktop production island | 218,066 B | 65,929 B | 225,000 B | 68,000 B |
+| Employee Desktop production island | 224,501 B | 67,206 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 206,680 B | 64,127 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 207,695 B | 63,985 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
@@ -40,8 +40,8 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 523,720 B | 120,206 B | 524,000 B | 125,000 B |
-| Shared lab CSS | 25,119 B | 4,719 B | 25,250 B | 4,750 B |
+| Full twenty-four-scenario lab | 530,153 B | 121,544 B | 531,000 B | 125,000 B |
+| Shared lab CSS | 27,677 B | 5,096 B | 27,900 B | 5,150 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -50,7 +50,7 @@ The same isolation check now covers the Gantt artifact.
 The Shift Work Orders base-entry check additionally rejects the print-sheet
 marker, while the dedicated lazy entry must contain it. This preserves
 independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `524,000 B / 125,000 B` limit
+individual island. The larger `531,000 B / 125,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increases only for an accepted isolated scenario or
 bounded vertical capability; every production entry retains the unchanged
@@ -180,8 +180,8 @@ shell first commit was `34.20 ms`; owner-backed focus additionally proves
 `all -> empty open -> all` without a Shift Execution write. This is regression
 evidence, not Pilot acceptance.
 
-The bundled production Employee Desktop island is `210,409 B` raw /
-`65,468 B` gzip / `56,512 B` Brotli. Its one-task PostgreSQL-backed production-
+The bundled production Employee Desktop island is `214,902 B` raw /
+`66,681 B` gzip / `57,535 B` Brotli. Its one-task PostgreSQL-backed production-
 shell first commit was `30.00 ms`, below the `2,000 ms` production-shell gate;
 the same run proves read-only denial, one owner-backed start, duplicate denial,
 deviation validation, exactly one PostgreSQL fact command with read-back, plus

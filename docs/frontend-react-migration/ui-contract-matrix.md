@@ -21,7 +21,7 @@ unresolved.
 | `renderUiStatusToken` / `StatusToken` | `StatusToken` | Text plus semantic tone; color is not the only signal | Domain-specific labels mapped to shared tones |
 | `renderUiActionButton` / `ActionButton` | `ActionButton` | Native button state, focus, disabled reason | Primary, secondary, danger, compact |
 | `renderUiSystemState` / `SystemState` | `SystemState` | Explicit loading, empty, error and unavailable states | Message and recovery action |
-| modal/drawer/dropdown renderers | Overlay primitives | Focus ownership, close behavior, labelled frame | Size and domain content |
+| `renderUiModalFrame` and modal renderers | `ModalOverlay` | Labelled dialog, initial focus, Tab containment, Escape/backdrop close and focus restoration | Size and domain content |
 
 ## Module-family decisions
 
@@ -45,7 +45,8 @@ unresolved.
 
 The lab now implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
 `SidebarItem`, `Panel`, `TableWrap`, `MetricGrid`, `MetricCard`, `ActionButton`,
-`SelectableRow`, `DetailPanel`, `EmptyState`, `SystemState`, and `StatusToken`.
+`SelectableRow`, `DetailPanel`, `EmptyState`, `SystemState`, `StatusToken`, and
+the accessible `ModalOverlay`.
 Nomenclature, Component Types, Boards/BOM and Structure Employees use the same
 primitives; entity-specific columns, filters, summaries, and detail fields
 remain inside their scenario. Write
@@ -255,8 +256,9 @@ The third operational-family proof consumes the completed legacy
 OperationalPage, Panel, MetricGrid, MetricCard, StatusToken and ActionButton
 while retaining the task board, route chain and employee fact passport. The
 fixture proves three assignments, seven metrics, local task selection,
-owner-backed task start, quantity/deviation fact save, photo Report and a
-payload update. Structure, route, PDF and person switching return to legacy. The production host requires
+owner-backed task start, quantity/deviation fact save, photo Report,
+Structure/Route/PDF context and a payload update. Person switching returns to
+legacy. The production host requires
 PostgreSQL System Domains, complete Shift Execution coverage, two
 false-by-default permissions and an explicit session request; the start command
 is available only through a separate localhost write evaluation. Production-
@@ -266,6 +268,8 @@ deviation validation, exactly one Shift Execution fact command, owner-model
 read-back, one owner-prepared/persisted photo Report with journal-counter
 read-back and unchanged intercepted test state. Report retains its existing
 compatibility UI-state authority and creates no extra Shift Execution command.
+The same QA proves the shared modal Tab/Escape/focus/backdrop contract and zero
+writes from all three context views.
 A direct module entry also hydrates the Planning PostgreSQL graph before
 deriving its bounded dispatch scope.
 

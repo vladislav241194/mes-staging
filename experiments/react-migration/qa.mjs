@@ -1616,7 +1616,7 @@ try {
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 0, "no registered command scenario may remain implicit or pending");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /Pilot read-only acceptance.*print\/package previews/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot read-only focus acceptance/);
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /Pilot task-start acceptance/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /Pilot acceptance of the complete worker task flow/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "specifications2")?.nextVerticalScope || "", /Pilot draft-row edit acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /Pilot dependency-inspection acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "authPicker")?.nextVerticalScope || "", /Pilot PIN acceptance/);
