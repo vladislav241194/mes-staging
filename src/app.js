@@ -2700,14 +2700,34 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true;
     return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureOrgUnitsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
   },
-  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("orgUnits") } }),
+  getPayload: () => { const commandReady = getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("orgUnits"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "orgUnits"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureOrgUnitsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования подразделений недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда подразделений недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("orgUnits")) return { ok: false, message: "PostgreSQL-команда или право редактирования подразделений недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "archive") {
+      const orgUnitId = String(input.orgUnitId || "").trim();
+      const registries = getSystemDomainsRegistries();
+      const orgUnit = (registries.orgUnits || []).find((row) => row.id === orgUnitId);
+      if (!orgUnit || orgUnit.isActive === false) return { ok: false, message: "Активное подразделение больше не существует." };
+      const hasActiveReference = (registries.orgUnits || []).some((row) => row.parentOrgUnitId === orgUnitId && row.isActive !== false)
+        || (registries.workCenters || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
+        || (registries.positions || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
+        || (registries.equipment || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
+        || (registries.employmentAssignments || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false && !row.validTo);
+      if (hasActiveReference) return { ok: false, message: "Нельзя архивировать подразделение с действующими дочерними или производственными ссылками." };
+      try {
+        const result = await archiveSystemDomainEntity("orgUnits", orgUnitId, { source: "react:structure-org-units:archive", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Архивирование подразделения отклонено проверкой System Domains." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: orgUnitId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные подразделения изменились в другом сеансе. Проверьте значения и повторите архивирование." : error?.message || "Сервер не принял архивирование подразделения." };
+      }
+    }
     const orgUnitId = String(input.orgUnitId || "").trim() || makeId("org-unit");
     const name = String(input.name || "").trim().replace(/\s+/g, " ");
     const kind = String(input.kind || "department").trim();

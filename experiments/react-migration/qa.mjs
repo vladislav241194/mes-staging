@@ -533,6 +533,8 @@ try {
   const orgUnitsAdapter = await import(`${pathToFileURL(orgUnitsAdapterOutput).href}?qa=${Date.now()}`);
   assert.deepEqual(orgUnitsAdapter.adaptStructureOrgUnits({ registries: { orgUnits: {} } }).orgUnits, []);
   const orgUnitsModel = orgUnitsAdapter.adaptStructureOrgUnits(structureEmployeesFixture);
+  assert.equal(orgUnitsModel.canArchive, false, "Org Units archive capability must fail closed");
+  assert.equal(orgUnitsAdapter.adaptStructureOrgUnits({ ...structureEmployeesFixture, capabilities: { archive: true } }).canArchive, true, "Org Units archive capability must be explicit");
   assert.deepEqual(orgUnitsModel.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit.kindLabel, orgUnit.parentOrgUnitLabel, orgUnit.statusLabel]), [["D-COATING", "Отдел", "—", "активно"], ["D-MANUAL", "Отдел", "—", "активно"]]);
   assert.equal(orgUnitsAdapter.adaptStructureOrgUnits({ registries: canonicalMigration.domains.registries }).orgUnits.length, 19, "no canonical org unit may be dropped");
 

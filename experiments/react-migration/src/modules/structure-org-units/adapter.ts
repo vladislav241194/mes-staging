@@ -2,7 +2,7 @@ import { STRUCTURE_REGISTRY_DEFINITIONS, type StructureRegistryId } from "../str
 
 interface EntityDto { id?: unknown; name?: unknown; displayName?: unknown; code?: unknown; kind?: unknown; parentOrgUnitId?: unknown; isActive?: unknown }
 export interface StructureOrgUnit { id: string; name: string; code: string; kind: string; kindLabel: string; parentOrgUnitId: string; parentOrgUnitLabel: string; isActive: boolean; statusLabel: string; statusTone: "success" | "warning" }
-export interface StructureOrgUnitsReadModel { orgUnits: StructureOrgUnit[]; counts: Record<StructureRegistryId, number>; canCreateEdit: boolean }
+export interface StructureOrgUnitsReadModel { orgUnits: StructureOrgUnit[]; counts: Record<StructureRegistryId, number>; canCreateEdit: boolean; canArchive: boolean }
 const KIND_LABELS: Record<string, string> = { department: "Отдел", section: "Участок" };
 const text = (value: unknown) => String(value ?? "").trim();
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -18,5 +18,6 @@ export function adaptStructureOrgUnits(payload: unknown): StructureOrgUnitsReadM
     return [{ id, name, code: text(entry.code) || "—", kind, kindLabel: KIND_LABELS[kind] || kind || "—", parentOrgUnitId, parentOrgUnitLabel: !parentOrgUnitId ? "—" : parent ? label(parent) : `${parentOrgUnitId} · связь не найдена`, isActive: entry.isActive !== false, statusLabel: entry.isActive === false ? "архив" : "активно", statusTone: entry.isActive === false ? "warning" : "success" }];
   }).sort((left, right) => left.name.localeCompare(right.name, "ru") || left.id.localeCompare(right.id, "en"));
   const diagnosticsCount = Math.max(0, Math.trunc(Number(payloadRecord.migrationDiagnosticsCount ?? item.migrationDiagnosticsCount ?? (Array.isArray(payloadRecord.legacyMatrixRows) ? payloadRecord.legacyMatrixRows.length : 0)) || 0));
-  return { orgUnits, counts: Object.fromEntries(STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => [definition.id, definition.id === "migrationDiagnostics" ? diagnosticsCount : rows(registries[definition.id]).length])) as Record<StructureRegistryId, number>, canCreateEdit: record(payloadRecord.capabilities).createEdit === true };
+  const capabilities = record(payloadRecord.capabilities);
+  return { orgUnits, counts: Object.fromEntries(STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => [definition.id, definition.id === "migrationDiagnostics" ? diagnosticsCount : rows(registries[definition.id]).length])) as Record<StructureRegistryId, number>, canCreateEdit: capabilities.createEdit === true, canArchive: capabilities.archive === true };
 }
