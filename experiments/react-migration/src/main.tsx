@@ -18,7 +18,7 @@ import { weeklyProductionControlFixture, weeklyProductionControlUpdateFixture } 
 import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fixture";
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
 import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
-import { shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
+import { createShiftMasterBoardFocusFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
 import { employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
 import { specifications2Fixture, specifications2UpdateFixture } from "./modules/specifications2/fixture";
@@ -92,6 +92,7 @@ const featureGate = createReactIslandFeatureGate({
       onLoadShiftWorkOrderPrintPackage: async () => shiftWorkOrdersPrintPackageFixture,
       onLoadShiftWorkOrderPrintRenderer: async () => import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews"),
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
+      onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
       onRequestLegacy: () => featureGate.requestLegacy("unsupported-scope"),
     });
   },

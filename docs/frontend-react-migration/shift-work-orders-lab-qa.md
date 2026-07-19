@@ -41,7 +41,7 @@ Those scopes return to legacy through the common feature gate.
   `225,000 B / 68,000 B` production-entry budget;
 - lazy print entry `19,025 B` raw / `3,659 B` gzip under the same production-entry
   budget; the base entry is checked not to contain the print sheet;
-- full twenty-four-scenario lab `500,690 B / 115,484 B` under its development-only
+- full twenty-four-scenario lab `502,398 B / 116,007 B` under its development-only
   `505,000 B / 122,000 B` budget.
 
 Production-shell QA proves default legacy, explicit session-only read access,

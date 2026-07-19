@@ -29,7 +29,7 @@ Current minified measurements:
 | Planning Workbench production island | 206,952 B | 64,065 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 220,036 B | 66,703 B | 225,000 B | 68,000 B |
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
-| Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
+| Shift Master Board production island | 207,434 B | 64,044 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 202,893 B | 63,121 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
@@ -40,8 +40,8 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 500,690 B | 115,484 B | 505,000 B | 122,000 B |
-| Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
+| Full twenty-four-scenario lab | 502,398 B | 116,007 B | 505,000 B | 122,000 B |
+| Shared lab CSS | 19,470 B | 3,912 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -83,7 +83,7 @@ then proved one create plus one edit through the existing command owner.
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
 | Planning Workbench | measured by the same callback | browser gate passed | quantity conflict/retry, authoritative slot refresh and legacy read-back |
 | Shift Work Orders | measured by the same callback | browser gate passed | attachment and lazy SZN/package overlays, host print callback, selection/collapse and revision 2 |
-| Shift Master Board | measured by the same callback | browser gate passed | card selection preserved, revision 2 |
+| Shift Master Board | measured by the same callback | browser gate passed | owner-backed focus 4 -> 3 cards, empty-focus recovery and revision 3 |
 | Employee Desktop | measured by the same callback | browser gate passed | task selection preserved, revision 2 |
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
@@ -174,10 +174,11 @@ previews and delegates two print calls to the host; the isolated lab
 additionally proves an in-React attachment overlay with Escape close. This is
 regression evidence, not Pilot acceptance.
 
-The bundled production Shift Master Board island is `202,787 B` raw /
-`63,572 B` gzip / `54,628 B` Brotli. Its one-card PostgreSQL-backed production-
-shell first commit was `22.10 ms`; this is regression evidence, not Pilot
-acceptance.
+The bundled production Shift Master Board island is `203,459 B` raw /
+`63,786 B` gzip / `54,849 B` Brotli. Its one-card PostgreSQL-backed production-
+shell first commit was `34.20 ms`; owner-backed focus additionally proves
+`all -> empty open -> all` without a Shift Execution write. This is regression
+evidence, not Pilot acceptance.
 
 The bundled production Employee Desktop island is `202,416 B` raw /
 `63,416 B` gzip / `54,553 B` Brotli. Its one-task PostgreSQL-backed production-

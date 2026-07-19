@@ -3,7 +3,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 const SHIFT_MASTER_BOARD_REACT_TARGET = "[data-react-shift-master-board-island]";
 const SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION = "__MES_SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION__";
 
-export function createShiftMasterBoardReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Master Board React island failed", error) } = {}) {
+export function createShiftMasterBoardReactIslandHost({ getActivation, getPayload, getTargetRoot, selectFocus, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Master Board React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: SHIFT_MASTER_BOARD_REACT_TARGET,
@@ -21,6 +21,6 @@ export function createShiftMasterBoardReactIslandHost({ getActivation, getPayloa
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountShiftMasterBoardReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountShiftMasterBoardReactIsland(target, payload, { onError, onReady, onSelectFocus: selectFocus, onRequestLegacy }),
   });
 }

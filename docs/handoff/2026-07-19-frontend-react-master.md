@@ -377,12 +377,15 @@ blueprint is a disabled, headerless placeholder with no reads, writes, table
 or actions. Shift Master Board is instead the next meaningful operational
 slice and the nineteenth production-integrated scenario. Its React island consumes the completed legacy board model and
 renders three lanes, four task cards and seven read metrics. Selection and
-revision update pass; assignment, fact, carryover, transfer, print, date,
-focus and master scopes return to legacy. Production-shell QA proves identical
-three-lane/one-card density from PostgreSQL, default legacy, assignment
-fallback, zero Shift Execution writes and unchanged state. Its production
-artifact is `202,787 B` raw / `63,572 B` gzip / `54,628 B` Brotli. It has not
-been released or activated on Pilot.
+revision update pass. The four focus controls now stay in React but send only
+their ID to the existing owner, which rebuilds rows, lanes, selection and KPI
+totals; the empty focused state deliberately retains the toolbar. Assignment,
+fact, carryover, transfer, print, date and master scopes return to legacy.
+Production-shell QA proves identical three-lane/one-card density from
+PostgreSQL, default legacy, focus recovery `all -> empty open -> all`,
+assignment fallback, zero Shift Execution writes and unchanged state. Its
+production artifact is `203,459 B` raw / `63,786 B` gzip / `54,849 B` Brotli.
+It has not been released or activated on Pilot.
 
 Employee Desktop is the twentieth production-integrated scenario and closes the read
 path from Planning through Workshop and Shift Work Orders to the executor. Its
@@ -508,7 +511,9 @@ will be repeated after the Structure Employees commit and before rebasing.
    acceptance remain separate. Shift Work Orders attachment navigation plus
    SZN/package print previews are locally complete without Shift Execution
    writes; Pilot read-only acceptance, assignment, fact and Workshop stay
-   separate. Weekly
+   separate. Shift Master Board card selection and owner-backed focus are also
+   locally complete; Pilot read-only focus acceptance plus assignment, fact,
+   carryover and transfer remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

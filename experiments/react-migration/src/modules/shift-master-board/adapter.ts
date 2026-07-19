@@ -15,8 +15,11 @@ export interface ShiftMasterBoardRow {
 export interface ShiftMasterBoardLane { id: string; label: string; caption: string; tone: "success" | "warning" | "neutral"; rows: ShiftMasterBoardRow[] }
 export interface ShiftMasterBoardModel {
   windowLabel: string; rows: ShiftMasterBoardRow[]; lanes: ShiftMasterBoardLane[]; selectedRow: ShiftMasterBoardRow | null;
+  focus: "all" | "mine" | "open" | "attention";
   activeMasterName: string; activeMasterDepartment: string; plannedQuantity: number; assignedQuantity: number; factQuantity: number; openQuantity: number;
 }
+
+const focus = (value: unknown): ShiftMasterBoardModel["focus"] => ["mine", "open", "attention"].includes(text(value)) ? text(value) as ShiftMasterBoardModel["focus"] : "all";
 
 function adaptRow(value: unknown): ShiftMasterBoardRow | null {
   const source = record(value); const assignment = record(source.boardAssignment || source.assignment); const fact = record(source.boardFact || source.fact); const signal = record(source.boardSignal || source.signal);
@@ -38,5 +41,5 @@ export function adaptShiftMasterBoardPayload(payload: unknown): ShiftMasterBoard
   const model = record(record(payload).model); const rows = list(model.rows).map(adaptRow).filter(Boolean) as ShiftMasterBoardRow[]; const rowsById = new Map(rows.map((row) => [row.id, row]));
   const lanes = list(model.lanes).map((value, index): ShiftMasterBoardLane => { const lane = record(value); const laneId = text(lane.id, `lane-${index + 1}`); const laneRows = list(lane.rows).map((row) => rowsById.get(text(record(row).id))).filter(Boolean) as ShiftMasterBoardRow[]; return { id: laneId, label: text(lane.label, "Этап"), caption: text(lane.caption), tone: tone(lane.tone), rows: laneRows.length ? laneRows : rows.filter((row) => row.laneId === laneId) }; });
   const selectedId = text(record(model.selectedRow).id); const activeProfile = record(model.activeProfile);
-  return { windowLabel: text(record(model.window).label, "Текущая смена"), rows, lanes, selectedRow: rowsById.get(selectedId) || rows[0] || null, activeMasterName: personName(activeProfile.name, "Мастер"), activeMasterDepartment: text(activeProfile.department, "Участок не указан"), plannedQuantity: number(model.plannedQuantity), assignedQuantity: number(model.assignedQuantity), factQuantity: number(model.factQuantity), openQuantity: number(model.openQuantity) };
+  return { windowLabel: text(record(model.window).label, "Текущая смена"), rows, lanes, selectedRow: rowsById.get(selectedId) || rows[0] || null, focus: focus(model.focus), activeMasterName: personName(activeProfile.name, "Мастер"), activeMasterDepartment: text(activeProfile.department, "Участок не указан"), plannedQuantity: number(model.plannedQuantity), assignedQuantity: number(model.assignedQuantity), factQuantity: number(model.factQuantity), openQuantity: number(model.openQuantity) };
 }

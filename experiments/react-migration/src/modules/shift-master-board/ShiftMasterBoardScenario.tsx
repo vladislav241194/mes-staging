@@ -3,19 +3,22 @@ import { ActionButton, MetricCard, MetricGrid, OperationalPage, Panel, StatusTok
 import { adaptShiftMasterBoardPayload } from "./adapter";
 
 const quantity = (value: number, unit = "шт.") => `${value.toLocaleString("ru-RU")} ${unit}`;
+const focusOptions = [{ id: "all", label: "Все" }, { id: "mine", label: "Мои" }, { id: "open", label: "Незакрытые" }, { id: "attention", label: "Требуют внимания" }] as const;
 
-export function ShiftMasterBoardScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(scope?: string): void }) {
+export function ShiftMasterBoardScenario({ payload, onSelectFocus, onRequestLegacy }: { payload: unknown; onSelectFocus?(focus: "all" | "mine" | "open" | "attention"): void; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptShiftMasterBoardPayload(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.selectedRow?.id || "");
   useEffect(() => { if (!model.rows.some((row) => row.id === selectedId)) setSelectedId(model.selectedRow?.id || model.rows[0]?.id || ""); }, [model, selectedId]);
-  if (!model.rows.length) return <OperationalPage className="shift-master-board-react" label="Мастерская"><SystemState title="Доска пуста" text="В выбранной смене нет задач для отображения." tone="neutral" /></OperationalPage>;
-  const selected = model.rows.find((row) => row.id === selectedId) || model.selectedRow || model.rows[0];
-  return <OperationalPage className="shift-master-board-react" label="Мастерская">
-    <header className="shift-master-board-react-toolbar" data-shift-master-board-toolbar>
+  const toolbar = <header className="shift-master-board-react-toolbar" data-shift-master-board-toolbar>
       <button className="shift-master-board-react-date" onClick={() => onRequestLegacy?.("date")} type="button"><span>Смена</span><strong>{model.windowLabel}</strong></button>
       <MetricGrid className="shift-master-board-react-kpis" label="Сводка смены"><MetricCard label="План" value={quantity(model.plannedQuantity)} /><MetricCard label="Распределено" value={quantity(model.assignedQuantity)} /><MetricCard label="Факт" value={quantity(model.factQuantity)} /></MetricGrid>
       <button className="shift-master-board-react-master" onClick={() => onRequestLegacy?.("master")} type="button"><strong>{model.activeMasterName}</strong><span>{model.activeMasterDepartment}</span></button>
-    </header>
+      <nav aria-label="Фокус доски" className="shift-master-board-react-focus">{focusOptions.map((option) => <button aria-pressed={model.focus === option.id} className={model.focus === option.id ? "is-active" : ""} data-shift-master-board-focus={option.id} disabled={!onSelectFocus} key={option.id} onClick={() => onSelectFocus?.(option.id)} type="button">{option.label}</button>)}</nav>
+    </header>;
+  if (!model.rows.length) return <OperationalPage className="shift-master-board-react" label="Мастерская">{toolbar}<SystemState title="В этом фокусе задач нет" text="Выберите другой фокус или смену, чтобы вернуть карточки на доску." tone="neutral" /></OperationalPage>;
+  const selected = model.rows.find((row) => row.id === selectedId) || model.selectedRow || model.rows[0];
+  return <OperationalPage className="shift-master-board-react" label="Мастерская">
+    {toolbar}
     <section className="shift-master-board-react-grid">
       <Panel heading={<div className="panel-heading"><div><p>Рабочая карточка</p><h2>{selected.documentNumber}</h2></div><StatusToken label={selected.signal.label} tone={selected.signal.tone} /></div>}>
         <div className="shift-master-board-react-detail" data-shift-master-board-detail={selected.id}>

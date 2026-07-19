@@ -171,11 +171,14 @@ legacy overlay, editor access or a missing session request retains legacy.
 `mountShiftMasterBoardReactIsland(...)` owns the read-only Workshop board
 behind two false-by-default server permissions, PostgreSQL System Domains and
 complete Shift Execution read readiness, plus an explicit session request.
-Its adapter consumes the completed legacy board model and owns only local task-
-card selection across the three existing lanes. Date/focus/master changes plus
-assignment, fact, carryover, transfer and print scopes return through
-`unsupported-scope`. Missing coverage, an open legacy overlay, editor access
-or a missing session request retains legacy.
+Its adapter consumes the completed legacy board model and owns local task-card
+selection across the three existing lanes. React also owns the four focus
+controls, but sends only the focus ID to the host; the existing owner normalizes
+it and rebuilds rows, lanes, selected row and KPI totals before the island is
+remounted. An empty focused projection retains the toolbar and can return to
+`all`. Date/master changes plus assignment, fact, carryover, transfer and print
+scopes return through `unsupported-scope`. Missing coverage, an open legacy
+overlay, editor access or a missing session request retains legacy.
 
 `mountEmployeeDesktopReactIsland(...)` owns the read-only executor task view
 behind two false-by-default server permissions, PostgreSQL System Domains and

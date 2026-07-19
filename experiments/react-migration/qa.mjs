@@ -956,6 +956,21 @@ try {
   assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy\?\.\(`(?:print|package):/);
   assert.match(shiftWorkOrdersScenarioSource, /onLoadPrintRenderer/);
 
+  const shiftMasterBoardOutput = join(temporaryRoot, "shift-master-board.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/shift-master-board/adapter.ts")], outfile: shiftMasterBoardOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const shiftMasterBoardAdapter = await import(`${pathToFileURL(shiftMasterBoardOutput).href}?qa=${Date.now()}`);
+  const shiftMasterBoardFixtureOutput = join(temporaryRoot, "shift-master-board-fixture.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/shift-master-board/fixture.ts")], outfile: shiftMasterBoardFixtureOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { createShiftMasterBoardFocusFixture, shiftMasterBoardFixture } = await import(`${pathToFileURL(shiftMasterBoardFixtureOutput).href}?qa=${Date.now()}`);
+  const shiftMasterBoardModel = shiftMasterBoardAdapter.adaptShiftMasterBoardPayload(shiftMasterBoardFixture);
+  const shiftMasterBoardOpenModel = shiftMasterBoardAdapter.adaptShiftMasterBoardPayload(createShiftMasterBoardFocusFixture("open"));
+  assert.deepEqual([shiftMasterBoardModel.focus, shiftMasterBoardModel.rows.length, shiftMasterBoardOpenModel.focus, shiftMasterBoardOpenModel.rows.length], ["all", 4, "open", 3], "Shift Master Board focus payload must stay owner-shaped");
+  assert.deepEqual([shiftMasterBoardOpenModel.plannedQuantity, shiftMasterBoardOpenModel.assignedQuantity, shiftMasterBoardOpenModel.factQuantity], [320, 160, 50], "Shift Master Board focused KPIs must cross the adapter unchanged");
+  const shiftMasterBoardScenarioSource = await readFile(join(sourceRoot, "modules/shift-master-board/ShiftMasterBoardScenario.tsx"), "utf8");
+  assert.match(shiftMasterBoardScenarioSource, /data-shift-master-board-focus/);
+  assert.match(shiftMasterBoardScenarioSource, /onSelectFocus\?\.\(option\.id\)/);
+  assert.doesNotMatch(shiftMasterBoardScenarioSource, /onRequestLegacy\?\.\("focus/);
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -1462,6 +1477,10 @@ try {
   assert.match(productionAppSource, /loadPrintPackage: async/);
   assert.match(productionAppSource, /getWorkOrderPrintPackageViewModel\(routeId\)/);
   assert.match(productionAppSource, /printDocument: \(title = ""\)/);
+  const shiftMasterBoardHostSource = await readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.js"), "utf8");
+  assert.match(shiftMasterBoardHostSource, /onSelectFocus: selectFocus/);
+  assert.match(productionAppSource, /selectFocus: \(focus = ""\)/);
+  assert.match(productionAppSource, /ui\.shiftMasterBoardFocus = nextFocus/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
@@ -1592,10 +1611,11 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders"], "sixteen scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders", "shiftMasterBoard"], "seventeen scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 6, "all 6 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 5, "all 5 remaining command scenarios must stay explicit");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /Pilot read-only acceptance.*print\/package previews/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot read-only focus acceptance/);
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

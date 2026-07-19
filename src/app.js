@@ -3064,6 +3064,12 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
   },
   getPayload: () => ({ model: getShiftMasterBoardModel() }),
   getTargetRoot: () => app,
+  selectFocus: (focus = "") => {
+    const nextFocus = normalizeShiftMasterBoardFocus(focus);
+    if (nextFocus === ui.shiftMasterBoardFocus) return;
+    ui.shiftMasterBoardFocus = nextFocus;
+    queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
+  },
   requestLegacyRender: (_reason, scope = "") => {
     const [action, rowId] = String(scope || "").split(":");
     const model = getShiftMasterBoardModel();

@@ -79,6 +79,9 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .shift-master-board-react-date, .shift-master-board-react-master { display: grid; gap: 3px; padding: 10px; border: 0; border-radius: 10px; color: #18314d; background: #f0f5fb; text-align: left; cursor: pointer; }
 .shift-master-board-react-toolbar span, .shift-master-board-react-toolbar small { color: #718296; font-size: 10px; }
 .shift-master-board-react-kpis { grid-template-columns: repeat(3, minmax(90px, 1fr)); }
+.shift-master-board-react-focus { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.shift-master-board-react-focus button { padding: 7px 11px; border: 1px solid #dce5ef; border-radius: 999px; color: #53677d; background: #f8fafc; cursor: pointer; }
+.shift-master-board-react-focus button.is-active { border-color: #2f6fe4; color: #1f5dcc; background: #edf4ff; }
 .shift-master-board-react-grid { display: grid; grid-template-columns: minmax(360px, .85fr) minmax(560px, 1.4fr); align-items: start; gap: 14px; }
 .shift-master-board-react-detail { display: grid; gap: 14px; padding: 16px; }
 .shift-master-board-react-title { display: grid; gap: 3px; }

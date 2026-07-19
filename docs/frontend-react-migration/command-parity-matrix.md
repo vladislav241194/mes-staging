@@ -35,7 +35,10 @@ PostgreSQL-backed owner; dates, labor, Gantt transfer and cancel remain legacy.
 Shift Work Orders now keeps attachment inspection, SZN print preview and the
 work-order print package inside React while reusing the existing package owner
 and host print callback; assignment, fact and Workshop remain legacy. The
-remaining scenarios retain their explicit next vertical scopes.
+Shift Master Board now owns its four focus controls while the existing host
+owner still normalizes the focus and rebuilds rows, lanes, selection and KPIs;
+assignment, fact, carryover and transfer remain legacy. The remaining scenarios
+retain their explicit next vertical scopes.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
@@ -56,9 +59,10 @@ remaining scenarios retain their explicit next vertical scopes.
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Separately gated Pilot read-only acceptance of the three React-owned presentation paths |
-| 18 | Other Shift operational modules | Pending | Critical | Shift Master Board local card focus, then bounded mutation scopes |
-| 19 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
-| 20 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
+| 18 | Shift Master Board | Local complete: card selection and owner-backed all/mine/open/attention focus; mutations remain legacy | Critical | Separately gated Pilot read-only focus acceptance, then bounded assignment scope |
+| 19 | Employee Desktop | Pending | Critical | Task start before fact and report commands |
+| 20 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
+| 21 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
 The Directories cluster now has Component Types read parity accepted on Pilot
