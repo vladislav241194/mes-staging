@@ -2192,8 +2192,17 @@ function getSpecifications2PublishedRevision(sourceEntryId) {
 }
 function hydrateSpecifications2PublishedRevision(entry) {
   if (!entry?.publication?.revision || !entry?.id) return;
-  void ensureSpecifications2Module().then(() => specifications2RevisionsReadModel?.refreshBySource?.(entry.id) || { ok: false }).then((result) => {
-    if (result.ok && result.changed && ui.activeModule === "specifications2") render();
+  void ensureSpecifications2Module().then(() => {
+    const beforeRefresh = getSpecifications2PublishedRevision(entry.id);
+    const completionChangesEligibility = Boolean(beforeRefresh?.loading)
+      || (!beforeRefresh?.fetchedAt && !beforeRefresh?.item && !beforeRefresh?.error);
+    return Promise.resolve(specifications2RevisionsReadModel?.refreshBySource?.(entry.id) || { ok: false }).then((result) => {
+      // An expired cache may already contain the exact immutable revision while
+      // its revalidation is in flight. React intentionally waits for that
+      // request, so completion must repaint even when the server returns the
+      // same payload (`changed: false`) or an error that legacy must expose.
+      if ((result.changed || completionChangesEligibility) && ui.activeModule === "specifications2") render();
+    });
   });
 }
 normalizeLookupText = (value) => String(value || "").trim().toLowerCase();
