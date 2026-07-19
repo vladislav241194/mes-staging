@@ -23,6 +23,6 @@ references, quantity and archive status.
 - all four previously integrated Structure registry regressions remain exact;
 - latest local first commit was `16.5 ms`.
 
-The independent entry is `208,954 B` raw / `64,285 B` gzip. The production
+The independent entry is `208,973 B` raw / `64,291 B` gzip. The production
 artifact is `203,506 B` raw / `63,993 B` gzip / `55,085 B` Brotli. It remains
 false by default and has not been released or activated on Pilot.

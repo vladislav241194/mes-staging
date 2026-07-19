@@ -426,6 +426,14 @@ const structureEquipmentReactIslandVersionMarker = "__MES_STRUCTURE_EQUIPMENT_RE
 if (!structureEquipmentReactIslandHostSource.includes(structureEquipmentReactIslandVersionMarker)) throw new Error("Cannot find Structure Equipment React island bundle version marker");
 await writeFile(structureEmployeesReactIslandHostPath, structureEquipmentReactIslandHostSource.replaceAll(structureEquipmentReactIslandVersionMarker, structureEquipmentReactIslandVersion));
 
+const structureResponsibilityPoliciesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "structure-responsibility-policies.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "structure-responsibility-policies-island.tsx"), structureResponsibilityPoliciesReactIslandOutput);
+const structureResponsibilityPoliciesReactIslandVersion = await fileHash(structureResponsibilityPoliciesReactIslandOutput);
+const structureResponsibilityPoliciesReactIslandHostSource = await readFile(structureEmployeesReactIslandHostPath, "utf8");
+const structureResponsibilityPoliciesReactIslandVersionMarker = "__MES_STRUCTURE_RESPONSIBILITY_POLICIES_REACT_BUNDLE_VERSION__";
+if (!structureResponsibilityPoliciesReactIslandHostSource.includes(structureResponsibilityPoliciesReactIslandVersionMarker)) throw new Error("Cannot find Structure Responsibility Policies React island bundle version marker");
+await writeFile(structureEmployeesReactIslandHostPath, structureResponsibilityPoliciesReactIslandHostSource.replaceAll(structureResponsibilityPoliciesReactIslandVersionMarker, structureResponsibilityPoliciesReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -591,6 +599,7 @@ console.log(`- src/react-islands/structure-positions.js?v=${structurePositionsRe
 console.log(`- src/react-islands/structure-org-units.js?v=${structureOrgUnitsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-work-centers.js?v=${structureWorkCentersReactIslandVersion}`);
 console.log(`- src/react-islands/structure-equipment.js?v=${structureEquipmentReactIslandVersion}`);
+console.log(`- src/react-islands/structure-responsibility-policies.js?v=${structureResponsibilityPoliciesReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

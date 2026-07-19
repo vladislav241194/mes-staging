@@ -21,20 +21,21 @@ Current minified measurements:
 | Structure Positions production island | 209,326 B | 64,392 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 208,696 B | 64,239 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 209,390 B | 64,349 B | 225,000 B | 68,000 B |
-| Structure Equipment production island | 208,954 B | 64,285 B | 225,000 B | 68,000 B |
+| Structure Equipment production island | 208,973 B | 64,291 B | 225,000 B | 68,000 B |
+| Structure Responsibility Policies production island | 210,082 B | 64,604 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,857 B | 63,539 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,364 B | 63,173 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,242 B | 63,096 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,588 B | 63,461 B | 225,000 B | 68,000 B |
-| Full twelve-scenario lab | 315,372 B | 81,571 B | 320,000 B | 85,000 B |
+| Full thirteen-scenario lab | 323,165 B | 82,492 B | 330,000 B | 85,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure
 registry and Roles artifacts and rejects unrelated scenario labels. This preserves
 independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `320,000 B / 85,000 B` limit applies only to the
-twelve-scenario development lab, never to a production island. Its raw limit
+individual island. The larger `330,000 B / 85,000 B` limit applies only to the
+thirteen-scenario development lab, never to a production island. Its raw limit
 increased only as isolated scenarios were added; every production entry retains the
 unchanged `225,000 B / 68,000 B` gate.
 
@@ -97,6 +98,10 @@ The bundled production Structure Equipment island is `203,506 B` raw /
 `63,993 B` gzip / `55,085 B` Brotli. Its production-shell first commit was
 `16.5 ms` across six PostgreSQL-backed rows; this is regression evidence, not
 Pilot acceptance.
+
+The bundled production Structure Responsibility Policies island is `204,254 B`
+raw / `64,244 B` gzip / `55,365 B` Brotli. Its temporary non-empty production-
+shell first commit was `17.2 ms`; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

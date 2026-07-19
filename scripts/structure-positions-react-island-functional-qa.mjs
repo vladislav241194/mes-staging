@@ -9,20 +9,24 @@ import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondi
 
 const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
-const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "equipment" ? {
-  label: "Equipment", registryId: "equipment", rowCount: 6, target: "data-react-structure-equipment-island",
+const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "responsibilityPolicies" ? {
+  label: "Responsibility Policies", registryId: "responsibilityPolicies", rowCount: 1, cellCount: 4, target: "data-react-structure-responsibility-policies-island",
+  featureFlag: "MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES", evaluationFlag: "MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION",
+  evaluationQuery: "react-structure-responsibility-policies-evaluation", fallbackLabel: "Сотрудники", fallbackRegistry: "employees", fallbackCount: 76,
+} : process.env.MES_STRUCTURE_QA_REGISTRY === "equipment" ? {
+  label: "Equipment", registryId: "equipment", rowCount: 6, cellCount: 5, target: "data-react-structure-equipment-island",
   featureFlag: "MES_REACT_STRUCTURE_EQUIPMENT", evaluationFlag: "MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-equipment-evaluation", fallbackLabel: "Подразделения", fallbackRegistry: "orgUnits", fallbackCount: 19,
 } : process.env.MES_STRUCTURE_QA_REGISTRY === "workCenters" ? {
-  label: "Work Centers", registryId: "workCenters", rowCount: 19, target: "data-react-structure-work-centers-island",
+  label: "Work Centers", registryId: "workCenters", rowCount: 19, cellCount: 5, target: "data-react-structure-work-centers-island",
   featureFlag: "MES_REACT_STRUCTURE_WORK_CENTERS", evaluationFlag: "MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-work-centers-evaluation", fallbackLabel: "Оборудование", fallbackRegistry: "equipment", fallbackCount: 6,
 } : process.env.MES_STRUCTURE_QA_REGISTRY === "orgUnits" ? {
-  label: "Org Units", registryId: "orgUnits", rowCount: 19, target: "data-react-structure-org-units-island",
+  label: "Org Units", registryId: "orgUnits", rowCount: 19, cellCount: 5, target: "data-react-structure-org-units-island",
   featureFlag: "MES_REACT_STRUCTURE_ORG_UNITS", evaluationFlag: "MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-org-units-evaluation", fallbackLabel: "Рабочие центры", fallbackRegistry: "workCenters", fallbackCount: 19,
 } : {
-  label: "Positions", registryId: "positions", rowCount: 49, target: "data-react-structure-positions-island",
+  label: "Positions", registryId: "positions", rowCount: 49, cellCount: 5, target: "data-react-structure-positions-island",
   featureFlag: "MES_REACT_STRUCTURE_POSITIONS", evaluationFlag: "MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-positions-evaluation", fallbackLabel: "Подразделения", fallbackRegistry: "orgUnits", fallbackCount: 19,
 };
@@ -54,6 +58,9 @@ const migration = migrateLegacySystemDomains({
   },
   migratedAt: "2026-07-19T00:00:00.000Z",
 });
+if (qaConfig.registryId === "responsibilityPolicies") {
+  migration.domains.registries.responsibilityPolicies = [{ id: "POLICY-QA-001", subjectEmployeeId: masterId, mode: "manual", targetEmployeeIds: [executorId], updatedAt: "2026-07-19T00:00:00.000Z" }];
+}
 assert(migration.report.validation.valid && migration.domains.registries[qaConfig.registryId].length === qaConfig.rowCount, `canonical fixture must contain ${qaConfig.rowCount} valid ${qaConfig.label}`);
 const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy: { actor: "structure-positions-react-functional-qa" }, values: { [STATE_STORAGE_KEY]: JSON.stringify({ routes: [], routeSteps: [], slots: [] }), [SYSTEM_DOMAINS_STORAGE_KEY]: serializeSystemDomains(migration.domains) }, sharedUi: {}, events: [] };
 await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
@@ -100,7 +107,7 @@ try {
   assert(initial.rows.length === qaConfig.rowCount && initial.selectedText.includes(initial.detail) && initial.disabled && initial.sidebarItems === 7 && initial.revision === "1", `${qaConfig.label} selection/detail/read-only/sidebar contract failed`);
   assert(initial.metrics["Подразделений"] === 19 && initial.metrics["Рабочих центров"] === 19 && initial.metrics["Должностей"] === 49 && initial.metrics["Сотрудников"] === 76 && initial.metrics["Оборудования"] === 6, "Positions metrics differ from System Domains");
   assert(Number.isFinite(initial.commitMs) && initial.commitMs < 2000 && !initial.overflow, "Positions commit/overflow gate failed");
-  const second = await evaluate(client, async () => { const rows = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]; rows[1]?.click(); await new Promise((resolve) => setTimeout(resolve, 50)); return [document.querySelectorAll('[data-ui-component="SelectableRow"].is-selected').length, rows[1]?.textContent?.replace(/\s+/g, " ").trim() || "", document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || ""]; });
+  const second = await evaluate(client, async () => { const rows = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]; const target = rows[Math.min(1, rows.length - 1)]; target?.click(); await new Promise((resolve) => setTimeout(resolve, 50)); return [document.querySelectorAll('[data-ui-component="SelectableRow"].is-selected').length, target?.textContent?.replace(/\s+/g, " ").trim() || "", document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || ""]; });
   assert(second[0] === 1 && second[1].includes(second[2]), "Positions selection/detail synchronization failed");
   await evaluate(client, (config) => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((entry) => entry.textContent?.includes(config.fallbackLabel))?.click(), qaConfig);
   await waitForCondition(client, (config) => Boolean(!document.querySelector(`[${config.target}]`) && document.querySelectorAll(`[data-system-domain-table="${config.fallbackRegistry}"] [data-system-domain-row]`).length === config.fallbackCount), { arg: qaConfig, message: `${qaConfig.label} legacy fallback failed` });
@@ -108,6 +115,6 @@ try {
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`); assert(await readFile(sharedStateFile, "utf8") === original, "read-only Positions scenario changed state");
   console.log(`Structure ${qaConfig.label} React production-shell functional QA: OK`);
   console.log(`- same PostgreSQL payload: ${qaConfig.rowCount} legacy rows = ${qaConfig.rowCount} React rows; first commit ${initial.commitMs.toFixed(2)} ms`);
-  console.log("- five cells/order, selection/detail, seven registries, six metrics, legacy fallback and unchanged state: pass");
+  console.log(`- ${qaConfig.cellCount} cells/order, selection/detail, seven registries, six metrics, legacy fallback and unchanged state: pass`);
 } catch (error) { if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; }
 finally { if (chrome) await cleanupChrome(chrome); await Promise.all([stop(enabledPreview), stop(legacyPreview)]); await rm(temporaryRoot, { recursive: true, force: true }); }

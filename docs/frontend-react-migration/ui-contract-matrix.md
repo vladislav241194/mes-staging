@@ -156,6 +156,12 @@ work-center, quantity and schedule columns. All six stable IDs, five visible
 cells and Russian legacy order match the authenticated PostgreSQL projection;
 no scheduling or editor behavior moved into React.
 
+## Structure Responsibility Policies read-model evidence
+
+Responsibility Policies retains its four-column master/mode/allowed-employees/
+update contract. Empty input fails closed; a temporary valid QA policy
+proves literal non-empty parity without creating real records. Commands remain legacy.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,

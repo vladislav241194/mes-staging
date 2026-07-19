@@ -92,6 +92,10 @@ typed boundary; planning/Gantt commands and every editor action remain legacy.
 and passport. Work-center and schedule references are resolved from the same
 snapshot; create/save/archive and equipment scheduling commands remain legacy.
 
+`mountStructureResponsibilityPoliciesReactIsland(...)` owns the policy read
+table and passport. Employee references and display-name policy stay at the
+typed boundary; responsibility editing and Workshop commands remain legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

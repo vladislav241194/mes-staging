@@ -256,6 +256,15 @@ exact Org Units fallback, unchanged state and clean console. All four prior
 Structure registry regressions remain exact. Its artifact is `203,506 B` raw /
 `63,993 B` gzip / `55,085 B` Brotli. It has not been released or activated on Pilot.
 
+Structure Responsibility Policies is now the thirteenth production-integrated
+read-only island. The minimal functional fixture is empty; empty-state QA passes,
+while one valid policy in a temporary `0600` snapshot proves literal four-cell parity,
+employee formatting, selection/passport, navigation, fallback and unchanged
+state; the full domain baseline independently reports one policy. All five
+earlier Structure regressions remain exact. Its artifact is
+`204,254 B` raw / `64,244 B` gzip / `55,365 B` Brotli. It has not been released
+or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -274,11 +283,11 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment and Roles/Access read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies and Roles/Access read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment and Roles/Access using PostgreSQL-hydrated System Domains; no fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types and Statuses; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies and Roles/Access using PostgreSQL-hydrated System Domains; no fixture reaches production.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types and Statuses; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 
