@@ -1687,7 +1687,21 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
-  const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
+  const specificationsAuthorityQaPath = "scripts/domain-specifications2-publication-authority-qa.mjs";
+  const changedPaths = changedPathsOutput.split("\n").filter(Boolean);
+  if (changedPaths.includes(specificationsAuthorityQaPath)) {
+    const { stdout: authorityQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", specificationsAuthorityQaPath], { cwd: repositoryRoot });
+    const assertionChanges = authorityQaDiff
+      .split("\n")
+      .filter((line) => (/^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line)));
+    assert.deepEqual(assertionChanges, [
+      "-assert.match(renderSource, /writeStore\\(\\{ \\.\\.\\.latestStore, registry, selectedId: entryId \\}, \\{ suppressSharedStatePush: true \\}\\)/, \"server-primary acknowledgement must not enqueue a competing shared-state snapshot write\");",
+      "+assert.match(renderSource, /writeStore\\(\\{ \\.\\.\\.latestStore, registry, selectedId: normalizedEntryId \\}, \\{ suppressSharedStatePush: true \\}\\)/, \"server-primary acknowledgement must not enqueue a competing shared-state snapshot write\");",
+    ], "Specifications authority QA may only follow the already-reviewed entryId normalization");
+  }
+  const frozenBackendDiff = changedPaths
+    .filter(isFrozenBackendPath)
+    .filter((path) => path !== specificationsAuthorityQaPath);
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([

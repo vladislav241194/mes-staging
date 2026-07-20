@@ -13,7 +13,8 @@ as the legacy form and confirmation path; React receives neither storage
 handles nor mutable global state, and no API or PostgreSQL contract changes.
 
 The read-only server rollout requires the first two runtime values to be exactly
-`true`; write evaluation additionally requires the third:
+`true`. The separately controlled write rollout requires the feature flag and
+the write flag, but deliberately keeps the read-only permission off:
 
 - `MES_REACT_NOMENCLATURE`;
 - `MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION`;
@@ -36,8 +37,11 @@ The server publishes these booleans from the non-secret environment switches
 than `1` publishes `false`.
 
 Production write evaluation additionally requires an authenticated session
-request `react-nomenclature-write-evaluation=1`. The write permission is false
-by default and independent of the read-only permission. Local disposable QA
+request `react-nomenclature-write-evaluation=1` and a fresh host-side
+`directories:edit` authorization check for the `nomenclature` resource. The
+same RBAC check gates the visible create/edit/delete capability and runs again
+immediately before every command dispatch. The write permission is false by
+default and independent of the read-only permission. Local disposable QA
 uses `react-nomenclature=1&react-nomenclature-write=1` under the existing
 loopback plus `qa-auth-bypass=1` restriction.
 
@@ -183,3 +187,28 @@ Disable the permission with:
 The deploy account can restart Pilot but cannot write the root-owned systemd
 drop-in. Therefore the permission toggle requires the same narrow root-operator
 handoff model used by the accepted PostgreSQL feature activations.
+
+### Separately approved write evaluation
+
+The repository also ships an independent root-only write toggle. It refuses to
+activate while any other `MES_REACT_*=1` evaluation is effective, installs only
+`71-react-nomenclature-write-evaluation.conf`, requires healthy runtime config
+with the feature and write booleans true and the read-only boolean false, and
+restores the previous configuration if any verification fails:
+
+```sh
+/srv/mes/pilot/app/ops/frontend/activate-react-nomenclature-write-evaluation.sh
+```
+
+Only an authenticated session with `directories:edit` for Nomenclature and the
+explicit `react-nomenclature-write-evaluation=1` request can dispatch a command.
+The intended Pilot procedure is one uniquely named disposable row, React
+create/edit/delete, legacy read-back after each mutation, verified absence of
+the disposable ID, and immediate deactivation:
+
+```sh
+/srv/mes/pilot/app/ops/frontend/deactivate-react-nomenclature-write-evaluation.sh
+```
+
+The rollout toggle alone never creates, edits, or deletes application data and
+does not change the default legacy path.

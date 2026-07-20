@@ -2376,8 +2376,9 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
   },
   getPayload: () => {
     const localQa = getNomenclatureReactLocalQaOverrides();
-    const canCreateEdit = localQa.writeEvaluation
-      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested());
+    const canCreateEdit = (localQa.writeEvaluation
+      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested()))
+      && canEditDirectorySection("nomenclature");
     const deleteUsageById = Object.fromEntries((directoryState.nomenclature || []).map((item) => [
       String(item.id || ""),
       getNomenclatureDeleteUsage(item.id),
@@ -2396,8 +2397,9 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getNomenclatureReactLocalQaOverrides();
-    const writeAllowed = localQa.writeEvaluation
-      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested());
+    const writeAllowed = (localQa.writeEvaluation
+      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested()))
+      && canEditDirectorySection("nomenclature");
     if (!writeAllowed) throw new Error("Nomenclature React write evaluation is disabled");
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "delete") {

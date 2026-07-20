@@ -798,3 +798,36 @@ actions/console, затем немедленно деактивировать и
 - Доказательная оценка остаётся `99.5%` (`+0 п.п.`, осталось `0.5%`), потому что
   финальный аудит исправляет ledger, но не выдаёт внешний owner/approval за
   реализованный React scope.
+
+## Pilot closure continuation 2026-07-20: safe Nomenclature write candidate
+
+- Pilot release `v.1.500.07-5839c94` is healthy and contains the integrated
+  Marking Phase 1 demo. A new `v.1.500.08` candidate is prepared locally but is
+  not yet a live release.
+- The owner explicitly approved a disposable Pilot write evaluation. Live
+  authenticated audit still reports Nomenclature `0`, Boards/BOM `0` and
+  Responsibility Policies `0`; no non-empty parity claim was made.
+- Root enabled the isolated Contour Admin read-only drop-in, but browser
+  acceptance is blocked at the external Admin IP perimeter: Caddy returns
+  `403 Forbidden` before `/admin-login`. The in-app browser is additionally
+  blocked with `ERR_BLOCKED_BY_CLIENT`. No Ops action was invoked. Verify that
+  `deactivate-react-contour-admin-evaluation.sh` (or its scheduled rollback)
+  removed both Contour Admin flags before any other evaluation.
+- The `v.1.500.08` candidate adds an independent root-controlled Nomenclature
+  write rollout. It refuses to activate while any other `MES_REACT_*=1` flag is
+  effective, keeps the read-only flag off, requires an explicit authenticated
+  session request and rechecks `directories:edit` both for capability exposure
+  and immediately before command dispatch.
+- Full `npm run qa:nomenclature-react-island` is green, including the frozen
+  backend guard, production build and disposable `0600` create/edit/legacy
+  read-back/cancel/delete lifecycle. The frozen guard only permits the already
+  reviewed exact Specifications authority assertion rename from `entryId` to
+  `normalizedEntryId`; every other backend-contract diff remains forbidden.
+- After deployment, the only permitted live write procedure is: prove all
+  evaluation flags off; activate
+  `activate-react-nomenclature-write-evaluation.sh`; use one uniquely named
+  disposable row in an authenticated `directories:edit` session with
+  `react-nomenclature-write-evaluation=1`; verify React and legacy read-back;
+  delete that exact ID; prove its absence; immediately run
+  `deactivate-react-nomenclature-write-evaluation.sh`; prove health and every
+  React rollout flag false. Legacy remains the default and rollback surface.
