@@ -23,7 +23,7 @@ const demoSource = `${scenario}\n${model}`;
 for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage"]) {
   assert(!demoSource.includes(forbidden), `Marking demo must not use ${forbidden}`);
 }
-for (const component of ["OperationalPage", "ModuleHeader", "Panel", "MetricGrid", "ActionButton", "StatusToken", "TableWrap", "ModalOverlay"]) {
+for (const component of ["ModulePage", "ModuleHeader", "Panel", "MetricGrid", "ActionButton", "StatusToken", "TableWrap", "ModalOverlay"]) {
   assert(scenario.includes(component), `Marking must use shared MES component ${component}`);
 }
 assert(registry.includes('id: "marking", label: "Маркировка"') && registry.includes('groupId: "operations"'), "Marking must be a normal Operations navigation module");

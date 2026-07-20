@@ -374,6 +374,45 @@ async function waitForLayout(client, expectedModule = "", timeoutMs = 25000) {
   throw new Error(`Page did not become ready for ${expectedModule || "any module"}: ${JSON.stringify(last)}`);
 }
 
+async function waitForModuleContract(client, moduleId, profile = {}, timeoutMs = 25000) {
+  const startedAt = Date.now();
+  let last = null;
+  while (Date.now() - startedAt < timeoutMs) {
+    last = await evaluate(client, ({ moduleId, profile }) => {
+      const shell = document.querySelector('main.app-shell[data-layout="app-shell"]');
+      const page = document.querySelector('[data-ui-component="ModulePage"][data-layout="main-content"]');
+      const workspace = page?.querySelector(':scope > [data-ui-component="ModuleWorkspace"]') || null;
+      const header = page?.querySelector('[data-ui-component="ModuleHeader"]') || null;
+      const sidebar = page?.querySelector(':scope > [data-ui-component="ModuleSidebar"]') || null;
+      const gantt = document.querySelector('.gantt-shell, [data-layout="gantt"]');
+      const ready = shell?.dataset.layoutPage === moduleId
+        && (profile.page === "gantt"
+          ? Boolean(gantt)
+          : Boolean(
+            page
+            && workspace
+            && (profile.header !== "required" || header)
+            && (profile.page !== "sidebar" || sidebar),
+          ));
+      return {
+        ready,
+        layoutPage: shell?.dataset.layoutPage || "",
+        runtimeMode: String(window.MES_APP_CONFIG?.MES_REACT_RUNTIME_POLICY?.surfaces?.[moduleId] || ""),
+        page: Boolean(page),
+        workspace: Boolean(workspace),
+        header: Boolean(header),
+        sidebar: Boolean(sidebar),
+        gantt: Boolean(gantt),
+        appHtml: String(document.querySelector("#app")?.innerHTML || "").replace(/\s+/g, " ").slice(0, 1200),
+        bodyText: String(document.body?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 800),
+      };
+    }, { moduleId, profile });
+    if (last.ready) return last;
+    await delay(140);
+  }
+  throw new Error(`Module contract did not become ready for ${moduleId}: ${JSON.stringify(last)}`);
+}
+
 async function stabilizeVisualState(client) {
   await evaluate(client, async () => {
     let style = document.getElementById("ui-visual-parity-freeze");
@@ -1073,6 +1112,7 @@ async function run() {
       for (const moduleId of moduleIds) {
         await client.send("Page.navigate", { url: moduleUrl(moduleId) });
         await waitForLayout(client, moduleId);
+        await waitForModuleContract(client, moduleId, moduleProfiles[moduleId]);
         await stabilizeVisualState(client);
         const snapshot = await collectSnapshot(client, moduleId, viewport);
         const validation = validateSnapshot(snapshot, moduleProfiles[moduleId]);

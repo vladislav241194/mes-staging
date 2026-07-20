@@ -175,7 +175,7 @@ try {
   permanentReadMode = "hold";
   pendingPermanentReadRequestId = "";
   await client.send("Page.navigate", { url: `${permanentOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1` });
-  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="loading"]')) && !document.querySelector(".weekly-production-control-page:not([data-weekly-production-control-react])"), { message: "permanent Weekly did not own the loading route", timeoutMs: 15_000 });
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="loading"]')) && ![...document.querySelectorAll(".weekly-production-control-page")].some((page) => !page.closest("[data-react-weekly-production-control-island]")), { message: "permanent Weekly did not own the loading route", timeoutMs: 15_000 });
   for (let index = 0; index < 80 && !pendingPermanentReadRequestId; index += 1) await delay(50);
   assert(Boolean(pendingPermanentReadRequestId), "permanent Weekly planning read was not held for loading ownership QA");
   const loadingTelemetry = await evaluate(client, () => window.__MES_QA_REACT_TELEMETRY__ || []);
@@ -191,11 +191,11 @@ try {
 
   await client.send("Page.navigate", { url: `${permanentOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1&react-weekly-production-control-evaluation=0&react-weekly-production-control=0&react-weekly-production-control-readonly=0&react-weekly-production-control-mode=legacy` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="ready"]')), { message: "query parameters downgraded permanent Weekly React", timeoutMs: 15_000 });
-  assert(await evaluate(client, () => !document.querySelector(".weekly-production-control-page:not([data-weekly-production-control-react])")), "query parameters exposed the permanent Weekly legacy renderer");
+  assert(await evaluate(client, () => ![...document.querySelectorAll(".weekly-production-control-page")].some((page) => !page.closest("[data-react-weekly-production-control-island]"))), "query parameters exposed the permanent Weekly legacy renderer");
 
   permanentReadMode = "error";
   await client.send("Page.navigate", { url: `${permanentOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1&qa-read-error=1` });
-  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="error"] [role="alert"]')) && !document.querySelector(".weekly-production-control-page:not([data-weekly-production-control-react])"), { message: "permanent Weekly read failure did not remain in its React error surface", timeoutMs: 15_000 });
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="error"] [role="alert"]')) && ![...document.querySelectorAll(".weekly-production-control-page")].some((page) => !page.closest("[data-react-weekly-production-control-island]")), { message: "permanent Weekly read failure did not remain in its React error surface", timeoutMs: 15_000 });
   const errorTelemetry = await evaluate(client, () => window.__MES_QA_REACT_TELEMETRY__ || []);
   assert(errorTelemetry.filter((event) => event.surfaceId === "weeklyProductionControl" && event.runtimeMode === "react" && event.state === "error" && event.stage === "read" && event.reason === "read-unavailable").length === 1, `permanent Weekly read-error telemetry is not bounded: ${JSON.stringify(errorTelemetry)}`);
 

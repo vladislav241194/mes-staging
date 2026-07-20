@@ -23,7 +23,7 @@ function renderWeeklyProductionControlTarget({ activation = {}, failureReason = 
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем контроль недели</strong><p>Получаем актуальный недельный план и факт…</p></section>';
-  return `<div class="mes-react-weekly-production-control-island" data-react-weekly-production-control-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite">${content}</div>`;
+  return `<div class="mes-react-weekly-production-control-island" data-react-weekly-production-control-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite"><section class="module-page module-data-page ui-module-page is-full-width weekly-production-control-page" data-ui-contract="ops-soft-v1 visual-parity-v2" data-ui-runtime="hard-v1" data-layout="main-content" data-ui-component="ModulePage"><div class="directory-workspace module-data-workspace ui-module-workspace" data-layout="page-workspace" data-ui-component="ModuleWorkspace"><header class="module-header ui-module-header" data-ui-component="ModuleHeader"><div><p>Планирование нагрузки</p><h1>Контроль недели</h1></div></header><div class="module-data-content ui-module-content" data-ui-component="ModuleContent">${content}</div></div></section></div>`;
 }
 
 export function createWeeklyProductionControlReactIslandHost({

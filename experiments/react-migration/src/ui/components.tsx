@@ -2,22 +2,29 @@ import type { ReactNode } from "react";
 
 export function ModuleHeader({ eyebrow, title, badge }: { eyebrow: string; title: string; badge?: ReactNode }) {
   return (
-    <header className="module-header" data-ui-component="ModuleHeader">
+    <header className="module-header ui-module-header" data-ui-component="ModuleHeader">
       <div><p>{eyebrow}</p><h1>{title}</h1></div>
       {badge}
     </header>
   );
 }
 
-export function ModulePage({ header, sidebar = null, children }: { header: ReactNode; sidebar?: ReactNode; children: ReactNode }) {
+export function ModulePage({ header, sidebar = null, children, className = "", label = "" }: { header: ReactNode; sidebar?: ReactNode; children: ReactNode; className?: string; label?: string }) {
   return (
-    <main className="module-page" data-ui-component="ModulePage">
-      {header}
-      <div className="module-layout">
-        {sidebar}
-        <section className="workspace" data-ui-component="ModuleWorkspace">{children}</section>
+    <section
+      aria-label={label || undefined}
+      className={`module-page module-data-page ui-module-page ${sidebar ? "has-sidebar module-layout" : "is-full-width"} ${className}`}
+      data-ui-contract="ops-soft-v1 visual-parity-v2"
+      data-layout="main-content"
+      data-ui-component="ModulePage"
+      data-ui-runtime="hard-v1"
+    >
+      {sidebar}
+      <div className="directory-workspace module-data-workspace ui-module-workspace" data-layout="page-workspace" data-ui-component="ModuleWorkspace">
+        {header}
+        <div className="module-data-content ui-module-content" data-ui-component="ModuleContent">{children}</div>
       </div>
-    </main>
+    </section>
   );
 }
 
@@ -61,7 +68,7 @@ export function MetricCard({ label, meta, value }: { label: ReactNode; meta?: Re
 }
 
 export function ActionButton({ children, disabled = false, onClick, title, variant = "primary" }: { children: ReactNode; disabled?: boolean; onClick?(): void; title?: string; variant?: "primary" | "secondary" | "danger" }) {
-  return <button className={`action action--${variant}`} data-ui-component="ActionButton" disabled={disabled} onClick={onClick} title={title} type="button">{children}</button>;
+  return <button className={`action action--${variant}`} data-ui-component="ActionButton" data-ui-variant={variant} disabled={disabled} onClick={onClick} title={title} type="button">{children}</button>;
 }
 
 export function DeleteConfirmation({ busy = false, children, error = "", id, onCancel, onConfirm, title }: {

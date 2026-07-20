@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActionButton, MetricCard, MetricGrid, ModuleHeader, OperationalPage, Panel, StatusToken, TableWrap } from "../../ui/components";
+import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, Panel, StatusToken, TableWrap } from "../../ui/components";
 import { ModalOverlay } from "../../ui/ModalOverlay";
 import { createKits, createMarkingDemoState, historyItem, taskMetrics, type MarkingDemoState, type MarkingTab, type MarkingTask } from "./model";
 
@@ -41,9 +41,8 @@ export function MarkingScenario({ payload }: { payload: unknown }) {
   const normalizedQuery = query.trim().toUpperCase();
   const searchResult = searched ? state.tasks.flatMap((task) => task.kits.map((kit) => ({ task, kit }))).find(({ kit }) => kit.masterCode === normalizedQuery || kit.individualCodes.includes(normalizedQuery)) : undefined;
 
-  return <OperationalPage className="marking-react" label="Маркировка">
-    <ModuleHeader eyebrow="Оперативное управление" title="Маркировка" badge={<span className="marking-demo-badge">DEMO · MEMORY ONLY</span>} />
-    <div className="marking-demo-boundary" role="note"><strong>Демонстрационный модуль</strong><span>Все задания и действия помечены MOCK. Нет API, БД и сохранения; перезагрузка сбрасывает состояние.</span><code>{contract.mode || "mock"} · {contract.persistence || "memory-only"}</code></div>
+  return <ModulePage className="marking-react" label="Маркировка" header={<ModuleHeader eyebrow="Оперативное управление" title="Маркировка" badge={<span className="marking-demo-badge">DEMO · MEMORY ONLY</span>} />}>
+    <div className="marking-demo-boundary" role="note"><strong>Демонстрационный модуль</strong><span>Все данные и действия — MOCK. Нет API, БД и сохранения; перезагрузка сбрасывает их.</span><code>{contract.mode || "mock"} · {contract.persistence || "memory-only"}</code></div>
     <section className="marking-react-layout">
       <Panel heading={<div className="panel-heading"><div><p>Рабочая очередь</p><h2>Задания маркировки</h2></div><StatusToken label={`${state.tasks.length} MOCK`} tone="neutral" /></div>}>
         <div className="marking-task-list" data-marking-task-list>{state.tasks.map((task) => {
@@ -78,5 +77,5 @@ export function MarkingScenario({ payload }: { payload: unknown }) {
     {searchOpen ? <ModalOverlay className="marking-search-modal" eyebrow="Только просмотр · MOCK" label="Проверка кода маркировки" onClose={() => setSearchOpen(false)} title="Проверить код">
       <div className="marking-search"><label><span>Мастер-код или код платы</span><div><input onChange={(event) => { setQuery(event.currentTarget.value.toUpperCase()); setSearched(false); }} placeholder={selected.kits[0]?.masterCode || "Введите код"} value={query} /><ActionButton disabled={!query.trim()} onClick={() => setSearched(true)}>Найти</ActionButton></div></label>{searchResult ? <section className="marking-search-result"><StatusToken label="Найдено" tone="success" /><strong>{searchResult.task.product}</strong><span>{searchResult.task.workOrder} · комплект № {searchResult.kit.sequence}</span><code>{normalizedQuery}</code></section> : searched ? <div className="marking-empty"><strong>Код не найден в MOCK-состоянии</strong><span>Производственные источники в фазе 1 не подключены.</span></div> : <p>Можно вставить один из кодов выбранного задания. Поиск не изменяет состояние MES.</p>}</div>
     </ModalOverlay> : null}
-  </OperationalPage>;
+  </ModulePage>;
 }
