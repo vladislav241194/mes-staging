@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { computeTreeSha } from "./release-tree-sha.mjs";
+import { REACT_RUNTIME_POLICY_FILE, normalizeReactRuntimePolicy } from "./react-runtime-policy.mjs";
 
 function parseArgs(argv) {
   const args = { manifest: "", appRoot: process.cwd(), expectedReleaseId: "", json: false };
@@ -53,7 +54,7 @@ async function main() {
   const manifestPath = resolve(args.manifest);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
-  assert([1, 2].includes(manifest?.schemaVersion), "Unsupported release manifest schema");
+  assert([1, 2, 3].includes(manifest?.schemaVersion), "Unsupported release manifest schema");
   assert(typeof manifest.releaseId === "string" && manifest.releaseId, "Manifest release id is missing");
   assert(isGitObjectId(manifest.gitCommit), "Manifest Git commit is invalid");
   if (args.expectedReleaseId) {
@@ -77,6 +78,36 @@ async function main() {
     assert(provenance.verification === "fresh-upstream-fetch", "Manifest Git provenance was not verified against a fresh upstream fetch");
     assert(typeof provenance.verifiedAt === "string" && provenance.verifiedAt, "Manifest Git provenance verification time is missing");
     gitProvenanceVerification = provenance.verification;
+  }
+
+  let runtimePolicyId = "implicit-legacy";
+  let runtimePolicySha256 = null;
+  let reactSurfaces = [];
+  if (manifest.schemaVersion >= 3) {
+    assert(typeof manifest.packageLockSha256 === "string" && /^[a-f0-9]{64}$/i.test(manifest.packageLockSha256), "Manifest package-lock digest is invalid");
+    const actualPackageLockSha256 = await sha256(resolveAppFile(appRoot, "package-lock.json"));
+    assert(actualPackageLockSha256 === manifest.packageLockSha256, "Release package-lock hash mismatch");
+
+    const runtimePolicyArtifact = manifest.runtimePolicy;
+    assert(runtimePolicyArtifact?.schemaVersion === 1, "Manifest React runtime policy schema is unsupported");
+    assert(isSafeRelativePath(runtimePolicyArtifact.path), "Manifest React runtime policy path is unsafe");
+    assert(runtimePolicyArtifact.path === REACT_RUNTIME_POLICY_FILE, "Manifest React runtime policy path is unsupported");
+    assert(typeof runtimePolicyArtifact.policyId === "string" && runtimePolicyArtifact.policyId, "Manifest React runtime policy id is missing");
+    assert(typeof runtimePolicyArtifact.sha256 === "string" && /^[a-f0-9]{64}$/i.test(runtimePolicyArtifact.sha256), "Manifest React runtime policy digest is invalid");
+    const runtimePolicyPath = resolveAppFile(appRoot, runtimePolicyArtifact.path);
+    const runtimePolicySource = await readFile(runtimePolicyPath, "utf8");
+    const actualRuntimePolicySha256 = createHash("sha256").update(runtimePolicySource).digest("hex");
+    assert(actualRuntimePolicySha256 === runtimePolicyArtifact.sha256, "Release React runtime policy hash mismatch");
+    const runtimePolicy = normalizeReactRuntimePolicy(JSON.parse(runtimePolicySource), {
+      sha256Digest: actualRuntimePolicySha256,
+      source: runtimePolicyArtifact.path,
+    });
+    assert(runtimePolicy.policyId === runtimePolicyArtifact.policyId, "Release React runtime policy id does not match manifest");
+    runtimePolicyId = runtimePolicy.policyId;
+    runtimePolicySha256 = actualRuntimePolicySha256;
+    reactSurfaces = Object.entries(runtimePolicy.surfaces)
+      .filter(([, mode]) => mode === "react")
+      .map(([id]) => id);
   }
 
   const compatibilityArtifacts = Array.isArray(manifest.compatibilityArtifacts)
@@ -113,6 +144,9 @@ async function main() {
     distTreeSha256,
     compatibilityArtifactCount: compatibilityArtifacts.length,
     gitProvenanceVerification,
+    runtimePolicyId,
+    runtimePolicySha256,
+    reactSurfaces,
   };
   process.stdout.write(args.json ? `${JSON.stringify(result)}\n` : `${result.releaseId}\n`);
 }

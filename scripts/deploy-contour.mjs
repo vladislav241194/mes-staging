@@ -43,6 +43,7 @@ const SOURCE_FILES = [
   "server.js",
   "package.json",
   "package-lock.json",
+  "react-runtime-policy.json",
   "bootstrap-snapshot.json",
   "mes-planning-prototype.png",
 ];

@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { assertNoIgnoredReleaseInputs, collectPublishedGitProvenance } from "./release-provenance.mjs";
 import { computeTreeSha } from "./release-tree-sha.mjs";
+import { REACT_RUNTIME_SURFACE_IDS } from "./react-runtime-policy.mjs";
 
 const execFile = promisify(execFileCallback);
 const commit = "a".repeat(40);
@@ -62,6 +63,14 @@ async function verifyManifestContract() {
   await mkdir(join(appRoot, "dist"));
   await writeFile(join(appRoot, "source.txt"), "source\n");
   await writeFile(join(appRoot, "dist", "index.js"), "dist\n");
+  const packageLock = '{"lockfileVersion":3}\n';
+  const runtimePolicy = `${JSON.stringify({
+    schemaVersion: 1,
+    policyId: "qa-runtime-policy",
+    surfaces: Object.fromEntries(REACT_RUNTIME_SURFACE_IDS.map((id) => [id, "evaluation"])),
+  }, null, 2)}\n`;
+  await writeFile(join(appRoot, "package-lock.json"), packageLock);
+  await writeFile(join(appRoot, "react-runtime-policy.json"), runtimePolicy);
   const bootstrapSnapshot = "{\"schemaVersion\":1}\n";
   const bootstrapSnapshotGzip = "gzip-fixture\n";
   const bootstrapSnapshotBrotli = "brotli-fixture\n";
@@ -69,7 +78,7 @@ async function verifyManifestContract() {
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), bootstrapSnapshot);
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.gz"), bootstrapSnapshotGzip);
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.br"), bootstrapSnapshotBrotli);
-  const runtimeIncludes = ["source.txt"];
+  const runtimeIncludes = ["source.txt", "package-lock.json", "react-runtime-policy.json"];
   const bootstrapSnapshotArtifact = {
     id: "bootstrap-snapshot",
     sha256: sha256(bootstrapSnapshot),
@@ -80,7 +89,7 @@ async function verifyManifestContract() {
     ],
   };
   const manifest = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     releaseId: "qa-release",
     gitCommit: commit,
     gitProvenance: {
@@ -105,7 +114,13 @@ async function verifyManifestContract() {
         "dist/bootstrap-snapshot.json.br",
       ],
     }),
-    packageLockSha256: "d".repeat(64),
+    packageLockSha256: sha256(packageLock),
+    runtimePolicy: {
+      schemaVersion: 1,
+      path: "react-runtime-policy.json",
+      policyId: "qa-runtime-policy",
+      sha256: sha256(runtimePolicy),
+    },
     compatibilityArtifacts: [bootstrapSnapshotArtifact],
   };
   const manifestPath = join(appRoot, "release-manifest.json");
@@ -115,6 +130,17 @@ async function verifyManifestContract() {
   const parsed = JSON.parse(passing.stdout);
   assert(parsed.gitProvenanceVerification === "fresh-upstream-fetch", "Verifier must report fresh Git provenance");
   assert(parsed.compatibilityArtifactCount === 1, "Verifier must report the bootstrap compatibility artifact");
+  assert(parsed.runtimePolicyId === "qa-runtime-policy", "Verifier must report the packaged React runtime policy");
+  assert(parsed.runtimePolicySha256 === sha256(runtimePolicy), "Verifier must report the packaged policy digest");
+
+  manifest.runtimePolicy.path = "../react-runtime-policy.json";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Manifest React runtime policy path is unsafe",
+  );
+  manifest.runtimePolicy.path = "react-runtime-policy.json";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), "{\"corrupt\":true}\n");
   await expectFailure(
@@ -130,12 +156,33 @@ async function verifyManifestContract() {
   );
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.gz"), bootstrapSnapshotGzip);
 
+  await writeFile(join(appRoot, "react-runtime-policy.json"), runtimePolicy.replace('"evaluation"', '"legacy"'));
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Release React runtime policy hash mismatch",
+  );
+  await writeFile(join(appRoot, "react-runtime-policy.json"), runtimePolicy);
+
+  await writeFile(join(appRoot, "package-lock.json"), '{"corrupt":true}\n');
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Release package-lock hash mismatch",
+  );
+  await writeFile(join(appRoot, "package-lock.json"), packageLock);
+
   manifest.gitProvenance.verification = "cached-upstream";
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
   await expectFailure(
     () => execFile("node", command, { cwd: process.cwd() }),
     "Manifest Git provenance was not verified against a fresh upstream fetch",
   );
+
+  manifest.gitProvenance.verification = "fresh-upstream-fetch";
+  manifest.schemaVersion = 2;
+  delete manifest.runtimePolicy;
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const schemaTwo = await execFile("node", command, { cwd: process.cwd() });
+  assert(JSON.parse(schemaTwo.stdout).runtimePolicyId === "implicit-legacy", "Schema 2 manifests must remain implicit-legacy compatible");
 
   manifest.schemaVersion = 1;
   delete manifest.gitProvenance;
@@ -176,7 +223,8 @@ await expectFailure(
 const stageSource = await readFile(resolve(process.cwd(), "scripts/release-stage.mjs"), "utf8");
 assert(stageSource.includes("collectPublishedGitProvenance"), "Release staging must use the Git provenance guard");
 assert(stageSource.includes("refreshRemote: !args.dryRun"), "Only real staging may require live Git remote verification");
-assert(stageSource.includes("schemaVersion: 2"), "New staged manifests must carry the provenance schema");
+assert(stageSource.includes("schemaVersion: 3"), "New staged manifests must carry the runtime-policy provenance schema");
+assert(stageSource.includes("runtimePolicySha256") && stageSource.includes("REACT_RUNTIME_POLICY_FILE"), "Release staging must package and hash the React runtime policy");
 assert(stageSource.includes("assertReleaseSourceStillMatchesProvenance(gitCommit)"), "Release staging must recheck source provenance after building");
 assert(stageSource.includes("prepareLocalBootstrapSnapshotArtifact"), "Release staging must materialize the external bootstrap snapshot for clean local builds");
 assert(stageSource.includes("await localBootstrapSnapshot.cleanup()"), "Release staging must remove the temporary local bootstrap snapshot before provenance is rechecked");

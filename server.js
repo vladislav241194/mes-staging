@@ -19,6 +19,12 @@ import {
 } from "./scripts/shared-state-storage.mjs";
 import { writeContourFavicon } from "./scripts/contour-favicon.mjs";
 import { handlePublicAuthRequest } from "./scripts/public-auth-guard.mjs";
+import {
+  assertSingleReactEvaluationPermission,
+  getPublicReactRuntimePolicy,
+  loadReactRuntimePolicy,
+  summarizeReactRuntimePolicy,
+} from "./scripts/react-runtime-policy.mjs";
 
 const root = new URL(".", import.meta.url).pathname;
 const host = process.env.HOST || "localhost";
@@ -26,6 +32,12 @@ const port = Number(process.env.PORT || 4174);
 const sharedStatePaths = getSharedStateServerPaths({
   projectRoot: root,
   fallbackFile: join(root, ".mes-shared-state.json"),
+});
+const reactRuntimePolicy = await loadReactRuntimePolicy({ projectRoot: root, env: process.env });
+const activeReactEvaluationSurfaces = assertSingleReactEvaluationPermission(process.env, reactRuntimePolicy);
+const publicReactRuntimePolicy = getPublicReactRuntimePolicy(reactRuntimePolicy);
+const reactRuntimeSummary = summarizeReactRuntimePolicy(reactRuntimePolicy, {
+  activeEvaluationSurfaces: activeReactEvaluationSurfaces,
 });
 const brotliCompressAsync = promisify(brotliCompress);
 const gzipAsync = promisify(gzip);
@@ -140,7 +152,7 @@ async function renderIndexHtml() {
   ]);
 
   return html
-    .replace("</head>", `${renderRuntimeConfigScript(process.env)}\n  </head>`)
+    .replace("</head>", `${renderRuntimeConfigScript(process.env, { reactRuntimePolicy: publicReactRuntimePolicy })}\n  </head>`)
     .replace(/\.\/styles\.css(?:\?v=[^"]*)?/g, `./styles.css?v=${stylesVersion}`)
     .replace(/\.\/src\/app\.js(?:\?v=[^"]*)?/, `./src/app.js?v=${appVersion}`);
 }
@@ -164,7 +176,7 @@ async function writeRuntimeHealth(res) {
   }
 
   res.writeHead(statusCode, noCacheHeaders("application/json; charset=utf-8"));
-  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState }));
+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState, reactRuntime: reactRuntimeSummary }));
 }
 
 createServer(async (req, res) => {

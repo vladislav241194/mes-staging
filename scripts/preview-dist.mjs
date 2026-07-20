@@ -21,6 +21,12 @@ import {
 import { writeContourFavicon } from "./contour-favicon.mjs";
 import { handlePublicAuthRequest } from "./public-auth-guard.mjs";
 import { handleInternalShiftExecutionE2eRequest } from "./internal-shift-execution-e2e-endpoint.mjs";
+import {
+  assertSingleReactEvaluationPermission,
+  getPublicReactRuntimePolicy,
+  loadReactRuntimePolicy,
+  summarizeReactRuntimePolicy,
+} from "./react-runtime-policy.mjs";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = join(projectRoot, "dist");
@@ -29,6 +35,12 @@ const port = Number(process.env.PORT || 4174);
 const sharedStatePaths = getSharedStateServerPaths({
   projectRoot,
   fallbackFile: join(projectRoot, ".mes-shared-state.json"),
+});
+const reactRuntimePolicy = await loadReactRuntimePolicy({ projectRoot: distDir, env: process.env });
+const activeReactEvaluationSurfaces = assertSingleReactEvaluationPermission(process.env, reactRuntimePolicy);
+const publicReactRuntimePolicy = getPublicReactRuntimePolicy(reactRuntimePolicy);
+const reactRuntimeSummary = summarizeReactRuntimePolicy(reactRuntimePolicy, {
+  activeEvaluationSurfaces: activeReactEvaluationSurfaces,
 });
 const brotliCompressAsync = promisify(brotliCompress);
 const gzipAsync = promisify(gzip);
@@ -157,7 +169,7 @@ async function ensureDistExists() {
 
 async function renderPreviewHtml(filePath = join(distDir, "index.html")) {
   const html = await readFile(filePath, "utf-8");
-  return html.replace("</head>", `${renderRuntimeConfigScript(process.env)}\n  </head>`);
+  return html.replace("</head>", `${renderRuntimeConfigScript(process.env, { reactRuntimePolicy: publicReactRuntimePolicy })}\n  </head>`);
 }
 
 async function writeRuntimeHealth(res) {
@@ -179,7 +191,7 @@ async function writeRuntimeHealth(res) {
   }
 
   res.writeHead(statusCode, noCacheHeaders("application/json; charset=utf-8"));
-  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState }));
+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState, reactRuntime: reactRuntimeSummary }));
 }
 
 if (!(await ensureDistExists())) {

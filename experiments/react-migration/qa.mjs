@@ -1283,6 +1283,15 @@ try {
   const eligibleWeeklyProductionControlHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleWeeklyProductionControlHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleWeeklyProductionControlHost.renderTarget(), /data-react-weekly-production-control-island/);
+  const permanentWeeklyLoadingHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, runtimeMode: "react", policyId: "qa-weekly-react", serverReadReady: false, serverReadFailure: "", accessMode: "react" });
+  assert.deepEqual(permanentWeeklyLoadingHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Weekly React must own the route while its PostgreSQL read is pending");
+  assert.match(permanentWeeklyLoadingHost.renderTarget(), /data-react-island-runtime-mode="react"[\s\S]*data-react-island-state="loading"[\s\S]*role="status"/, "permanent Weekly pending state must remain a React-owned loading shell");
+  const permanentWeeklyErrorHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, runtimeMode: "react", policyId: "qa-weekly-react", serverReadReady: false, serverReadFailure: "compatibility-fallback", accessMode: "react" });
+  assert.deepEqual(permanentWeeklyErrorHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Weekly React must own server read failures");
+  assert.match(permanentWeeklyErrorHost.renderTarget(), /data-react-island-state="error"[\s\S]*role="alert"[\s\S]*compatibility-fallback/, "permanent Weekly read failure must render a bounded React error surface");
+  const permanentWeeklyReadyHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, runtimeMode: "react", policyId: "qa-weekly-react", serverReadReady: true, serverReadFailure: "", accessMode: "react" });
+  assert.deepEqual(permanentWeeklyReadyHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(permanentWeeklyReadyHost.renderTarget(), /data-react-island-state="loading"/, "ready permanent Weekly must retain its React loading target until the bundle commits");
 
   const timesheetProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/timesheet/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeTimesheetProductionHost = (activation) => timesheetProductionHostModule.createTimesheetReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
@@ -1513,6 +1522,9 @@ try {
   assert.match(productionAppSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL === true/);
   assert.match(productionAppSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-weekly-production-control-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /resolveReactRuntimeActivation\(\{[\s\S]*?surfaceId: "weeklyProductionControl"/, "Weekly activation must derive from the immutable three-mode release policy");
+  assert.match(productionAppSource, /getWeeklyProductionControlReactReadState\(\)/, "Weekly permanent ownership must distinguish read loading, failure and readiness");
+  assert.match(productionAppSource, /waitingForScheduledReadRetry/, "Weekly read errors must wait for the bounded retry instead of re-entering render immediately");
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /ensureProductionStructureMatrixModule\(\);[\s\S]*?hydrateWeeklyPlanningPeriod\(\)/);
@@ -1587,6 +1599,8 @@ try {
   const weeklyProductionControlHostSource = await readFile(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js"), "utf8");
   assert.match(weeklyProductionControlHostSource, /createReactIslandHost/);
   assert.match(weeklyProductionControlHostSource, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
+  assert.match(weeklyProductionControlHostSource, /activation\.accessMode === "react"/, "permanent Weekly must own its route before server read readiness");
+  assert.match(weeklyProductionControlHostSource, /getShellState:[\s\S]*?compatibility-fallback|serverReadFailure/, "permanent Weekly must render loading and read-error shells without legacy");
   const planningWorkbenchHostSource = await readFile(join(repositoryRoot, "src/modules/planning_workbench/react_island_host.js"), "utf8");
   assert.match(planningWorkbenchHostSource, /onNavigate: navigate/);
   assert.match(planningWorkbenchHostSource, /onCommand: executeCommand/);
@@ -1751,9 +1765,41 @@ try {
     assert.equal(schemaQaChanges.filter((line) => line.startsWith("+")).length, 13, "Responsibility-policy schema QA exception must remain the exact additive lifecycle gate");
     assert(schemaQaChanges.every((line) => /responsibilityPolicyLifecycle|Responsibility-policy lifecycle|Responsibility Policy lifecycle|ALTER TABLE system_responsibility_policies|ADD COLUMN IF NOT EXISTS (?:is_active|archived_at)|026_system_responsibility_policy_lifecycle|PostgreSQL domain preflight|^\+\[$|^\+\]\.forEach|^\+assert\($|^\+  |^\+\);/.test(line)), "Responsibility-policy schema QA exception contains an unrelated change");
   }
+  const reactRuntimePolicyDeliveryPaths = new Set([
+    "server.js",
+    "scripts/react-runtime-policy.mjs",
+    "react-runtime-policy.json",
+  ]);
+  if ([...reactRuntimePolicyDeliveryPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...reactRuntimePolicyDeliveryPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...reactRuntimePolicyDeliveryPaths].sort(),
+      "React runtime policy delivery must include the server loader and immutable policy artifact together",
+    );
+    const { stdout: serverPolicyDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "server.js"], { cwd: repositoryRoot });
+    const serverPolicyChanges = serverPolicyDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
+    assert.deepEqual(serverPolicyChanges, [
+      '+import {',
+      '+  assertSingleReactEvaluationPermission,',
+      '+  getPublicReactRuntimePolicy,',
+      '+  loadReactRuntimePolicy,',
+      '+  summarizeReactRuntimePolicy,',
+      '+} from "./scripts/react-runtime-policy.mjs";',
+      '+const reactRuntimePolicy = await loadReactRuntimePolicy({ projectRoot: root, env: process.env });',
+      '+const activeReactEvaluationSurfaces = assertSingleReactEvaluationPermission(process.env, reactRuntimePolicy);',
+      '+const publicReactRuntimePolicy = getPublicReactRuntimePolicy(reactRuntimePolicy);',
+      '+const reactRuntimeSummary = summarizeReactRuntimePolicy(reactRuntimePolicy, {',
+      '+  activeEvaluationSurfaces: activeReactEvaluationSurfaces,',
+      '+});',
+      '-    .replace("</head>", `${renderRuntimeConfigScript(process.env)}\\n  </head>`)',
+      '+    .replace("</head>", `${renderRuntimeConfigScript(process.env, { reactRuntimePolicy: publicReactRuntimePolicy })}\\n  </head>`)',
+      '-  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState }));',
+      '+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState, reactRuntime: reactRuntimeSummary }));',
+    ], "React migration may publish only the reviewed non-secret policy and health summary through server.js");
+  }
   const frozenBackendDiff = changedPaths
     .filter(isFrozenBackendPath)
-    .filter((path) => path !== specificationsAuthorityQaPath && !responsibilityLifecyclePaths.has(path));
+    .filter((path) => path !== specificationsAuthorityQaPath && !responsibilityLifecyclePaths.has(path) && !reactRuntimePolicyDeliveryPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([

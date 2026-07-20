@@ -7,6 +7,10 @@ import { performance } from "node:perf_hooks";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { assertNoIgnoredReleaseInputs, collectPublishedGitProvenance } from "./release-provenance.mjs";
+import {
+  REACT_RUNTIME_POLICY_FILE,
+  normalizeReactRuntimePolicy,
+} from "./react-runtime-policy.mjs";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sshControlPath = join(process.env.HOME || "/tmp", ".ssh", "mes-codex-%C");
@@ -54,6 +58,7 @@ const RUNTIME_FILES = [
   "server.js",
   "package.json",
   "package-lock.json",
+  REACT_RUNTIME_POLICY_FILE,
   "mes-planning-prototype.png",
   "vercel.json",
 ];
@@ -354,8 +359,14 @@ async function main() {
   const sourceTreeSha256 = await treeSha(SOURCE_INCLUDES);
   const distTreeSha256 = secondDistTreeSha256;
   const packageLockSha256 = await sha256(join(projectRoot, "package-lock.json"));
+  const runtimePolicySource = await readFile(join(projectRoot, REACT_RUNTIME_POLICY_FILE), "utf8");
+  const runtimePolicySha256 = createHash("sha256").update(runtimePolicySource).digest("hex");
+  const runtimePolicy = normalizeReactRuntimePolicy(JSON.parse(runtimePolicySource), {
+    sha256Digest: runtimePolicySha256,
+    source: REACT_RUNTIME_POLICY_FILE,
+  });
   const manifest = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     releaseId,
     createdAt: new Date().toISOString(),
     contour: args.contour,
@@ -370,6 +381,12 @@ async function main() {
     sourceTreeSha256,
     distTreeSha256,
     packageLockSha256,
+    runtimePolicy: {
+      schemaVersion: runtimePolicy.schemaVersion,
+      path: REACT_RUNTIME_POLICY_FILE,
+      policyId: runtimePolicy.policyId,
+      sha256: runtimePolicySha256,
+    },
     compatibilityArtifacts: [bootstrapSnapshotArtifact],
     verification: {
       localBuild: "npm ci && npm run qa:stabilize && npm run build twice with matching dist digest",
@@ -400,6 +417,7 @@ async function main() {
 
   console.log(`- source sha256: ${sourceTreeSha256}`);
   console.log(`- dist sha256: ${distTreeSha256}`);
+  console.log(`- React runtime policy: ${runtimePolicy.policyId} (${runtimePolicySha256})`);
   console.log(`- staged path: ${releasePath}`);
   console.log(`- active app unchanged: ${contour.appPath}`);
   console.log(`- total: ${formatDuration(performance.now() - startedAt)}`);

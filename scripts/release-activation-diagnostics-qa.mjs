@@ -68,6 +68,7 @@ exit 0
     "4175",
     "https://example.invalid",
     "false",
+    "false",
   ], {
     cwd: directory,
     encoding: "utf8",

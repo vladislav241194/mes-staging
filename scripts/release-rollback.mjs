@@ -16,7 +16,7 @@ const CONTOURS = {
 function shellQuote(value) { return `'${String(value).replace(/'/g, "'\\''")}'`; }
 function formatDuration(ms) { return `${(ms / 1000).toFixed(2)}s`; }
 function parseArgs(argv) {
-  const args = { contour: "pilot", remote: "mes-line", dryRun: false };
+  const args = { contour: "pilot", remote: "mes-line", dryRun: false, target: "previous" };
   for (const arg of argv) {
     if (!arg.startsWith("--")) throw new Error(`Unknown positional argument: ${arg}`);
     const [key, rawValue] = arg.slice(2).split("=");
@@ -24,9 +24,17 @@ function parseArgs(argv) {
     if (key === "contour") args.contour = String(value);
     else if (key === "remote") args.remote = String(value);
     else if (key === "dry-run") args.dryRun = true;
+    else if (key === "target") args.target = String(value);
     else throw new Error(`Unknown option: --${key}`);
   }
+  if (!["previous", "legacy-baseline"].includes(args.target)) throw new Error("--target must be previous or legacy-baseline");
   return args;
+}
+
+function safeReleaseId(value) {
+  const normalized = String(value || "").trim();
+  if (!/^[A-Za-z0-9._-]{1,96}$/.test(normalized)) throw new Error("Active release record contains an unsafe release id");
+  return normalized;
 }
 
 async function run(command, args, { input = "", allowFailure = false } = {}) {
@@ -52,23 +60,27 @@ function remoteBashArgs(remote, values) {
   return [...sshOptions, remote, `bash -s -- ${values.map(shellQuote).join(" ")}`];
 }
 
-function assertSafePrevious(record, contour) {
-  const previous = record?.previous;
-  if (!record?.releaseId || !previous || !["release-pointer", "legacy-directory"].includes(previous.kind)) {
-    throw new Error("Active release record has no rollback-eligible previous runtime");
+function assertSafeRestoreTarget(record, contour, targetMode) {
+  safeReleaseId(record?.releaseId);
+  const selected = targetMode === "legacy-baseline" ? record?.legacyBaseline : record?.previous;
+  if (!selected || !["release-pointer", "legacy-directory"].includes(selected.kind)) {
+    throw new Error(targetMode === "legacy-baseline"
+      ? "Active release record has no pinned legacy baseline"
+      : "Active release record has no rollback-eligible previous runtime");
   }
-  if (previous.kind === "release-pointer") {
-    const target = String(previous.target || "");
-    if (!target.startsWith(`${contour.releasesPath}/`) || !target.endsWith("/app") || target.includes("/../")) {
-      throw new Error("Active release record contains an unsafe previous release target");
+  if (selected.kind === "release-pointer") {
+    const releaseId = safeReleaseId(selected.releaseId || String(selected.target || "").split("/").at(-2));
+    const target = String(selected.target || "");
+    if (target !== `${contour.releasesPath}/${releaseId}/app`) {
+      throw new Error("Active release record contains an unsafe release rollback target");
     }
   } else {
-    const legacyPath = String(previous.legacyPath || "");
+    const legacyPath = String(selected.legacyPath || "");
     if (!legacyPath.startsWith(`${contour.releasesPath}/legacy-app-pre-`) || legacyPath.includes("/../")) {
-      throw new Error("Active release record contains an unsafe legacy rollback path");
+      throw new Error("Active release record contains an unsafe legacy-directory rollback path");
     }
   }
-  return previous;
+  return selected;
 }
 
 const rollbackScript = String.raw`#!/usr/bin/env bash
@@ -83,6 +95,8 @@ current_release_id="$6"
 previous_kind="$7"
 restore_path="$8"
 dry_run="$9"
+shift 9
+target_mode="$1"
 previous_target=""
 legacy_path=""
 if [ "$previous_kind" = "release-pointer" ]; then
@@ -97,6 +111,8 @@ rolled_pointer="$releases_path/rolled-back-pointer-$timestamp"
 failed_runtime="$releases_path/failed-rollback-runtime-$timestamp"
 health_body="$releases_path/rollback-health-$timestamp.json"
 switched=0
+restore_policy_sha=""
+restore_verification='{}'
 
 restore_current() {
   set +e
@@ -129,14 +145,19 @@ if [ "$previous_kind" = "release-pointer" ]; then
   previous_release_id="$(basename "$previous_release_path")"
   test -f "$previous_release_path/release-manifest.json"
   test -f "$previous_target/scripts/release-verify.mjs"
-  (cd "$previous_target" && node scripts/release-verify.mjs --manifest="$previous_release_path/release-manifest.json" --expected-release-id="$previous_release_id" --json)
+  restore_verification="$(cd "$previous_target" && node scripts/release-verify.mjs --manifest="$previous_release_path/release-manifest.json" --expected-release-id="$previous_release_id" --json)"
+  printf '%s\n' "$restore_verification"
+  restore_policy_sha="$(node --input-type=module -e '
+    const verification = JSON.parse(process.argv[1]);
+    process.stdout.write(String(verification.runtimePolicySha256 || ""));
+  ' "$restore_verification")"
 else
   test -d "$legacy_path/app"
   test -f "$legacy_path/app/dist/index.html"
 fi
 
 if [ "$dry_run" = "true" ]; then
-  printf 'DRY_RUN current=%s previous_kind=%s previous_target=%s legacy_path=%s\n' "$current_target" "$previous_kind" "$previous_target" "$legacy_path"
+  printf 'DRY_RUN target_mode=%s current=%s restore_kind=%s restore_target=%s legacy_path=%s policy_sha=%s\n' "$target_mode" "$current_target" "$previous_kind" "$previous_target" "$legacy_path" "$restore_policy_sha"
   exit 0
 fi
 
@@ -151,7 +172,7 @@ switched=1
 sudo -n /usr/bin/systemctl restart "$service"
 
 check_health() {
-  local health_url="$1" attempt health_code
+  local health_url="$1" expected_policy_sha="$2" attempt health_code
   for attempt in $(seq 1 12); do
     if systemctl is-active --quiet "$service"; then
       health_code="$(curl -sS --max-time 10 -o "$health_body" -w '%{http_code}' "$health_url" || true)"
@@ -159,45 +180,66 @@ check_health() {
         import { readFile } from "node:fs/promises";
         const health = JSON.parse(await readFile(process.argv[1], "utf8"));
         if (health?.status !== "ok" || health?.sharedState !== "ready") process.exit(1);
-      ' "$health_body"; then return 0; fi
+        const expectedPolicySha = String(process.argv[2] || "");
+        if (expectedPolicySha && health?.reactRuntime?.sha256 !== expectedPolicySha) process.exit(1);
+      ' "$health_body" "$expected_policy_sha"; then return 0; fi
     fi
     sleep "$attempt"
   done
   return 1
 }
 
-check_health "http://localhost:$port/healthz"
-check_health "$public_health_url"
+check_health "http://localhost:$port/healthz" "$restore_policy_sha"
+check_health "$public_health_url" "$restore_policy_sha"
 
 node --input-type=module - \
   "$releases_path/active-release.json.next" \
   "$releases_path/$current_release_id/rollback-$timestamp.json.next" \
-  "$previous_kind" "$previous_target" "$legacy_path" "$current_release_id" "$timestamp" <<'NODE'
+  "$releases_path/active-release.json" \
+  "$previous_kind" "$previous_target" "$legacy_path" "$current_release_id" "$timestamp" \
+  "$target_mode" "$restore_verification" <<'NODE'
 import { readFile, writeFile } from "node:fs/promises";
-const [activePath, rollbackPath, previousKind, previousTarget, legacyPath, rolledBackReleaseId, rolledBackAt] = process.argv.slice(2);
-let active;
+const [activePath, rollbackPath, currentActivePath, previousKind, previousTarget, legacyPath, rolledBackReleaseId, rolledBackAt, targetMode, restoreVerificationJson] = process.argv.slice(2);
+const currentActive = JSON.parse(await readFile(currentActivePath, "utf8"));
+const restoreVerification = JSON.parse(restoreVerificationJson);
+const runtimePolicyFromVerification = (value) => ({
+  schemaVersion: 1,
+  policyId: String(value?.runtimePolicyId || "implicit-legacy"),
+  sha256: value?.runtimePolicySha256 || null,
+  reactSurfaces: Array.isArray(value?.reactSurfaces) ? value.reactSurfaces : [],
+});
+let restored;
 if (previousKind === "release-pointer") {
   const previousReleasePath = previousTarget.slice(0, -4);
-  active = JSON.parse(await readFile(previousReleasePath + "/activation.json", "utf8"));
+  restored = JSON.parse(await readFile(previousReleasePath + "/activation.json", "utf8"));
+  restored = {
+    ...restored,
+    schemaVersion: 2,
+    runtimePolicy: restored.runtimePolicy || runtimePolicyFromVerification(restoreVerification),
+    legacyBaseline: currentActive.legacyBaseline || restored.legacyBaseline || null,
+    health: { local: "ok", public: "ok" },
+  };
 } else {
-  active = {
-    schemaVersion: 1,
+  restored = {
+    schemaVersion: 2,
     releaseId: "legacy-pre-" + rolledBackAt,
     activatedAt: rolledBackAt,
     previous: null,
+    legacyBaseline: currentActive.legacyBaseline || null,
+    runtimePolicy: runtimePolicyFromVerification(null),
     manifest: null,
     health: { local: "ok", public: "ok" },
   };
 }
-active.rollback = { fromReleaseId: rolledBackReleaseId, rolledBackAt, previousKind };
-const report = { schemaVersion: 1, rolledBackReleaseId, rolledBackAt, restored: { kind: previousKind, target: previousTarget, legacyPath: legacyPath || null }, health: { local: "ok", public: "ok" } };
-await writeFile(activePath, JSON.stringify(active, null, 2) + "\n");
+restored.rollback = { fromReleaseId: rolledBackReleaseId, rolledBackAt, previousKind, targetMode };
+const report = { schemaVersion: 2, rolledBackReleaseId, rolledBackAt, targetMode, restored: { kind: previousKind, target: previousTarget, legacyPath: legacyPath || null }, runtimePolicy: restored.runtimePolicy, legacyBaseline: restored.legacyBaseline, health: { local: "ok", public: "ok" } };
+await writeFile(activePath, JSON.stringify(restored, null, 2) + "\n");
 await writeFile(rollbackPath, JSON.stringify(report, null, 2) + "\n");
 NODE
-mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"
 mv -f "$releases_path/$current_release_id/rollback-$timestamp.json.next" "$releases_path/$current_release_id/rollback-$timestamp.json"
+mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"
 switched=0
-printf 'ROLLED_BACK release=%s restored_kind=%s restored_target=%s\n' "$current_release_id" "$previous_kind" "$previous_target"
+printf 'ROLLED_BACK release=%s target_mode=%s restored_kind=%s restored_target=%s\n' "$current_release_id" "$target_mode" "$previous_kind" "$previous_target"
 `;
 
 async function main() {
@@ -207,17 +249,23 @@ async function main() {
   const activeRecordPath = `${contour.releasesPath}/active-release.json`;
   const recordResult = await run("ssh", [...sshOptions, args.remote, `cat ${shellQuote(activeRecordPath)}`]);
   const record = JSON.parse(recordResult.stdout);
-  const previous = assertSafePrevious(record, contour);
+  const activeReleaseId = safeReleaseId(record.releaseId);
+  const restoreTarget = assertSafeRestoreTarget(record, contour, args.target);
   const startedAt = performance.now();
 
   console.log(`MES release rollback${args.dryRun ? " (dry run)" : ""}`);
   console.log(`- contour: ${args.contour}`);
-  console.log(`- active release: ${record.releaseId}`);
-  console.log(`- restore kind: ${previous.kind}`);
+  console.log(`- active release: ${activeReleaseId}`);
+  console.log(`- target: ${args.target}`);
+  console.log(`- restore kind: ${restoreTarget.kind}`);
 
   const result = await run("ssh", remoteBashArgs(args.remote, [
     contour.appPath, contour.releasesPath, contour.service, contour.port, `${contour.url}/healthz`,
-    record.releaseId, previous.kind, previous.kind === "release-pointer" ? previous.target : previous.legacyPath, String(args.dryRun),
+    activeReleaseId,
+    restoreTarget.kind,
+    restoreTarget.kind === "release-pointer" ? restoreTarget.target : restoreTarget.legacyPath,
+    String(args.dryRun),
+    args.target,
   ]), { input: rollbackScript });
   if (result.stdout.trim()) console.log(result.stdout.trim());
   console.log(`- total: ${formatDuration(performance.now() - startedAt)}`);

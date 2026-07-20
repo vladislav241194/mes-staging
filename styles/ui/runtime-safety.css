@@ -47,3 +47,23 @@ main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[d
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot :is(.slot-working-segment.is-slot-start, .slot-working-segment.is-slot-end, .slot-non-working-segment.is-slot-start, .slot-non-working-segment.is-slot-end, .slot-working-segment.is-continuation-start, .slot-working-segment.is-continuation-end, .slot-non-working-segment.is-continuation-start, .slot-non-working-segment.is-continuation-end, .slot-accent, .resize-handle){
   border-radius: 0 !important;
 }
+.mes-react-runtime-error,
+.mes-react-runtime-status {
+  display: grid;
+  gap: var(--mes-space-2, 8px);
+  margin: var(--mes-space-4, 16px);
+  padding: var(--mes-space-5, 20px);
+  border: 1px solid color-mix(in srgb, var(--mes-ui-danger, #b42318) 28%, transparent);
+  border-radius: var(--mes-radius-lg, 14px);
+  background: color-mix(in srgb, var(--mes-ui-danger, #b42318) 6%, var(--mes-ui-surface-panel, #fff));
+  color: var(--mes-ui-text, #172033);
+  box-shadow: var(--mes-ui-contract-shadow-soft, 0 22px 70px rgba(24, 36, 50, 0.08));
+}
+
+.mes-react-runtime-status {
+  border-color: var(--mes-ui-border, #dfe5ec);
+  background: var(--mes-ui-surface-panel, #fff);
+}
+
+:is(.mes-react-runtime-error, .mes-react-runtime-status) strong { font-size: 16px; }
+:is(.mes-react-runtime-error, .mes-react-runtime-status) p { margin: 0; color: var(--mes-ui-contract-muted, #6b7788); }

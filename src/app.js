@@ -78,6 +78,7 @@ import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactI
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
+import { resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
@@ -1472,8 +1473,8 @@ function clearWeeklyPlanningPeriodRefreshTimer() {
 
 function scheduleWeeklyPlanningPeriodRefresh(bounds) {
   clearWeeklyPlanningPeriodRefreshTimer();
-  if (ui?.activeModule !== "weeklyProductionControl" || !planningPeriodReadModel) return;
-  const status = planningPeriodReadModel.getStatus(bounds);
+  if (ui?.activeModule !== "weeklyProductionControl") return;
+  const status = planningPeriodReadModel?.getStatus?.(bounds) || {};
   const delay = Math.max(5_000, Number(status.freshUntil || 0) - Date.now());
   weeklyPlanningPeriodRefreshTimer = setTimeout(() => {
     weeklyPlanningPeriodRefreshTimer = null;
@@ -1545,6 +1546,8 @@ function hydrateWeeklyPlanningPeriod() {
     return;
   }
   const hadRows = Array.isArray(weeklyPlanningPeriodState.rows) && weeklyPlanningPeriodState.key === bounds.key;
+  const previousError = String(weeklyPlanningPeriodState.error || "");
+  const previousFallbackReason = String(weeklyPlanningPeriodState.fallbackReason || "");
   const requestEpoch = Number(weeklyPlanningPeriodState.epoch || 0);
   const force = weeklyPlanningPeriodState.stale;
   const preferLocalBeforeRefresh = Boolean(weeklyPlanningPeriodState.preferLocal);
@@ -1568,6 +1571,7 @@ function hydrateWeeklyPlanningPeriod() {
       || (!hasCompactRows && typeof buildWeeklyPlanningPeriodRows !== "function")) {
       weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: result?.error || "Weekly planning period API is unavailable" };
       scheduleWeeklyPlanningPeriodRefresh(bounds);
+      if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
       return;
     }
     const lookups = getWeeklyPlanningPeriodLookups();
@@ -1601,12 +1605,17 @@ function hydrateWeeklyPlanningPeriod() {
       fallbackReason: String(result.fallbackReason || ""),
     };
     scheduleWeeklyPlanningPeriodRefresh(bounds);
-    if ((!hadRows || result.changed || preferLocalBeforeRefresh !== preferLocal)
+    if ((!hadRows
+      || result.changed
+      || preferLocalBeforeRefresh !== preferLocal
+      || Boolean(previousError)
+      || previousFallbackReason !== weeklyPlanningPeriodState.fallbackReason)
       && ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
   }).catch(() => {
     if (weeklyPlanningPeriodState.key !== bounds.key) return;
     weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: "Weekly planning period API is unavailable" };
     scheduleWeeklyPlanningPeriodRefresh(bounds);
+    if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
   });
 }
 
@@ -3180,19 +3189,36 @@ function isWeeklyProductionControlReactEvaluationRequested() {
   if (params.get("react-weekly-production-control-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function getWeeklyProductionControlReactReadState() {
+  const serverReadFailure = weeklyProductionControlRuntimeError
+    ? "model-unavailable"
+    : weeklyPlanningPeriodState.fallbackReason
+      ? "compatibility-fallback"
+      : weeklyPlanningPeriodState.error
+        ? "read-unavailable"
+        : "";
+  return {
+    serverReadFailure,
+    serverReadReady: Boolean(weeklyProductionControlRuntimeInstance)
+      && Array.isArray(weeklyPlanningPeriodState.rows)
+      && !weeklyPlanningPeriodState.loading
+      && !serverReadFailure,
+  };
+}
 const weeklyProductionControlReactIslandHost = createWeeklyProductionControlReactIslandHost({
   getActivation: () => {
     const localQa = getWeeklyProductionControlReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true;
+    const runtimeActivation = resolveReactRuntimeActivation({
+      surfaceId: "weeklyProductionControl",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true && serverEvaluationAllowed,
+      evaluationRequested: isWeeklyProductionControlReactEvaluationRequested(),
+      localQaEnabled: localQa.featureFlagEnabled && localQa.readOnlyEvaluation,
+    });
     return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true || localQa.featureFlagEnabled,
-      serverReadReady: Array.isArray(weeklyPlanningPeriodState.rows)
-        && !weeklyPlanningPeriodState.loading
-        && !weeklyPlanningPeriodState.error
-        && !weeklyPlanningPeriodState.fallbackReason,
-      accessMode: (serverEvaluationAllowed && isWeeklyProductionControlReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
+      ...runtimeActivation,
+      ...getWeeklyProductionControlReactReadState(),
+      policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
     };
   },
   getPayload: () => ({ model: getWeeklyProductionControlRuntimeInstance().getWeeklyProductionControlModel() }),
@@ -8368,7 +8394,11 @@ function initializeModuleRuntime() {
       ],
       render: (instance) => {
         ensureProductionStructureMatrixModule();
-        hydrateWeeklyPlanningPeriod();
+        const waitingForScheduledReadRetry = Boolean(
+          (weeklyPlanningPeriodState.error || weeklyPlanningPeriodState.fallbackReason)
+          && weeklyPlanningPeriodRefreshTimer !== null,
+        );
+        if (!waitingForScheduledReadRetry) hydrateWeeklyPlanningPeriod();
         const reactDecision = weeklyProductionControlReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return weeklyProductionControlReactIslandHost.renderTarget();
         return instance.renderWeeklyProductionControlPage();

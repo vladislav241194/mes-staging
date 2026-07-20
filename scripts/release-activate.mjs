@@ -34,7 +34,7 @@ function shellQuote(value) {
 }
 
 function parseArgs(argv) {
-  const args = { contour: "pilot", remote: "mes-line", releaseId: "", dryRun: false };
+  const args = { contour: "pilot", remote: "mes-line", releaseId: "", dryRun: false, pinLegacyBaseline: false };
   for (const arg of argv) {
     if (!arg.startsWith("--")) throw new Error(`Unknown positional argument: ${arg}`);
     const [key, rawValue] = arg.slice(2).split("=");
@@ -43,6 +43,7 @@ function parseArgs(argv) {
     else if (key === "remote") args.remote = String(value);
     else if (key === "release-id") args.releaseId = String(value);
     else if (key === "dry-run") args.dryRun = true;
+    else if (key === "pin-legacy-baseline") args.pinLegacyBaseline = true;
     else throw new Error(`Unknown option: --${key}`);
   }
   return args;
@@ -102,6 +103,8 @@ service="$6"
 port="$7"
 public_health_url="$8"
 dry_run="$9"
+shift 9
+pin_legacy_baseline="$1"
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 legacy_path=""
@@ -189,24 +192,19 @@ test -f "$release_app_path/scripts/release-verify.mjs"
 
 cd "$release_app_path"
 activation_phase="manifest-verification"
-node scripts/release-verify.mjs \
+manifest_verification="$(node scripts/release-verify.mjs \
   --manifest="$release_path/release-manifest.json" \
   --expected-release-id="$release_id" \
-  --json
-
-if [ "$dry_run" = "true" ]; then
-  activation_phase="dry-run-runtime-inspection"
-  if [ -L "$app_path" ]; then
-    printf 'DRY_RUN current=release-pointer target=%s\n' "$(readlink -f "$app_path")"
-  elif [ -d "$app_path" ]; then
-    printf 'DRY_RUN current=legacy-directory target=%s\n' "$app_path"
-  else
-    echo "Active application path is neither a directory nor a release pointer: $app_path" >&2
-    fail_activation 1 "active_runtime_unavailable"
-  fi
-  printf 'DRY_RUN next=%s\n' "$release_app_path"
-  exit 0
-fi
+  --json)"
+printf '%s\n' "$manifest_verification"
+runtime_policy_sha="$(node --input-type=module -e '
+  const verification = JSON.parse(process.argv[1]);
+  process.stdout.write(String(verification.runtimePolicySha256 || ""));
+' "$manifest_verification")"
+runtime_policy_has_react="$(node --input-type=module -e '
+  const verification = JSON.parse(process.argv[1]);
+  process.stdout.write(Array.isArray(verification.reactSurfaces) && verification.reactSurfaces.length ? "true" : "false");
+' "$manifest_verification")"
 
 activation_phase="active-runtime-inspection"
 if [ -L "$app_path" ]; then
@@ -219,6 +217,81 @@ elif [ -d "$app_path" ]; then
 else
   echo "Active application path is neither a directory nor a release pointer: $app_path" >&2
   fail_activation 1 "active_runtime_unavailable"
+fi
+
+previous_release_id=""
+previous_manifest_verification='{}'
+if [ "$previous_kind" = "release-pointer" ]; then
+  previous_release_path="$(dirname "$previous_target")"
+  previous_release_id="$(basename "$previous_release_path")"
+  test -f "$previous_release_path/release-manifest.json"
+  test -f "$previous_target/scripts/release-verify.mjs"
+  previous_manifest_verification="$(cd "$previous_target" && node scripts/release-verify.mjs \
+    --manifest="$previous_release_path/release-manifest.json" \
+    --expected-release-id="$previous_release_id" \
+    --json)"
+fi
+
+assert_no_active_evaluation() {
+  local dropin_dir="/etc/systemd/system/"$service".d"
+  local main_pid=""
+  if [ -d "$dropin_dir" ] && find "$dropin_dir" -maxdepth 1 \( -type f -o -type l \) -name '*-evaluation.conf' -print -quit | grep -q .; then
+    echo "Permanent React activation is blocked while an evaluation drop-in is present." >&2
+    return 1
+  fi
+  main_pid="$(systemctl show "$service" --property=MainPID --value 2>/dev/null || true)"
+  if [[ "$main_pid" =~ ^[1-9][0-9]*$ ]] && [ -r "/proc/$main_pid/environ" ] \
+    && tr '\0' '\n' < "/proc/$main_pid/environ" | grep -Eq '^MES_REACT_[A-Z0-9_]*EVALUATION=1$'; then
+    echo "Permanent React activation is blocked while an evaluation permission is active." >&2
+    return 1
+  fi
+}
+
+activation_phase="legacy-baseline-preflight"
+if [ "$runtime_policy_has_react" = "true" ] || [ "$pin_legacy_baseline" = "true" ]; then
+  assert_no_active_evaluation || fail_activation 1 "active_react_evaluation"
+  node --input-type=module - \
+    "$releases_path/active-release.json" \
+    "$releases_path" \
+    "$previous_kind" \
+    "$previous_target" \
+    "$previous_release_id" \
+    "$previous_manifest_verification" \
+    "$pin_legacy_baseline" <<'NODE'
+import { readFile } from "node:fs/promises";
+const [activeRecordPath, releasesPath, previousKind, previousTarget, previousReleaseId, previousVerificationJson, pinRequested] = process.argv.slice(2);
+let activeRecord = null;
+try { activeRecord = JSON.parse(await readFile(activeRecordPath, "utf8")); } catch (error) {
+  if (error?.code !== "ENOENT") throw error;
+}
+const safeReleaseId = (value) => /^[A-Za-z0-9._-]{1,96}$/.test(String(value || ""));
+const assertReleaseTarget = (releaseId, target, label) => {
+  if (!safeReleaseId(releaseId) || target !== releasesPath + "/" + releaseId + "/app") throw new Error(label + " release target is unsafe");
+};
+if (previousKind === "release-pointer") assertReleaseTarget(previousReleaseId, previousTarget, "Current");
+if (activeRecord?.releaseId && previousKind === "release-pointer" && activeRecord.releaseId !== previousReleaseId) {
+  throw new Error("Active release record does not match the current release pointer");
+}
+if (activeRecord?.legacyBaseline) {
+  const baseline = activeRecord.legacyBaseline;
+  if (baseline.kind === "release-pointer") assertReleaseTarget(baseline.releaseId, baseline.target, "Legacy baseline");
+  else if (baseline.kind !== "legacy-directory" || !String(baseline.legacyPath || "").startsWith(releasesPath + "/legacy-app-pre-")) throw new Error("Legacy baseline is unsafe");
+} else {
+  if (pinRequested !== "true") throw new Error("Permanent React activation requires --pin-legacy-baseline on the first cutover");
+  if (previousKind !== "release-pointer") throw new Error("Pinning a new legacy baseline requires an immutable current release pointer");
+  const previousVerification = JSON.parse(previousVerificationJson);
+  if (Array.isArray(previousVerification.reactSurfaces) && previousVerification.reactSurfaces.length) {
+    throw new Error("The current release already has permanent React surfaces and cannot become a legacy baseline");
+  }
+}
+NODE
+fi
+
+if [ "$dry_run" = "true" ]; then
+  activation_phase="dry-run-runtime-inspection"
+  printf 'DRY_RUN current_kind=%s current_target=%s next=%s policy_sha=%s pin_legacy_baseline=%s\n' \
+    "$previous_kind" "$previous_target" "$release_app_path" "$runtime_policy_sha" "$pin_legacy_baseline"
+  exit 0
 fi
 
 rollback() {
@@ -272,6 +345,7 @@ fi
 
 check_health() {
   local health_url="$1"
+  local expected_policy_sha="$2"
   local attempt health_code
   for attempt in $(seq 1 12); do
     if systemctl is-active --quiet "$service"; then
@@ -281,7 +355,10 @@ check_health() {
           import { readFile } from "node:fs/promises";
           const health = JSON.parse(await readFile(process.argv[1], "utf8"));
           if (health?.status !== "ok" || health?.sharedState !== "ready") process.exit(1);
-        ' "$health_body_path"; then
+          const expectedPolicySha = String(process.argv[2] || "");
+          if (expectedPolicySha && health?.reactRuntime?.sha256 !== expectedPolicySha) process.exit(1);
+          if (Array.isArray(health?.reactRuntime?.activeEvaluationSurfaces) && health.reactRuntime.activeEvaluationSurfaces.length) process.exit(1);
+        ' "$health_body_path" "$expected_policy_sha"; then
         return 0
       fi
     fi
@@ -291,14 +368,14 @@ check_health() {
 }
 
 activation_phase="local-healthcheck"
-if ! check_health "http://localhost:$port/healthz"; then
+if ! check_health "http://localhost:$port/healthz" "$runtime_policy_sha"; then
   emit_failure_diagnostics 1 "local_healthcheck_failed"
   rollback
   exit 1
 fi
 
 activation_phase="public-healthcheck"
-if ! check_health "$public_health_url"; then
+if ! check_health "$public_health_url" "$runtime_policy_sha"; then
   emit_failure_diagnostics 1 "public_healthcheck_failed"
   rollback
   exit 1
@@ -308,37 +385,93 @@ activation_phase="record-activation"
 node --input-type=module - \
   "$releases_path/active-release.json.next" \
   "$release_path/activation.json.next" \
+  "$releases_path/active-release.json" \
   "$release_path/release-manifest.json" \
   "$release_id" \
   "$previous_kind" \
   "$previous_target" \
+  "$previous_release_id" \
+  "$previous_manifest_verification" \
   "$legacy_path" \
-  "$timestamp" <<'NODE'
+  "$timestamp" \
+  "$manifest_verification" \
+  "$pin_legacy_baseline" <<'NODE'
 import { readFile, writeFile } from "node:fs/promises";
-const [activePath, activationPath, manifestPath, releaseId, previousKind, previousTarget, legacyPath, activatedAt] = process.argv.slice(2);
+const [
+  activePath,
+  activationPath,
+  priorActivePath,
+  manifestPath,
+  releaseId,
+  previousKind,
+  previousTarget,
+  previousReleaseId,
+  previousVerificationJson,
+  legacyPath,
+  activatedAt,
+  verificationJson,
+  pinLegacyBaseline,
+] = process.argv.slice(2);
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-const record = {
+let priorActive = null;
+try { priorActive = JSON.parse(await readFile(priorActivePath, "utf8")); } catch (error) {
+  if (error?.code !== "ENOENT") throw error;
+}
+const verification = JSON.parse(verificationJson);
+const previousVerification = JSON.parse(previousVerificationJson);
+const runtimePolicyFromVerification = (value) => ({
   schemaVersion: 1,
+  policyId: String(value?.runtimePolicyId || "implicit-legacy"),
+  sha256: value?.runtimePolicySha256 || null,
+  reactSurfaces: Array.isArray(value?.reactSurfaces) ? value.reactSurfaces : [],
+});
+const manifestSummary = (value) => value ? ({
+  gitCommit: value.gitCommit,
+  appVersion: value.appVersion,
+  sourceTreeSha256: value.sourceTreeSha256,
+  distTreeSha256: value.distTreeSha256,
+  runtimePolicySha256: value.runtimePolicy?.sha256 || null,
+}) : null;
+let previousManifest = null;
+if (previousKind === "release-pointer") {
+  previousManifest = JSON.parse(await readFile(previousTarget.slice(0, -4) + "/release-manifest.json", "utf8"));
+}
+const previousRuntimePolicy = priorActive?.runtimePolicy || runtimePolicyFromVerification(previousVerification);
+const previous = {
+  kind: previousKind,
+  releaseId: previousReleaseId || null,
+  target: previousTarget,
+  legacyPath: legacyPath || null,
+  runtimePolicy: previousRuntimePolicy,
+};
+let legacyBaseline = priorActive?.legacyBaseline || null;
+if (!legacyBaseline && pinLegacyBaseline === "true") {
+  legacyBaseline = {
+    schemaVersion: 1,
+    kind: previousKind,
+    releaseId: previousReleaseId || null,
+    target: previousKind === "release-pointer" ? previousTarget : null,
+    legacyPath: previousKind === "legacy-directory" ? legacyPath : null,
+    pinnedAt: activatedAt,
+    manifest: manifestSummary(previousManifest),
+    runtimePolicy: previousRuntimePolicy,
+  };
+}
+const record = {
+  schemaVersion: 2,
   releaseId,
   activatedAt,
-  previous: {
-    kind: previousKind,
-    target: previousTarget,
-    legacyPath: legacyPath || null,
-  },
-  manifest: {
-    gitCommit: manifest.gitCommit,
-    appVersion: manifest.appVersion,
-    sourceTreeSha256: manifest.sourceTreeSha256,
-    distTreeSha256: manifest.distTreeSha256,
-  },
+  previous,
+  legacyBaseline,
+  runtimePolicy: runtimePolicyFromVerification(verification),
+  manifest: manifestSummary(manifest),
   health: { local: "ok", public: "ok" },
 };
 await writeFile(activePath, JSON.stringify(record, null, 2) + "\n");
 await writeFile(activationPath, JSON.stringify(record, null, 2) + "\n");
 NODE
-mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"
 mv -f "$release_path/activation.json.next" "$release_path/activation.json"
+mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"
 
 printf 'ACTIVATED release=%s previous_kind=%s previous_target=%s\n' "$release_id" "$previous_kind" "$previous_target"
 `;
@@ -369,6 +502,7 @@ async function main() {
       contour.port,
       `${contour.url}/healthz`,
       String(args.dryRun),
+      String(args.pinLegacyBaseline),
     ]),
     { input: activationScript },
   );

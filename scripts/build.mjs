@@ -8,6 +8,7 @@ import { build, transform } from "esbuild";
 import { syncGeneratedModuleBlueprintIndexes } from "./generate-module-blueprint-index.mjs";
 import { syncProductionStructureBootstrapData } from "./generate-production-structure-bootstrap-data.mjs";
 import { syncMesIconRuntimeRegistry } from "./generate-mes-icon-runtime-registry.mjs";
+import { loadReactRuntimePolicy } from "./react-runtime-policy.mjs";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = join(projectRoot, "dist");
@@ -298,6 +299,7 @@ function replaceRequired(html, pattern, replacement, label) {
 await syncProductionStructureBootstrapData();
 await syncGeneratedModuleBlueprintIndexes();
 await syncMesIconRuntimeRegistry();
+await loadReactRuntimePolicy({ projectRoot, env: { APP_ENV: "production" } });
 await rm(stagingDistDir, { recursive: true, force: true });
 await rm(previousDistDir, { recursive: true, force: true });
 await mkdir(stagingDistDir, { recursive: true });
@@ -332,6 +334,7 @@ if (await pathExists(bootstrapSnapshotPath)) {
 
 const appDisplayVersion = await readAppDisplayVersion();
 await copyFile(appVersionPath, join(stagingDistDir, "app-version.json"));
+await copyFile(join(projectRoot, "react-runtime-policy.json"), join(stagingDistDir, "react-runtime-policy.json"));
 let html = await readFile(join(stagingDistDir, "index.html"), "utf-8");
 html = injectAppDisplayVersion(html, appDisplayVersion);
 const deployCacheSuffix = getDeployCacheSuffix(html);

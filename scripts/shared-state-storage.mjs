@@ -1,6 +1,7 @@
 import { appendFile, chmod, chown, copyFile, mkdir, open, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { REACT_RUNTIME_EVALUATION_ENV } from "./react-runtime-policy.mjs";
 
 const PROTECTED_APP_ENVS = new Set(["pilot", "staging", "user-testing", "production"]);
 const DESTRUCTIVE_ACTION_RE = /\b(reset|restore|seed|snapshot|wipe|clear|delete|destructive|initial-state|initial-bootstrap-snapshot)\b/i;
@@ -178,13 +179,14 @@ export function getSharedStateServerPaths({ projectRoot = process.cwd(), fallbac
   };
 }
 
-export function getPublicRuntimeConfig(env = process.env) {
-  return {
+export function getPublicRuntimeConfig(env = process.env, { reactRuntimePolicy = null } = {}) {
+  const config = {
     APP_ENV: getAppEnv(env),
     APP_BASE_URL: normalizeEnvValue(env.APP_BASE_URL),
     MES_SHARED_STATE_KEY: getSharedStateKey(env),
     MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE: isBootstrapSnapshotRestoreEnabled(env),
     MES_ALLOW_DESTRUCTIVE_ACTIONS: isDestructiveActionsAllowed(env),
+    MES_REACT_RUNTIME_POLICY: reactRuntimePolicy,
     MES_REACT_NOMENCLATURE: normalizeEnvValue(env.MES_REACT_NOMENCLATURE) === "1",
     MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION) === "1",
     MES_REACT_NOMENCLATURE_WRITE_EVALUATION: normalizeEnvValue(env.MES_REACT_NOMENCLATURE_WRITE_EVALUATION) === "1",
@@ -238,10 +240,19 @@ export function getPublicRuntimeConfig(env = process.env) {
     // is configured as server-primary but cannot reach the capability API.
     MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: normalizeEnvValue(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS) === "1",
   };
+  if (!reactRuntimePolicy?.surfaces) return config;
+  for (const [surfaceId, contract] of Object.entries(REACT_RUNTIME_EVALUATION_ENV)) {
+    const evaluationAllowed = reactRuntimePolicy.surfaces[surfaceId] === "evaluation";
+    config[contract.feature] = evaluationAllowed && config[contract.feature] === true;
+    for (const permission of contract.permissions) {
+      config[permission] = evaluationAllowed && config[permission] === true;
+    }
+  }
+  return config;
 }
 
-export function renderRuntimeConfigScript(env = process.env) {
-  const json = JSON.stringify(getPublicRuntimeConfig(env)).replace(/</g, "\\u003c");
+export function renderRuntimeConfigScript(env = process.env, options = {}) {
+  const json = JSON.stringify(getPublicRuntimeConfig(env, options)).replace(/</g, "\\u003c");
   return `<script>window.MES_APP_CONFIG=${json};</script>`;
 }
 

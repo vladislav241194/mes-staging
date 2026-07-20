@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "policyId": "mes-react-runtime-v1",
+  "surfaces": {
+    "nomenclature": "evaluation",
+    "componentTypes": "evaluation",
+    "operations": "evaluation",
+    "nomenclatureTypes": "evaluation",
+    "statuses": "evaluation",
+    "boards": "evaluation",
+    "structureEmployees": "evaluation",
+    "structurePositions": "evaluation",
+    "structureOrgUnits": "evaluation",
+    "structureWorkCenters": "evaluation",
+    "structureEquipment": "evaluation",
+    "structureResponsibilityPolicies": "evaluation",
+    "structureMigrationDiagnostics": "evaluation",
+    "roles": "evaluation",
+    "weeklyProductionControl": "evaluation",
+    "timesheet": "evaluation",
+    "planningWorkbench": "evaluation",
+    "shiftWorkOrders": "evaluation",
+    "shiftMasterBoard": "evaluation",
+    "employeeDesktop": "evaluation",
+    "specifications2": "evaluation",
+    "gantt": "evaluation",
+    "authPicker": "evaluation",
+    "contourAdmin": "evaluation"
+  }
+}
