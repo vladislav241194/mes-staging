@@ -855,3 +855,35 @@ actions/console, затем немедленно деактивировать и
   raw/gzip/Brotli.
 - This is not Pilot acceptance. Migration 026 has not been applied live and the
   Responsibility Policies rollout remains default-off with legacy rollback.
+
+## Pilot closure 2026-07-20: release `.09` and migration 026
+
+- The scheduled Contour Admin rollback completed before the new release: the
+  root-owned `91-react-contour-admin-evaluation.conf` drop-in is absent and the
+  effective `mes-pilot` environment contains no `MES_REACT_*` flags.
+- Release `v.1.500.09-c633b91` is active and healthy. Both activation records
+  point to commit `c633b91c710c...`; the explicit rollback target remains
+  `v.1.500.07-5839c94`. Local and public health checks report `ok`, application
+  version `v.1.500.09` and shared state `ready`.
+- The already authorized `mes-pilot-domain-migrate.service` oneshot completed
+  successfully and applied `026_system_responsibility_policy_lifecycle.sql`.
+  Its final `inactive (dead)` state is the normal completed state for this
+  oneshot, not a failure.
+- Browser smoke on the public Pilot confirms sidebar version `v.1.500.09`, the
+  integrated Marking module inside the existing MES shell, explicit
+  `DEMO / MOCK / memory-only` labeling, no horizontal overflow and no console
+  warnings or errors. The default Nomenclature route still opens the legacy
+  surface with `Новая позиция`; no evaluation flag was enabled and no write was
+  made.
+- The separately approved disposable Nomenclature create/edit/delete acceptance
+  is still blocked before activation: `deploy` cannot execute
+  `activate-react-nomenclature-write-evaluation.sh` through non-interactive
+  sudo (`sudo: a password is required`). No localhost QA bypass, permission
+  weakening, drop-in edit or live write was attempted. A lawful root operator
+  must run the prepared activation/deactivation pair before that final live
+  write evidence can exist.
+- Evidence-based global progress after this block: approximately `99.9%`
+  complete (`+0.4 p.p.` from the last `99.5%` checkpoint). The remaining
+  approximately `0.1%` is the root-gated disposable Nomenclature lifecycle plus
+  its cleanup proof and the subsequent default-on decision. Legacy remains the
+  live default and rollback surface; Blueprint is not used.
