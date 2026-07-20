@@ -833,6 +833,44 @@ async function main() {
     assert(retirementAfterRollover.json.events.length === 50 && !retirementAfterRollover.json.events.some((event) => event?.action === "system-domains-retire-compatibility-snapshot"), "The rolling shared-state event window must evict the older retirement event in this fixture");
     assert(retirementAfterRollover.json.systemDomainsRetirement?.transitionId === "shared-state-qa-pending-transition", "The compact System Domains transition proof must survive event rollover and browser writes");
 
+    const directoryAckPath = join(dir, "directory-ack-state.json");
+    const directoryAckSeed = await callSharedState(directoryAckPath, "POST", {
+      baseVersion: 0,
+      clientId: "directory-ack-seed",
+      actor: "QA",
+      action: "seed",
+      values,
+      sharedUi: {},
+    });
+    const directoryAckState = JSON.parse(values[SHARED_STATE_KEYS.directories]);
+    directoryAckState.nomenclature = [{ id: "directory-ack-row", article: "QA-DIRECTORY-ACK", name: "QA compact directory row" }];
+    const directoryAck = await callSharedState(directoryAckPath, "POST", {
+      baseVersion: directoryAckSeed.json.version,
+      clientId: "directory-ack-client",
+      actor: "QA",
+      action: "nomenclature-save",
+      responseMode: "ack",
+      values: { [SHARED_STATE_KEYS.directories]: JSON.stringify(directoryAckState) },
+      sharedUi: {},
+      sharedUiPatch: { maps: {}, replace: {} },
+    });
+    assert(directoryAck.statusCode === 200 && directoryAck.json.version === 2, "A narrow directory-value write must receive a compact acknowledgement");
+    assert(!Object.prototype.hasOwnProperty.call(directoryAck.json, "values") && !Object.prototype.hasOwnProperty.call(directoryAck.json, "sharedUi"), "A compact directory acknowledgement must omit the full compatibility snapshot");
+    const directoryAckReadback = await callSharedState(directoryAckPath, "GET");
+    assert(directoryAckReadback.json.values[SHARED_STATE_KEYS.state] === values[SHARED_STATE_KEYS.state], "A narrow directory-value write must preserve Planning byte-for-byte");
+    assert(JSON.parse(directoryAckReadback.json.values[SHARED_STATE_KEYS.directories]).nomenclature[0]?.id === "directory-ack-row", "A narrow directory-value write must persist the exact directory projection");
+    const staleDirectoryAck = await callSharedState(directoryAckPath, "POST", {
+      baseVersion: 1,
+      clientId: "directory-ack-stale",
+      actor: "QA",
+      action: "nomenclature-save:durable-retry-2",
+      responseMode: "ack",
+      values: { [SHARED_STATE_KEYS.directories]: JSON.stringify(directoryAckState) },
+      sharedUi: {},
+      sharedUiPatch: { maps: {}, replace: {} },
+    });
+    assert(staleDirectoryAck.statusCode === 409 && staleDirectoryAck.json.current?.version === 2 && Object.keys(staleDirectoryAck.json.current?.values || {}).length === 0, "A compact directory conflict must return only the revision/UI recovery envelope");
+
     console.log("Shared State Functional QA");
     console.log("- empty snapshot: pass");
     console.log("- value whitelist: pass");
@@ -849,6 +887,7 @@ async function main() {
     console.log("- access roles sharing: pass");
     console.log("- version conflict: pass");
     console.log("- compact shared-UI acknowledgement and conflict merge: pass");
+    console.log("- compact directory-value acknowledgement and conflict envelope: pass");
     console.log("- unchanged-poll file cache and external invalidation: pass");
     console.log("- atomic cross-process file write lock: pass");
     console.log("- shared-state file mode preservation and stale-lock fail-closed: pass");

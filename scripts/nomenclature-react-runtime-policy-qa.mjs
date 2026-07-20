@@ -42,10 +42,11 @@ assert(script.includes('"MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION":true'), "p
 assert(script.includes('"MES_REACT_NOMENCLATURE_WRITE_EVALUATION":true'), "public runtime script must contain the write evaluation boolean");
 assert(!script.includes("must-not-leak"), "public runtime script must never expose deployment secrets");
 
-const [appSource, productsEventsSource, runtimeStateSource] = await Promise.all([
+const [appSource, productsEventsSource, runtimeStateSource, sharedStateEndpointSource] = await Promise.all([
   readFile(join(root, "src/app.js"), "utf8"),
   readFile(join(root, "src/modules/products/events.js"), "utf8"),
   readFile(join(root, "src/modules/runtime_state/service.js"), "utf8"),
+  readFile(join(root, "scripts/shared-state-endpoint.mjs"), "utf8"),
 ]);
 assert(appSource.includes("requireDurable: true"), "Pilot Nomenclature React saves must require a durable owner acknowledgement");
 assert(productsEventsSource.includes('persistDirectoryStateDurably("nomenclature-save")'), "Nomenclature owner must await the exact durable directory write");
@@ -56,5 +57,10 @@ assert(runtimeStateSource.includes("sharedStateStatus.saveInFlight || sharedStat
 assert(runtimeStateSource.includes("attempt <= 6") && runtimeStateSource.includes(":durable-retry-"), "Durable directory writes must use bounded CAS retries under live shared-UI contention");
 assert(runtimeStateSource.includes('requestSharedState("GET", null, { emptyProjection: true })'), "Durable directory writes must refresh a compact CAS baseline before sending the Pilot snapshot");
 assert(runtimeStateSource.includes("if (hasSharedUiPatchChanges(sharedUiPatch)) writePayload.sharedUiPatch = sharedUiPatch"), "A full domain write must carry only its UI delta over the refreshed CAS baseline");
+assert(runtimeStateSource.includes("compactValueAcknowledgement: true"), "Durable directory writes must request a compact server acknowledgement");
+assert(runtimeStateSource.includes("DIRECTORY_DELETED_ENTITIES_STORAGE_KEY") && runtimeStateSource.includes("Object.fromEntries"), "Durable directory writes must send only the reviewed directory value keys");
+assert(sharedStateEndpointSource.includes("isCompactDirectoryAcknowledgementRequest"), "The shared-state endpoint must recognize the narrow directory acknowledgement contract");
+assert(sharedStateEndpointSource.includes("compactDirectoryAcknowledgement ? projectSnapshotValues"), "Directory acknowledgement conflicts must not return the full compatibility snapshot");
+assert(sharedStateEndpointSource.includes("compactAcknowledgement") && sharedStateEndpointSource.includes("responseMode"), "Successful directory writes must return the compact acknowledgement envelope");
 
 console.log("Nomenclature React runtime policy QA: OK");

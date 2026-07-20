@@ -334,8 +334,15 @@ try {
   const durableDirectorySaved = await service.persistDirectoryStateDurably("nomenclature-save");
   assert(durableDirectorySaved === true, "Durable directory save must recover from consecutive shared-UI writer conflicts");
   assert(durableMetadataReads >= 2, "Every durable retry must refresh the compact CAS baseline before writing");
-  assert(requests.length === 10, `Durable directory save must use two bounded full-write attempts, got ${requests.length - 6}`);
+  assert(requests.length === 10, `Durable directory save must use two bounded narrow-write attempts, got ${requests.length - 6}`);
   assert(JSON.parse(requests[9].values["qa-directories"]).nomenclature[0]?.id === "nom-durable", "Durable retry must retain the exact intended directory projection");
+  assert(
+    requests.slice(6).every((request) => request.responseMode === "ack"
+      && request.sharedUiPatch
+      && Object.keys(request.values || {}).every((key) => ["qa-directories", "qa-directory-defaults", "qa-directory-deleted"].includes(key))
+      && !Object.prototype.hasOwnProperty.call(request.values || {}, "qa-planning")),
+    "Durable directory retries must use a narrow directory-value payload and compact acknowledgement",
+  );
 
   console.log("Shared-state runtime rebase QA: OK");
 } finally {

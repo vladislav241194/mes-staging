@@ -807,6 +807,7 @@ async function pushSharedState(reason = "snapshot", options = {}) {
   const pendingWriteMode = sharedStateStatus.pendingWriteMode;
   sharedStateStatus.pendingWriteMode = "";
   let compactSharedUi = pendingWriteMode === "shared-ui" && isCompactSharedUiReason(reason);
+  const compactValueAcknowledgement = options.compactValueAcknowledgement === true && !compactSharedUi;
   let pendingValues = compactSharedUi ? {} : (sharedStateStatus.pendingValues || getSharedStateValues());
   let pendingSharedUi = sharedStateStatus.pendingSharedUi || getSharedUiSnapshot();
   const pendingSharedUiFull = sharedStateStatus.pendingSharedUiFull || (compactSharedUi ? getSharedUiSnapshot() : pendingSharedUi);
@@ -834,6 +835,15 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       // UI entries that another browser committed in the meantime.
       const sharedUiPatch = getSharedUiPatch(sharedStateStatus.sharedUiBase, pendingSharedUiFull);
       if (hasSharedUiPatchChanges(sharedUiPatch)) writePayload.sharedUiPatch = sharedUiPatch;
+    }
+    if (compactValueAcknowledgement) {
+      if (!Object.prototype.hasOwnProperty.call(writePayload, "sharedUiPatch")) {
+        writePayload.sharedUiPatch = getSharedUiPatch(
+          sharedStateStatus.sharedUiBase || pendingSharedUiFull,
+          pendingSharedUiFull,
+        );
+      }
+      writePayload.responseMode = "ack";
     }
     let response = await requestSharedState("POST", writePayload);
 
@@ -872,7 +882,11 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       // intended mutation. Retry once against the server's current version
       // instead of immediately replacing it with the older remote snapshot.
       sharedStateStatus.version = Number(response.current.version || sharedStateStatus.version);
-      const retryValues = compactSharedUi ? {} : mergeSharedStateConflictValues(response.current.values || {}, pendingValues);
+      const retryValues = compactSharedUi
+        ? {}
+        : compactValueAcknowledgement
+          ? pendingValues
+          : mergeSharedStateConflictValues(response.current.values || {}, pendingValues);
       // A domain write still carries the legacy complete UI projection for
       // compatibility. On conflict, however, turn its local UI change into
       // the same entry-level patch used by a compact UI write. Otherwise a
@@ -896,6 +910,7 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       if (compactSharedUi) {
         retryPayload.responseMode = "ack";
       }
+      if (compactValueAcknowledgement) retryPayload.responseMode = "ack";
       response = await requestSharedState("POST", retryPayload);
       // A reset may first produce a normal version conflict and only expose
       // the missing domain baseline on this retry. Recover it through the
@@ -960,7 +975,7 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       sharedStateStatus.configured = true;
       sharedStateStatus.version = Number(response.version || sharedStateStatus.version);
       let hasUnsavedSharedUiChanges = false;
-      if (compactSharedUi) {
+      if (compactSharedUi || compactValueAcknowledgement) {
         sharedStateStatus.sharedUiBase = acknowledgeSharedUiPatch(
           sharedStateStatus.sharedUiBase || {},
           pendingSharedUi,
@@ -983,7 +998,7 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       window.__MES_SHARED_STATE_DEBUG__ = {
         phase: "saved",
         reason,
-        transport: compactSharedUi ? "shared-ui-ack" : "snapshot",
+        transport: compactSharedUi ? "shared-ui-ack" : compactValueAcknowledgement ? "directory-value-ack" : "snapshot",
         version: sharedStateStatus.version,
         at: new Date().toISOString(),
       };
@@ -1931,7 +1946,20 @@ async function persistDirectoryStateDurably(reason = "directory-state") {
     }
     const attemptReason = attempt === 1 ? reason : `${reason}:durable-retry-${attempt}`;
     scheduleSharedStatePush(attemptReason);
-    if (await pushSharedState(attemptReason, { notifyConflict: attempt === 6 })) return true;
+    const allPendingValues = sharedStateStatus.pendingValues || getSharedStateValues();
+    sharedStateStatus.pendingValues = Object.fromEntries([
+      DIRECTORY_STORAGE_KEY,
+      DIRECTORY_DEFAULTS_STORAGE_KEY,
+      DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
+    ].filter(Boolean).flatMap((key) => (
+      Object.prototype.hasOwnProperty.call(allPendingValues, key)
+        ? [[key, allPendingValues[key]]]
+        : []
+    )));
+    if (await pushSharedState(attemptReason, {
+      notifyConflict: attempt === 6,
+      compactValueAcknowledgement: true,
+    })) return true;
     if (Date.now() >= waitDeadline) return "Сервер не подтвердил запись за 10 секунд.";
     await new Promise((resolve) => window.setTimeout(resolve, attempt * 75));
   }

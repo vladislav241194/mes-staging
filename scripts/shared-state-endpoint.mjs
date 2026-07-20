@@ -22,6 +22,11 @@ const DEFAULT_SHARED_STATE_KEY = "mes:staging:shared-state:v1";
 const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 const SPECIFICATIONS2_STORAGE_KEY = "mes-specifications-2-registry-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
+const DIRECTORY_VALUE_KEYS = new Set([
+  DIRECTORY_STORAGE_KEY,
+  "mes-planning-prototype-directories-defaults-restored-v1",
+  "mes-planning-prototype-directories-deleted-entities-v1",
+]);
 const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
 const SYSTEM_DOMAINS_COMPATIBILITY_HEADER = "x-mes-system-domains-compatibility";
 const SPECIFICATIONS2_PUBLICATION_AUTHORITY_MAX = 500;
@@ -725,10 +730,10 @@ function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-// A shared-UI change is deliberately independent from the large persisted
-// planning/directory/specification values.  New clients can opt into a tiny
-// acknowledgement after such a write, while old clients and every domain
-// mutation retain the established full-snapshot response.
+// Shared-UI changes and reviewed narrow directory writes are independent from
+// the large planning/specification compatibility values. New clients can opt
+// into a tiny acknowledgement; old clients and every other domain mutation
+// retain the established full-snapshot response.
 function isCompactSharedUiAcknowledgementRequest(payload, action) {
   if (payload?.responseMode !== "ack") return false;
   if (![
@@ -739,6 +744,14 @@ function isCompactSharedUiAcknowledgementRequest(payload, action) {
   ].includes(action)) return false;
   const values = payload?.values;
   return Boolean(values && isRecord(values) && Object.keys(values).length === 0 && isRecord(payload?.sharedUiPatch));
+}
+
+function isCompactDirectoryAcknowledgementRequest(payload) {
+  if (payload?.responseMode !== "ack" || !isRecord(payload?.values)) return false;
+  const keys = Object.keys(payload.values);
+  return keys.includes(DIRECTORY_STORAGE_KEY)
+    && keys.every((key) => DIRECTORY_VALUE_KEYS.has(key))
+    && isRecord(payload.sharedUiPatch);
 }
 
 function parsePlanningState(value) {
@@ -1006,6 +1019,8 @@ export async function handleSharedStateRequest(req, res, {
     const action = normalizeAction(payload.action);
     const destructiveAction = isSharedStateActionDestructive(action);
     const compactSharedUiAcknowledgement = isCompactSharedUiAcknowledgementRequest(payload, action);
+    const compactDirectoryAcknowledgement = isCompactDirectoryAcknowledgementRequest(payload);
+    const compactAcknowledgement = compactSharedUiAcknowledgement || compactDirectoryAcknowledgement;
 
     if (isProtectedAppEnv(env) && destructiveAction && !isDestructiveActionsAllowed(env)) {
       await appendSharedStateAudit({
@@ -1039,7 +1054,7 @@ export async function handleSharedStateRequest(req, res, {
           configured: true,
           conflict: true,
           error: "Shared state version conflict",
-          current,
+          current: compactDirectoryAcknowledgement ? projectSnapshotValues(current, []) : current,
         });
         return;
       }
@@ -1232,7 +1247,7 @@ export async function handleSharedStateRequest(req, res, {
             configured: true,
             ...(persisted?.conflict ? { conflict: true } : { retryable: true }),
             error: persisted?.error || (persisted?.conflict ? "Shared state version conflict" : "KV shared-state write was not confirmed"),
-            current: latest,
+            current: compactDirectoryAcknowledgement ? projectSnapshotValues(latest, []) : latest,
           });
           return;
         }
@@ -1256,11 +1271,11 @@ export async function handleSharedStateRequest(req, res, {
           ...(planningObservationResult.attempted ? { planningSnapshotObservation: planningObservationResult.recorded ? "recorded" : "pending" } : {}),
         },
       }).catch(() => {});
-      // The browser has no new domain values to apply after an isolated UI
-      // preference write.  Avoid serialising the whole compatibility snapshot
-      // back to it; a conflict response remains intentionally complete so the
-      // existing retry/recovery path stays lossless.
-      sendJson(res, headers, 200, compactSharedUiAcknowledgement
+      // The browser already owns the acknowledged UI/directory projection.
+      // Avoid serialising the whole compatibility snapshot back to it. Compact
+      // directory conflicts also return only revision metadata because that
+      // client deliberately retries the same narrow values against current CAS.
+      sendJson(res, headers, 200, compactAcknowledgement
         ? { ok: true, configured: true, version: snapshot.version, updatedAt: snapshot.updatedAt }
         : { ok: true, configured: true, ...snapshot });
     };
