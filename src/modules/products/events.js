@@ -846,6 +846,7 @@ function bindNomenclatureEvents() {
 }
 
 function saveNomenclatureCommand(command = {}) {
+  const previousDirectoryState = JSON.parse(JSON.stringify(directoryState));
   const isNew = command.isNew === true;
   const id = isNew ? makeId("nom") : String(command.itemId || makeId("nom"));
   const name = String(command.name || "").trim();
@@ -881,9 +882,13 @@ function saveNomenclatureCommand(command = {}) {
   };
   if (command.requireDurable === true) {
     return Promise.resolve(persistDirectoryStateDurably("nomenclature-save")).then((persisted) => (
-      persisted
+      persisted === true
         ? completeSave()
-        : { ok: false, id, isNew, code: "persistence-unconfirmed", message: "Сервер не подтвердил сохранение номенклатуры. Обновите данные и повторите." }
+        : (() => {
+          replaceDirectoryState(previousDirectoryState);
+          persistDirectoryState();
+          return { ok: false, id, isNew, code: "persistence-unconfirmed", message: `Сервер не подтвердил сохранение номенклатуры. ${String(persisted || "Обновите данные и повторите.")}` };
+        })()
     ));
   }
   persistDirectoryState();
@@ -914,10 +919,16 @@ async function deleteNomenclatureCommand(command = {}) {
   const item = getNomenclatureItem(itemId);
   if (!item) return { ok: false, code: "not-found", message: "Позиция номенклатуры не найдена." };
   const usage = getNomenclatureDeleteUsage(itemId);
+  const previousDirectoryState = JSON.parse(JSON.stringify(directoryState));
 
   const nextDirectoryState = deleteDirectoryStateRow("nomenclature", item);
   if (nextDirectoryState) replaceDirectoryState(nextDirectoryState);
-  await persistDirectoryStateWithRemoval();
+  const persisted = await persistDirectoryStateWithRemoval();
+  if (persisted !== true) {
+    replaceDirectoryState(previousDirectoryState);
+    persistDirectoryState();
+    return { ok: false, id: itemId, code: "persistence-unconfirmed", message: `Сервер не подтвердил удаление номенклатуры. ${String(persisted || "Обновите данные и повторите.")}` };
+  }
   persistUiState();
   render();
   return { ok: true, id: itemId, usage };

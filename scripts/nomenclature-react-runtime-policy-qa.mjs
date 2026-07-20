@@ -50,6 +50,8 @@ const [appSource, productsEventsSource, runtimeStateSource] = await Promise.all(
 assert(appSource.includes("requireDurable: true"), "Pilot Nomenclature React saves must require a durable owner acknowledgement");
 assert(productsEventsSource.includes('persistDirectoryStateDurably("nomenclature-save")'), "Nomenclature owner must await the exact durable directory write");
 assert(productsEventsSource.includes('code: "persistence-unconfirmed"'), "Nomenclature save must fail closed when persistence is not confirmed");
+assert(productsEventsSource.includes("const previousDirectoryState = JSON.parse(JSON.stringify(directoryState))"), "Nomenclature commands must retain a rollback copy before a live mutation");
+assert(productsEventsSource.includes("persisted === true") && productsEventsSource.includes("replaceDirectoryState(previousDirectoryState)"), "Unconfirmed Nomenclature create/edit/delete commands must restore their local rollback copy");
 assert(runtimeStateSource.includes("sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight"), "Durable directory writes must serialize with both shared-state writes and polls");
 assert(runtimeStateSource.includes("attempt <= 6") && runtimeStateSource.includes(":durable-retry-"), "Durable directory writes must use bounded CAS retries under live shared-UI contention");
 assert(runtimeStateSource.includes('requestSharedState("GET", null, { emptyProjection: true })'), "Durable directory writes must refresh a compact CAS baseline before sending the Pilot snapshot");

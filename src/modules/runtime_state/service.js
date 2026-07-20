@@ -1904,32 +1904,38 @@ async function persistDirectoryStateDurably(reason = "directory-state") {
     while ((sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) && Date.now() < waitDeadline) {
       await new Promise((resolve) => window.setTimeout(resolve, 25));
     }
-    if (sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) return false;
+    if (sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) {
+      return "Синхронизация занята дольше 10 секунд.";
+    }
     try {
       // A normal 409 response contains the complete compatibility snapshot and
       // can exceed the browser's transport timeout on real Pilot data. Read a
       // metadata-only revision immediately before each durable attempt so the
       // protected full write starts from a current CAS version instead.
       const baseline = await requestSharedState("GET", null, { emptyProjection: true });
-      if (baseline.configured === false) return false;
+      if (baseline.configured === false) return "Общее хранилище не настроено.";
       const baselineVersion = Number(baseline.version || 0);
-      if (!Number.isFinite(baselineVersion) || baselineVersion <= 0) return false;
+      if (!Number.isFinite(baselineVersion) || baselineVersion <= 0) {
+        return "Сервер не вернул действующую ревизию общего состояния.";
+      }
       sharedStateStatus.version = baselineVersion;
       if (sharedStateStatus.sharedUiBase === null) {
         sharedStateStatus.sharedUiBase = cloneSharedUiSnapshot(baseline.sharedUi || {});
       }
     } catch (error) {
-      if (Date.now() >= waitDeadline) return false;
+      if (Date.now() >= waitDeadline) {
+        return `Не удалось прочитать ревизию общего состояния: ${error?.message || String(error)}`;
+      }
       await new Promise((resolve) => window.setTimeout(resolve, attempt * 75));
       continue;
     }
     const attemptReason = attempt === 1 ? reason : `${reason}:durable-retry-${attempt}`;
     scheduleSharedStatePush(attemptReason);
     if (await pushSharedState(attemptReason, { notifyConflict: attempt === 6 })) return true;
-    if (Date.now() >= waitDeadline) return false;
+    if (Date.now() >= waitDeadline) return "Сервер не подтвердил запись за 10 секунд.";
     await new Promise((resolve) => window.setTimeout(resolve, attempt * 75));
   }
-  return false;
+  return "Сервер не подтвердил запись после шести защищённых попыток.";
 }
 
 async function persistDirectoryStateWithRemoval() {

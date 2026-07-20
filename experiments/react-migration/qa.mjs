@@ -1808,6 +1808,15 @@ try {
     "+      if (Date.now() >= waitDeadline) return false;",
     "+      await new Promise((resolve) => window.setTimeout(resolve, attempt * 75));",
     "+      continue;",
+    "+    if (sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) {",
+    "+      return \"Синхронизация занята дольше 10 секунд.\";",
+    "+      if (baseline.configured === false) return \"Общее хранилище не настроено.\";",
+    "+      if (!Number.isFinite(baselineVersion) || baselineVersion <= 0) {",
+    "+        return \"Сервер не вернул действующую ревизию общего состояния.\";",
+    "+      if (Date.now() >= waitDeadline) {",
+    "+        return `Не удалось прочитать ревизию общего состояния: ${error?.message || String(error)}`;",
+    "+    if (Date.now() >= waitDeadline) return \"Сервер не подтвердил запись за 10 секунд.\";",
+    "+  return \"Сервер не подтвердил запись после шести защищённых попыток.\";",
   ]);
   const allowedRuntimeStateRemovals = new Set([
     "-  if (hasMeaningfulPlanningState(planningState)) {",
