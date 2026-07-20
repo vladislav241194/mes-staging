@@ -81,7 +81,7 @@ import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_p
 import { resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
-import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
+import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
@@ -3258,13 +3258,25 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
     const [action, value, dateKey] = String(scope || "").split(":");
-    if (action === "view" && ["week", "month"].includes(value)) { ui.timesheetView = value; persistUiState(); }
-    if (action === "period") moveTimesheetPeriod(Number(value || 0));
     if (["day", "schedule"].includes(action)) openTimesheetEditor(value, dateKey);
     if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
   },
   executeCommand: async (command = {}) => {
     const localQa = getTimesheetReactLocalQaOverrides();
+    if (command.type === "set-view") {
+      const view = String(command.payload?.view || "").trim();
+      if (!["week", "month"].includes(view)) return { ok: false, message: "Режим табеля недоступен." };
+      ui.timesheetView = view;
+      persistUiState();
+      if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
+      return { ok: true };
+    }
+    if (command.type === "move-period") {
+      const direction = Number(command.payload?.direction);
+      if (![-1, 1].includes(direction)) return { ok: false, message: "Направление периода табеля некорректно." };
+      moveTimesheetPeriod(direction);
+      return { ok: true };
+    }
     if (!localQa.writeEvaluation || !["save-attendance", "remove-attendance", "save-schedule", "remove-schedule"].includes(command.type)) return { ok: false, message: "Команда табеля недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("timesheet")) return { ok: false, message: "PostgreSQL-команда табеля недоступна." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {}; const employeeId = String(input.employeeId || "").trim(); const dateKey = String(input.dateKey || "").trim();
@@ -3481,17 +3493,44 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     window.addEventListener("afterprint", restoreTitle, { once: true });
     window.requestAnimationFrame(() => window.print());
   },
-  requestLegacyRender: (_reason, scope = "") => {
-    const [action, rowId] = String(scope || "").split(":");
+  requestLegacyRender: () => {
+    if (ui.activeModule === "shiftWorkOrders") render({ skipRememberScroll: true });
+  },
+  navigate: async (navigation = {}) => {
     const model = getShiftWorkOrderJournalViewModel();
-    const row = (model.rows || []).find((item) => item.id === rowId || item.sourceRowId === rowId) || model.selectedRow || null;
-    if (row?.id) ui.shiftWorkOrderJournalSelectedId = row.id;
-    if (action === "workshop" && row) {
-      ui.shiftMasterBoardSelectedSlotId = row.sourceRowId || row.id;
-      ui.activeModule = "shiftMasterBoard";
+    const decision = resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: model.rows, canOpenWorkshop: isModuleAllowedForRole("shiftMasterBoard") });
+    if (decision.ok !== true) return decision;
+    const row = decision.row;
+    const canonicalDateKey = normalizeDateInput(row.shiftDateKey || "");
+    if (!canonicalDateKey) return { ok: false, message: "Дата исходной задачи не определена." };
+    const previous = { selectedSlotId: ui.shiftMasterBoardSelectedSlotId, windowStart: ui.windowStart, activeDispatchSlotId: ui.activeDispatchSlotId, focus: ui.shiftMasterBoardFocus };
+    ui.shiftWorkOrderJournalSelectedId = row.id;
+    ui.shiftMasterBoardSelectedSlotId = row.sourceRowId || row.id;
+    ui.windowStart = canonicalDateKey;
+    ui.activeDispatchSlotId = "";
+    // The journal points to an exact Workshop source. A persisted board focus
+    // must not make that otherwise accessible source look stale (for example,
+    // `open` legitimately hides a row that already has a fact). Keep the
+    // target visible after a successful transition and restore the previous
+    // focus together with the other board state when the transition fails.
+    ui.shiftMasterBoardFocus = "all";
+    if (!isShiftWorkOrdersWorkshopTargetSelected(decision, getShiftMasterBoardModel())) {
+      ui.shiftMasterBoardSelectedSlotId = previous.selectedSlotId;
+      ui.windowStart = previous.windowStart;
+      ui.activeDispatchSlotId = previous.activeDispatchSlotId;
+      ui.shiftMasterBoardFocus = previous.focus;
+      return { ok: false, message: "Исходная задача больше не доступна в Мастерской." };
     }
-    persistUiState();
-    render({ skipRememberScroll: true });
+    await navigateToModule("shiftMasterBoard");
+    if (ui.activeModule !== "shiftMasterBoard" || !isShiftWorkOrdersWorkshopTargetSelected(decision, getShiftMasterBoardModel())) {
+      ui.shiftMasterBoardSelectedSlotId = previous.selectedSlotId;
+      ui.windowStart = previous.windowStart;
+      ui.activeDispatchSlotId = previous.activeDispatchSlotId;
+      ui.shiftMasterBoardFocus = previous.focus;
+      if (ui.activeModule !== "shiftWorkOrders") await navigateToModule("shiftWorkOrders");
+      return { ok: false, message: "Мастерская не смогла открыть исходную задачу." };
+    }
+    return { ok: true, id: ui.shiftMasterBoardSelectedSlotId, dateKey: canonicalDateKey };
   },
   executeCommand: async (command = {}) => {
     const localQa = getShiftWorkOrdersReactLocalQaOverrides();
@@ -3633,7 +3672,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     const canSaveFact = localQa.writeEvaluation && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
     const canSaveReport = localQa.writeEvaluation && (model.tasks || []).some((task) => !authPersonId || task.employeeId === authPersonId);
     const reportSummaries = Object.fromEntries((model.tasks || []).map((task) => [task.id, getShiftWorkOrderIssueSummary(task.rowId)]));
-    return { model, reportSummaries, capabilities: { taskStart: canStartTask, factSave: canSaveFact, reportSave: canSaveReport } };
+    return { model, reportSummaries, capabilities: { taskStart: canStartTask, factSave: canSaveFact, reportSave: canSaveReport, sessionNavigation: model.isLoggedIn === true } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
@@ -3648,9 +3687,28 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
+    const model = getAuthSessionPrototypeModel();
+    if (command.type === "select-person") {
+      if (command.personId === null) {
+        cancelAuthPrototypePinFeedback();
+        lockAuthGate();
+        ui.activeModule = "authPrototype";
+        updateModuleUrlParam(ui.activeModule);
+        persistUiState();
+        queueMicrotask(() => render({ skipRememberScroll: true }));
+        return { ok: true, id: "authPrototype" };
+      }
+      if (!model.canViewAll) return { ok: false, message: "Нет права просматривать рабочий стол другого сотрудника." };
+      const personId = String(command.personId || "").trim();
+      if (personId !== "__all" && !(model.taskPeople || []).some((person) => person.id === personId)) return { ok: false, message: "Сотрудник больше не доступен в сменном задании." };
+      ui.authSessionViewedPersonId = personId;
+      ui.authSessionSelectedTaskId = "";
+      persistUiState();
+      queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
+      return { ok: true, id: personId };
+    }
     if (!localQa.writeEvaluation) return { ok: false, message: "Команды рабочего стола в React недоступны." };
     const taskId = String(command.taskId || "").trim();
-    const model = getAuthSessionPrototypeModel();
     const task = (model.tasks || []).find((item) => item.id === taskId) || null;
     if (!task) return { ok: false, message: "Задание больше не доступно на рабочем столе." };
     if (model.authPerson?.id && task.employeeId !== model.authPerson.id) return { ok: false, message: "Нет права изменять задание другого сотрудника." };
@@ -9365,6 +9423,7 @@ function getStatusAuditInfo(...args) { return appEventsService.getStatusAuditInf
 function bindRouteStepDenseSelectEvents(...args) { return appEventsService.bindRouteStepDenseSelectEvents(...args); }
 function bindGenericModalCloseEvents(...args) { return appEventsService.bindGenericModalCloseEvents(...args); }
 function bindGlobalNavigation(...args) { return appEventsService.bindGlobalNavigation(...args); } function bindConfirmEvents(...args) { return appEventsService.bindConfirmEvents(...args); }
+function navigateToModule(...args) { return appEventsService.navigateToModule(...args); }
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
 function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }

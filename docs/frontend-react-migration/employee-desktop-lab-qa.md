@@ -18,7 +18,8 @@ Shift Execution repositories directly.
 ## Command boundary
 
 - local task selection stays inside React;
-- person switching returns to legacy;
+- authorized person switching and return to user selection use the existing
+  session owner inside React;
 - task start stays in React only behind an explicit localhost write evaluation
   and invokes the existing `startAuthSessionTask` owner;
 - fact quantities and the deviation comment are React form state; the typed
@@ -35,23 +36,24 @@ Shift Execution repositories directly.
 - Structure, Route and PDF instruction now render from the same typed task
   payload inside the shared React `ModalOverlay`; no host command or data write
   is added for these read-only views;
-- person switching remains the explicit legacy rollback scope.
+- durable Report persistence remains outside this frontend slice; technical
+  island failure retains the legacy rollback.
 
 ## Evidence
 
 `npm run qa:employee-desktop-react-lab` passes:
 
-- 130 typed sources and the frozen-backend guard;
+- 137 typed sources and the frozen-backend guard;
 - three assigned tasks and seven summary/detail metrics;
 - local task selection, task start, fact save/read-back, owner-prepared photo,
   Report journal read-back and payload revision `1 -> 5`;
 - Structure/Route/PDF parity, Tab focus containment, Escape/focus restoration,
-  button/backdrop close and person-switching rollback;
+  button/backdrop close and person switching without a legacy render;
 - deviation guard, disabled flag, no overflow and clean console;
-- independent entry `224,501 B` raw / `67,206 B` gzip under the unchanged
+- independent entry `223,177 B` raw / `67,127 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full twenty-four-scenario lab `536,188 B / 122,764 B` under its
-  development-only `537,000 B / 126,000 B` budget;
+- full twenty-four-scenario lab `569,883 B / 129,368 B` under its
+  development-only `570,000 B / 130,000 B` budget;
 - shared lab CSS `28,699 B / 5,207 B` under its development-only
   `28,900 B / 5,250 B` budget.
 
@@ -64,15 +66,17 @@ entry now hydrates the complete Planning PostgreSQL graph before deriving the
 bounded dispatch scope; it no longer depends on the retired shared-state graph.
 
 Production-shell QA proves one identical task in legacy and React, seven React
-metrics, read-only denial, one owner-backed transition to `В работе`, disabled
+metrics, local person-selection persistence and reload read-back, restricted
+executor denial for another employee, read-only denial, one owner-backed
+transition to `В работе`, disabled
 repeat, deviation validation, exactly one PostgreSQL Shift Execution fact
 command, owner-model read-back, unchanged `0600` test state and a clean console.
 The same gate prepares one image through the legacy owner, persists one Report,
 reads back `1 запись / 1 фото` and proves no additional Shift Execution command.
 It also opens Structure, Route and PDF in React without a write and verifies
-the shared modal keyboard/close contract. The first local commit was `30.20 ms`,
-below the `2,000 ms` production-shell gate. The bundled artifact is `214,902 B`
-raw / `66,681 B` gzip / `57,535 B` Brotli. Pilot remains unchanged.
+the shared modal keyboard/close contract. The latest local commit was `30.80 ms`,
+below the `2,000 ms` production-shell gate. The bundled artifact is `214,856 B`
+raw / `66,779 B` gzip. Pilot remains unchanged.
 
 ## Pilot acceptance
 

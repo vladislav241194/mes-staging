@@ -1014,6 +1014,7 @@ try {
   assert.equal(shiftWorkOrdersModel.canActivate, true, "Shift Work Orders needs documents, operations, assignments and a selected detail");
   assert.deepEqual([shiftWorkOrdersModel.documents.length, shiftWorkOrdersModel.operationCount, shiftWorkOrdersModel.rows.length], [2, 3, 3]);
   assert.deepEqual(shiftWorkOrdersModel.rows.map((row) => [row.documentNumber, row.status.id, row.issueReportCount]), [["СЗН-1042-01", "issued", 1], ["СЗН-1042-02", "assigned", 0], ["СЗН-1041-01", "closed", 0]]);
+  assert.deepEqual(shiftWorkOrdersModel.rows.map((row) => [row.id, row.sourceRowId]), [["a-1", "source-a-1"], ["a-2", "source-a-2"], ["b-1", "source-b-1"]], "Shift Work Orders must preserve source identity separately from the journal row ID");
   const shiftWorkOrdersFactModel = shiftWorkOrdersAdapter.adaptShiftWorkOrders({ ...shiftWorkOrdersFixture, capabilities: { assignmentSave: true, factSave: true }, factContexts: [{ rowId: "a-1", canEdit: true, hasFact: true, actualQuantity: 91, laborMinutes: 240, executorCount: 2, comment: "QA", deviationComment: "" }] });
   assert.equal(shiftWorkOrdersFactModel.canSaveFact, true, "Shift Work Orders fact capability must be explicit");
   assert.equal(shiftWorkOrdersFactModel.canSaveAssignment, true, "Shift Work Orders assignment capability must be explicit");
@@ -1028,6 +1029,9 @@ try {
   assert.match(shiftWorkOrdersScenarioSource, /setActivePhotoId\(report\.photoId\)/);
   assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy\?\.\(`photo:/);
   assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy\?\.\(`(?:print|package):/);
+  assert.doesNotMatch(shiftWorkOrdersScenarioSource, /onRequestLegacy/, "Shift Work Orders user actions must never request a legacy fallback");
+  assert.match(shiftWorkOrdersScenarioSource, /type: "open-workshop"/);
+  assert.match(shiftWorkOrdersScenarioSource, /journalRowId: selected\.id, sourceRowId: selected\.sourceRowId/);
   assert.match(shiftWorkOrdersScenarioSource, /onLoadPrintRenderer/);
   assert.match(shiftWorkOrdersScenarioSource, /onLoadFactEditor/);
 
@@ -1432,6 +1436,9 @@ try {
   assert.deepEqual(makeDirectoryStatusesHost({ featureFlagEnabled: true, activeSection: "statuses", accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Statuses must accept its explicit local custom-write evaluation mode");
 
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
+  assert.match(productionAppSource, /if \(\["day", "schedule"\]\.includes\(action\)\) openTimesheetEditor\(value, dateKey\);\s*if \(ui\.activeModule === "timesheet"\) render\(\{ skipRememberScroll: true \}\);/, "Timesheet technical island failure must still render the legacy rollback path while day/schedule actions open their legacy editor");
+  assert.match(productionAppSource, /isShiftWorkOrdersWorkshopTargetSelected\(decision, getShiftMasterBoardModel\(\)\)/, "Shift Work Orders navigation must verify the exact Workshop owner selection");
+  assert.match(productionAppSource, /ui\.shiftMasterBoardSelectedSlotId = previous\.selectedSlotId;\s*ui\.windowStart = previous\.windowStart;\s*ui\.activeDispatchSlotId = previous\.activeDispatchSlotId;/, "Shift Work Orders must restore its previous owner selection when the Workshop source disappears");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /localHosts\.has\(window\.location\.hostname\)/);
@@ -1955,7 +1962,7 @@ try {
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "slice-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders", "shiftMasterBoard", "employeeDesktop", "specifications2", "gantt", "authPicker", "contourAdmin"], "twenty-two scenarios must retain locally complete vertical slices without claiming whole-module completion");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "pending").length, 0, "no registered command slice may remain implicit or pending");
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /assignment and fact\/correction are locally complete.*Shift Execution owner.*Workshop navigation remains legacy.*Pilot write acceptance.*disposable cleanup/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /assignment, fact\/correction and typed Workshop source\/date navigation are locally complete.*Shift Execution and module owners.*Pilot write acceptance.*disposable cleanup/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /accepted Pilot read baseline.*manual lane movement.*write acceptance.*cleanup approval/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /accepted Pilot read baseline.*task start.*fact.*Report write acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "specifications2")?.nextVerticalScope || "", /Pilot draft-row publication.*exact-revision work-order acceptance.*attachment binding.*route structure.*server-owned contracts/);

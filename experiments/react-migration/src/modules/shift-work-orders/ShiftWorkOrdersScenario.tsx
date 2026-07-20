@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActionButton, MetricCard, MetricGrid, OperationalPage, Panel, StatusToken, TableWrap } from "../../ui/components";
-import { ModalOverlay } from "../../ui/ModalOverlay";
 import { adaptShiftWorkOrders, adaptWorkOrderPrintPackage, type ShiftWorkOrderDocumentGroup, type ShiftWorkOrderOperationGroup, type ShiftWorkOrderRow, type WorkOrderPrintPackage } from "./adapter";
 import type * as ShiftWorkOrderFactEditorModule from "./ShiftWorkOrderFactEditor";
 import type { ShiftWorkOrdersCommand } from "./ShiftWorkOrderFactEditor";
 import type * as ShiftWorkOrderPrintRenderer from "./ShiftWorkOrderPrintPreviews";
 
 export type { ShiftWorkOrdersCommand } from "./ShiftWorkOrderFactEditor";
+export type ShiftWorkOrdersReactNavigation = { type: "open-workshop"; journalRowId: string; sourceRowId: string; shiftDateKey: string; intent: "inspect" | "assign" | "fact" };
 
 const quantity = (value: number, unit = "") => `${value.toLocaleString("ru-RU")}${unit ? ` ${unit}` : ""}`;
 const operationStatus = (operation: ShiftWorkOrderOperationGroup) => operation.plannedQuantity > 0 && operation.factQuantity >= operation.plannedQuantity ? "закрыта" : operation.plannedQuantity > 0 && operation.assignedQuantity >= operation.plannedQuantity ? "распределена" : operation.assignedQuantity > 0 ? "частично" : "план";
-export function ShiftWorkOrdersScenario({ payload, onCommand, onLoadAssignmentContext, onLoadFactEditor, onLoadPrintPackage, onLoadPrintRenderer, onPrintDocument, onRequestLegacy }: { payload: unknown; onCommand?(command: ShiftWorkOrdersCommand): Promise<{ ok?: boolean; message?: string } | void>; onLoadAssignmentContext?(rowId: string): Promise<unknown>; onLoadFactEditor?(): Promise<typeof ShiftWorkOrderFactEditorModule>; onLoadPrintPackage?(rowId: string): Promise<unknown>; onLoadPrintRenderer?(): Promise<typeof ShiftWorkOrderPrintRenderer>; onPrintDocument?(title: string): void; onRequestLegacy?(scope?: string): void }) {
+const workshopNavigationError = "Не удалось открыть исходную задачу Мастерской.";
+export function ShiftWorkOrdersScenario({ payload, onCommand, onLoadAssignmentContext, onLoadFactEditor, onLoadPrintPackage, onLoadPrintRenderer, onNavigate, onPrintDocument }: { payload: unknown; onCommand?(command: ShiftWorkOrdersCommand): Promise<{ ok?: boolean; message?: string } | void>; onLoadAssignmentContext?(rowId: string): Promise<unknown>; onLoadFactEditor?(): Promise<typeof ShiftWorkOrderFactEditorModule>; onLoadPrintPackage?(rowId: string): Promise<unknown>; onLoadPrintRenderer?(): Promise<typeof ShiftWorkOrderPrintRenderer>; onNavigate?(navigation: ShiftWorkOrdersReactNavigation): Promise<{ ok?: boolean; message?: string } | void>; onPrintDocument?(title: string): void }) {
   const model = useMemo(() => adaptShiftWorkOrders(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.selectedRow?.id || "");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -30,6 +31,12 @@ export function ShiftWorkOrdersScenario({ payload, onCommand, onLoadAssignmentCo
   const photoReports = selected?.issueReports.filter((report) => Boolean(report.photoUrl)) || [];
   const activePhotoIndex = Math.max(0, photoReports.findIndex((report) => report.photoId === activePhotoId));
   const activePhoto = activePhotoId ? photoReports[activePhotoIndex] || null : null;
+  const openWorkshop = async (intent: ShiftWorkOrdersReactNavigation["intent"]) => {
+    if (!selected || !onNavigate || !selected.sourceRowId) { setFactLoadError("Исходная задача Мастерской недоступна."); return; }
+    setFactLoadError("");
+    const result = await onNavigate({ type: "open-workshop", journalRowId: selected.id, sourceRowId: selected.sourceRowId, shiftDateKey: selected.shiftDateKey, intent }).catch((error: unknown) => ({ ok: false, message: error instanceof Error ? error.message : workshopNavigationError }));
+    if (result?.ok === false) setFactLoadError(result.message || workshopNavigationError);
+  };
   useEffect(() => { if (activePhotoId && !photoReports.some((report) => report.photoId === activePhotoId)) setActivePhotoId(""); }, [activePhotoId, photoReports]);
   useEffect(() => {
     if (!activePhoto && !printPreview) return undefined;
@@ -57,11 +64,12 @@ export function ShiftWorkOrdersScenario({ payload, onCommand, onLoadAssignmentCo
     finally { setPrintLoading(false); }
   };
   const openFact = async () => {
-    if (!selected || !model.canSaveFact || !selected.factEditable || !onCommand || !onLoadFactEditor) { if (selected) onRequestLegacy?.(`workshop:${selected.id}`); return; }
+    if (!selected) return;
+    if (!model.canSaveFact || !selected.factEditable || !onCommand || !onLoadFactEditor) { await openWorkshop("fact"); return; }
     if (factLoading) return;
     setFactLoading(true); setFactLoadError("");
     try {
-      if (!FactEditor) { const editor = await onLoadFactEditor(); if (!editor?.createShiftWorkOrderFactEditor) throw new Error("Редактор факта недоступен."); setFactEditor(() => editor.createShiftWorkOrderFactEditor(useState, ModalOverlay)); }
+      if (!FactEditor) { const editor = await onLoadFactEditor(); if (!editor?.createShiftWorkOrderFactEditor) throw new Error("Редактор факта недоступен."); setFactEditor(() => editor.createShiftWorkOrderFactEditor(useState, useEffect, useRef)); }
       setFactOpen(true);
     } catch (error) {
       setFactLoadError(error instanceof Error ? error.message : "Редактор факта недоступен.");
@@ -70,9 +78,10 @@ export function ShiftWorkOrdersScenario({ payload, onCommand, onLoadAssignmentCo
     }
   };
   const openAssignment = async () => {
-    if (!selected || !model.canSaveAssignment || !onCommand || !onLoadAssignmentContext || !onLoadFactEditor) { if (selected) onRequestLegacy?.(`workshop:${selected.id}`); return; }
+    if (!selected) return;
+    if (!model.canSaveAssignment || !onCommand || !onLoadAssignmentContext || !onLoadFactEditor) { await openWorkshop("assign"); return; }
     if (assignmentLoading) return; setAssignmentLoading(true); setFactLoadError("");
-    try { const [editor, context] = await Promise.all([onLoadFactEditor(), onLoadAssignmentContext(selected.id)]); if (!editor?.createShiftWorkOrderAssignmentEditor || !context) throw new Error("Редактор распределения недоступен."); if (!AssignmentEditor) setAssignmentEditor(() => editor.createShiftWorkOrderAssignmentEditor(useState, ModalOverlay)); setAssignmentContext(context); setAssignmentOpen(true); }
+    try { const [editor, context] = await Promise.all([onLoadFactEditor(), onLoadAssignmentContext(selected.id)]); if (!editor?.createShiftWorkOrderAssignmentEditor || !context) throw new Error("Редактор распределения недоступен."); if (!AssignmentEditor) setAssignmentEditor(() => editor.createShiftWorkOrderAssignmentEditor(useState, useEffect, useRef)); setAssignmentContext(context); setAssignmentOpen(true); }
     catch (error) { setFactLoadError(error instanceof Error ? error.message : "Редактор распределения недоступен."); }
     finally { setAssignmentLoading(false); }
   };
@@ -93,7 +102,7 @@ export function ShiftWorkOrdersScenario({ payload, onCommand, onLoadAssignmentCo
   });
   return <OperationalPage className="shift-work-orders-page" label="Журнал сменных заданий"><section className="shift-work-orders-main-grid">
     <Panel heading={<div className="panel-heading"><div><h2>Дерево документов</h2><p>{model.documents.length} заказ-нарядов · {model.operationCount} операций · {model.rows.length} заданий · окно {model.sourceWindowLabel}</p></div></div>}><TableWrap><table className="directory-table shift-work-orders-table ui-table ui-document-tree-table"><thead><tr><th>Документы</th><th>Состав</th><th>План</th><th>Распр.</th><th>Факт</th><th>Ост.</th><th>Статус</th><th>Обновлено</th></tr></thead><tbody>{treeRows}</tbody></table></TableWrap></Panel>
-    {selected ? <Panel heading={<div className="panel-heading"><div><p>Сменное задание</p><h2>{selected.documentNumber}</h2></div><div><ActionButton disabled={assignmentLoading} onClick={() => void openAssignment()}>{assignmentLoading ? "Загрузка…" : "Распределить"}</ActionButton>{" "}<ActionButton disabled={factLoading} onClick={() => void openFact()}>{factLoading ? "Загрузка…" : selected.hasFact ? "Скорректировать факт" : "Внести факт"}</ActionButton>{" "}<ActionButton disabled={!onLoadPrintRenderer || printLoading} onClick={() => void openShiftPrint()}>{printLoading ? "Загрузка…" : "Печать СЗН"}</ActionButton>{" "}<ActionButton disabled={!onLoadPrintPackage || !onLoadPrintRenderer || printLoading} onClick={() => void openPackage()} variant="secondary">{printLoading ? "Загрузка…" : "Пакет ЗН"}</ActionButton>{" "}<ActionButton onClick={() => onRequestLegacy?.(`workshop:${selected.id}`)} variant="secondary">Мастерская</ActionButton></div></div>}>
+    {selected ? <Panel heading={<div className="panel-heading"><div><p>Сменное задание</p><h2>{selected.documentNumber}</h2></div><div><ActionButton disabled={assignmentLoading} onClick={() => void openAssignment()}>{assignmentLoading ? "Загрузка…" : "Распределить"}</ActionButton>{" "}<ActionButton disabled={factLoading} onClick={() => void openFact()}>{factLoading ? "Загрузка…" : selected.hasFact ? "Скорректировать факт" : "Внести факт"}</ActionButton>{" "}<ActionButton disabled={!onLoadPrintRenderer || printLoading} onClick={() => void openShiftPrint()}>{printLoading ? "Загрузка…" : "Печать СЗН"}</ActionButton>{" "}<ActionButton disabled={!onLoadPrintPackage || !onLoadPrintRenderer || printLoading} onClick={() => void openPackage()} variant="secondary">{printLoading ? "Загрузка…" : "Пакет ЗН"}</ActionButton>{" "}<ActionButton onClick={() => void openWorkshop("inspect")} variant="secondary">Мастерская</ActionButton></div></div>}>
       {factLoadError ? <p className="react-nomenclature-command-error" role="alert">{factLoadError}</p> : null}
       {printError ? <p className="react-nomenclature-command-error" role="alert">{printError}</p> : null}
       <section className="shift-work-orders-issue-list" data-visual-qa-target="shift-work-orders-issue-reports"><header><strong>Проблемы / Report</strong><span>{selected.issueReportCount} записей · {selected.issuePhotoCount} фото</span></header>{selected.issueReports.length ? selected.issueReports.map((report) => <article className="shift-work-orders-issue-card" key={report.id}><button aria-label={report.photoUrl ? `Открыть фото ${report.photoName}` : "Фото не приложено"} className={`shift-work-orders-issue-photo ${report.photoUrl ? "has-photo" : "is-empty"}`} disabled={!report.photoUrl} onClick={() => setActivePhotoId(report.photoId)} type="button">{report.photoUrl ? <img alt={report.photoName} src={report.photoUrl} /> : "!"}</button><div className="shift-work-orders-issue-copy"><header><strong>{report.employeeName}</strong><span>{report.createdAt}</span></header><p>{report.text}</p><small>{[report.operationName, report.workCenterLabel, report.photoName ? `фото: ${report.photoName}` : ""].filter(Boolean).join(" · ")}</small>{report.storageNote ? <small>{report.storageNote}</small> : null}</div></article>) : <p className="shift-work-orders-issue-empty">Проблемы по этому СЗН не зафиксированы.</p>}</section>

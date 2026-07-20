@@ -1,5 +1,6 @@
-import type { ComponentType, ReactNode, useState as UseState } from "react";
+import type { useEffect as UseEffect, useRef as UseRef, useState as UseState } from "react";
 import { ActionButton } from "../../ui/components";
+import { createModalOverlay } from "../../ui/createModalOverlay";
 import type { ShiftWorkOrderRow } from "./adapter";
 
 export interface ShiftWorkOrdersFactCommand { type: "save-fact"; rowId: string; actualQuantity: number; defectQuantity: number; laborMinutes: number; executorCount: number; comment: string; deviationComment: string }
@@ -8,12 +9,10 @@ export type ShiftWorkOrdersCommand = ShiftWorkOrdersFactCommand | ShiftWorkOrder
 
 const quantity = (value: number, unit = "") => `${value.toLocaleString("ru-RU")}${unit ? ` ${unit}` : ""}`;
 
-type ModalOverlayComponent = ComponentType<{ children: ReactNode; className?: string; eyebrow?: string; footer?: ReactNode; label: string; onClose(): void; title: string }>;
-
 const record = (value: unknown): Record<string, any> => value && typeof value === "object" ? value as Record<string, any> : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 
-export function createShiftWorkOrderAssignmentEditor(useState: typeof UseState, ModalOverlay: ModalOverlayComponent) { return function ShiftWorkOrderAssignmentEditor({ context, onClose, onCommand }: { context: unknown; onClose(): void; onCommand(command: ShiftWorkOrdersCommand): Promise<{ ok?: boolean; message?: string } | void> }) {
+export function createShiftWorkOrderAssignmentEditor(useState: typeof UseState, useEffect: typeof UseEffect, useRef: typeof UseRef) { const ModalOverlay = createModalOverlay(useEffect, useRef); return function ShiftWorkOrderAssignmentEditor({ context, onClose, onCommand }: { context: unknown; onClose(): void; onCommand(command: ShiftWorkOrdersCommand): Promise<{ ok?: boolean; message?: string } | void> }) {
   const source = record(context); const rowId = String(source.rowId || "").trim(); const plannedQuantity = Math.max(0, Number(source.plannedQuantity || 0)); const unit = String(source.unit || "шт.");
   const current = new Map(list(source.executors).map((value) => { const executor = record(value); return [String(executor.employeeId || "").trim(), Math.max(0, Number(executor.quantity || 0))] as const; }));
   const employees = list(source.employees).map((value) => { const employee = record(value); const availability = record(employee.availability); const id = String(employee.id || employee.employeeId || "").trim(); return { id, name: String(employee.name || employee.employeeName || "Исполнитель"), available: availability.isAvailable === true, label: String(availability.label || (availability.isAvailable === true ? "доступен по Табелю" : "недоступен по Табелю")), quantity: current.get(id) || 0 }; }).filter((employee) => employee.id);
@@ -23,7 +22,7 @@ export function createShiftWorkOrderAssignmentEditor(useState: typeof UseState, 
   return <ModalOverlay className="shift-master-board-react-assignment-modal" eyebrow="Журнал СЗН" footer={<><span className={invalid || error ? "is-error" : ""}>{error || (total <= 0 ? "Назначьте количество хотя бы одному исполнителю." : total > plannedQuantity ? `Назначено больше плана на ${quantity(total - plannedQuantity, unit)}` : `Назначено ${quantity(total, unit)} из ${quantity(plannedQuantity, unit)}`)}</span><ActionButton disabled={invalid || saving} onClick={() => void save()}>{saving ? "Сохранение…" : "Сохранить"}</ActionButton></>} label="Распределение исполнителей" onClose={onClose} title={String(source.operationName || "Сменное задание")}><div className="shift-master-board-react-assignment" data-shift-work-orders-assignment={rowId}>{values.length ? values.map(({ employee, value }) => <label className={employee.available ? "" : "is-unavailable"} key={employee.id}><span><strong>{employee.name}</strong><small>{employee.label}</small></span><input aria-label={`Количество для ${employee.name}`} disabled={!employee.available} inputMode="numeric" maxLength={7} onChange={(event) => { const next = event.currentTarget.value.replace(/\D/g, "").slice(0, 7); setDraft((state) => ({ ...state, [employee.id]: next })); }} value={value} /></label>) : <p>Матрица доступа или Табель не дают назначить сотрудника на эту смену.</p>}</div></ModalOverlay>;
 }; }
 
-export function createShiftWorkOrderFactEditor(useState: typeof UseState, ModalOverlay: ModalOverlayComponent) { return function ShiftWorkOrderFactEditor({ onClose, onCommand, row }: { onClose(): void; onCommand(command: ShiftWorkOrdersFactCommand): Promise<{ ok?: boolean; message?: string } | void>; row: ShiftWorkOrderRow }) {
+export function createShiftWorkOrderFactEditor(useState: typeof UseState, useEffect: typeof UseEffect, useRef: typeof UseRef) { const ModalOverlay = createModalOverlay(useEffect, useRef); return function ShiftWorkOrderFactEditor({ onClose, onCommand, row }: { onClose(): void; onCommand(command: ShiftWorkOrdersFactCommand): Promise<{ ok?: boolean; message?: string } | void>; row: ShiftWorkOrderRow }) {
   const [saving, setSaving] = useState(false); const [error, setError] = useState("");
   const [draft, setDraft] = useState({ actualQuantity: String(row.hasFact ? row.actualQuantity ?? 0 : row.assignedQuantity), defectQuantity: String(row.defectQuantity), laborMinutes: String(row.laborMinutes ?? 0), executorCount: String(row.hasFact ? row.executorCount ?? 0 : row.executors.length), comment: row.factComment || "", deviationComment: row.deviationComment || "" });
   const parse = (value: string) => /^\d{1,7}$/.test(value) ? Number(value) : null;

@@ -43,7 +43,7 @@ assert(ledger.criteria.every((criterion) => Number.isInteger(criterion.earned) &
 assert.equal(ledger.criteria.reduce((sum, criterion) => sum + criterion.maximum, 0), 100, "cutover criteria must total 100 points");
 const computedProgress = ledger.criteria.reduce((sum, criterion) => sum + criterion.earned, 0);
 assert.equal(computedProgress, ledger.currentProgress, "reported progress must equal the evidence-weighted criterion total");
-assert.equal(computedProgress, 48, "one permanent Pilot surface raises the audited cutover progress conservatively to 48%");
+assert.equal(computedProgress, 49, "three owner-backed parity slices raise the audited cutover progress conservatively to 49%");
 
 assert.deepEqual(ledger.permanentPilotEvidence?.reactSurfaces, ["weeklyProductionControl"], "only Weekly Production Control is permanently React on Pilot");
 assert.deepEqual(ledger.permanentPilotEvidence?.activeEvaluationSurfaces, [], "permanent acceptance may not depend on an evaluation surface");
@@ -120,7 +120,7 @@ const discoveredIslandEntries = (await listFiles(join(migrationRoot, "src")))
   .map((path) => path.slice(repositoryRoot.length + 1));
 assert.deepEqual(sorted(islandEntries), sorted(discoveredIslandEntries), "every built React island entry must appear exactly once in the cutover ledger");
 assert.deepEqual(ledger.islands.filter((island) => island.disposition === "mock-not-production").map((island) => island.id), ["marking"], "Marking is the only explicitly non-production MOCK island");
-assert.equal(ledger.islands.filter((island) => island.normalActionFallback).length, 21, "twenty-one island surfaces still expose normal user-action fallback to legacy");
+assert.equal(ledger.islands.filter((island) => island.normalActionFallback).length, 20, "twenty island surfaces still expose normal user-action fallback to legacy");
 for (const island of ledger.islands) {
   const module = ledger.modules.find((candidate) => candidate.id === island.routeId);
   if (island.commands.missing.length || island.normalActionFallback || island.disposition !== "migration-required") {

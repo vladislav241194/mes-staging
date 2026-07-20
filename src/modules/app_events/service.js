@@ -2029,6 +2029,7 @@ function updateDependencyClip(shell) {
     bindGlobalNavigation,
     getModuleMenuButtonFromEventTarget,
     openModuleFromMenuButton,
+    navigateToModule,
     bindConfirmEvents,
     bindAuthPrototypeEvents: bindAuthPrototypeEventsDependency,
     bindAuthSessionEvents: bindAuthSessionEventsDependency,

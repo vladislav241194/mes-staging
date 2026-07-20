@@ -1,7 +1,7 @@
 # Shift Work Orders React migration QA
 
 Date: 2026-07-20
-Status: production-integrated and Pilot-accepted read island with local owner-backed assignment/fact evidence; disabled by default
+Status: production-integrated and Pilot-accepted read island with local owner-backed assignment/fact and Workshop navigation evidence; disabled by default
 
 ## Vertical scenario
 
@@ -18,10 +18,11 @@ shared state or Shift Execution repositories directly.
 - executor assignment and fact entry/correction are locally complete through
   the existing Shift Execution owner and only in explicit localhost write
   evaluation;
-- Workshop navigation, which returns to the unchanged legacy runtime;
+- typed Workshop navigation through the existing module owner with exact
+  source/date and stale/RBAC fail-closed checks;
 - any Shift Execution authority, API or repository change.
 
-Unsupported scopes return to legacy through the common feature gate. React
+Technical island failures return to legacy through the common feature gate. React
 does not own persistence, RBAC, carryover reconciliation or the PostgreSQL
 read model.
 
@@ -30,7 +31,7 @@ read model.
 `npm run qa:shift-work-orders-react-island` and
 `npm run qa:shift-work-orders-react-lab` pass:
 
-- 133 typed sources and frozen-backend guard;
+- 137 typed sources and frozen-backend guard;
 - two work orders, three operations, three assignments and eight columns;
 - eight selected-detail metrics, executor and transfer projection;
 - mouse selection, operation collapse and payload revision `1 -> 2`;
@@ -40,32 +41,35 @@ read model.
   the supplied host print callback with the document title;
 - the package adapter consumes the existing Routes owner model with two
   operations, two SZN rows and one executor; it does not reproduce calculations;
-- Workshop fallback, disabled flag, no page overflow and clean console;
+- exact Workshop owner navigation, stale/RBAC fail-closed behavior, disabled
+  flag, no page overflow and clean console;
 - the production visual gate asserts the real grid, panel, table, Report card
   and five-column transfer contract; React now supplies the two semantic-free
   connector slots and current-step marker required by the existing MES visual
   contract instead of placing a card into an 18-pixel connector column;
-- independent base entry `224,968 B` raw / `67,925 B` gzip under the unchanged
+- independent base entry `224,161 B` raw / `67,643 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
 - lazy print entry `19,025 B` raw / `3,659 B` gzip under the same production-entry
   budget; the base entry is checked not to contain the print sheet;
-- lazy command editors `9,370 B` raw / `3,020 B` gzip under the same budget; the
+- lazy command editors `10,990 B` raw / `3,627 B` gzip under the same budget; the
   base entry is checked not to contain assignment/fact fields, and the editors reuse the
   host island's React hooks instead of bundling a second hook runtime;
-- full twenty-four-scenario lab `566,267 B / 127,918 B` under its
-  development-only `567,000 B / 128,000 B` budget.
+- full twenty-four-scenario lab `569,883 B / 129,368 B` under its
+  development-only `570,000 B / 130,000 B` budget.
 
 Production-shell QA proves default legacy, explicit session-only read access,
 one PostgreSQL-backed work order/operation/assignment, identical eight-column
 tree density, lazy SZN/package/command chunks, two host print callbacks and zero
-writes in read-only mode. In write evaluation, Escape sends no command;
+writes in read-only mode. It also proves exact source/date Workshop navigation,
+clean React remount and stale/RBAC fail-closed behavior without a domain write
+or legacy fallback. In write evaluation, Escape sends no command;
 assignment posts only to the exact revision-checked assignment endpoint, React
 and legacy read `58 -> 57`, and cleanup restores `57 -> 58`. Fact correction
 then posts once to the exact fact endpoint, React and legacy read `58 -> 59`,
 and cleanup restores `59 -> 58`. No carryover endpoint is touched, the 0600
 test state is byte-stable and the console is clean. The production base bundle
-is `217,934 B` raw / `67,553 B` gzip / `64,100 B` Brotli; its lazy command
-bundle is `6,943 B` raw / `2,817 B` gzip / `2,661 B` Brotli, and its lazy print bundle is `13,774 B` raw /
+is `216,859 B` raw / `67,272 B` gzip; its lazy command
+bundle is `8,535 B` raw / `3,423 B` gzip, and its lazy print bundle is `13,774 B` raw /
 `3,378 B` gzip / `3,137 B` Brotli. The production fixture has no report photo,
 so attachment behavior is proven by the isolated typed-payload browser gate;
 Pilot remains unchanged.

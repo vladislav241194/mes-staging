@@ -59,8 +59,9 @@ parity through the System Domains owner. Employees, Positions, Org Units, Work
 Centers, Equipment and Responsibility Policies have explicit archive and reactivation.
 Other reference-sensitive,
 lifecycle, import and other delete commands remain explicit legacy-only
-slices. Timesheet now has locally complete single-day attendance and permanent
-schedule save/remove. Roles and Access now has locally complete passport
+slices. Timesheet now has React-owned week/month and previous/next-period
+navigation plus locally complete single-day attendance and permanent schedule
+save/remove. Roles and Access now has locally complete passport
 metadata editing, six-action grant toggles, role default scope, immediate
 single-assignment replace/clear and explicit deactivate/reactivate for
 unassigned roles through the `access-control` owner. Multiple-assignment and
@@ -76,7 +77,9 @@ rechecks the current PostgreSQL window, `shiftMasterBoard:assign`/`edit`, the
 access matrix, Timesheet availability, canonical server assignment and
 quantity/defect bounds before delegating the same assignment, fact and
 carryover lifecycle used by Shift Master Board. React reads the refreshed
-journal projection back; Workshop navigation remains legacy. The
+journal projection back and opens the exact Workshop source/date through the
+existing module owner; stale source and RBAC failures stay in React and fail
+closed. The
 Shift Master Board now owns its date and RBAC-scoped master selectors, four focus controls, bounded executor
 assignment, fact entry/correction and the complete carryover navigation cycle.
 The existing host normalizes focus, rechecks RBAC, access matrix, Timesheet
@@ -96,7 +99,9 @@ task, disables repeats and reads back `В работе` and `факт запис
 photo preparation and Report creation reuse the existing journal owner. The
 Report journal remains compatibility UI-state rather than PostgreSQL.
 Structure, Route and PDF instruction are now React read-only overlays over the
-same task payload; person switching remains the module rollback. Gantt now also keeps dependency inspection
+same task payload. Authorized person switching and return to user selection now
+use the existing session owner without a legacy render; durable Report
+persistence remains separate. Gantt now also keeps dependency inspection
 inside React using the existing `getDependencyPairs` owner and a local-only
 typed start-time move through the revision-checked `changeSlotSchedule` owner;
 dependency editing, drag, resize and optimization remain legacy. The remaining scenarios

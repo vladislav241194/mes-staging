@@ -11,10 +11,10 @@ export interface EmployeeDesktopTask {
   previousOperation: string; nextOperation: string; routeNodes: EmployeeDesktopRouteNode[]; reportCount: number; photoCount: number;
 }
 export interface EmployeeDesktopRouteNode { label: string; operationName: string; workCenterLabel: string; routePartLabel: string; current: boolean }
-export interface EmployeeDesktopPerson { id: string; name: string; department: string }
+export interface EmployeeDesktopPerson { id: string; name: string }
 export interface EmployeeDesktopModel {
   tasks: EmployeeDesktopTask[]; selectedTask: EmployeeDesktopTask | null; people: EmployeeDesktopPerson[]; viewedPersonId: string;
-  personName: string; roleLabel: string; canViewAll: boolean; canStartTask: boolean; canSaveFact: boolean; canSaveReport: boolean; assignedQuantity: number; goodQuantity: number; activeCount: number; doneCount: number;
+  personName: string; canSwitchPerson: boolean; canReturnToUserSelection: boolean; canStartTask: boolean; canSaveFact: boolean; canSaveReport: boolean; assignedQuantity: number; goodQuantity: number; activeCount: number; doneCount: number;
 }
 
 function adaptTask(value: unknown, reportSummaries: Record<string, any>): EmployeeDesktopTask | null {
@@ -26,7 +26,7 @@ function adaptTask(value: unknown, reportSummaries: Record<string, any>): Employ
 }
 
 export function adaptEmployeeDesktopPayload(payload: unknown): EmployeeDesktopModel {
-  const source = record(payload); const model = record(source.model); const capabilities = record(source.capabilities); const reportSummaries = record(source.reportSummaries); const tasks = list(model.tasks).map((value) => adaptTask(value, reportSummaries)).filter(Boolean) as EmployeeDesktopTask[]; const selectedId = text(record(model.selectedTask).id); const person = record(model.person); const role = record(model.role);
-  const people = list(model.taskPeople).map((value): EmployeeDesktopPerson | null => { const source = record(value); const id = text(source.id); return id ? { id, name: personName(source.name), department: text(source.department, "Участок не указан") } : null; }).filter(Boolean) as EmployeeDesktopPerson[];
-  return { tasks, selectedTask: tasks.find((task) => task.id === selectedId) || tasks[0] || null, people, viewedPersonId: text(model.viewedPersonId, "__all"), personName: personName(person.name), roleLabel: text(role.label || role.name, "Исполнитель"), canViewAll: model.canViewAll === true, canStartTask: capabilities.taskStart === true, canSaveFact: capabilities.factSave === true, canSaveReport: capabilities.reportSave === true, assignedQuantity: number(model.assignedQuantity), goodQuantity: number(model.goodQuantity), activeCount: list(model.activeTasks).length, doneCount: list(model.doneTasks).length };
+  const source = record(payload); const model = record(source.model); const capabilities = record(source.capabilities); const reportSummaries = record(source.reportSummaries); const tasks = list(model.tasks).map((value) => adaptTask(value, reportSummaries)).filter(Boolean) as EmployeeDesktopTask[]; const selectedId = text(record(model.selectedTask).id); const person = record(model.person);
+  const people = list(model.taskPeople).map((value): EmployeeDesktopPerson | null => { const source = record(value); const id = text(source.id); return id ? { id, name: personName(source.name) } : null; }).filter(Boolean) as EmployeeDesktopPerson[];
+  return { tasks, selectedTask: tasks.find((task) => task.id === selectedId) || tasks[0] || null, people, viewedPersonId: text(model.viewedPersonId, "__all"), personName: personName(person.name), canSwitchPerson: capabilities.sessionNavigation === true && model.canViewAll === true, canReturnToUserSelection: capabilities.sessionNavigation === true, canStartTask: capabilities.taskStart === true, canSaveFact: capabilities.factSave === true, canSaveReport: capabilities.reportSave === true, assignedQuantity: number(model.assignedQuantity), goodQuantity: number(model.goodQuantity), activeCount: list(model.activeTasks).length, doneCount: list(model.doneTasks).length };
 }

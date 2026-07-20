@@ -25,6 +25,13 @@ Pilot-read балл не повышен: на текущем release по-пре
 сценарий из 24. Маркировка остаётся MOCK и в расчёт production-готовности не
 входит.
 
+После локального production-shell закрытия трёх owner-backed переходов — выбор
+сотрудника в Employee Desktop, навигация периода Timesheet и точный переход
+Shift Work Orders в Workshop — функциональный parity вырос ещё на один
+консервативный балл. Текущая доказанная готовность составляет **49%**. Pilot,
+permanent-runtime и legacy-consolidation баллы не повышены: этот срез ещё не
+опубликован и не принят на Pilot.
+
 ## Что проверено 2026-07-21
 
 - Permanent-кандидат прошёл полный локальный QA и release staging.
@@ -41,6 +48,10 @@ Pilot-read балл не повышен: на текущем release по-пре
 - Legacy rollback сохранён как отдельный immutable release; он не смешан с
   обычным Weekly runtime.
 - Полный QA, TypeScript, архитектурные и release provenance проверки проходят.
+- Employee Desktop person selection/reload/RBAC, Timesheet week/month/period
+  navigation с принудительным mount-error rollback и Shift Work Orders exact
+  Workshop source/date navigation со stale/RBAC fail-closed проверками проходят
+  в isolated и production-shell QA.
 - В верхнем реестре системы 16 модулей.
 - В коде 25 React islands: 24 сценария command-parity и отдельная Маркировка.
 - 22 из 24 сценариев имели двусмысленный статус `local-complete`; после аудита
@@ -70,18 +81,20 @@ Pilot-read балл не повышен: на текущем release по-пре
 | Критерий полного cutover | Вес | Доказано | Почему не максимум |
 | --- | ---: | ---: | --- |
 | Полный scope и typed React-поверхность | 15 | 14 | Все routes/islands/aliases/commands учтены; Dispatch без island, Marking — MOCK, TypeScript ещё не покрывает весь runtime |
-| Функциональный parity без обычного возврата в legacy | 25 | 17 | В Roles, Planning, Boards/BOM, Shift Work Orders, Shift Master, Employee Desktop, Specifications 2.0 и Gantt остаются legacy-only команды |
+| Функциональный parity без обычного возврата в legacy | 25 | 18 | В Roles, Planning, Boards/BOM, Shift Master, Employee Desktop, Specifications 2.0 и Gantt остаются legacy-only команды |
 | Реальная Pilot read/write приёмка | 20 | 9 | Historical read 21/24; fresh current-release read 1/24; полный write lifecycle только 1/22 и на более раннем release |
 | Постоянный default-on React runtime | 20 | 1 | Permanent принят только Weekly: 1/24 production-сценариев; остальные не засчитаны |
 | Вывод legacy из обычного runtime | 15 | 2 | Weekly больше не использует legacy в normal path; mixed runtime и action fallback остаются в остальных областях |
 | Strict QA, release и rollback-контроли | 5 | 5 | Полный QA/stage, immutable provenance и реальный rollback/reactivation drill доказаны |
-| **Итого** | **100** | **48** | Рост от контрольной точки 46% ограничен первым permanent-модулем |
+| **Итого** | **100** | **49** | Первый permanent-модуль дал 2 балла; три проверенных owner-backed перехода дали ещё 1 балл функционального parity |
 
 Расчёт прироста в целочисленной ведомости: permanent runtime —
 `round(20 × 1/24) = 1`; legacy consolidation — прежний 1 балл плюс
 `round(14 × 1/24) = 1` за первый маршрут без normal legacy path. Pilot
 acceptance остаётся 9 баллов, потому что fresh current-release coverage не
-увеличилось и по-прежнему равно 1/24. Итого: `46 + 1 + 1 = 48`.
+увеличилось и по-прежнему равно 1/24. После трёх локально доказанных
+parity-срезов functional parity вырос с 17 до 18. Итого:
+`46 + 1 + 1 + 1 = 49`.
 
 Процент меняется только после появления перечисленного доказательства. Зелёный
 локальный тест сам по себе не увеличивает Pilot/default-on/legacy-removal часть.
@@ -98,8 +111,8 @@ acceptance остаётся 9 баллов, потому что fresh current-re
 
 - даты запуска, трудозатраты, перенос в Gantt, отмена;
 - ручное перемещение lane в Shift Master;
-- переход Workshop в Shift Work Orders;
-- переключение сотрудника и недостающая persistence-приёмка Employee Desktop.
+- durable Report persistence и Pilot lifecycle Employee Desktop;
+- Pilot assignment/fact lifecycle Shift Work Orders.
 
 ### Specifications 2.0 и Boards/BOM
 
@@ -148,7 +161,7 @@ acceptance остаётся 9 баллов, потому что fresh current-re
 `experiments/react-migration/cutover-ledger.json`; команда
 `npm run qa:react-cutover` сверяет 16 маршрутов, 24 сценария, 21/24 historical
 Pilot reads, 1/24 current-release reads, 1/22 Pilot writes, одну permanent
-React-поверхность и доказанные 48% при сохранённой контрольной точке 46%.
+React-поверхность и доказанные 49% при сохранённой контрольной точке 46%.
 Ledger также сверяет все 25 island entry points, deep-link aliases,
 implemented/missing commands, normal-action fallback, immutable release
 evidence и отсутствие зависимости Blueprint UI. Dispatch помечен как

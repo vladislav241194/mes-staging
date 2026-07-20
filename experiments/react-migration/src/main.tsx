@@ -15,11 +15,11 @@ import { structureEquipmentFixture, structureEquipmentUpdateFixture } from "./mo
 import { structureResponsibilityPoliciesFixture, structureResponsibilityPoliciesUpdateFixture } from "./modules/structure-responsibility-policies/fixture";
 import { structureMigrationDiagnosticsFixture, structureMigrationDiagnosticsUpdateFixture } from "./modules/structure-migration-diagnostics/fixture";
 import { weeklyProductionControlFixture, weeklyProductionControlUpdateFixture } from "./modules/weekly-production-control/fixture";
-import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fixture";
+import { createTimesheetNavigationFixture, timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fixture";
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
 import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
 import { createShiftMasterBoardAssignmentFixture, createShiftMasterBoardCarryoverFixture, createShiftMasterBoardDateFixture, createShiftMasterBoardFactFixture, createShiftMasterBoardFocusFixture, createShiftMasterBoardMasterFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
-import { createEmployeeDesktopFactFixture, createEmployeeDesktopReportFixture, createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
+import { createEmployeeDesktopFactFixture, createEmployeeDesktopPersonFixture, createEmployeeDesktopReportFixture, createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
 import { specifications2Fixture, specifications2UpdateFixture } from "./modules/specifications2/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
@@ -31,6 +31,7 @@ const scenarioParam = searchParams.get("scenario");
 const scenario: ReactMigrationScenarioId = scenarioParam === "component-types" ? "componentTypes" : scenarioParam === "boards" ? "boards" : scenarioParam === "structure-employees" ? "structureEmployees" : scenarioParam === "structure-positions" ? "structurePositions" : scenarioParam === "structure-org-units" ? "structureOrgUnits" : scenarioParam === "structure-work-centers" ? "structureWorkCenters" : scenarioParam === "structure-equipment" ? "structureEquipment" : scenarioParam === "structure-responsibility-policies" ? "structureResponsibilityPolicies" : scenarioParam === "structure-migration-diagnostics" ? "structureMigrationDiagnostics" : scenarioParam === "weekly-production-control" ? "weeklyProductionControl" : scenarioParam === "timesheet" ? "timesheet" : scenarioParam === "planning-workbench" ? "planningWorkbench" : scenarioParam === "shift-work-orders" ? "shiftWorkOrders" : scenarioParam === "shift-master-board" ? "shiftMasterBoard" : scenarioParam === "employee-desktop" ? "employeeDesktop" : scenarioParam === "contour-admin" ? "contourAdmin" : scenarioParam === "specifications2" ? "specifications2" : scenarioParam === "roles" ? "roles" : scenarioParam === "operations" ? "operations" : scenarioParam === "nomenclature-types" ? "nomenclatureTypes" : scenarioParam === "statuses" ? "statuses" : "nomenclature";
 const initialPayload = scenario === "componentTypes" ? componentTypesFixture : scenario === "boards" ? boardsFixture : scenario === "structureEmployees" ? structureEmployeesFixture : scenario === "structurePositions" ? structurePositionsFixture : scenario === "structureOrgUnits" ? structureOrgUnitsFixture : scenario === "structureWorkCenters" ? structureWorkCentersFixture : scenario === "structureEquipment" ? structureEquipmentFixture : scenario === "structureResponsibilityPolicies" ? structureResponsibilityPoliciesFixture : scenario === "structureMigrationDiagnostics" ? structureMigrationDiagnosticsFixture : scenario === "weeklyProductionControl" ? weeklyProductionControlFixture : scenario === "timesheet" ? timesheetFixture : scenario === "planningWorkbench" ? planningWorkbenchFixture : scenario === "shiftWorkOrders" ? shiftWorkOrdersFixture : scenario === "shiftMasterBoard" ? shiftMasterBoardFixture : scenario === "employeeDesktop" ? employeeDesktopFixture : scenario === "contourAdmin" ? contourAdminFixture : scenario === "specifications2" ? specifications2Fixture : scenario === "roles" ? rolesFixture : scenario === "operations" ? operationsFixture : scenario === "nomenclatureTypes" ? nomenclatureTypesFixture : scenario === "statuses" ? statusesFixture : nomenclatureFixture;
 const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : scenario === "boards" ? boardsUpdateFixture : scenario === "structureEmployees" ? structureEmployeesUpdateFixture : scenario === "structurePositions" ? structurePositionsUpdateFixture : scenario === "structureOrgUnits" ? structureOrgUnitsUpdateFixture : scenario === "structureWorkCenters" ? structureWorkCentersUpdateFixture : scenario === "structureEquipment" ? structureEquipmentUpdateFixture : scenario === "structureResponsibilityPolicies" ? structureResponsibilityPoliciesUpdateFixture : scenario === "structureMigrationDiagnostics" ? structureMigrationDiagnosticsUpdateFixture : scenario === "weeklyProductionControl" ? weeklyProductionControlUpdateFixture : scenario === "timesheet" ? timesheetUpdateFixture : scenario === "planningWorkbench" ? planningWorkbenchUpdateFixture : scenario === "shiftWorkOrders" ? shiftWorkOrdersUpdateFixture : scenario === "shiftMasterBoard" ? shiftMasterBoardUpdateFixture : scenario === "employeeDesktop" ? employeeDesktopUpdateFixture : scenario === "contourAdmin" ? contourAdminUpdateFixture : scenario === "specifications2" ? specifications2UpdateFixture : scenario === "roles" ? rolesUpdateFixture : scenario === "operations" ? operationsUpdateFixture : scenario === "nomenclatureTypes" ? nomenclatureTypesUpdateFixture : scenario === "statuses" ? statusesUpdateFixture : nomenclatureUpdateFixture;
+let timesheetLabPayload: unknown = timesheetFixture;
 const featureFlagEnabled = searchParams.get("react") !== "0";
 const accessMode = searchParams.get("access") === "editor" ? "editor" : "read-only-evaluation";
 const nomenclatureActivation = resolveNomenclatureActivation({
@@ -91,6 +92,13 @@ const featureGate = createReactIslandFeatureGate({
       onReady: ({ revision }) => recordRevisionCommit(revision),
       onLoadShiftWorkOrderPrintPackage: async () => shiftWorkOrdersPrintPackageFixture,
       onLoadShiftWorkOrderPrintRenderer: async () => import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews"),
+      onTimesheetNavigate: async (command) => { timesheetLabPayload = createTimesheetNavigationFixture(timesheetLabPayload, command); markRevisionStart(nextExpectedRevision); featureGate.update(timesheetLabPayload); return { ok: true }; },
+      onShiftWorkOrdersNavigate: async (navigation) => {
+        root.dataset.shiftWorkOrdersNavigation = JSON.stringify(navigation);
+        if (searchParams.get("shift-work-orders-navigation-failure") === "stale") return { ok: false, message: "Исходная задача изменилась или больше не входит в текущий журнал." };
+        if (searchParams.get("shift-work-orders-navigation-failure") === "rbac") return { ok: false, message: "Нет права открывать Мастерскую." };
+        return { ok: true };
+      },
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
       onSelectShiftMasterBoardDate: (dateKey) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardDateFixture(dateKey)); },
       onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
@@ -99,6 +107,7 @@ const featureGate = createReactIslandFeatureGate({
       onOpenShiftMasterBoardSource: () => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFactFixture("assigned", { actualQuantity: 100, defectQuantity: 4, laborMinutes: 240, executorCount: 2, comment: "", deviationComment: "" })); },
       onShiftMasterBoardCommand: async (command) => { markRevisionStart(nextExpectedRevision); featureGate.update(command.type === "save-assignment" ? createShiftMasterBoardAssignmentFixture(command.rowId, command.executors) : createShiftMasterBoardFactFixture(command.rowId, command)); return { ok: true }; },
       onEmployeeDesktopCommand: async (command) => {
+        if (command.type === "select-person") { if (command.personId === null) { root.dataset.employeeDesktopReturnToUserSelection = "requested"; return { ok: true }; } markRevisionStart(nextExpectedRevision); featureGate.update(createEmployeeDesktopPersonFixture(command.personId)); return { ok: true }; }
         if (command.type === "prepare-report-photo") { const dataUrl = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => resolve(""); reader.readAsDataURL(command.file); }); return { ok: true, photo: { id: "photo-lab", name: command.file.name, type: command.file.type, size: command.file.size, source: command.source, dataUrl, storageNote: "" } }; }
         markRevisionStart(nextExpectedRevision);
         if (command.type === "start-task") featureGate.update(createEmployeeDesktopStartedFixture(command.taskId));
@@ -128,6 +137,7 @@ if (lifecycleQaEnabled) {
   updateButton.addEventListener("click", () => {
     try {
       markRevisionStart(nextExpectedRevision);
+      if (scenario === "timesheet") timesheetLabPayload = updatePayload;
       status.textContent = featureGate.update(updatePayload) ? "updated" : `rejected: ${featureGate.getState()}`;
     } catch (error) {
       status.textContent = error instanceof Error ? `rejected: ${error.message}` : "rejected";

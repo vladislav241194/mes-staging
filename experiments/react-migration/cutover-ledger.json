@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-07-21",
   "baselineProgress": 46,
-  "currentProgress": 48,
+  "currentProgress": 49,
   "designSystem": "mes-line",
   "activePilotRelease": "v.1.500.19-53022a2",
   "legacyRollbackRelease": "v.1.500.18-93d02ed",
@@ -31,7 +31,7 @@
   },
   "criteria": [
     { "id": "typed-scope", "label": "Complete scope and typed React surface", "maximum": 15, "earned": 14 },
-    { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 17 },
+    { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 18 },
     { "id": "pilot-acceptance", "label": "Real Pilot read and write acceptance", "maximum": 20, "earned": 9 },
     { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 1 },
     { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 2 },
@@ -81,7 +81,7 @@
     { "id": "boards", "routeId": "nomenclature", "entry": "experiments/react-migration/src/boards-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-board", "delete-board", "import-xlsx", "add-bom-row", "update-bom-row", "delete-bom-row"], "missing": [] } },
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["execute-ops"], "missing": ["deploy-request-owner-action"] } },
-    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["person-switch", "durable-report-persistence"] } },
+    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["durable-report-persistence"] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["reschedule-start"], "missing": ["edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "delete"], "missing": [] } },
@@ -90,7 +90,7 @@
     { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["change-quantity"], "missing": ["change-start-date", "change-labor", "transfer-to-gantt", "cancel"] } },
     { "id": "roles", "routeId": "roles", "entry": "experiments/react-migration/src/roles-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "deactivate", "reactivate"], "missing": ["multiple-assignments", "effective-window", "personal-scope", "assignment-scope", "read-only-lifecycle", "assigned-role-lifecycle"] } },
     { "id": "shiftMasterBoard", "routeId": "shiftMasterBoard", "entry": "experiments/react-migration/src/shift-master-board-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "create-carryover", "cancel-carryover", "print"], "missing": ["manual-lane-move"] } },
-    { "id": "shiftWorkOrders", "routeId": "shiftWorkOrders", "entry": "experiments/react-migration/src/shift-work-orders-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "print-szn", "print-package"], "missing": ["workshop-navigation"] } },
+    { "id": "shiftWorkOrders", "routeId": "shiftWorkOrders", "entry": "experiments/react-migration/src/shift-work-orders-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["open-workshop", "assign", "save-fact", "correct-fact", "print-szn", "print-package"], "missing": [] } },
     { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["edit-draft-row", "publish-revision", "create-work-order"], "missing": ["add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
     { "id": "statuses", "routeId": "directories", "entry": "experiments/react-migration/src/statuses-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save-custom", "delete-custom"], "missing": [] } },
     { "id": "structureEmployees", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-employees-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
@@ -100,7 +100,7 @@
     { "id": "structurePositions", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-positions-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": ["assignment-impact-contract"] } },
     { "id": "structureResponsibilityPolicies", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-responsibility-policies-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureWorkCenters", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-work-centers-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
-    { "id": "timesheet", "routeId": "timesheet", "entry": "experiments/react-migration/src/timesheet-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save-attendance", "remove-attendance", "save-schedule", "remove-schedule"], "missing": ["react-period-navigation"] } },
+    { "id": "timesheet", "routeId": "timesheet", "entry": "experiments/react-migration/src/timesheet-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["set-view", "move-period", "save-attendance", "remove-attendance", "save-schedule", "remove-schedule"], "missing": [] } },
     { "id": "weeklyProductionControl", "routeId": "weeklyProductionControl", "entry": "experiments/react-migration/src/weekly-production-control-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": [], "missing": [] } }
   ],
   "modules": [
@@ -175,11 +175,11 @@
       "navigationScope": "user",
       "scenarios": ["shiftWorkOrders"],
       "reactSurface": "production-island",
-      "functionalStatus": "partial",
+      "functionalStatus": "complete",
       "runtimeMode": "legacy-default",
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["Workshop navigation", "Pilot assignment/fact lifecycle", "permanent React runtime"]
+      "remainingScopes": ["Pilot assignment/fact lifecycle", "permanent React runtime"]
     },
     {
       "id": "dispatch",
@@ -267,7 +267,7 @@
       "runtimeMode": "legacy-default",
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["person switching", "Report durable persistence", "Pilot task/fact/Report lifecycle", "permanent React runtime"]
+      "remainingScopes": ["Report durable persistence", "Pilot task/fact/Report lifecycle", "permanent React runtime"]
     },
     {
       "id": "marking",

@@ -49,11 +49,21 @@ try {
   await evaluate(client, () => document.querySelector("[data-lifecycle-update]")?.click());
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-revision="2"]')), { message: "Shift Work Orders update did not commit" });
   await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.includes("Мастерская"))?.click());
-  await waitForCondition(client, () => Boolean(document.querySelector('[data-legacy-fallback="unsupported-scope"]')), { message: "Shift Work Orders Workshop action did not return to legacy" });
+  await waitForCondition(client, () => JSON.parse(document.querySelector("#root")?.dataset.shiftWorkOrdersNavigation || "{}").sourceRowId === "source-a-2", { message: "Shift Work Orders Workshop callback did not receive the source identity" });
+  const navigation = await evaluate(client, () => ({ ...JSON.parse(document.querySelector("#root")?.dataset.shiftWorkOrdersNavigation || "{}"), react: Boolean(document.querySelector('[data-react-island-scenario="shiftWorkOrders"]')), fallback: Boolean(document.querySelector("[data-legacy-fallback]")) }));
+  assert(JSON.stringify(navigation) === JSON.stringify({ type: "open-workshop", journalRowId: "a-2", sourceRowId: "source-a-2", shiftDateKey: "2026-07-19", intent: "inspect", react: true, fallback: false }), `Shift Work Orders typed Workshop navigation failed: ${JSON.stringify(navigation)}`);
+  for (const failure of ["stale", "rbac"]) {
+    await client.send("Page.navigate", { url: `${origin}/?scenario=shift-work-orders&shift-work-orders-navigation-failure=${failure}` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-scenario="shiftWorkOrders"]')), { message: `Shift Work Orders ${failure} lab did not render` });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.includes("Мастерская"))?.click());
+    await waitForCondition(client, (expected) => document.querySelector('[role="alert"]')?.textContent?.includes(expected), { arg: failure === "stale" ? "Исходная задача" : "Нет права", message: `Shift Work Orders ${failure} navigation did not fail closed` });
+    const failureState = await evaluate(client, () => ({ react: Boolean(document.querySelector('[data-react-island-scenario="shiftWorkOrders"]')), fallback: Boolean(document.querySelector("[data-legacy-fallback]")) }));
+    assert(failureState.react && !failureState.fallback, `Shift Work Orders ${failure} navigation left React: ${JSON.stringify(failureState)}`);
+  }
   await client.send("Page.navigate", { url: `${origin}/?scenario=shift-work-orders&react=0` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-legacy-fallback="disabled"]')), { message: "disabled Shift Work Orders flag did not stay legacy" });
   assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
   console.log("Shift Work Orders React isolated browser QA: OK");
   console.log("- 2 work orders, 3 operations, 3 assignments, 8 columns and 8 detail metrics: pass");
-  console.log("- attachment, SZN/package previews, host print callback, selection, collapse, revision 1 -> 2, Workshop fallback and clean console: pass");
+  console.log("- attachment, SZN/package previews, host print callback, selection, collapse, revision 1 -> 2, typed Workshop source navigation, stale/RBAC fail-closed and clean console: pass");
 } finally { if (chrome) await cleanupChrome(chrome); await stopServer(server); }

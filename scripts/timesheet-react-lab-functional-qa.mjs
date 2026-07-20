@@ -40,6 +40,19 @@ try {
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-revision="2"]')), { message: "Timesheet update did not commit" });
   const overtime = await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="MetricCard"]')].find((card) => card.querySelector("span")?.textContent?.trim() === "Сверхурочно")?.querySelector("strong")?.textContent?.trim());
   assert(overtime === "3", "Timesheet payload update must refresh overtime without remount");
+  const initialPeriodLabel = await evaluate(client, () => document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() || "");
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-period-nav="1"]')?.click());
+  await waitForCondition(client, (label) => Boolean(document.querySelector('[data-react-island-revision="3"]')) && document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() !== label, { arg: initialPeriodLabel, message: "Timesheet lab next-period command did not update React" });
+  const nextPeriod = await evaluate(client, () => ({ label: document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() || "", cells: document.querySelectorAll("[data-timesheet-cell]").length, fallback: Boolean(document.querySelector("[data-legacy-fallback]")) }));
+  assert(nextPeriod.label && nextPeriod.label !== initialPeriodLabel && nextPeriod.cells === 21 && !nextPeriod.fallback, `Timesheet lab next period left React: ${JSON.stringify(nextPeriod)}`);
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-period-nav="-1"]')?.click());
+  await waitForCondition(client, (label) => Boolean(document.querySelector('[data-react-island-revision="4"]')) && document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() === label, { arg: initialPeriodLabel, message: "Timesheet lab previous-period command did not restore React" });
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-view="month"]')?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-revision="5"]')) && document.querySelector('[data-react-timesheet-view="month"]')?.classList.contains("is-active") && document.querySelectorAll(".timesheet-table thead th").length === 36, { message: "Timesheet lab month view did not update React" });
+  const month = await evaluate(client, () => ({ cells: document.querySelectorAll("[data-timesheet-cell]").length, fallback: Boolean(document.querySelector("[data-legacy-fallback]")) }));
+  assert(month.cells === 93 && !month.fallback, `Timesheet lab month model is incomplete: ${JSON.stringify(month)}`);
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-view="week"]')?.click());
+  await waitForCondition(client, (label) => Boolean(document.querySelector('[data-react-island-revision="6"]')) && document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() === label && document.querySelectorAll(".timesheet-table thead th").length === 12, { arg: initialPeriodLabel, message: "Timesheet lab week view did not restore React" });
   await evaluate(client, () => document.querySelector("[data-timesheet-cell] button")?.click());
   await waitForCondition(client, () => Boolean(document.querySelector('[data-legacy-fallback="unsupported-scope"]')), { message: "Timesheet editor request did not return to legacy" });
   await client.send("Page.navigate", { url: `${origin}/?scenario=timesheet&react=0` });
@@ -47,6 +60,6 @@ try {
   assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
   console.log("Timesheet React isolated browser QA: OK");
   console.log("- 3 employees, 2 departments, seven days and 21 cells: pass");
-  console.log("- summary and payload revision 1 -> 2: pass");
-  console.log("- editor fallback, table-owned overflow and clean console: pass");
+  console.log("- summary, payload update and React week/month +/- navigation revisions 1 -> 6: pass");
+  console.log("- read-only editor fallback, table-owned overflow and clean console: pass");
 } finally { if (chrome) await cleanupChrome(chrome); await stopServer(server); }

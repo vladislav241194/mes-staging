@@ -12,7 +12,7 @@ export interface ShiftWorkOrderExecutor { id: string; name: string; quantity: nu
 export interface ShiftWorkOrderStatus { id: string; label: string; tone: "success" | "warning" | "neutral" }
 export interface ShiftWorkOrderIssueReport { id: string; employeeName: string; text: string; createdAt: string; operationName: string; workCenterLabel: string; photoId: string; photoName: string; photoUrl: string; storageNote: string }
 export interface ShiftWorkOrderRow {
-  id: string; routeId: string; documentNumber: string; orderLabel: string; routePartLabel: string; operationName: string; workCenterLabel: string;
+  id: string; sourceRowId: string; routeId: string; documentNumber: string; orderLabel: string; routePartLabel: string; operationName: string; workCenterLabel: string;
   resourceLabel: string; masterName: string; executors: ShiftWorkOrderExecutor[]; plannedQuantity: number; assignedQuantity: number;
   factQuantity: number; defectQuantity: number; remainingQuantity: number; unit: string; status: ShiftWorkOrderStatus; stageLabel: string;
   issuedAt: string; dateLabel: string; shiftDateKey: string; issueReportCount: number; issuePhotoCount: number;
@@ -39,12 +39,12 @@ function adaptExecutor(value: unknown, index: number): ShiftWorkOrderExecutor | 
 
 function adaptRow(value: unknown, factContexts = new Map<string, UnknownRecord>()): ShiftWorkOrderRow | null {
   const source = record(value); const status = record(source.status); const transfer = record(source.transfer); const issueSummary = record(source.issueSummary);
-  const id = text(source.id || source.sourceRowId); const documentNumber = text(source.documentNumber);
+  const id = text(source.id || source.sourceRowId); const sourceRowId = text(source.sourceRowId || source.id); const documentNumber = text(source.documentNumber);
   if (!id || !documentNumber) return null;
   const factContext = factContexts.get(id) || {};
   const issueReports = list(source.issueReports).map((value): ShiftWorkOrderIssueReport | null => { const report = record(value); const photo = record(report.photo); const reportId = text(report.id); return reportId ? { id: reportId, employeeName: personName(report.employeeName), text: text(report.text, "Описание не заполнено."), createdAt: text(report.createdAt, "без даты"), operationName: text(report.operationName), workCenterLabel: text(report.workCenterLabel), photoId: text(photo.id || reportId), photoName: text(photo.name, "Фото проблемы"), photoUrl: text(photo.dataUrl).startsWith("data:image/") ? text(photo.dataUrl) : "", storageNote: text(photo.storageNote) } : null; }).filter(Boolean) as ShiftWorkOrderIssueReport[];
   return {
-    id, routeId: text(source.routeId || source.planningOrderId), documentNumber, orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel),
+    id, sourceRowId, routeId: text(source.routeId || source.planningOrderId), documentNumber, orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel),
     operationName: text(source.operationName, "Операция"), workCenterLabel: text(source.workCenterLabel, "Участок не задан"),
     resourceLabel: text(source.resourceLabel), masterName: personName(source.masterName, "Мастер не назначен"),
     executors: list(source.executors).map(adaptExecutor).filter(Boolean) as ShiftWorkOrderExecutor[],

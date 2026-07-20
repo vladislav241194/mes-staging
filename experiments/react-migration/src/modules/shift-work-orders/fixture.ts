@@ -1,5 +1,5 @@
 const row = (id: string, documentNumber: string, operationName: string, workCenterLabel: string, values: { planned: number; assigned: number; fact: number; defect?: number; status: string; tone: string; executor: string; updated: string; reports?: number; photos?: number }) => ({
-  id, sourceRowId: id, documentNumber, orderLabel: id.startsWith("a") ? "ЗН-1042 · Контроллер КТ-7" : "ЗН-1041 · Модуль питания", routePartLabel: "Основной маршрут",
+  id, sourceRowId: `source-${id}`, documentNumber, orderLabel: id.startsWith("a") ? "ЗН-1042 · Контроллер КТ-7" : "ЗН-1041 · Модуль питания", routePartLabel: "Основной маршрут",
   operationName, workCenterLabel, resourceLabel: `${workCenterLabel} · линия 1`, masterName: "Смирнов Алексей Петрович",
   executors: [{ employeeId: `employee-${id}`, employeeName: values.executor, quantity: values.assigned, note: "" }],
   plannedQuantity: values.planned, assignedQuantity: values.assigned, factQuantity: values.fact, defectQuantity: values.defect || 0,

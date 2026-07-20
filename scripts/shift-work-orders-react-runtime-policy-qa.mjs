@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
-import { createShiftWorkOrdersReactIslandHost } from "../src/modules/shift_work_orders/react_island_host.js";
+import { createShiftWorkOrdersReactIslandHost, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS, false);
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION, false);
@@ -15,4 +15,10 @@ const makeHost = (accessMode) => createShiftWorkOrdersReactIslandHost({ getActiv
 assert.deepEqual(makeHost("read-only-evaluation").prepareRender(), { activateReact: true, reason: "eligible" });
 assert.deepEqual(makeHost("write-evaluation").prepareRender(), { activateReact: true, reason: "eligible" });
 assert.deepEqual(makeHost("editor").prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
+const sourceRow = { id: "journal-assignment", sourceRowId: "source-slot", shiftDateKey: "2026-07-19" };
+const navigation = { type: "open-workshop", journalRowId: "journal-assignment", sourceRowId: "source-slot", shiftDateKey: "2026-07-19", intent: "inspect" };
+assert.deepEqual(resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: [sourceRow], canOpenWorkshop: true }), { ok: true, row: sourceRow, intent: "inspect" });
+assert.equal(resolveShiftWorkOrdersWorkshopNavigation({ ...navigation, sourceRowId: "stale-slot" }, { rows: [sourceRow], canOpenWorkshop: true }).ok, false, "stale source identity must fail closed");
+assert.equal(resolveShiftWorkOrdersWorkshopNavigation({ ...navigation, shiftDateKey: "2026-07-20" }, { rows: [sourceRow], canOpenWorkshop: true }).ok, false, "stale source date must fail closed");
+assert.deepEqual(resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: [sourceRow], canOpenWorkshop: false }), { ok: false, message: "Нет права открывать Мастерскую." });
 console.log("Shift Work Orders React runtime policy QA passed.");

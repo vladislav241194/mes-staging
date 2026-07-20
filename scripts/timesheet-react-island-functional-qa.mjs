@@ -57,7 +57,7 @@ const enabledPreview = start(enabledPort, true); const legacyPreview = start(leg
 let enabledOutput = ""; let legacyOutput = "";
 enabledPreview.stdout.on("data", (chunk) => { enabledOutput += chunk; }); enabledPreview.stderr.on("data", (chunk) => { enabledOutput += chunk; });
 legacyPreview.stdout.on("data", (chunk) => { legacyOutput += chunk; }); legacyPreview.stderr.on("data", (chunk) => { legacyOutput += chunk; });
-let chrome = null; const consoleProblems = []; let interceptedReads = 0; let apiDomains = structuredClone(migration.domains); let apiRevision = 1; let putAttempts = 0; let successfulWrites = 0; let forceConflictOnce = false; let primaryAuthorityReady = false; const commandRequests = [];
+let chrome = null; const consoleProblems = []; let interceptedReads = 0; let sharedStateWrites = 0; let apiDomains = structuredClone(migration.domains); let apiRevision = 1; let putAttempts = 0; let successfulWrites = 0; let forceConflictOnce = false; let failTimesheetBundleOnce = false; let primaryAuthorityReady = false; const commandRequests = [];
 try {
   await Promise.all([waitPreview(enabledOrigin), waitPreview(legacyOrigin)]);
   chrome = await launchChrome("mes-timesheet-react-qa-"); const { client } = chrome;
@@ -69,7 +69,9 @@ try {
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url);
     const method = String(message.params.request.method || "GET").toUpperCase();
-    if (requestUrl.pathname === "/api/v1/system-domains/capabilities") { interceptedReads += 1; const consistency = primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}; void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...consistency } }); }
+    if (requestUrl.pathname === "/src/react-islands/timesheet.js" && failTimesheetBundleOnce) { failTimesheetBundleOnce = false; void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "text/javascript; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }], body: Buffer.from('throw new Error("expected-timesheet-mount-failure")').toString("base64") }); }
+    else if (requestUrl.pathname === "/api/shared-state" && method !== "GET") { sharedStateWrites += 1; void fulfill(message.params.requestId, { ok: true, version: 2 }); }
+    else if (requestUrl.pathname === "/api/v1/system-domains/capabilities") { interceptedReads += 1; const consistency = primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}; void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...consistency } }); }
     else if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains }); }
     else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT") {
       putAttempts += 1; const headers = message.params.request.headers || {}; const header = (name) => Object.entries(headers).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || ""; const body = JSON.parse(message.params.request.postData || "{}"); commandRequests.push({ expectedRevision: Number(body.expectedRevision || 0), ifMatch: String(header("If-Match")), idempotencyKey: String(header("Idempotency-Key")), surface: String(body.surface || "") });
@@ -79,7 +81,7 @@ try {
     }
     else void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
   });
-  await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] });
+  await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }, { urlPattern: "*api/shared-state*", requestStage: "Request" }, { urlPattern: "*src/react-islands/timesheet.js*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
 
   await client.send("Page.navigate", { url: `${legacyOrigin}/?module=timesheet&qa-auth-bypass=1` });
@@ -90,6 +92,13 @@ try {
   await waitForCondition(client, () => document.querySelectorAll(".timesheet-employee-row").length === 76, { message: "enabled Timesheet legacy default missing", timeoutMs: 20_000 });
   assert(await evaluate(client, () => !document.querySelector("[data-react-timesheet-island]")), "server permission without session request must retain legacy Timesheet");
   await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+
+  failTimesheetBundleOnce = true;
+  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet-evaluation=1&qa=timesheet-mount-fallback` });
+  await waitForCondition(client, () => document.querySelectorAll(".timesheet-employee-row").length === 76 && !document.querySelector("[data-react-timesheet-island]"), { message: "Timesheet mount failure did not render the legacy rollback", timeoutMs: 10_000 });
+  await waitForCondition(client, () => window.__mesRuntime?.getActiveModule?.() === "timesheet", { message: "Timesheet mount failure left the active module", timeoutMs: 5_000 });
+  const expectedFallbackProblems = consoleProblems.splice(0);
+  assert(expectedFallbackProblems.length > 0 && expectedFallbackProblems.every((problem) => problem.includes("expected-timesheet-mount-failure")), `Timesheet mount fallback emitted unexpected console output: ${JSON.stringify(expectedFallbackProblems)}`);
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet-evaluation=1` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelectorAll(".timesheet-employee-row").length === 76, { message: "Timesheet React island not ready", timeoutMs: 8_000 });
@@ -105,8 +114,21 @@ try {
   const compact = await evaluate(client, () => { const target = document.querySelector("[data-react-timesheet-island]"); const tableWrap = target.querySelector('[data-ui-component="TableWrap"]'); const metrics = target.querySelector('[data-ui-component="MetricGrid"]'); return { metricColumns: getComputedStyle(metrics).gridTemplateColumns.split(" ").length, pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth }; });
   assert(compact.metricColumns === 2 && !compact.pageOverflow && compact.tableScroll, `Timesheet compact UI contract failed: ${JSON.stringify(compact)}`);
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
-  await evaluate(client, () => [...document.querySelectorAll(".timesheet-controls button")].find((button) => button.textContent?.trim() === "Неделя")?.click());
-  await waitForCondition(client, () => !document.querySelector("[data-react-timesheet-island]") && document.querySelectorAll(".timesheet-table thead th").length === 12, { message: "Timesheet view action did not return to the seven-day legacy view", timeoutMs: 10_000 });
+  const initialPeriod = await evaluate(client, () => ({ label: document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() || "", headers: document.querySelectorAll(".timesheet-table thead th").length }));
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-view="week"]')?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelector('[data-react-timesheet-view="week"]')?.classList.contains("is-active") && document.querySelectorAll(".timesheet-table thead th").length === 12, { message: "Timesheet React week view did not become ready", timeoutMs: 10_000 });
+  const firstWeek = await evaluate(client, () => ({ label: document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() || "", title: document.querySelector("[data-timesheet-react] h2")?.textContent?.trim() || "", reactReady: document.querySelector("[data-react-timesheet-island]")?.getAttribute("data-react-island-state"), legacyPage: Boolean(document.querySelector(".timesheet-page:not([data-timesheet-react])")) }));
+  assert(firstWeek.label && firstWeek.label !== initialPeriod.label && firstWeek.title.includes(firstWeek.label) && firstWeek.reactReady === "ready" && !firstWeek.legacyPage, `Timesheet week navigation left React runtime: ${JSON.stringify({ initialPeriod, firstWeek })}`);
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-period-nav="1"]')?.click());
+  await waitForCondition(client, (label) => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() !== label && document.querySelectorAll(".timesheet-table thead th").length === 12, { arg: firstWeek.label, message: "Timesheet React next week did not become ready", timeoutMs: 10_000 });
+  const nextWeekLabel = await evaluate(client, () => document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() || "");
+  assert(nextWeekLabel && nextWeekLabel !== firstWeek.label, "Timesheet next-period command did not change the week label");
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-period-nav="-1"]')?.click());
+  await waitForCondition(client, (label) => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() === label, { arg: firstWeek.label, message: "Timesheet React previous week did not restore the period", timeoutMs: 10_000 });
+  await evaluate(client, () => document.querySelector('[data-react-timesheet-view="month"]')?.click());
+  await waitForCondition(client, (period) => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelector('[data-react-timesheet-view="month"]')?.classList.contains("is-active") && document.querySelector("[data-react-timesheet-period-label]")?.textContent?.trim() === period.label && document.querySelectorAll(".timesheet-table thead th").length === period.headers, { arg: initialPeriod, message: "Timesheet React month view did not restore the model", timeoutMs: 10_000 });
+  const restoredMonth = await evaluate(client, () => ({ reactReady: document.querySelector("[data-react-timesheet-island]")?.getAttribute("data-react-island-state"), legacyPage: Boolean(document.querySelector(".timesheet-page:not([data-timesheet-react])")), editor: Boolean(document.querySelector(".timesheet-editor-modal")) }));
+  assert(restoredMonth.reactReady === "ready" && !restoredMonth.legacyPage && !restoredMonth.editor, `Timesheet period navigation invoked legacy/editor fallback: ${JSON.stringify(restoredMonth)}`);
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet-evaluation=1` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelectorAll(".timesheet-employee-row").length === 76, { message: "Timesheet React island did not remount for editor fallback", timeoutMs: 10_000 });
   await evaluate(client, () => document.querySelector("[data-timesheet-cell] button")?.click());
@@ -183,7 +205,7 @@ try {
   assert(await readFile(sharedStateFile, "utf8") === original, "Timesheet read-only QA changed state");
   console.log("Timesheet React production-shell functional QA: OK");
   console.log(`- exact parity: 76 employees, ${react.headers.length} columns, ${react.rows.length} table rows; first commit ${state.commitMs.toFixed(2)} ms`);
-  console.log("- PostgreSQL read, production/compact UI, default legacy, editor fallback, table-owned overflow, unchanged state and clean console: pass");
+  console.log(`- PostgreSQL read, production/compact UI, React week/month and +/- period navigation, editor fallback, ${sharedStateWrites} intercepted compatibility write(s), unchanged state and clean console: pass`);
   console.log("- one-day and permanent-schedule save/reset, validation, conflict retry, unrelated hidden fields and legacy read-back: pass");
 } catch (error) {
   if (chrome) {

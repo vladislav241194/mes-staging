@@ -16,7 +16,7 @@ export interface ShiftMasterBoardCommandResult { ok?: boolean; message?: string 
 function toShiftWorkOrderPrintRow(row: ShiftMasterBoardRow): ShiftWorkOrderRow {
   const executor = row.executors[0] || null;
   return {
-    id: row.id, routeId: "", documentNumber: executor ? `${row.documentNumber}-01` : row.documentNumber, orderLabel: row.orderLabel, routePartLabel: row.routePartLabel,
+    id: row.id, sourceRowId: row.sourceRowId || row.id, routeId: "", documentNumber: executor ? `${row.documentNumber}-01` : row.documentNumber, orderLabel: row.orderLabel, routePartLabel: row.routePartLabel,
     operationName: row.operationName, workCenterLabel: row.workCenterLabel, resourceLabel: row.resourceLabel, masterName: row.masterName,
     executors: executor ? [{ id: executor.id, name: executor.name, quantity: executor.quantity, note: executor.note }] : [], plannedQuantity: row.plannedQuantity,
     assignedQuantity: executor?.quantity || row.assignedQuantity, factQuantity: row.factQuantity, defectQuantity: row.defectQuantity, remainingQuantity: row.remainingQuantity, unit: row.unit,
