@@ -100,6 +100,12 @@ await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 
 assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state permissions changed");
 const original = await readFile(sharedStateFile, "utf8");
 const releasePolicy = JSON.parse(await readFile(join(process.cwd(), "react-runtime-policy.json"), "utf8"));
+const evaluationPolicyFile = join(temporaryRoot, "weekly-evaluation-policy.json");
+await writeFile(evaluationPolicyFile, `${JSON.stringify({
+  ...releasePolicy,
+  policyId: "qa-weekly-evaluation",
+  surfaces: Object.fromEntries(Object.keys(releasePolicy.surfaces).map((surfaceId) => [surfaceId, "evaluation"])),
+}, null, 2)}\n`, { mode: 0o600 });
 const permanentPolicyFile = join(temporaryRoot, "weekly-react-policy.json");
 await writeFile(permanentPolicyFile, `${JSON.stringify({ ...releasePolicy, policyId: "qa-weekly-permanent-react", surfaces: { ...releasePolicy.surfaces, weeklyProductionControl: "react" } }, null, 2)}\n`, { mode: 0o600 });
 const enabledPort = await getFreePort();
@@ -108,7 +114,7 @@ const permanentPort = await getFreePort();
 const enabledOrigin = `http://127.0.0.1:${enabledPort}`;
 const legacyOrigin = `http://127.0.0.1:${legacyPort}`;
 const permanentOrigin = `http://127.0.0.1:${permanentPort}`;
-const start = (port, mode) => spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, ...(mode === "evaluation" ? { MES_REACT_WEEKLY_PRODUCTION_CONTROL: "1", MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION: "1" } : {}), ...(mode === "react" ? { MES_REACT_RUNTIME_POLICY_PATH: permanentPolicyFile } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
+const start = (port, mode) => spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_RUNTIME_POLICY_PATH: mode === "react" ? permanentPolicyFile : evaluationPolicyFile, ...(mode === "evaluation" ? { MES_REACT_WEEKLY_PRODUCTION_CONTROL: "1", MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION: "1" } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
 const enabledPreview = start(enabledPort, "evaluation");
 const legacyPreview = start(legacyPort, "legacy");
 const permanentPreview = start(permanentPort, "react");

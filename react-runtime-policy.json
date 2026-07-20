@@ -16,7 +16,7 @@
     "structureResponsibilityPolicies": "evaluation",
     "structureMigrationDiagnostics": "evaluation",
     "roles": "evaluation",
-    "weeklyProductionControl": "evaluation",
+    "weeklyProductionControl": "react",
     "timesheet": "evaluation",
     "planningWorkbench": "evaluation",
     "shiftWorkOrders": "evaluation",
