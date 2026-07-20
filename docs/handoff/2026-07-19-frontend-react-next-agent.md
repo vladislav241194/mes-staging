@@ -986,3 +986,41 @@ actions/console, затем немедленно деактивировать и
   root-gated React delete plus cleanup proof and the final default-on decision.
   Legacy remains the live default and explicit rollback surface. No Blueprint
   UI dependency or design was introduced.
+
+## Final Pilot acceptance 2026-07-21: Nomenclature lifecycle and cleanup
+
+- A lawful root session activated only the prepared Nomenclature write
+  evaluation on active release `v.1.500.17-3725611`. Effective environment was
+  exactly `MES_REACT_NOMENCLATURE=1` plus
+  `MES_REACT_NOMENCLATURE_WRITE_EVALUATION=1`; service health remained `ok`,
+  version `.17`, shared state `ready`.
+- Normal Chrome authenticated as the Technology test employee and mounted the
+  real `React · create/edit/delete evaluation` surface. It read back the exact
+  previously created/edited stable record `nom-df67ec7e` / article
+  `QA-NOM-CU-20260720-2307` through the production owner boundary.
+- After explicit action-time confirmation, React deleted only that disposable
+  record through the existing legacy owner command. The React surface changed
+  from one row to zero. Authoritative shared-state revision advanced from
+  `44704` to `44705`; exact ID matches and exact article matches are both zero.
+  Total Pilot Nomenclature returned to its original zero-row baseline.
+- Root immediately ran the paired deactivation script. The evaluation drop-in
+  is absent, the effective service environment contains no `MES_REACT_*`
+  values, and both local and public health report `ok`, `.17`, `ready`.
+  Reloading the same URL while retaining the evaluation query parameter renders
+  the legacy Nomenclature surface with zero rows, proving server-side fail-close
+  and rollback rather than relying on URL cleanup or browser state.
+- The immutable active-release record remains `.17` at exact commit
+  `3725611de0417cb54480fce73cf92f995b0a2f22`; explicit rollback remains
+  `/srv/mes/pilot/releases/v.1.500.16-2687058/app`. No unrelated Pilot record,
+  PostgreSQL schema, release artifact or Ops surface was changed.
+- Final default-on decision: **do not enable automatically in this closure**.
+  The current permanent feature flag would mount React read UI without granting
+  permanent writes; edit actions would intentionally fall back to legacy and
+  recreate the layout switching already observed by the owner. A future
+  default-on cutover therefore needs its own explicit production-write policy
+  and user-facing rollout decision. This is not missing migration
+  implementation or failed Pilot acceptance; it is the retained reversible
+  rollout boundary required by this handoff.
+- The scoped React + TypeScript migration implementation and its authorised
+  Pilot acceptance are now `100%` complete. Legacy rollback is preserved and no
+  Blueprint UI dependency or design is used.
