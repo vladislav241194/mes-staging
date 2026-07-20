@@ -7,6 +7,7 @@ import { gunzipSync } from "node:zlib";
 import { handleSharedStateRequest, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
 import { backupSharedStateFile, withSharedStateFileLock } from "./shared-state-storage.mjs";
 import {
+  acknowledgeSharedUiPatch,
   applySharedUiPatch,
   cloneSharedUiSnapshot,
   getSharedUiPatch,
@@ -503,6 +504,24 @@ async function main() {
     // value, while a conflict intentionally still returns the full current
     // snapshot for the established recovery path.
     const compactBaseUi = cloneSharedUiSnapshot(afterConcurrent.json.sharedUi);
+    const retirementSnapshot = {
+      ...compactBaseUi,
+      shiftMasterBoardAssignments: null,
+      shiftMasterBoardFacts: null,
+      shiftMasterBoardCarryovers: null,
+    };
+    const retirementPatch = getSharedUiPatch(compactBaseUi, retirementSnapshot);
+    const retirementBaseline = acknowledgeSharedUiPatch(compactBaseUi, retirementPatch, retirementSnapshot);
+    assert(
+      !Object.keys(getSharedUiPatch(retirementBaseline, retirementSnapshot).replace).length,
+      "An acknowledged shared-UI tombstone must not be emitted again on every poll",
+    );
+    assert(
+      retirementBaseline.shiftMasterBoardAssignments === null
+        && retirementBaseline.shiftMasterBoardFacts === null
+        && retirementBaseline.shiftMasterBoardCarryovers === null,
+      "The client baseline must remember acknowledged server-authoritative Shift Execution tombstones",
+    );
     const firstCompactUiPatch = getSharedUiPatch(
       compactBaseUi,
       applySharedUiPatch(compactBaseUi, { maps: { ganttDependencyRoutes: { set: { "slot-a": ["route-compact-a"] }, remove: [] } }, replace: {} }),

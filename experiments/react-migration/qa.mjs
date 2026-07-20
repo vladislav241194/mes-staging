@@ -1739,6 +1739,7 @@ try {
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([
+    "+  acknowledgeSharedUiPatch,",
     "+  if (sharedStateStatus.valueProjection === \"metadata\") {",
     "+    // A non-Planning module has not hydrated the authoritative Planning",
     "+    // projection. Omitting the key preserves the server value; sending the",
@@ -1778,9 +1779,15 @@ try {
     "+",
     "+    persistDirectoryStateDurably,",
     "+    persistDirectoryStateWithRemoval,",
+    "+        sharedStateStatus.sharedUiBase = acknowledgeSharedUiPatch(",
+    "+          sharedStateStatus.sharedUiBase || {},",
+    "+          pendingSharedUi,",
+    "+          pendingSharedUiFull,",
+    "+        );",
   ]);
   const allowedRuntimeStateRemovals = new Set([
     "-  if (hasMeaningfulPlanningState(planningState)) {",
+    "-        sharedStateStatus.sharedUiBase = applySharedUiPatch(sharedStateStatus.sharedUiBase || {}, pendingSharedUi);",
   ]);
   const unexpectedRuntimeStateLines = runtimeStateDiff.split("\n").filter((line) => (
     (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line))

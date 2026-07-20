@@ -146,6 +146,23 @@ export function applySharedUiPatch(base, patch) {
   return next;
 }
 
+// A compact acknowledgement intentionally omits the resulting shared-UI
+// projection. Explicit nulls are transport tombstones: the server removes the
+// corresponding legacy field, while the local snapshot keeps null so an old
+// mixed-version server can still observe the retirement request. Remember an
+// acknowledged tombstone as null in the client baseline; otherwise the next
+// comparison treats the same already-applied removal as a fresh change and
+// writes it once per poll forever.
+export function acknowledgeSharedUiPatch(base, patch, requestedSnapshot = {}) {
+  const acknowledged = applySharedUiPatch(base, patch);
+  const replace = isRecord(patch?.replace) ? patch.replace : {};
+  const requested = cloneSharedUiSnapshot(requestedSnapshot);
+  Object.keys(replace).forEach((key) => {
+    if (replace[key] === null && requested[key] === null) acknowledged[key] = null;
+  });
+  return acknowledged;
+}
+
 // A full domain write may be retried after a compact UI write from another
 // browser. The server returns the merged UI projection; rebase only edits
 // made locally after the full payload was captured, so remote map entries are

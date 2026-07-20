@@ -1,4 +1,5 @@
 import {
+  acknowledgeSharedUiPatch,
   applySharedUiPatch,
   cloneSharedUiSnapshot,
   getSharedUiPatch,
@@ -953,7 +954,11 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       sharedStateStatus.version = Number(response.version || sharedStateStatus.version);
       let hasUnsavedSharedUiChanges = false;
       if (compactSharedUi) {
-        sharedStateStatus.sharedUiBase = applySharedUiPatch(sharedStateStatus.sharedUiBase || {}, pendingSharedUi);
+        sharedStateStatus.sharedUiBase = acknowledgeSharedUiPatch(
+          sharedStateStatus.sharedUiBase || {},
+          pendingSharedUi,
+          pendingSharedUiFull,
+        );
         hasUnsavedSharedUiChanges = hasSharedUiPatchChanges(getSharedUiPatch(
           sharedStateStatus.sharedUiBase,
           getSharedUiSnapshot(),
