@@ -2413,6 +2413,7 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     }
     if (command.type !== "save") throw new Error("Unsupported Nomenclature React command");
     const result = await saveNomenclatureCommand({
+      requireDurable: true,
       isNew: input.isNew === true,
       itemId: String(input.itemId || ""),
       name: String(input.name || ""),
@@ -7748,6 +7749,7 @@ function loadDirectoryState(...args) { return runtimeStateService.loadDirectoryS
 function ensureStatusDirectoryDefaults(...args) { return runtimeStateService.ensureStatusDirectoryDefaults(...args); }
 function isSameNumericValue(...args) { return runtimeStateService.isSameNumericValue(...args); }
 function persistDirectoryState(...args) { return runtimeStateService.persistDirectoryState(...args); }
+function persistDirectoryStateDurably(...args) { return runtimeStateService.persistDirectoryStateDurably(...args); }
 function persistDirectoryStateWithRemoval(...args) { return runtimeStateService.persistDirectoryStateWithRemoval(...args); }
 function initializeRuntimeStateServiceModule() {
   runtimeStateService = createRuntimeStateServiceModule({
@@ -9531,6 +9533,7 @@ appEventsService = createAppEventsServiceModule({
   notifySaveSuccess,
   parsePlanningOrderLaborKey,
   persistDirectoryState,
+  persistDirectoryStateDurably,
   persistDirectoryStateWithRemoval,
   persistState,
   persistUiState,

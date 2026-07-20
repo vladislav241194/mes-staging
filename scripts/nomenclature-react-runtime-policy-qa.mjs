@@ -1,6 +1,10 @@
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const disabled = getPublicRuntimeConfig({ APP_ENV: "pilot" });
 assert(disabled.MES_REACT_NOMENCLATURE === false, "Nomenclature React rollout must be disabled by default");
@@ -37,5 +41,15 @@ assert(script.includes('"MES_REACT_NOMENCLATURE":true'), "public runtime script 
 assert(script.includes('"MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION":true'), "public runtime script must contain the evaluation boolean");
 assert(script.includes('"MES_REACT_NOMENCLATURE_WRITE_EVALUATION":true'), "public runtime script must contain the write evaluation boolean");
 assert(!script.includes("must-not-leak"), "public runtime script must never expose deployment secrets");
+
+const [appSource, productsEventsSource, runtimeStateSource] = await Promise.all([
+  readFile(join(root, "src/app.js"), "utf8"),
+  readFile(join(root, "src/modules/products/events.js"), "utf8"),
+  readFile(join(root, "src/modules/runtime_state/service.js"), "utf8"),
+]);
+assert(appSource.includes("requireDurable: true"), "Pilot Nomenclature React saves must require a durable owner acknowledgement");
+assert(productsEventsSource.includes('persistDirectoryStateDurably("nomenclature-save")'), "Nomenclature owner must await the exact durable directory write");
+assert(productsEventsSource.includes('code: "persistence-unconfirmed"'), "Nomenclature save must fail closed when persistence is not confirmed");
+assert(runtimeStateSource.includes("sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight"), "Durable directory writes must serialize with both shared-state writes and polls");
 
 console.log("Nomenclature React runtime policy QA: OK");

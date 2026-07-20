@@ -1881,21 +1881,26 @@ function withPlanningEntityRemovalAllowed(callback) {
   }
 }
 
+async function persistDirectoryStateDurably(reason = "directory-state") {
+  persistDirectoryState();
+  // A compact UI acknowledgement or a poll may already be using the shared
+  // state transport. Wait for that read/write to settle, then push the exact
+  // directory projection immediately. React command surfaces must not report
+  // success while their mutation exists only in this browser tab.
+  const waitDeadline = Date.now() + 10_000;
+  while ((sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) && Date.now() < waitDeadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 25));
+  }
+  if (sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) return false;
+  scheduleSharedStatePush(reason);
+  return await pushSharedState(reason, { notifyConflict: true });
+}
+
 async function persistDirectoryStateWithRemoval() {
   const previousValue = directoryEntityRemovalAllowed;
   directoryEntityRemovalAllowed = true;
   try {
-    persistDirectoryState();
-    // A previous debounced write may still be in flight. Waiting here makes
-    // the destructive command durable before its UI reports success; the
-    // fresh schedule below replaces any stale payload captured by that write.
-    const waitDeadline = Date.now() + 10_000;
-    while (sharedStateStatus.saveInFlight && Date.now() < waitDeadline) {
-      await new Promise((resolve) => window.setTimeout(resolve, 25));
-    }
-    if (sharedStateStatus.saveInFlight) return false;
-    scheduleSharedStatePush("directory-removal");
-    return await pushSharedState("directory-removal");
+    return await persistDirectoryStateDurably("directory-removal");
   } finally {
     directoryEntityRemovalAllowed = previousValue;
   }
@@ -2030,6 +2035,7 @@ let planningCoreService = {};
     preserveCriticalDirectoryEntities,
     withDirectoryEntityRemovalAllowed,
     withPlanningEntityRemovalAllowed,
+    persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
     loadDirectoryState,
     ensureStatusDirectoryDefaults,

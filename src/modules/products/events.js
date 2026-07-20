@@ -57,6 +57,7 @@ export function createProductsEventsModule(dependencies = {}) {
     option,
     parentId,
     persistDirectoryState,
+    persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
     persistState,
     persistUiState,
@@ -870,13 +871,23 @@ function saveNomenclatureCommand(command = {}) {
     ? [...(directoryState.nomenclature || []), row]
     : (directoryState.nomenclature || []).map((item) => item.id === id ? { ...item, ...row } : item);
   replaceDirectoryState(normalizeDirectoryState(directoryState, { mergeFallback: false }));
-  ui.activeNomenclatureId = id;
-  ui.nomenclatureTypeFilter = type;
+  const completeSave = () => {
+    ui.activeNomenclatureId = id;
+    ui.nomenclatureTypeFilter = type;
+    persistUiState();
+    notifySaveSuccess(isNew ? "Позиция номенклатуры создана" : "Позиция номенклатуры сохранена");
+    render();
+    return { ok: true, id, isNew, row };
+  };
+  if (command.requireDurable === true) {
+    return Promise.resolve(persistDirectoryStateDurably("nomenclature-save")).then((persisted) => (
+      persisted
+        ? completeSave()
+        : { ok: false, id, isNew, code: "persistence-unconfirmed", message: "Сервер не подтвердил сохранение номенклатуры. Обновите данные и повторите." }
+    ));
+  }
   persistDirectoryState();
-  persistUiState();
-  notifySaveSuccess(isNew ? "Позиция номенклатуры создана" : "Позиция номенклатуры сохранена");
-  render();
-  return { ok: true, id, isNew, row };
+  return completeSave();
 }
 
 function saveNomenclatureForm(form) {
