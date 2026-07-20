@@ -142,6 +142,14 @@ try {
       };
     } else if (index === 6) {
       payload = { ok: true, configured: true, version: 7, updatedAt: "2026-07-18T00:00:00.000Z" };
+    } else if (index === 7) {
+      payload = { ok: false, conflict: true, current: { version: 8, values: {}, sharedUi: sharedUiFixture({ remoteCell: true }) } };
+    } else if (index === 8) {
+      payload = { ok: false, conflict: true, current: { version: 9, values: {}, sharedUi: sharedUiFixture({ remoteCell: true }) } };
+    } else if (index === 9) {
+      payload = { ok: false, conflict: true, current: { version: 10, values: {}, sharedUi: sharedUiFixture({ remoteCell: true }) } };
+    } else if (index === 10) {
+      payload = { ok: true, configured: true, version: 11, values: {}, sharedUi: sharedUiFixture({ remoteCell: true }) };
     } else {
       throw new Error(`Unexpected shared-state request ${index}`);
     }
@@ -302,6 +310,16 @@ try {
     "Terminal conflict recovery must not delete a remote entry unseen by the local writer",
   );
   assert(terminalRecoveryPatch?.maps?.shiftMasterBoardLaneBySlot?.set?.["slot-terminal-local"] === "queued", "Terminal conflict recovery must retry the local UI preference");
+
+  // A user-facing directory command must survive two consecutive CAS conflict
+  // pairs rather than reporting success from browser-only state. The bounded
+  // durable wrapper starts a fresh full write after the generic push exhausts
+  // its one internal retry, while retaining the exact local directory value.
+  directoryState = { statuses: [], nomenclature: [{ id: "nom-durable", article: "QA-DURABLE" }] };
+  const durableDirectorySaved = await service.persistDirectoryStateDurably("nomenclature-save");
+  assert(durableDirectorySaved === true, "Durable directory save must recover from consecutive shared-UI writer conflicts");
+  assert(requests.length === 10, `Durable directory save must use two bounded full-write attempts, got ${requests.length - 6}`);
+  assert(JSON.parse(requests[9].values["qa-directories"]).nomenclature[0]?.id === "nom-durable", "Durable retry must retain the exact intended directory projection");
 
   console.log("Shared-state runtime rebase QA: OK");
 } finally {

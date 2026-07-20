@@ -51,5 +51,6 @@ assert(appSource.includes("requireDurable: true"), "Pilot Nomenclature React sav
 assert(productsEventsSource.includes('persistDirectoryStateDurably("nomenclature-save")'), "Nomenclature owner must await the exact durable directory write");
 assert(productsEventsSource.includes('code: "persistence-unconfirmed"'), "Nomenclature save must fail closed when persistence is not confirmed");
 assert(runtimeStateSource.includes("sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight"), "Durable directory writes must serialize with both shared-state writes and polls");
+assert(runtimeStateSource.includes("attempt <= 6") && runtimeStateSource.includes(":durable-retry-"), "Durable directory writes must use bounded CAS retries under live shared-UI contention");
 
 console.log("Nomenclature React runtime policy QA: OK");
