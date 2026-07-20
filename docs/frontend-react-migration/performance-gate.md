@@ -22,7 +22,7 @@ Current minified measurements:
 | Structure Org Units production island | 214,972 B | 65,451 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 217,407 B | 65,683 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 216,206 B | 65,655 B | 225,000 B | 68,000 B |
-| Structure Responsibility Policies production island | 215,221 B | 65,645 B | 225,000 B | 68,000 B |
+| Structure Responsibility Policies production island | 217,366 B | 65,998 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,950 B | 225,000 B | 68,000 B |
 | Timesheet production island | 214,632 B | 65,508 B | 225,000 B | 68,000 B |
@@ -159,12 +159,13 @@ organization, work-center, schedule, quantity and hidden fields through active
 legacy read-back. This is regression evidence, not Pilot
 acceptance.
 
-The bundled production Structure Responsibility Policies island is `215,212 B`
-raw / `65,557 B` gzip. Its temporary non-empty production-shell first commit was
-`32.00 ms`; create/edit QA additionally returns a second policy, rejects a
-duplicate master before mutation and preserves manual targets across a switch
-to `all`. Separate read adapters keep the aggregate lab within its existing
-budget. This is regression evidence, not Pilot acceptance.
+The bundled production Structure Responsibility Policies island is `209,489 B`
+raw / `65,490 B` gzip / `56,527 B` Brotli. Its latest temporary non-empty
+production-shell first commit was `18.50 ms`; create/edit/archive/reactivate QA
+returns a second policy, rejects a duplicate master before mutation, preserves
+manual targets and hidden fields, persists `isActive=false`, then clears the
+archive marker on reactivation. Separate read adapters keep the aggregate lab
+within its existing budget. This is regression evidence, not Pilot acceptance.
 
 The bundled production Structure Migration Diagnostics island is `203,082 B`
 raw / `63,875 B` gzip / `55,020 B` Brotli. Its 152-row production-shell first

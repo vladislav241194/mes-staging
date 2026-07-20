@@ -124,8 +124,8 @@ async function insertAll(tx, domains) {
     VALUES (${text(item.id)}, ${text(item.employeeId || item.subjectId)}, ${text(item.roleId)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "responsibilityPolicies")) {
     await tx`
-      INSERT INTO system_responsibility_policies (id, subject_employee_id, mode, updated_at_source, source_ref)
-      VALUES (${text(item.id)}, ${text(item.subjectEmployeeId)}, ${text(item.mode)}, ${text(item.updatedAt)}, ${tx.json(item.sourceRef || {})})`;
+      INSERT INTO system_responsibility_policies (id, subject_employee_id, mode, updated_at_source, is_active, archived_at, source_ref)
+      VALUES (${text(item.id)}, ${text(item.subjectEmployeeId)}, ${text(item.mode)}, ${text(item.updatedAt)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;
     for (const employeeId of [...new Set((item.targetEmployeeIds || []).map(text).filter(Boolean))].sort()) await tx`
       INSERT INTO system_responsibility_targets (policy_id, employee_id) VALUES (${text(item.id)}, ${employeeId})`;
   }
@@ -278,7 +278,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
           accessRoles: accessRoles.map((r) => ({ id:r.id, label:r.label, description:r.description, scope:r.scope, defaultModuleId:r.default_module_id, icon:r.icon, isActive:r.is_active, sourceRef:r.source_ref || {} })),
           grants: grants.map((r) => ({ id:r.id, roleId:r.role_id, resourceType:r.resource_type, resourceId:r.resource_id, actionId:r.action_id, effect:r.effect, sourceRef:r.source_ref || {} })),
           roleAssignments: roleAssignments.map((r) => ({ id:r.id, employeeId:r.employee_id, roleId:r.role_id, sourceRef:r.source_ref || {} })),
-          responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, sourceRef:r.source_ref || {} })),
+          responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, isActive:r.is_active, archivedAt:iso(r.archived_at), sourceRef:r.source_ref || {} })),
         },
       };
       return {

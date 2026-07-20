@@ -112,12 +112,14 @@ const REGISTRY_DEFINITIONS = [
       { key: "subjectEmployeeId", label: "Мастер", type: "reference", registry: "employees", required: true },
       { key: "mode", label: "Режим", type: "select", options: [["department", "Подразделение"], ["workCenter", "Рабочий центр"], ["manual", "Ручной список"], ["all", "Все сотрудники"]] },
       { key: "targetEmployeeIds", label: "Разрешённые сотрудники", type: "reference-list", registry: "employees" },
+      { key: "isActive", label: "Активность", type: "boolean" },
     ],
     columns: [
       { key: "subjectEmployeeId", label: "Мастер", type: "reference", registry: "employees", primary: true },
       { key: "mode", label: "Режим", type: "responsibility-mode" },
       { key: "targetEmployeeIds", label: "Разрешённые сотрудники", type: "reference-list", registry: "employees" },
       { key: "updatedAt", label: "Обновлено" },
+      { key: "isActive", label: "Статус", type: "boolean" },
     ],
   },
 ];

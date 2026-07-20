@@ -14,22 +14,23 @@ the non-empty production-shell parity check uses one valid policy only inside a
 
 Local-only command scenario:
 
-`create manual policy -> reject duplicate master -> switch to all -> conflict -> retry -> read through legacy`.
+`create manual policy -> reject duplicate master -> switch to all -> conflict -> retry -> archive -> reactivate -> read through legacy`.
 
 React edits only the canonical master/mode/manual-target contract. Existing
 operational runtime remains responsible for calculating the assignable employee
 set used by the Workshop.
 
-Archive was audited and intentionally not exposed. The generic owner can add
-`isActive=false` and `archivedAt` to its in-memory candidate, but the current
-`system_responsibility_policies` table and repository persist neither field.
-Server read-back would therefore erase the lifecycle result. This requires a
-separate owner/schema contract, not a React-side workaround.
+Migration `026_system_responsibility_policy_lifecycle` supplies the missing
+owner contract with additive `is_active BOOLEAN NOT NULL DEFAULT TRUE` and
+nullable `archived_at TIMESTAMPTZ` columns. Existing policies remain active.
+The PostgreSQL repository now persists and hydrates both lifecycle fields; the existing System Domains archive and
+upsert owners remain authoritative. React exposes stable-ID-bound two-step
+archive/reactivation and never changes lifecycle through an ordinary save.
 
 ## Evidence
 
 - invalid containers and policies without stable ID/subject fail closed;
-- four legacy cells, employee-name formatting and order match React literally;
+- five legacy cells, employee-name formatting and order match React literally;
 - selection/passport, seven links, six metrics, Employees fallback, unchanged
   temporary state and clean console pass;
 - all five prior Structure registry regressions remain exact;
@@ -38,12 +39,15 @@ separate owner/schema contract, not a React-side workaround.
 - switching to `all` retains manual targets for a later mode change;
 - conflict does not mutate the revision and retry advances it exactly once;
 - hidden server fields survive edit and legacy reads back both policies;
-- latest non-empty local first commit was `32.00 ms`.
+- archive persists `isActive=false` and a valid audit timestamp;
+- reactivation clears the persisted archive marker without losing targets or hidden fields;
+- latest non-empty local first commit was `18.50 ms`.
 
-The production artifact is `215,212 B` raw / `65,557 B` gzip, below the
-`225,000 B / 68,000 B` gate. Separate read adapters keep the aggregate lab at
-`502,398 B / 116,007 B`, below its development-only budget. Read and write remain false
-by default; the command slice has not been released or activated on Pilot.
+The production artifact is `209,489 B` raw / `65,490 B` gzip / `56,527 B`
+Brotli, below the `225,000 B / 68,000 B` gate. Separate read adapters keep the
+aggregate lab within its development-only budget. Read and write remain false
+by default; migration 026 and the command slice have not been released or
+activated on Pilot.
 
 ## Pilot rollout preparation
 

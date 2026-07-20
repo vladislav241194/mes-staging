@@ -14,7 +14,7 @@ const qaConfig = process.env.MES_STRUCTURE_QA_REGISTRY === "migrationDiagnostics
   featureFlag: "MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS", evaluationFlag: "MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-migration-diagnostics-evaluation", fallbackLabel: "Сотрудники", fallbackRegistry: "employees", fallbackCount: 76,
 } : process.env.MES_STRUCTURE_QA_REGISTRY === "responsibilityPolicies" ? {
-  label: "Responsibility Policies", registryId: "responsibilityPolicies", rowCount: 1, cellCount: 4, target: "data-react-structure-responsibility-policies-island",
+  label: "Responsibility Policies", registryId: "responsibilityPolicies", rowCount: 1, cellCount: 5, target: "data-react-structure-responsibility-policies-island",
   featureFlag: "MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES", evaluationFlag: "MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION",
   evaluationQuery: "react-structure-responsibility-policies-evaluation", fallbackLabel: "Сотрудники", fallbackRegistry: "employees", fallbackCount: 76,
 } : process.env.MES_STRUCTURE_QA_REGISTRY === "equipment" ? {
@@ -64,7 +64,7 @@ const migration = migrateLegacySystemDomains({
   migratedAt: "2026-07-19T00:00:00.000Z",
 });
 if (qaConfig.registryId === "responsibilityPolicies") {
-  migration.domains.registries.responsibilityPolicies = [{ id: "POLICY-QA-001", subjectEmployeeId: masterId, mode: "manual", targetEmployeeIds: [executorId], updatedAt: "2026-07-19T00:00:00.000Z" }];
+  migration.domains.registries.responsibilityPolicies = [{ id: "POLICY-QA-001", subjectEmployeeId: masterId, mode: "manual", targetEmployeeIds: [executorId], updatedAt: "2026-07-19T00:00:00.000Z", isActive: true }];
 }
 assert(migration.report.validation.valid && (qaConfig.isDiagnostics ? PRODUCTION_STRUCTURE_MATRIX_ROWS.length : migration.domains.registries[qaConfig.registryId].length) === qaConfig.rowCount, `canonical fixture must contain ${qaConfig.rowCount} valid ${qaConfig.label}`);
 const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy: { actor: "structure-positions-react-functional-qa" }, values: { [STATE_STORAGE_KEY]: JSON.stringify({ routes: [], routeSteps: [], slots: [] }), [SYSTEM_DOMAINS_STORAGE_KEY]: serializeSystemDomains(migration.domains) }, sharedUi: {}, events: [] };
@@ -512,6 +512,27 @@ try {
     assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "responsibility policy edit retry must advance exactly one revision");
     const edited = apiDomains.registries.responsibilityPolicies.find((policy) => policy.id === created.id);
     assert(edited?.mode === "all" && JSON.stringify(edited.targetEmployeeIds) === JSON.stringify(targetEmployeeIds) && edited?.serverOnlyMarker === "responsibility-hidden-field", "responsibility edit lost targets or hidden fields");
+
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-responsibility-policies-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Архивировать")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование"), { message: "Responsibility policy archive confirmation was not explicit" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить архивирование")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-react-structure-responsibility-policies-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Все сотрудники") && row.textContent?.includes("архив")), { message: "archived responsibility policy did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 4 && successfulWrites === 3 && putAttempts === 4, "responsibility policy archive must advance exactly one revision");
+    const archived = apiDomains.registries.responsibilityPolicies.find((policy) => policy.id === created.id);
+    assert(archived?.isActive === false && Number.isFinite(Date.parse(archived?.archivedAt || "")), "responsibility policy archive lifecycle was not preserved");
+    assert(archived?.serverOnlyMarker === "responsibility-hidden-field" && archived?.mode === "all" && JSON.stringify(archived?.targetEmployeeIds) === JSON.stringify(targetEmployeeIds), "responsibility policy archive changed hidden or domain fields");
+
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-responsibility-policies-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Восстановить"), { message: "archived responsibility policy was not selectable for reactivation" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Восстановить")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить восстановление"), { message: "Responsibility policy reactivation confirmation was not explicit" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить восстановление")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-react-structure-responsibility-policies-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Все сотрудники") && row.textContent?.includes("активно")), { message: "reactivated responsibility policy did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 5 && successfulWrites === 4 && putAttempts === 5, "responsibility policy reactivation must advance exactly one revision");
+    const reactivated = apiDomains.registries.responsibilityPolicies.find((policy) => policy.id === created.id);
+    assert(reactivated?.isActive === true && reactivated?.archivedAt === "", "responsibility policy reactivation did not clear the lifecycle archive marker");
+    assert(reactivated?.serverOnlyMarker === "responsibility-hidden-field" && reactivated?.mode === "all" && JSON.stringify(reactivated?.targetEmployeeIds) === JSON.stringify(targetEmployeeIds), "responsibility policy reactivation changed hidden or domain fields");
     assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "responsibility commands must carry surface, If-Match and idempotency key");
 
     await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&qa-reload=responsibility-policies-legacy-readback` });
@@ -528,6 +549,6 @@ try {
   if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, hierarchy/dependency rejection, ID-bound confirmations, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "workCenters") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, hierarchy/dependency rejection, ID-bound confirmations, Planning/Gantt flags, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "equipment") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, explicit confirmations, quantity/reference validation, conflict retry, hidden fields, 7-row legacy read-back and unchanged snapshot: pass");
-  if (qaConfig.registryId === "responsibilityPolicies") console.log("- PostgreSQL create/edit, mode/employee validation, duplicate rejection, conflict retry, hidden fields, 2-row legacy read-back and unchanged snapshot: pass");
+  if (qaConfig.registryId === "responsibilityPolicies") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle persistence, mode/employee validation, duplicate rejection, conflict retry, hidden fields, 2-row legacy read-back and unchanged snapshot: pass");
 } catch (error) { if (chrome) { const browserState = await evaluate(chrome.client, () => ({ url: location.href, headings: [...document.querySelectorAll("h1,h2")].map((node) => node.textContent?.trim()).slice(0, 8), target: Boolean(document.querySelector('[data-react-structure-positions-island]')), targetState: document.querySelector('[data-react-structure-positions-island]')?.getAttribute("data-react-island-state"), registryButtons: [...document.querySelectorAll('[data-system-domain-registry]')].map((button) => ({ id: button.getAttribute("data-system-domain-registry"), text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), connected: button.isConnected, disabled: button.disabled, pointerEvents: getComputedStyle(button).pointerEvents })), buttons: [...document.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => ({ text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), disabled: button.disabled })).slice(-20), visibleText: document.querySelector("main")?.textContent?.replace(/\s+/g, " ").trim().slice(-1000) })).catch(() => null); if (browserState) console.error(`BROWSER_STATE ${JSON.stringify(browserState)}`); } if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; }
 finally { if (chrome) await cleanupChrome(chrome); await Promise.all([stop(enabledPreview), stop(legacyPreview)]); await rm(temporaryRoot, { recursive: true, force: true }); }

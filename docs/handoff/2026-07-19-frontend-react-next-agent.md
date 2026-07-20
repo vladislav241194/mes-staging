@@ -781,11 +781,12 @@ actions/console, затем немедленно деактивировать и
   уже имеют Pilot read baseline; Roles immediate assignment и Specifications
   exact-revision work-order локально завершены и больше не перечисляются как
   полностью legacy.
-- Оставшиеся frontend-visible команды без безопасного owner по-прежнему
-  подтверждены кодом: Responsibility Policy lifecycle; Roles `readOnly`,
+- Оставшиеся frontend-visible команды без безопасного owner на момент этого
+  аудита подтверждались кодом: Responsibility Policy lifecycle; Roles `readOnly`,
   multiple/effective-window и personal/assignment scopes; Planning dates/labor;
   Specifications attachment binding/route structure; Gantt dependency editing,
-  drag/resize/optimization и Workshop manual lane movement.
+  drag/resize/optimization и Workshop manual lane movement. Responsibility
+  Policy lifecycle позднее закрыт отдельным owner checkpoint ниже.
 - Остальные next scopes — не frontend implementation: root-gated Pilot read,
   отдельно разрешаемые disposable write/cleanup acceptance и default-on
   решения. Без новой authority их выполнять нельзя.
@@ -831,3 +832,26 @@ actions/console, затем немедленно деактивировать и
   delete that exact ID; prove its absence; immediately run
   `deactivate-react-nomenclature-write-evaluation.sh`; prove health and every
   React rollout flag false. Legacy remains the default and rollback surface.
+
+## Local continuation 2026-07-20: Responsibility Policies owner lifecycle
+
+- The previously documented owner/schema gap is closed locally in the separate
+  `v.1.500.09` candidate. Migration
+  `026_system_responsibility_policy_lifecycle` adds only
+  `is_active BOOLEAN NOT NULL DEFAULT TRUE` and nullable `archived_at`; no
+  existing policy is deactivated.
+- The PostgreSQL repository persists and hydrates `isActive`, and domain
+  preflight now refuses a release that has not applied migration 026. The frozen
+  backend guard permits only the exact migration, repository mapping, preflight
+  requirement and additive schema assertions.
+- Responsibility Policies React now supports lifecycle-neutral create/edit and
+  stable-ID-bound two-step archive/reactivation through the existing System
+  Domains owner. Missing employees, duplicate masters and stale revisions fail
+  closed; reactivation verifies linked active employees and clears `archivedAt`.
+- Production-shell QA proves create/edit/archive/reactivate, PostgreSQL revision
+  counts, lifecycle persistence, hidden/target preservation, active legacy
+  read-back, unchanged temporary `0600` snapshot and clean console. Latest first
+  commit: `18.50 ms`; production artifact: `209489 / 65490 / 56527 B`
+  raw/gzip/Brotli.
+- This is not Pilot acceptance. Migration 026 has not been applied live and the
+  Responsibility Policies rollout remains default-off with legacy rollback.

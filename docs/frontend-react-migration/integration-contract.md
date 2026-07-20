@@ -166,14 +166,15 @@ upsert owner and accepts only authoritative active read-back. Equipment
 scheduling commands remain legacy.
 
 `mountStructureResponsibilityPoliciesReactIsland(...)` owns the policy read
-table, passport and a local-only create/edit evaluation. Employee labels and
+table, passport and a local-only lifecycle evaluation. Employee labels and
 reference options come from the same System Domains snapshot. The host validates
 the unique master and target IDs, while operational runtime remains the owner of
-assignable-employee resolution. Archive remains legacy.
-The current PostgreSQL responsibility-policy table/repository persists neither
-`isActive` nor `archivedAt`; therefore the generic archive candidate would be
-lost on server read-back. React must not expose archive until that owner/schema
-contract is defined outside this migration boundary.
+assignable-employee resolution. Migration 026 adds `is_active` with a
+non-destructive active default and nullable `archived_at`; the repository
+persists and hydrates both lifecycle fields.
+Archive and reactivation require ID-bound second confirmation, delegate to the
+existing System Domains owners, preserve targets/hidden fields and verify active
+read-back after clearing `archivedAt`. Ordinary save cannot change lifecycle.
 
 `mountStructureMigrationDiagnosticsReactIsland(...)` owns only the diagnostic
 composition. The host supplies the existing report and legacy matrix after lazy

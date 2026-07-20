@@ -1686,9 +1686,12 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_SPECIFICATIONS2:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION:.*=== "1"/);
 
-  const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
+  const [{ stdout: changedPathsOutput }, { stdout: untrackedPathsOutput }] = await Promise.all([
+    execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot }),
+    execFileAsync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: repositoryRoot }),
+  ]);
   const specificationsAuthorityQaPath = "scripts/domain-specifications2-publication-authority-qa.mjs";
-  const changedPaths = changedPathsOutput.split("\n").filter(Boolean);
+  const changedPaths = [...new Set(`${changedPathsOutput}\n${untrackedPathsOutput}`.split("\n").filter(Boolean))];
   if (changedPaths.includes(specificationsAuthorityQaPath)) {
     const { stdout: authorityQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", specificationsAuthorityQaPath], { cwd: repositoryRoot });
     const assertionChanges = authorityQaDiff
@@ -1699,9 +1702,40 @@ try {
       "+assert.match(renderSource, /writeStore\\(\\{ \\.\\.\\.latestStore, registry, selectedId: normalizedEntryId \\}, \\{ suppressSharedStatePush: true \\}\\)/, \"server-primary acknowledgement must not enqueue a competing shared-state snapshot write\");",
     ], "Specifications authority QA may only follow the already-reviewed entryId normalization");
   }
+  const responsibilityLifecyclePaths = new Set([
+    "db/migrations/026_system_responsibility_policy_lifecycle.sql",
+    "scripts/domain-postgres-preflight.mjs",
+    "scripts/domain-schema-qa.mjs",
+    "scripts/domain-system-domains-repository.mjs",
+  ]);
+  if ([...responsibilityLifecyclePaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual([...responsibilityLifecyclePaths].filter((path) => changedPaths.includes(path)).sort(), [...responsibilityLifecyclePaths].sort(), "Responsibility-policy lifecycle owner contract must remain an atomic schema/repository/QA change");
+    const lifecycleMigration = await readFile(join(repositoryRoot, "db/migrations/026_system_responsibility_policy_lifecycle.sql"), "utf8");
+    assert.equal(lifecycleMigration, `BEGIN;\n\nALTER TABLE system_responsibility_policies\n  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,\n  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;\n\nINSERT INTO mes_schema_migrations(version)\nVALUES ('026_system_responsibility_policy_lifecycle')\nON CONFLICT (version) DO NOTHING;\n\nCOMMIT;\n`, "Responsibility-policy lifecycle migration must stay additive and non-destructive");
+    const { stdout: repositoryDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-system-domains-repository.mjs"], { cwd: repositoryRoot });
+    const repositoryChanges = repositoryDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
+    assert.deepEqual(repositoryChanges, [
+      "-      INSERT INTO system_responsibility_policies (id, subject_employee_id, mode, updated_at_source, source_ref)",
+      "-      VALUES (${text(item.id)}, ${text(item.subjectEmployeeId)}, ${text(item.mode)}, ${text(item.updatedAt)}, ${tx.json(item.sourceRef || {})})`;",
+      "+      INSERT INTO system_responsibility_policies (id, subject_employee_id, mode, updated_at_source, is_active, archived_at, source_ref)",
+      "+      VALUES (${text(item.id)}, ${text(item.subjectEmployeeId)}, ${text(item.mode)}, ${text(item.updatedAt)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;",
+      "-          responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, sourceRef:r.source_ref || {} })),",
+      "+          responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, isActive:r.is_active, archivedAt:iso(r.archived_at), sourceRef:r.source_ref || {} })),",
+    ], "Responsibility-policy repository exception may only persist and hydrate lifecycle fields");
+    const { stdout: preflightDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-postgres-preflight.mjs"], { cwd: repositoryRoot });
+    const preflightChanges = preflightDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
+    assert.deepEqual(preflightChanges, [
+      '+    "026_system_responsibility_policy_lifecycle",',
+    ], "Responsibility-policy preflight exception may only require migration 026");
+    const { stdout: schemaQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-schema-qa.mjs"], { cwd: repositoryRoot });
+    const schemaQaChanges = schemaQaDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
+    assert.equal(schemaQaChanges.filter((line) => line.startsWith("-")).length, 0, "Responsibility-policy schema QA exception must not remove assertions");
+    assert.equal(schemaQaChanges.filter((line) => line.startsWith("+")).length, 13, "Responsibility-policy schema QA exception must remain the exact additive lifecycle gate");
+    assert(schemaQaChanges.every((line) => /responsibilityPolicyLifecycle|Responsibility-policy lifecycle|Responsibility Policy lifecycle|ALTER TABLE system_responsibility_policies|ADD COLUMN IF NOT EXISTS (?:is_active|archived_at)|026_system_responsibility_policy_lifecycle|PostgreSQL domain preflight|^\+\[$|^\+\]\.forEach|^\+assert\($|^\+  |^\+\);/.test(line)), "Responsibility-policy schema QA exception contains an unrelated change");
+  }
   const frozenBackendDiff = changedPaths
     .filter(isFrozenBackendPath)
-    .filter((path) => path !== specificationsAuthorityQaPath);
+    .filter((path) => path !== specificationsAuthorityQaPath && !responsibilityLifecyclePaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([

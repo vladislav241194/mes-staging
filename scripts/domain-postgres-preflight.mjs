@@ -17,6 +17,7 @@ try {
     "014_shift_execution_command_idempotency",
     "022_shift_execution_carryover_lifecycle",
     "023_system_domains_postgres_primary_authority",
+    "026_system_responsibility_policy_lifecycle",
   ];
   const migrations = await sql`SELECT version FROM mes_schema_migrations WHERE version = ANY(${requiredMigrations})`;
   const applied = new Set(migrations.map((row) => row.version));

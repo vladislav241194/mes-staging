@@ -199,9 +199,11 @@ remain outside React.
 
 ## Structure Responsibility Policies read-model evidence
 
-Responsibility Policies retains its four-column master/mode/allowed-employees/
-update contract. Empty input fails closed; a temporary valid QA policy
-proves literal non-empty parity without creating real records. Commands remain legacy.
+Responsibility Policies retains the legacy master/mode/allowed-employees/update
+contract and adds the same explicit lifecycle status column to both legacy and
+React tables. Empty input fails closed; a temporary valid QA policy proves
+literal five-column non-empty parity without creating real records. Archive and
+reactivation use stable-ID-bound confirmations through the System Domains owner.
 
 ## Structure Migration Diagnostics evidence
 

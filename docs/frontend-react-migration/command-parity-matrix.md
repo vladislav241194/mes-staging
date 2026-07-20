@@ -48,7 +48,7 @@ Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner. Employees, Positions, Org Units, Work
-Centers and Equipment have explicit archive and reactivation.
+Centers, Equipment and Responsibility Policies have explicit archive and reactivation.
 Other reference-sensitive,
 lifecycle, import and other delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
@@ -130,7 +130,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 9 | Structure Positions | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with active organization/work-center/schedule guards | High | Separately gated Pilot lifecycle evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy-cycle, active-reference and active-parent guards | High | Separately gated Pilot lifecycle evaluation with a disposable leaf unit and verified cleanup |
 | 11 | Structure Equipment | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with active organization/work-center/schedule guards | High | Separately gated Pilot lifecycle evaluation with disposable equipment; scheduling commands remain legacy |
-| 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive blocked by owner persistence gap | High | Define an owner/schema contract that persists lifecycle before archive or Pilot write evaluation |
+| 12 | Structure Responsibility Policies | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate; PostgreSQL persists `isActive`, duplicate masters and missing employees fail closed | High | Apply migration 026, then separately gate a disposable Pilot lifecycle evaluation with verified cleanup/reactivation |
 | 13 | Structure Work Centers | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy, active-reference and active-parent guards while preserving Planning/Gantt flags | High | Separately gated Pilot lifecycle evaluation with a disposable leaf work center and verified cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
 | 15 | Roles and Access | Local complete: role label, description, default module, six-action grant toggles, role default scope, exact-employee immediate assignment replace/clear and ID-bound deactivate/reactivate for unassigned roles; multiple/effective-window assignment editing, personal/assignment scopes, read-only and assigned-role lifecycle remain legacy | Critical | Separately gated Pilot metadata/grant/default-scope/assignment/lifecycle write evaluation with disposable coordinates and verified cleanup/reactivation |
@@ -295,8 +295,13 @@ the owner of `department`, `workCenter`, `manual` and `all` resolution. The host
 rejects missing employees and a duplicate master before persistence. QA proves
 manual-target preservation across a switch to `all`, conflict-without-mutation
 plus retry, hidden-field preservation, `2`-row legacy read-back and unchanged
-disposable compatibility state. Archive remains legacy and Pilot write
-acceptance is separate.
+disposable compatibility state. Migration
+`026_system_responsibility_policy_lifecycle` adds a non-destructive
+`is_active BOOLEAN NOT NULL DEFAULT TRUE` and nullable `archived_at` owner
+fields. The repository persists and hydrates them; React uses the existing System Domains archive/upsert owners
+with ID-bound two-step archive/reactivation. QA proves lifecycle round-trip,
+archive-marker cleanup, hidden-field preservation and active legacy read-back.
+Pilot write acceptance remains separate.
 
 Weekly Production Control's earlier “week selection” command scope was removed
 after source audit: no such legacy command exists, and the module explicitly

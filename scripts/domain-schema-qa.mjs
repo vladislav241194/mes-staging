@@ -45,6 +45,8 @@ const systemDomainsPrimaryAuthorityMigrationPath = fileURLToPath(new URL("../db/
 const systemDomainsPrimaryAuthoritySql = await readFile(systemDomainsPrimaryAuthorityMigrationPath, "utf-8");
 const planningSnapshotObservationMigrationPath = fileURLToPath(new URL("../db/migrations/024_planning_snapshot_observation_guard.sql", import.meta.url));
 const planningSnapshotObservationSql = await readFile(planningSnapshotObservationMigrationPath, "utf-8");
+const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/026_system_responsibility_policy_lifecycle.sql", import.meta.url));
+const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");
 const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
 const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
 
@@ -206,4 +208,15 @@ assert(
   "INSERT INTO mes_schema_migrations(version)\nVALUES ('024_planning_snapshot_observation_guard')",
 ].forEach((fragment) => assert(planningSnapshotObservationSql.includes(fragment), `Planning snapshot-observation migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningSnapshotObservationSql), "Planning snapshot-observation migration must not contain destructive statements");
+[
+  "ALTER TABLE system_responsibility_policies",
+  "ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
+  "ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",
+  "VALUES ('026_system_responsibility_policy_lifecycle')",
+].forEach((fragment) => assert(responsibilityPolicyLifecycleSql.includes(fragment), `Responsibility-policy lifecycle migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(responsibilityPolicyLifecycleSql), "Responsibility-policy lifecycle migration must not contain destructive statements");
+assert(
+  postgresPreflightSql.includes('"026_system_responsibility_policy_lifecycle"'),
+  "PostgreSQL domain preflight must require the Responsibility Policy lifecycle migration",
+);
 console.log("Domain schema QA: OK");

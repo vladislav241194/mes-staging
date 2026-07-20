@@ -3099,13 +3099,43 @@ const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibi
     const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION === true;
     return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureResponsibilityPoliciesReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
   },
-  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("responsibilityPolicies") } }), getTargetRoot: () => app,
+  getPayload: () => { const commandReady = getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("responsibilityPolicies"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; }, getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "responsibilityPolicies"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования зон ответственности недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда жизненного цикла зон ответственности недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("responsibilityPolicies")) return { ok: false, message: "PostgreSQL-команда или право редактирования зон ответственности недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "archive") {
+      const policyId = String(input.policyId || "").trim();
+      const policy = (getSystemDomainsRegistries().responsibilityPolicies || []).find((item) => item.id === policyId);
+      if (!policy || policy.isActive === false) return { ok: false, message: "Активная зона ответственности больше не существует." };
+      try {
+        const result = await archiveSystemDomainEntity("responsibilityPolicies", policyId, { source: "react:structure-responsibility-policies:archive", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Архивирование зоны ответственности отклонено проверкой System Domains." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: policyId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные зоны ответственности изменились в другом сеансе. Проверьте значения и повторите архивирование." : error?.message || "Сервер не принял архивирование зоны ответственности." };
+      }
+    }
+    if (command.type === "reactivate") {
+      const policyId = String(input.policyId || "").trim();
+      const policy = (getSystemDomainsRegistries().responsibilityPolicies || []).find((item) => item.id === policyId);
+      if (!policy || policy.isActive !== false) return { ok: false, message: "Архивная зона ответственности больше не существует." };
+      const employeeIds = new Set((getSystemDomainsRegistries().employees || []).filter((employee) => employee.isActive !== false).map((employee) => String(employee.id || "")).filter(Boolean));
+      if (!employeeIds.has(String(policy.subjectEmployeeId || "")) || (policy.targetEmployeeIds || []).some((employeeId) => !employeeIds.has(String(employeeId || "")))) return { ok: false, message: "Сначала восстановите сотрудников, связанных с зоной ответственности." };
+      try {
+        const result = await upsertSystemDomainEntity("responsibilityPolicies", { ...policy, isActive: true, archivedAt: "", updatedAt: new Date().toISOString() }, { source: "react:structure-responsibility-policies:reactivate", operation: "update", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Восстановление зоны ответственности отклонено проверкой System Domains." };
+        const authoritativePolicy = (getSystemDomainsRegistries().responsibilityPolicies || []).find((item) => item.id === policyId);
+        if (!authoritativePolicy || authoritativePolicy.isActive === false || authoritativePolicy.archivedAt) return { ok: false, message: "Владелец зон ответственности не подтвердил восстановление." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: policyId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные зоны ответственности изменились в другом сеансе. Проверьте значения и повторите восстановление." : error?.message || "Сервер не принял восстановление зоны ответственности." };
+      }
+    }
     const subjectEmployeeId = String(input.subjectEmployeeId || "").trim();
     const policyId = String(input.policyId || "").trim() || `responsibility:${subjectEmployeeId}`;
     const mode = String(input.mode || "department").trim();
@@ -3118,7 +3148,8 @@ const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibi
     if (missingTargetId) return { ok: false, message: "Один из разрешённых сотрудников больше не существует." };
     if ((registries.responsibilityPolicies || []).some((policy) => policy.id !== policyId && policy.subjectEmployeeId === subjectEmployeeId)) return { ok: false, message: "Для выбранного мастера уже существует зона ответственности." };
     try {
-      const result = await upsertSystemDomainEntity("responsibilityPolicies", { id: policyId, subjectEmployeeId, mode, targetEmployeeIds, updatedAt: new Date().toISOString() }, { source: "react:structure-responsibility-policies", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      const currentPolicy = (registries.responsibilityPolicies || []).find((policy) => policy.id === policyId);
+      const result = await upsertSystemDomainEntity("responsibilityPolicies", { ...currentPolicy, id: policyId, subjectEmployeeId, mode, targetEmployeeIds, updatedAt: new Date().toISOString(), isActive: currentPolicy?.isActive !== false }, { source: "react:structure-responsibility-policies", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
       if (result !== true) return { ok: false, message: "Изменение зоны ответственности отклонено проверкой System Domains." };
       queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
       return { ok: true, id: policyId };
