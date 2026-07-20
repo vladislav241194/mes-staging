@@ -119,7 +119,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
-| 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
+| 1 | Nomenclature | Local complete: create/edit/delete; `.15` narrow durable transport green locally, live browser attempt failed closed before the owner API | Medium | Repeat the already-approved disposable lifecycle in a browser that permits same-origin `/api/shared-state`; keep default-off and prove zero-row cleanup |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit/custom delete with Specifications and loaded-Planning cleanup; bundled rows protected | Medium | Separately gated Pilot create/edit/custom-delete evaluation with a disposable row and verified cleanup |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |

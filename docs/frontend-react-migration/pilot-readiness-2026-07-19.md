@@ -569,3 +569,27 @@ reassignment for linked Nomenclature and Specifications rows while Planning
 stays unchanged. This does not alter the accepted live read checkpoint: there
 is still no Pilot write flag, all evaluation flags remain off, and no Pilot
 data was written.
+
+## Nomenclature `.15` write-evaluation attempt and rollback
+
+Release `v.1.500.15-3f173ac` is active with standard local/public health `ok`,
+shared state `ready`, applied migration 026 and rollback target
+`v.1.500.14-6715bd9`. The lawful root activation succeeded and exposed exactly
+the Nomenclature feature and write-evaluation flags. An authenticated
+`directories:edit` Technology session mounted the real React create/edit/delete
+surface.
+
+The only controllable browser in the task blocks the same-origin
+`/api/shared-state` URL with `ERR_BLOCKED_BY_CLIENT`, so the disposable create
+never reached the server owner and failed closed after six bounded attempts.
+The server revision remained `44701`, no matching audit write appeared and
+article `QA-NOM-202607201435` has zero matches. This is not a live write-parity
+acceptance.
+
+The evaluation and its automatic rollback timer were removed immediately.
+Every `MES_REACT_*` value is again absent, no evaluation drop-in remains,
+health is still `ok`, and a fresh `.15` route renders legacy Nomenclature. The
+next acceptance must use a normal browser that permits the same-origin API; it
+must not replay the write through localhost, curl or an unauthenticated API.
+Default-on remains rejected until the complete create/edit/legacy-read/delete
+and zero-row cleanup evidence exists.

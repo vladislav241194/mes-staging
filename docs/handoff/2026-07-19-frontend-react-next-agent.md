@@ -887,3 +887,51 @@ actions/console, затем немедленно деактивировать и
   approximately `0.1%` is the root-gated disposable Nomenclature lifecycle plus
   its cleanup proof and the subsequent default-on decision. Legacy remains the
   live default and rollback surface; Blueprint is not used.
+
+## Pilot closure 2026-07-20: release `.15` and exact browser-write blocker
+
+- The lawful root boundary is no longer a blocker. Release
+  `v.1.500.15-3f173ac` was staged from exact pushed commit
+  `3f173acc017477b13777a4fabe53ac77ab3eba7e` with
+  `fresh-upstream-fetch` provenance and activated by the standard release
+  health/rollback guard. Local and public health are `ok`, shared state is
+  `ready`, migration 026 remains applied, and the explicit rollback target is
+  `v.1.500.14-6715bd9`.
+- The `.15` runtime sends a durable Nomenclature mutation as only the three
+  reviewed directory compatibility keys and requests a compact acknowledgement.
+  The server preserves unrelated Planning/specification values and returns only
+  revision metadata on success or CAS conflict. Full Nomenclature QA, production
+  build, runtime rebase QA, endpoint functional QA and `git diff --check` pass;
+  the endpoint test proves Planning remains byte-identical.
+- Root successfully enabled the isolated Nomenclature write evaluation with a
+  20-minute automatic rollback. Exactly
+  `MES_REACT_NOMENCLATURE=1` and
+  `MES_REACT_NOMENCLATURE_WRITE_EVALUATION=1` were effective. The authenticated
+  Technology session mounted the real React create/edit/delete surface on
+  `.15`; no localhost QA route or permission bypass was used.
+- Live create could not reach the owner endpoint because the only controllable
+  browser in this task blocks the same-origin URL
+  `https://pilot.mes-line.ru/api/shared-state` with
+  `ERR_BLOCKED_BY_CLIENT`. The UI therefore failed closed after six bounded
+  attempts. Server evidence agrees: no new Nomenclature audit event, shared
+  revision stayed `44701`, and exact article `QA-NOM-202607201435` is absent.
+  This is now an exact client-environment blocker, not a root, release, database,
+  owner, cleanup or response-size blocker.
+- Evaluation was immediately deactivated and its transient rollback timer was
+  stopped. No React evaluation drop-in or effective `MES_REACT_*` value remains;
+  health is still `ok`, the exact QA match count is `0`, and a fresh `.15`
+  Nomenclature route renders legacy with zero rows. Legacy rollback is therefore
+  proved after the attempted acceptance.
+- The default-on decision is **do not enable yet**. Nomenclature still lacks one
+  successful authenticated Pilot create/edit/legacy-read/delete lifecycle, and
+  critical modules in the command matrix retain separately gated Pilot write
+  acceptance. Keeping all flags off is a deliberate acceptance decision, not an
+  unresolved root action.
+- Next exact action: repeat the already-authorized lifecycle in a normal browser
+  that permits same-origin `/api/shared-state`; verify the created stable ID and
+  edit on the server, deactivate to prove legacy read-back, reactivate only long
+  enough to delete that same ID, prove zero matches, then deactivate again.
+  Do not replay the write with curl, localhost or an unauthenticated API call.
+- Evidence-based global progress remains approximately `99.9%` (`+0 p.p.`).
+  The final approximately `0.1%` is only the successful browser lifecycle and
+  its cleanup proof; no data residue exists. Blueprint is not used.
