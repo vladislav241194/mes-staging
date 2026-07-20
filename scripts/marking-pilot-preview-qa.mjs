@@ -6,12 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(root, "experiments", "marking-phase-1", "src");
-const [app, fixture, buildScript, previewServer, legacyServer] = await Promise.all([
+const [app, fixture, buildScript, previewServer, legacyServer, publicAuth] = await Promise.all([
   readFile(join(sourceRoot, "App.tsx"), "utf8"),
   readFile(join(sourceRoot, "testData.ts"), "utf8"),
   readFile(join(root, "scripts", "build.mjs"), "utf8"),
   readFile(join(root, "scripts", "preview-dist.mjs"), "utf8"),
   readFile(join(root, "server.js"), "utf8"),
+  readFile(join(root, "scripts", "public-auth-guard.mjs"), "utf8"),
 ]);
 
 const source = `${app}\n${fixture}`;
@@ -23,5 +24,6 @@ assert(app.includes("MOCK · MEMORY ONLY") && app.includes("Нет API, БД и 
 assert(buildScript.includes("bundleMarkingPilotPreview") && buildScript.includes('"prototypes", "marking"'), "Production build must publish the isolated marking preview");
 assert(previewServer.includes('decodedPath === "/pilot/marking-preview"') && previewServer.includes('"/prototypes/marking/index.html"'), "Pilot server must map only the explicit preview route");
 assert(legacyServer.includes('decoded === "/pilot/marking-preview"') && legacyServer.includes('"/dist/prototypes/marking/index.html"'), "Legacy server must preserve the same explicit preview route");
+assert(publicAuth.includes('url.pathname === "/pilot/marking-preview"'), "Unauthenticated Pilot preview visits must reach the normal login flow");
 
 console.log("Marking Pilot preview contract passed");
