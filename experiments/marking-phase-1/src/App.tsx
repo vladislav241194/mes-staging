@@ -102,7 +102,7 @@ function App() {
           <span className="nav-section">Инструменты</span>
           <button onClick={() => setScannerOpen(true)}><Search size={18} /> Проверить код</button>
         </nav>
-        <div className="prototype-stamp"><CircleDot size={15} /><div><b>MOCK · локальный прототип</b><span>Нет API, БД и сохранения</span></div></div>
+        <div className="prototype-stamp"><CircleDot size={15} /><div><b>MOCK · Pilot preview</b><span>Нет API, БД и сохранения</span></div></div>
       </aside>
 
       <main className="workspace">
