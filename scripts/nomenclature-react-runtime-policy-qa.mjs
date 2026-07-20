@@ -52,5 +52,7 @@ assert(productsEventsSource.includes('persistDirectoryStateDurably("nomenclature
 assert(productsEventsSource.includes('code: "persistence-unconfirmed"'), "Nomenclature save must fail closed when persistence is not confirmed");
 assert(runtimeStateSource.includes("sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight"), "Durable directory writes must serialize with both shared-state writes and polls");
 assert(runtimeStateSource.includes("attempt <= 6") && runtimeStateSource.includes(":durable-retry-"), "Durable directory writes must use bounded CAS retries under live shared-UI contention");
+assert(runtimeStateSource.includes('requestSharedState("GET", null, { emptyProjection: true })'), "Durable directory writes must refresh a compact CAS baseline before sending the Pilot snapshot");
+assert(runtimeStateSource.includes("if (hasSharedUiPatchChanges(sharedUiPatch)) writePayload.sharedUiPatch = sharedUiPatch"), "A full domain write must carry only its UI delta over the refreshed CAS baseline");
 
 console.log("Nomenclature React runtime policy QA: OK");

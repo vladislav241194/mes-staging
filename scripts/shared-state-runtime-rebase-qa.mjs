@@ -58,6 +58,7 @@ const previousFetch = globalThis.fetch;
 const localStorage = createStorage();
 const sessionStorage = createStorage();
 const requests = [];
+let durableMetadataReads = 0;
 let ui = sharedUiFixture();
 let planningState = { routes: [], routeSteps: [], slots: [], workCenters: [] };
 let directoryState = { statuses: [] };
@@ -95,6 +96,20 @@ try {
   });
   globalThis.fetch = async (_url, request = {}) => {
     const body = JSON.parse(request.body || "{}");
+    if (String(request.method || "GET").toUpperCase() === "GET") {
+      durableMetadataReads += 1;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          configured: true,
+          version: sharedStateStatus.version,
+          values: {},
+          sharedUi: clone(sharedStateStatus.sharedUiBase || {}),
+        }),
+      };
+    }
     requests.push(body);
     const index = requests.length;
     let payload;
@@ -318,6 +333,7 @@ try {
   directoryState = { statuses: [], nomenclature: [{ id: "nom-durable", article: "QA-DURABLE" }] };
   const durableDirectorySaved = await service.persistDirectoryStateDurably("nomenclature-save");
   assert(durableDirectorySaved === true, "Durable directory save must recover from consecutive shared-UI writer conflicts");
+  assert(durableMetadataReads >= 2, "Every durable retry must refresh the compact CAS baseline before writing");
   assert(requests.length === 10, `Durable directory save must use two bounded full-write attempts, got ${requests.length - 6}`);
   assert(JSON.parse(requests[9].values["qa-directories"]).nomenclature[0]?.id === "nom-durable", "Durable retry must retain the exact intended directory projection");
 

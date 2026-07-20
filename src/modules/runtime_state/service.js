@@ -827,6 +827,13 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       writePayload.sharedUi = pendingSharedUiFull;
       writePayload.sharedUiPatch = pendingSharedUi;
       writePayload.responseMode = "ack";
+    } else if (sharedStateStatus.sharedUiBase !== null) {
+      // Domain writes still carry the compatibility values, but their UI
+      // intent is only the delta from the last observed server baseline. This
+      // keeps an immediately refreshed CAS version from overwriting unrelated
+      // UI entries that another browser committed in the meantime.
+      const sharedUiPatch = getSharedUiPatch(sharedStateStatus.sharedUiBase, pendingSharedUiFull);
+      if (hasSharedUiPatchChanges(sharedUiPatch)) writePayload.sharedUiPatch = sharedUiPatch;
     }
     let response = await requestSharedState("POST", writePayload);
 
@@ -1898,6 +1905,24 @@ async function persistDirectoryStateDurably(reason = "directory-state") {
       await new Promise((resolve) => window.setTimeout(resolve, 25));
     }
     if (sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight) return false;
+    try {
+      // A normal 409 response contains the complete compatibility snapshot and
+      // can exceed the browser's transport timeout on real Pilot data. Read a
+      // metadata-only revision immediately before each durable attempt so the
+      // protected full write starts from a current CAS version instead.
+      const baseline = await requestSharedState("GET", null, { emptyProjection: true });
+      if (baseline.configured === false) return false;
+      const baselineVersion = Number(baseline.version || 0);
+      if (!Number.isFinite(baselineVersion) || baselineVersion <= 0) return false;
+      sharedStateStatus.version = baselineVersion;
+      if (sharedStateStatus.sharedUiBase === null) {
+        sharedStateStatus.sharedUiBase = cloneSharedUiSnapshot(baseline.sharedUi || {});
+      }
+    } catch (error) {
+      if (Date.now() >= waitDeadline) return false;
+      await new Promise((resolve) => window.setTimeout(resolve, attempt * 75));
+      continue;
+    }
     const attemptReason = attempt === 1 ? reason : `${reason}:durable-retry-${attempt}`;
     scheduleSharedStatePush(attemptReason);
     if (await pushSharedState(attemptReason, { notifyConflict: attempt === 6 })) return true;
