@@ -1,0 +1,81 @@
+.mes-react-marking-island { color: var(--mes-ui-text, #18314d); font-family: var(--mes-ui-font-family, Onest, Inter, system-ui, sans-serif); }
+.mes-react-marking-island *, .mes-react-marking-island *::before, .mes-react-marking-island *::after { box-sizing: border-box; }
+.mes-react-marking-island :is(button, input) { font: inherit; }
+.mes-react-marking-island :is(h1, h2, p) { margin-top: 0; }
+.mes-react-marking-island .module-page { display: grid; gap: 14px; min-height: 680px; padding: 22px; }
+.mes-react-marking-island .panel { overflow: hidden; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.94); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+.mes-react-marking-island .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+.mes-react-marking-island .panel-heading :is(h2, p, small) { margin: 0; }
+.mes-react-marking-island .panel-heading p, .mes-react-marking-island .panel-heading small { color: #718296; font-size: 11px; }
+.mes-react-marking-island .panel-heading h2 { font-size: 17px; }
+.mes-react-marking-island .action { min-height: 38px; padding: 8px 13px; border: 0; border-radius: 9px; color: #fff; background: #2f6fe4; cursor: pointer; }
+.mes-react-marking-island .action--secondary { border: 1px solid #d7e1ec; color: #18314d; background: #f3f6f9; }
+.mes-react-marking-island .action--danger { background: #b83a3a; }
+.mes-react-marking-island .action:disabled { opacity: .45; cursor: default; }
+.mes-react-marking-island .status { display: inline-flex; align-items: center; width: max-content; padding: 5px 9px; border-radius: 999px; font-size: 10px; font-weight: 680; white-space: nowrap; }
+.mes-react-marking-island .status--success { border: 1px solid var(--mes-ui-status-success-border); color: var(--mes-ui-status-success-text); background: var(--mes-ui-status-success-bg); }
+.mes-react-marking-island .status--warning { border: 1px solid var(--mes-ui-status-warning-border); color: var(--mes-ui-status-warning-text); background: var(--mes-ui-status-warning-bg); }
+.mes-react-marking-island .status--neutral { border: 1px solid var(--mes-ui-status-neutral-border); color: var(--mes-ui-status-neutral-text); background: var(--mes-ui-status-neutral-bg); }
+.mes-react-marking-island .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(105px, 1fr)); gap: 8px; }
+.mes-react-marking-island .metric-card { display: grid; gap: 3px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+.mes-react-marking-island .metric-card :is(span, small) { color: #718296; font-size: 9px; }
+.mes-react-marking-island .metric-card strong { font-size: 18px; }
+.marking-react { align-content: start; }
+.marking-demo-badge { padding: 7px 10px; border: 1px solid var(--mes-ui-status-warning-border); border-radius: 9px; color: var(--mes-ui-status-warning-text); background: var(--mes-ui-status-warning-bg); font-size: 10px; font-weight: 760; letter-spacing: .04em; }
+.marking-demo-boundary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #d4e1ef; border-radius: 11px; color: #52667a; background: #edf4fb; font-size: 10px; }
+.marking-demo-boundary strong { color: #18314d; }
+.marking-demo-boundary code { color: #245b94; font-size: 9px; }
+.marking-react-layout { display: grid; grid-template-columns: minmax(280px, .34fr) minmax(650px, 1fr); align-items: start; gap: 14px; }
+.marking-task-list { display: grid; gap: 8px; padding: 12px; }
+.marking-task-list > button { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 11px; border: 1px solid #e3ebf3; border-radius: 11px; color: #18314d; background: #fff; text-align: left; cursor: pointer; }
+.marking-task-list > button.is-current { border-color: #2f6fe4; background: #eef4ff; box-shadow: 0 0 0 2px rgba(47,111,228,.1); }
+.marking-task-list > button > span { display: grid; min-width: 0; gap: 4px; }
+.marking-task-list :is(small, em) { overflow: hidden; color: #718296; font-size: 9px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.marking-task-list strong { font-size: 12px; }
+.marking-detail-heading > div { display: grid; gap: 3px; }
+.marking-detail { display: grid; gap: 14px; padding: 14px; }
+.marking-parameters { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 8px; }
+.marking-parameters > div { display: grid; gap: 4px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
+.marking-parameters span { color: #718296; font-size: 9px; }
+.marking-parameters strong { font-size: 11px; }
+.marking-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.marking-tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid #dfe7f0; }
+.marking-tabs button { padding: 9px 11px; border: 0; border-bottom: 2px solid transparent; color: #60758a; background: transparent; font-size: 10px; cursor: pointer; white-space: nowrap; }
+.marking-tabs button[aria-pressed="true"] { border-bottom-color: #2f6fe4; color: #245b94; font-weight: 720; }
+.mes-react-marking-island .table-wrap { overflow-x: auto; border: 1px solid #e3ebf3; border-radius: 10px; }
+.marking-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 10px; }
+.marking-table :is(th, td) { padding: 9px 10px; border-bottom: 1px solid #e7edf4; text-align: left; vertical-align: middle; }
+.marking-table th { color: #60758a; background: #f2f6fa; font-size: 9px; text-transform: uppercase; }
+.marking-table td:nth-child(3) { display: grid; gap: 2px; }
+.marking-table code { color: #245b94; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+.marking-table small { color: #718296; font-size: 8px; }
+.marking-empty { display: grid; justify-items: center; gap: 4px; padding: 34px 18px; color: #718296; text-align: center; }
+.marking-empty strong { color: #52667a; }
+.marking-batches, .marking-history { display: grid; gap: 8px; }
+.marking-batches article { display: grid; grid-template-columns: minmax(150px,.6fr) minmax(180px,1fr) auto; align-items: center; gap: 10px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 10px; }
+.marking-batches article > div { display: grid; gap: 2px; }
+.marking-batches small, .marking-batches span, .marking-history :is(time, span) { color: #718296; font-size: 9px; }
+.marking-history article { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid #e7edf4; }
+.marking-history article > div { display: grid; gap: 3px; }
+.mes-react-marking-island .react-modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(16,35,60,.54); backdrop-filter: blur(5px); }
+.mes-react-marking-island .react-modal { display: grid; grid-template-rows: auto minmax(0,1fr); width: min(620px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid rgba(71,112,154,.22); border-radius: 18px; outline: none; background: #fff; box-shadow: 0 24px 70px rgba(10,31,54,.28); }
+.mes-react-marking-island .react-modal > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #e3ebf3; }
+.mes-react-marking-island .react-modal > header div { display: grid; gap: 3px; }
+.mes-react-marking-island .react-modal > header :is(h2, span) { margin: 0; }
+.mes-react-marking-island .react-modal > header span { color: #718296; font-size: 10px; text-transform: uppercase; }
+.mes-react-marking-island .react-modal-body { min-height: 0; padding: 16px; overflow: auto; }
+.marking-search { display: grid; gap: 14px; }
+.marking-search label, .marking-search-result { display: grid; gap: 7px; }
+.marking-search label > span, .marking-search p { color: #718296; font-size: 10px; }
+.marking-search label > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.marking-search input { min-height: 40px; padding: 8px 10px; border: 1px solid #cdd9e6; border-radius: 9px; color: #18314d; background: #fff; }
+.marking-search-result { padding: 14px; border: 1px solid #cfe7dc; border-radius: 11px; background: #effaf5; }
+.marking-search-result code { color: #245b94; font-size: 13px; }
+@media (max-width: 1180px) { .marking-react-layout { grid-template-columns: 1fr; } }
+@media (max-width: 720px) {
+  .mes-react-marking-island .module-page { padding: 12px; }
+  .marking-demo-boundary { grid-template-columns: 1fr; }
+  .marking-demo-boundary code { display: none; }
+  .mes-react-marking-island .metric-grid, .marking-parameters { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .marking-actions .action { flex: 1 1 calc(50% - 4px); }
+}

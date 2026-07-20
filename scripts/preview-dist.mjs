@@ -134,11 +134,7 @@ async function maybeUsePrecompressedBody(req, filePath, body, headers, contentTy
 function getSafePath(requestUrl) {
   const url = new URL(requestUrl || "/", `http://${host}:${port}`);
   const decodedPath = decodeURIComponent(url.pathname);
-  const requestedPath = decodedPath === "/"
-    ? "/index.html"
-    : decodedPath === "/pilot/marking-preview" || decodedPath === "/pilot/marking-preview/"
-      ? "/prototypes/marking/index.html"
-      : decodedPath;
+  const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
   const fullPath = normalize(join(distDir, requestedPath));
 
   return fullPath.startsWith(distDir) ? fullPath : join(distDir, "index.html");

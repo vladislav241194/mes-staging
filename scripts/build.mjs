@@ -155,46 +155,6 @@ async function bundleReactMigrationIsland(entryPoint, outputFile) {
   });
 }
 
-async function bundleMarkingPilotPreview() {
-  const outputDir = join(stagingDistDir, "prototypes", "marking");
-  await mkdir(outputDir, { recursive: true });
-  await build({
-    entryPoints: { app: join(projectRoot, "experiments", "marking-phase-1", "src", "main.tsx") },
-    outdir: outputDir,
-    entryNames: "[name]",
-    assetNames: "assets/[name]-[hash]",
-    bundle: true,
-    format: "esm",
-    minify: true,
-    charset: "utf8",
-    legalComments: "none",
-    target: "es2020",
-    jsx: "automatic",
-    loader: { ".woff2": "file", ".svg": "file" },
-  });
-  const [scriptVersion, styleVersion] = await Promise.all([
-    fileHash(join(outputDir, "app.js")),
-    fileHash(join(outputDir, "app.css")),
-  ]);
-  await writeFile(join(outputDir, "index.html"), `<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex,nofollow" />
-    <meta name="theme-color" content="#17304d" />
-    <title>MES Line · Маркировка · MOCK Pilot preview</title>
-    <link rel="stylesheet" href="/prototypes/marking/app.css?v=${styleVersion}" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/prototypes/marking/app.js?v=${scriptVersion}"></script>
-  </body>
-</html>
-`);
-  return { scriptVersion, styleVersion };
-}
-
 // Keep the source stylesheet as an explicit cascade manifest, but flatten its
 // imports for the browser. The former manifest generated a 21-request CSS
 // waterfall before the first screen could paint. Bundling only the published
@@ -551,6 +511,15 @@ const employeeDesktopReactIslandVersionMarker = "__MES_EMPLOYEE_DESKTOP_REACT_BU
 if (!employeeDesktopReactIslandHostSource.includes(employeeDesktopReactIslandVersionMarker)) throw new Error("Cannot find Employee Desktop React island bundle version marker");
 await writeFile(employeeDesktopReactIslandHostPath, employeeDesktopReactIslandHostSource.replaceAll(employeeDesktopReactIslandVersionMarker, employeeDesktopReactIslandVersion));
 
+const markingReactIslandOutput = join(stagingDistDir, "src", "react-islands", "marking.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "marking-island.tsx"), markingReactIslandOutput);
+const markingReactIslandVersion = await fileHash(markingReactIslandOutput);
+const markingReactIslandHostPath = join(stagingDistDir, "src", "modules", "marking", "react_island_host.js");
+const markingReactIslandHostSource = await readFile(markingReactIslandHostPath, "utf8");
+const markingReactIslandVersionMarker = "__MES_MARKING_REACT_BUNDLE_VERSION__";
+if (!markingReactIslandHostSource.includes(markingReactIslandVersionMarker)) throw new Error("Cannot find Marking React island bundle version marker");
+await writeFile(markingReactIslandHostPath, markingReactIslandHostSource.replaceAll(markingReactIslandVersionMarker, markingReactIslandVersion));
+
 const authPickerReactIslandOutput = join(stagingDistDir, "src", "react-islands", "auth-picker.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "auth-picker-island.tsx"), authPickerReactIslandOutput);
 const authPickerReactIslandVersion = await fileHash(authPickerReactIslandOutput);
@@ -671,7 +640,6 @@ const jsReleaseToken = await getJavaScriptReleaseToken(join(stagingDistDir, "src
 // rendered.  Keep source modules in dist for diagnostics, but publish a single
 // minified entry file so startup has one script request instead of a waterfall.
 await bundleApplication(join(stagingDistDir, "src", "app.js"), join(stagingDistDir, "src", "app.js"));
-const markingPilotPreview = await bundleMarkingPilotPreview();
 
 await versionLocalJsImports(join(stagingDistDir, "src"), jsReleaseToken, deployCacheSuffix);
 await versionCssImports(join(stagingDistDir, "styles.css"), deployCacheSuffix);
@@ -763,6 +731,7 @@ console.log(`- src/react-islands/shift-work-orders-print.js?v=${shiftWorkOrdersP
 console.log(`- src/react-islands/shift-work-orders-fact.js?v=${shiftWorkOrdersFactVersion}`);
 console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReactIslandVersion}`);
 console.log(`- src/react-islands/employee-desktop.js?v=${employeeDesktopReactIslandVersion}`);
+console.log(`- src/react-islands/marking.js?v=${markingReactIslandVersion}`);
 console.log(`- src/react-islands/auth-picker.js?v=${authPickerReactIslandVersion}`);
 console.log(`- src/react-islands/contour-admin.js?v=${contourAdminReactIslandVersion}`);
 console.log(`- src/react-islands/specifications2.js?v=${specifications2ReactIslandVersion}`);
@@ -772,7 +741,5 @@ console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesR
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);
 console.log(`- src/react-islands/nomenclature-types.js?v=${directoryNomenclatureTypesReactIslandVersion}`);
 console.log(`- src/react-islands/statuses.js?v=${directoryStatusesReactIslandVersion}`);
-console.log(`- prototypes/marking/app.js?v=${markingPilotPreview.scriptVersion}`);
-console.log(`- prototypes/marking/app.css?v=${markingPilotPreview.styleVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

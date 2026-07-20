@@ -472,10 +472,7 @@ export async function handlePublicAuthRequest(req, res, url, headers, env = proc
 
   if (hasValidSession(req, env)) return false;
 
-  const isPublicHtmlRoute = url.pathname === "/"
-    || url.pathname.endsWith(".html")
-    || url.pathname === "/pilot/marking-preview"
-    || url.pathname === "/pilot/marking-preview/";
+  const isPublicHtmlRoute = url.pathname === "/" || url.pathname.endsWith(".html");
   if ((req.method === "GET" || req.method === "HEAD") && isPublicHtmlRoute) {
     writeRedirect(res, "/login");
     return true;

@@ -1,16 +1,17 @@
-# Маркировка — Pilot preview фазы 1
+# Маркировка — встроенный DEMO-модуль фазы 1
 
-Фаза 1 публикуется в составе штатного production artifact MES Line и доступна после обычной Pilot-авторизации:
+Фаза 1 публикуется в составе штатного production artifact MES Line, общей навигации и AppShell:
 
-- `https://pilot.mes-line.ru/pilot/marking-preview`
-- исходник: `experiments/marking-phase-1`
-- собранный artifact: `dist/prototypes/marking`
+- `https://pilot.mes-line.ru/?module=marking`
+- навигация: `Оперативное управление → Маркировка`
+- React-модуль: `experiments/react-migration/src/modules/marking`
+- production bundle: `dist/src/react-islands/marking.js`
 
 ## Граница прототипа
 
 Экран использует только явно помеченные `MOCK`-данные в памяти вкладки. Он не вызывает API, не читает и не меняет shared state, PostgreSQL или `localStorage`. Перезагрузка страницы сбрасывает все действия оператора.
 
-Это ограничение относится только к данным визуального preview. Модуль собирается существующим React + TypeScript стеком проекта, работает на том же Pilot-домене и не заменяет остальные модули MES.
+Это ограничение относится только к данным DEMO. Модуль использует существующие AppShell, меню, авторизацию, UI-компоненты и CSS-контракты MES и не заменяет остальные модули.
 
 ## Переход к рабочему модулю
 
@@ -18,4 +19,4 @@
 
 ## Удаление и rollback
 
-Preview не добавляет схем БД, серверных данных или feature-flag drop-in. Для мгновенного Pilot rollback достаточно активировать предыдущий immutable release. Для удаления из следующей сборки нужно убрать маршрут из `scripts/preview-dist.mjs` и `server.js`, вызов `bundleMarkingPilotPreview()` из `scripts/build.mjs` и этот QA-контракт.
+Модуль не добавляет схем БД, серверных данных или feature-flag drop-in. Для мгновенного Pilot rollback достаточно активировать предыдущий immutable release. Для удаления из следующей сборки нужно убрать модуль `marking` из registry/runtime, React bundle, stylesheet и его QA-контракт.

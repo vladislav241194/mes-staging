@@ -83,6 +83,7 @@ import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workb
 import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
+import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
@@ -183,7 +184,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.06";
+const APP_VERSION_FALLBACK = "v.1.500.07";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -3648,6 +3649,14 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       return { ok: true, id: report.id };
     }
     return { ok: false, message: "Неизвестная команда рабочего стола." };
+  },
+});
+const markingReactIslandHost = createMarkingReactIslandHost({
+  getActivation: () => ({ demoEnabled: true }),
+  getPayload: () => ({ mode: "mock", persistence: "memory-only", source: "phase-1-demo" }),
+  getTargetRoot: () => app,
+  requestLegacyRender: () => {
+    if (ui.activeModule === "marking") render({ skipRememberScroll: true });
   },
 });
 function getAuthPickerReactLocalQaOverrides() {
@@ -8301,6 +8310,19 @@ function initializeModuleRuntime() {
         bindAuthSessionEvents();
       },
       afterRender: () => { void employeeDesktopReactIslandHost.mount(); },
+    },
+    marking: {
+      render: () => {
+        const reactDecision = markingReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return markingReactIslandHost.renderTarget();
+        return renderMesModulePatternPage({
+          moduleId: "marking",
+          header: { eyebrow: "Оперативное управление", title: "Маркировка" },
+          content: renderUiEmptyState({ title: "Демо-модуль временно недоступен", description: "Вернитесь к предыдущему релизу или обновите страницу." }),
+        });
+      },
+      bind: () => {},
+      afterRender: () => { void markingReactIslandHost.mount(); },
     },
     weeklyProductionControl: {
       initialize: () => getWeeklyProductionControlRuntimeInstance(),

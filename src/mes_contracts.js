@@ -268,7 +268,7 @@ export const MES_FLOW_MODULES = {
   operations: {
     id: "operations",
     label: "Оперативное управление",
-    modules: ["Диспетчерская", "Мастерская", "Журнал СЗН"],
+    modules: ["Диспетчерская", "Мастерская", "Рабочий стол", "Маркировка", "Журнал СЗН"],
     owns: ["shiftWorkOrder"],
   },
 };
@@ -432,6 +432,17 @@ const CORE_MES_MODULE_FLOW_CONTRACTS = {
     ganttImpact: "none",
     ganttVisualChange: "—",
     editPolicy: "Исполнитель редактирует только свой факт и брак; начальник производства просматривает чужие рабочие столы без записи.",
+  },
+  marking: {
+    id: "marking",
+    label: "Маркировка",
+    group: "Оперативное управление",
+    role: "Демонстрационное рабочее место участка маркировки: подготовка комплектов, печать этикеток, подтверждение и передача.",
+    reads: ["Назначенные сменные задания", "Заказ-наряды", "Маршрутные карты"],
+    writes: [],
+    ganttImpact: "none",
+    ganttVisualChange: "—",
+    editPolicy: "Фаза 1 работает только на явно помеченных MOCK-данных в памяти React-модуля; API, shared-state, PostgreSQL и localStorage не используются.",
   },
 };
 

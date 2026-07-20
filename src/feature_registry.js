@@ -140,6 +140,15 @@ const MODULE_FEATURE_OVERRIDES = {
     qa: ["scripts/auth-functional-qa.mjs", "scripts/shift-operational-flow-functional-qa.mjs"],
     domains: ["auth", "worker-desktop"],
   },
+  marking: {
+    css: ["styles/react-marking-island.css"],
+    files: ["src/modules/marking/react_island_host.js", "experiments/react-migration/src/modules/marking/MarkingScenario.tsx"],
+    storage: [],
+    api: [],
+    qa: ["scripts/marking-module-qa.mjs", "scripts/marking-module-functional-qa.mjs", "scripts/module-smoke-qa.mjs"],
+    domains: ["worker-desktop", "mock-memory-only"],
+    removalContract: "Фаза 1 не создаёт серверные данные. Удаление модуля не должно затрагивать рабочие столы, СЗН, маршруты или историю производства.",
+  },
 };
 
 const SYSTEM_FEATURES = [
