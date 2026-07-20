@@ -935,3 +935,54 @@ actions/console, затем немедленно деактивировать и
 - Evidence-based global progress remains approximately `99.9%` (`+0 p.p.`).
   The final approximately `0.1%` is only the successful browser lifecycle and
   its cleanup proof; no data residue exists. Blueprint is not used.
+
+## Pilot closure continuation 2026-07-20: strict TypeScript and release `.17`
+
+- The React migration previously used esbuild to transpile `136` `.ts/.tsx`
+  sources but had no project `tsconfig`, TypeScript compiler or React type
+  declarations. A real strict gate is now installed and mandatory:
+  `npm run typecheck:react` runs TypeScript `7.0.2` with `strict: true` and
+  `noEmit: true`; `qa:stabilize` and the Nomenclature island suite both invoke
+  it. The React migration QA guards the compiler, config and script wiring so
+  the gate cannot silently disappear.
+- The first strict run exposed five real errors. They are fixed without
+  widening types or removing rollback: optional `ModulePage.sidebar` now has a
+  safe `null` default; Responsibility Policies read models hydrate lifecycle
+  status and fail closed for archive capability; Work Centers read models also
+  fail closed for archive capability. Strict typecheck, the focused
+  Nomenclature/Responsibility Policies/Work Centers suites and the full
+  `qa:stabilize` pipeline pass.
+- Release `v.1.500.17-3725611` was staged from exact pushed commit
+  `3725611de0417cb54480fce73cf92f995b0a2f22` with
+  `fresh-upstream-fetch` provenance. The stage produced matching immutable
+  source/dist digests; activation passed manifest verification and both health
+  gates. Local and public `/healthz` report `ok`, application version
+  `v.1.500.17` and shared state `ready`. Chrome also renders sidebar version
+  `.17` in the real Pilot MES shell.
+- The active release record retains the explicit rollback target
+  `/srv/mes/pilot/releases/v.1.500.16-2687058/app`. The service is active, both
+  Nomenclature and Contour Admin evaluation drop-ins are absent, and the
+  effective service environment contains no `MES_REACT_*` flags. Migration
+  service evidence still records applied
+  `026_system_responsibility_policy_lifecycle.sql`; the `.17` server preflight
+  also passed its required-migration gate.
+- A disposable owner-backed record now exists from the successful normal-Chrome
+  create/edit acceptance: stable ID `nom-df67ec7e`, article
+  `QA-NOM-CU-20260720-2307`, shared revision `44704`. The exact row is visible
+  after a full `.17` reload and authoritative shared-state inspection confirms
+  one match. Its legacy delete dialog reports zero specification and BOM
+  references, but deletion was cancelled because permanent deletion requires
+  explicit action-time confirmation and the required React delete evaluation
+  cannot currently be activated by `deploy`.
+- The remaining blocker is exact and operational: no activation systemd unit
+  exists, `deploy` is not allowed to run the root-only
+  `activate-react-nomenclature-write-evaluation.sh`, and the current sudo
+  allowlist does not include that script. Do not use Docker membership,
+  localhost QA, direct shared-state edits or default-on flags to bypass this
+  boundary. A lawful root operator must activate the prepared evaluation; then
+  delete only `nom-df67ec7e` in the authenticated React surface, prove zero
+  matches in shared state, and immediately run the paired deactivation script.
+- Evidence-based global progress is `99.95%`. The remaining `0.05%` is the
+  root-gated React delete plus cleanup proof and the final default-on decision.
+  Legacy remains the live default and explicit rollback surface. No Blueprint
+  UI dependency or design was introduced.
