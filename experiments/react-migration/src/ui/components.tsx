@@ -9,7 +9,7 @@ export function ModuleHeader({ eyebrow, title, badge }: { eyebrow: string; title
   );
 }
 
-export function ModulePage({ header, sidebar, children }: { header: ReactNode; sidebar: ReactNode; children: ReactNode }) {
+export function ModulePage({ header, sidebar = null, children }: { header: ReactNode; sidebar?: ReactNode; children: ReactNode }) {
   return (
     <main className="module-page" data-ui-component="ModulePage">
       {header}

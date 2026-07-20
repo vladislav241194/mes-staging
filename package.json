@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "build": "node scripts/build.mjs",
+    "typecheck:react": "tsc -p experiments/react-migration/tsconfig.json",
     "module:blueprints:sync": "node scripts/generate-module-blueprint-index.mjs",
     "module:blueprints:check": "node scripts/generate-module-blueprint-index.mjs --check",
     "module:scaffold": "node scripts/scaffold-module.mjs",
@@ -116,7 +117,7 @@
     "qa:gantt-runtime-lazy": "node scripts/gantt-runtime-lazy-qa.mjs",
     "qa:gantt-drag-cancel": "node scripts/gantt-drag-cancel-qa.mjs",
     "qa:products-events-lazy": "node scripts/products-events-lazy-qa.mjs",
-    "qa:nomenclature-react-island": "node scripts/nomenclature-react-runtime-policy-qa.mjs && node scripts/nomenclature-react-rollout-ops-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/nomenclature-react-island-functional-qa.mjs",
+    "qa:nomenclature-react-island": "node scripts/nomenclature-react-runtime-policy-qa.mjs && node scripts/nomenclature-react-rollout-ops-qa.mjs && npm run typecheck:react && node experiments/react-migration/qa.mjs && npm run build && node scripts/nomenclature-react-island-functional-qa.mjs",
     "qa:boards-react-island": "node scripts/boards-react-runtime-policy-qa.mjs && node scripts/boards-react-rollout-ops-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/boards-react-island-functional-qa.mjs",
     "qa:structure-employees-react-island": "node scripts/structure-employees-react-runtime-policy-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/structure-employees-react-island-functional-qa.mjs",
     "qa:structure-positions-react-island": "node scripts/structure-positions-react-runtime-policy-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/structure-positions-react-island-functional-qa.mjs",
@@ -218,7 +219,7 @@
     "qa:release-provenance": "node scripts/release-provenance-qa.mjs && node scripts/release-rollback-qa.mjs",
     "qa:marking-module": "node scripts/marking-module-qa.mjs",
     "qa:marking-module:functional": "npm run build && node scripts/run-with-dist-preview.mjs -- node scripts/marking-module-functional-qa.mjs",
-    "qa:stabilize": "npm run qa:syntax && npm run qa:gantt-drag-cancel && npm run qa:architecture && npm run qa:domain-migration && npm run qa:release-provenance && npm run qa:release-activation-diagnostics && npm run qa:marking-module && npm run qa:marking-module:functional && git diff --check && npm run build",
+    "qa:stabilize": "npm run qa:syntax && npm run typecheck:react && npm run qa:gantt-drag-cancel && npm run qa:architecture && npm run qa:domain-migration && npm run qa:release-provenance && npm run qa:release-activation-diagnostics && npm run qa:marking-module && npm run qa:marking-module:functional && git diff --check && npm run build",
     "qa:nonvisual": "npm run qa:stabilize && npm run qa:functional",
     "qa:night": "npm run qa:stabilize && npm run qa:functional && npm run qa:visual",
     "preview": "node scripts/preview-dist.mjs",
@@ -254,6 +255,9 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "esbuild": "^0.25.12"
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "esbuild": "^0.25.12",
+    "typescript": "7.0.2"
   }
 }

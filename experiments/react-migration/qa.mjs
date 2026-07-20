@@ -28,6 +28,24 @@ const frozenBackendScriptPatterns = [
   /^scripts\/specifications2-(?:attachment|publish|server-first)/,
 ];
 
+const packageManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+const typeScriptConfig = JSON.parse(await readFile(join(labRoot, "tsconfig.json"), "utf8"));
+assert.equal(typeScriptConfig.compilerOptions?.strict, true, "React migration TypeScript must stay in strict mode");
+assert.equal(typeScriptConfig.compilerOptions?.noEmit, true, "React migration typecheck must not write build artifacts");
+assert.equal(
+  packageManifest.scripts?.["typecheck:react"],
+  "tsc -p experiments/react-migration/tsconfig.json",
+  "React migration must expose the canonical strict typecheck command",
+);
+assert.match(
+  packageManifest.scripts?.["qa:stabilize"] || "",
+  /(?:^|&&\s*)npm run typecheck:react(?:\s*&&|$)/,
+  "global stabilization must run the strict React TypeScript gate",
+);
+assert.ok(packageManifest.devDependencies?.typescript, "TypeScript compiler must be a pinned project dependency");
+assert.ok(packageManifest.devDependencies?.["@types/react"], "React type declarations must be a project dependency");
+assert.ok(packageManifest.devDependencies?.["@types/react-dom"], "React DOM type declarations must be a project dependency");
+
 function isFrozenBackendPath(path) {
   return frozenBackendFiles.has(path)
     || frozenBackendPrefixes.some((prefix) => path.startsWith(prefix))
