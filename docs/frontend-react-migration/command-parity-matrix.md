@@ -7,6 +7,14 @@ is `experiments/react-migration/command-parity-matrix.json`, and React migration
 QA fails when a production-integrated scenario is missing, duplicated, loses
 its rollback declaration, or is marked complete without an explicit status.
 
+Correction 2026-07-21: `local-complete` was renamed to `slice-complete` because
+it proves only the listed vertical slice, not whole-module cutover. Historical
+Pilot read evidence is `21/24` across multiple releases, but only Nomenclature
+has fresh read/write/cleanup evidence on the current audited `v.1.500.17`.
+Same-release acceptance is therefore `1/24`, write lifecycle is `1/22`, and
+permanent default-on remains `0/24`. The executable cross-route source of truth
+is `experiments/react-migration/cutover-ledger.json`.
+
 All 24 scenarios have local production-shell read evidence and keep legacy
 rollback. The all-flags-off Pilot baseline is accepted. Authenticated Pilot
 read-only acceptance now covers Nomenclature empty-state plus five non-empty
@@ -119,7 +127,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
-| 1 | Nomenclature | Local complete: create/edit/delete; `.15` narrow durable transport green locally, live browser attempt failed closed before the owner API | Medium | Repeat the already-approved disposable lifecycle in a browser that permits same-origin `/api/shared-state`; keep default-off and prove zero-row cleanup |
+| 1 | Nomenclature | Slice complete: create/edit/delete; authenticated Pilot lifecycle and zero-row cleanup accepted on `v.1.500.17` | Medium | Build the permanent runtime contract and repeat acceptance on the consolidated cutover release |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit/custom delete with Specifications and loaded-Planning cleanup; bundled rows protected | Medium | Separately gated Pilot create/edit/custom-delete evaluation with a disposable row and verified cleanup |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |

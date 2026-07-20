@@ -1895,7 +1895,7 @@ try {
     "structureEquipment", "structureMigrationDiagnostics", "structureOrgUnits", "structurePositions",
     "structureResponsibilityPolicies", "structureWorkCenters", "timesheet", "weeklyProductionControl",
   ];
-  assert.equal(commandParityMatrix.schemaVersion, 1, "command-parity matrix schema must be explicit");
+  assert.equal(commandParityMatrix.schemaVersion, 2, "command-parity matrix schema must be explicit");
   assert.equal(commandParityMatrix.pilotAcceptance, "all-flags-off-baseline-accepted", "command parity must distinguish the accepted legacy baseline from pending React-island acceptance");
   assert.deepEqual(
     commandParityMatrix.scenarios.map((scenario) => scenario.id).sort(),
@@ -1905,10 +1905,10 @@ try {
   assert.equal(new Set(commandParityMatrix.scenarios.map((scenario) => scenario.id)).size, 24, "command-parity scenario IDs must be unique");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
-  assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders", "shiftMasterBoard", "employeeDesktop", "specifications2", "gantt", "authPicker", "contourAdmin"], "twenty-two scenarios must retain locally complete command parity");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 0, "no registered command scenario may remain implicit or pending");
+  assert(commandParityMatrix.scenarios.every((scenario) => ["slice-complete", "pending", "not-applicable"].includes(scenario.sliceParity)), "slice-parity status must use the closed vocabulary");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "slice-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders", "shiftMasterBoard", "employeeDesktop", "specifications2", "gantt", "authPicker", "contourAdmin"], "twenty-two scenarios must retain locally complete vertical slices without claiming whole-module completion");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "pending").length, 0, "no registered command slice may remain implicit or pending");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /assignment and fact\/correction are locally complete.*Shift Execution owner.*Workshop navigation remains legacy.*Pilot write acceptance.*disposable cleanup/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /accepted Pilot read baseline.*manual lane movement.*write acceptance.*cleanup approval/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /accepted Pilot read baseline.*task start.*fact.*Report write acceptance/);
