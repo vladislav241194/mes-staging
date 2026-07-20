@@ -44,7 +44,11 @@ const compressionMinBytes = 1024;
 
 function safePath(urlPath) {
   const decoded = decodeURIComponent(urlPath.split("?")[0]);
-  const requested = decoded === "/" ? "/index.html" : decoded;
+  const requested = decoded === "/"
+    ? "/index.html"
+    : decoded === "/pilot/marking-preview" || decoded === "/pilot/marking-preview/"
+      ? "/dist/prototypes/marking/index.html"
+      : decoded;
   const fullPath = normalize(join(root, requested));
   return fullPath.startsWith(root) ? fullPath : join(root, "index.html");
 }

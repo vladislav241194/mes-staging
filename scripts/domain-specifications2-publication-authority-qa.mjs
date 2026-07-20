@@ -46,6 +46,6 @@ assert.match(staleFingerprint, /changed after its client publication was prepare
 
 const renderSource = await readFile(fileURLToPath(new URL("../src/modules/specifications2/render.js", import.meta.url)), "utf-8");
 assert.match(renderSource, /function writeStore\(store, \{ suppressSharedStatePush = false \} = \{\}\)/, "Specs2 editor storage must support an acknowledgement-only local write");
-assert.match(renderSource, /writeStore\(\{ \.\.\.latestStore, registry, selectedId: entryId \}, \{ suppressSharedStatePush: true \}\)/, "server-primary acknowledgement must not enqueue a competing shared-state snapshot write");
+assert.match(renderSource, /writeStore\(\{ \.\.\.latestStore, registry, selectedId: normalizedEntryId \}, \{ suppressSharedStatePush: true \}\)/, "server-primary acknowledgement must not enqueue a competing shared-state snapshot write");
 
 console.log("Specifications 2.0 publication authority QA: OK");

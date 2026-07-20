@@ -134,7 +134,11 @@ async function maybeUsePrecompressedBody(req, filePath, body, headers, contentTy
 function getSafePath(requestUrl) {
   const url = new URL(requestUrl || "/", `http://${host}:${port}`);
   const decodedPath = decodeURIComponent(url.pathname);
-  const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
+  const requestedPath = decodedPath === "/"
+    ? "/index.html"
+    : decodedPath === "/pilot/marking-preview" || decodedPath === "/pilot/marking-preview/"
+      ? "/prototypes/marking/index.html"
+      : decodedPath;
   const fullPath = normalize(join(distDir, requestedPath));
 
   return fullPath.startsWith(distDir) ? fullPath : join(distDir, "index.html");
@@ -155,8 +159,8 @@ async function ensureDistExists() {
   }
 }
 
-async function renderPreviewIndexHtml() {
-  const html = await readFile(join(distDir, "index.html"), "utf-8");
+async function renderPreviewHtml(filePath = join(distDir, "index.html")) {
+  const html = await readFile(filePath, "utf-8");
   return html.replace("</head>", `${renderRuntimeConfigScript(process.env)}\n  </head>`);
 }
 
@@ -255,7 +259,7 @@ createServer(async (req, res) => {
 
   try {
     const isIndex = extname(filePath) === ".html";
-    const body = isIndex ? await renderPreviewIndexHtml() : await readFile(filePath);
+    const body = isIndex ? await renderPreviewHtml(filePath) : await readFile(filePath);
     const headers = responseHeadersForUrl(url, contentType);
     const encoded = isIndex
       ? await maybeCompressBody(req, body, headers, contentType)
@@ -268,7 +272,7 @@ createServer(async (req, res) => {
       res.end("");
       return;
     }
-    const body = await renderPreviewIndexHtml();
+    const body = await renderPreviewHtml();
     const headers = noCacheHeaders(mimeTypes[".html"]);
     const encoded = await maybeCompressBody(req, body, headers, mimeTypes[".html"]);
     res.writeHead(200, encoded.headers);

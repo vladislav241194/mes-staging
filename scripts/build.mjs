@@ -155,6 +155,46 @@ async function bundleReactMigrationIsland(entryPoint, outputFile) {
   });
 }
 
+async function bundleMarkingPilotPreview() {
+  const outputDir = join(stagingDistDir, "prototypes", "marking");
+  await mkdir(outputDir, { recursive: true });
+  await build({
+    entryPoints: { app: join(projectRoot, "experiments", "marking-phase-1", "src", "main.tsx") },
+    outdir: outputDir,
+    entryNames: "[name]",
+    assetNames: "assets/[name]-[hash]",
+    bundle: true,
+    format: "esm",
+    minify: true,
+    charset: "utf8",
+    legalComments: "none",
+    target: "es2020",
+    jsx: "automatic",
+    loader: { ".woff2": "file", ".svg": "file" },
+  });
+  const [scriptVersion, styleVersion] = await Promise.all([
+    fileHash(join(outputDir, "app.js")),
+    fileHash(join(outputDir, "app.css")),
+  ]);
+  await writeFile(join(outputDir, "index.html"), `<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#17304d" />
+    <title>MES Line · Маркировка · MOCK Pilot preview</title>
+    <link rel="stylesheet" href="/prototypes/marking/app.css?v=${styleVersion}" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/prototypes/marking/app.js?v=${scriptVersion}"></script>
+  </body>
+</html>
+`);
+  return { scriptVersion, styleVersion };
+}
+
 // Keep the source stylesheet as an explicit cascade manifest, but flatten its
 // imports for the browser. The former manifest generated a 21-request CSS
 // waterfall before the first screen could paint. Bundling only the published
@@ -631,6 +671,7 @@ const jsReleaseToken = await getJavaScriptReleaseToken(join(stagingDistDir, "src
 // rendered.  Keep source modules in dist for diagnostics, but publish a single
 // minified entry file so startup has one script request instead of a waterfall.
 await bundleApplication(join(stagingDistDir, "src", "app.js"), join(stagingDistDir, "src", "app.js"));
+const markingPilotPreview = await bundleMarkingPilotPreview();
 
 await versionLocalJsImports(join(stagingDistDir, "src"), jsReleaseToken, deployCacheSuffix);
 await versionCssImports(join(stagingDistDir, "styles.css"), deployCacheSuffix);
@@ -731,5 +772,7 @@ console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesR
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);
 console.log(`- src/react-islands/nomenclature-types.js?v=${directoryNomenclatureTypesReactIslandVersion}`);
 console.log(`- src/react-islands/statuses.js?v=${directoryStatusesReactIslandVersion}`);
+console.log(`- prototypes/marking/app.js?v=${markingPilotPreview.scriptVersion}`);
+console.log(`- prototypes/marking/app.css?v=${markingPilotPreview.styleVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);
