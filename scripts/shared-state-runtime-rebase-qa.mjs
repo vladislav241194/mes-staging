@@ -339,9 +339,10 @@ try {
   assert(
     requests.slice(6).every((request) => request.responseMode === "ack"
       && request.sharedUiPatch
+      && !Object.prototype.hasOwnProperty.call(request, "sharedUi")
       && Object.keys(request.values || {}).every((key) => ["qa-directories", "qa-directory-defaults", "qa-directory-deleted"].includes(key))
       && !Object.prototype.hasOwnProperty.call(request.values || {}, "qa-planning")),
-    "Durable directory retries must use a narrow directory-value payload and compact acknowledgement",
+    "Durable directory retries must use only a narrow directory-value payload, a UI patch and compact acknowledgement",
   );
 
   console.log("Shared-state runtime rebase QA: OK");

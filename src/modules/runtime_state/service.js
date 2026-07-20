@@ -843,6 +843,13 @@ async function pushSharedState(reason = "snapshot", options = {}) {
           pendingSharedUiFull,
         );
       }
+      // Directory-only commands are intentionally independent from the
+      // legacy Shift Execution compatibility projection. Once that
+      // projection is retired, attaching a stale complete sharedUi snapshot
+      // makes an otherwise current directory write look like an attempted
+      // restoration. The patch above carries the only UI intent the server
+      // should merge for this compact transport.
+      delete writePayload.sharedUi;
       writePayload.responseMode = "ack";
     }
     let response = await requestSharedState("POST", writePayload);
@@ -910,7 +917,10 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       if (compactSharedUi) {
         retryPayload.responseMode = "ack";
       }
-      if (compactValueAcknowledgement) retryPayload.responseMode = "ack";
+      if (compactValueAcknowledgement) {
+        delete retryPayload.sharedUi;
+        retryPayload.responseMode = "ack";
+      }
       response = await requestSharedState("POST", retryPayload);
       // A reset may first produce a normal version conflict and only expose
       // the missing domain baseline on this retry. Recover it through the

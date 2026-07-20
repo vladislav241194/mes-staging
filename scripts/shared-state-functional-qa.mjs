@@ -842,34 +842,47 @@ async function main() {
       values,
       sharedUi: {},
     });
+    const directoryAckRetirement = await updateSharedStateSnapshot({
+      filePath: directoryAckPath,
+      expectedVersion: directoryAckSeed.json.version,
+      allowShiftExecutionCompatibilitySnapshotRetirement: true,
+      update: (snapshot) => ({
+        ...snapshot,
+        shiftExecutionRetirement: {
+          transitionId: "directory-ack-shift-retirement",
+          sourceDigest: "d".repeat(64),
+          sourceSnapshotVersion: directoryAckSeed.json.version,
+          retiredAt: "2026-07-20T00:00:00.000Z",
+        },
+      }),
+    });
+    assert(directoryAckRetirement.ok && directoryAckRetirement.snapshot?.version === 2, "Directory acknowledgement fixture must retire Shift Execution first");
     const directoryAckState = JSON.parse(values[SHARED_STATE_KEYS.directories]);
     directoryAckState.nomenclature = [{ id: "directory-ack-row", article: "QA-DIRECTORY-ACK", name: "QA compact directory row" }];
     const directoryAck = await callSharedState(directoryAckPath, "POST", {
-      baseVersion: directoryAckSeed.json.version,
+      baseVersion: directoryAckRetirement.snapshot.version,
       clientId: "directory-ack-client",
       actor: "QA",
       action: "nomenclature-save",
       responseMode: "ack",
       values: { [SHARED_STATE_KEYS.directories]: JSON.stringify(directoryAckState) },
-      sharedUi: {},
       sharedUiPatch: { maps: {}, replace: {} },
     });
-    assert(directoryAck.statusCode === 200 && directoryAck.json.version === 2, "A narrow directory-value write must receive a compact acknowledgement");
+    assert(directoryAck.statusCode === 200 && directoryAck.json.version === 3, "A narrow directory-value write must remain available after Shift Execution retirement");
     assert(!Object.prototype.hasOwnProperty.call(directoryAck.json, "values") && !Object.prototype.hasOwnProperty.call(directoryAck.json, "sharedUi"), "A compact directory acknowledgement must omit the full compatibility snapshot");
     const directoryAckReadback = await callSharedState(directoryAckPath, "GET");
     assert(directoryAckReadback.json.values[SHARED_STATE_KEYS.state] === values[SHARED_STATE_KEYS.state], "A narrow directory-value write must preserve Planning byte-for-byte");
     assert(JSON.parse(directoryAckReadback.json.values[SHARED_STATE_KEYS.directories]).nomenclature[0]?.id === "directory-ack-row", "A narrow directory-value write must persist the exact directory projection");
     const staleDirectoryAck = await callSharedState(directoryAckPath, "POST", {
-      baseVersion: 1,
+      baseVersion: 2,
       clientId: "directory-ack-stale",
       actor: "QA",
       action: "nomenclature-save:durable-retry-2",
       responseMode: "ack",
       values: { [SHARED_STATE_KEYS.directories]: JSON.stringify(directoryAckState) },
-      sharedUi: {},
       sharedUiPatch: { maps: {}, replace: {} },
     });
-    assert(staleDirectoryAck.statusCode === 409 && staleDirectoryAck.json.current?.version === 2 && Object.keys(staleDirectoryAck.json.current?.values || {}).length === 0, "A compact directory conflict must return only the revision/UI recovery envelope");
+    assert(staleDirectoryAck.statusCode === 409 && staleDirectoryAck.json.current?.version === 3 && Object.keys(staleDirectoryAck.json.current?.values || {}).length === 0, "A compact directory conflict must return only the revision/UI recovery envelope");
 
     console.log("Shared State Functional QA");
     console.log("- empty snapshot: pass");
