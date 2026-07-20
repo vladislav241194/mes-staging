@@ -21,9 +21,12 @@ async function listFiles(root) {
   return paths.flat();
 }
 
-assert.equal(ledger.schemaVersion, 1, "cutover ledger schema must be explicit");
+assert.equal(ledger.schemaVersion, 2, "cutover ledger schema must be explicit");
 assert.equal(ledger.designSystem, "mes-line", "React cutover must retain the MES Line design system");
 assert.equal(ledger.updatedAt, "2026-07-21", "cutover ledger date must match the audited baseline");
+assert.equal(ledger.baselineProgress, 46, "the pre-rollout audited baseline must remain explicit");
+assert.equal(ledger.activePilotRelease, "v.1.500.19-53022a2", "Pilot evidence must name the immutable accepted release");
+assert.equal(ledger.legacyRollbackRelease, "v.1.500.18-93d02ed", "Pilot evidence must retain the pinned legacy rollback release");
 
 const criteriaIds = ledger.criteria.map((criterion) => criterion.id);
 assert.deepEqual(criteriaIds, [
@@ -39,8 +42,24 @@ assert(ledger.criteria.every((criterion) => Number.isInteger(criterion.maximum) 
 assert(ledger.criteria.every((criterion) => Number.isInteger(criterion.earned) && criterion.earned >= 0 && criterion.earned <= criterion.maximum));
 assert.equal(ledger.criteria.reduce((sum, criterion) => sum + criterion.maximum, 0), 100, "cutover criteria must total 100 points");
 const computedProgress = ledger.criteria.reduce((sum, criterion) => sum + criterion.earned, 0);
-assert.equal(computedProgress, ledger.baselineProgress, "reported progress must equal the evidence-weighted criterion total");
-assert.equal(computedProgress, 46, "the executable route/surface inventory raises the audited cutover baseline to 46%");
+assert.equal(computedProgress, ledger.currentProgress, "reported progress must equal the evidence-weighted criterion total");
+assert.equal(computedProgress, 48, "one permanent Pilot surface raises the audited cutover progress conservatively to 48%");
+
+assert.deepEqual(ledger.permanentPilotEvidence?.reactSurfaces, ["weeklyProductionControl"], "only Weekly Production Control is permanently React on Pilot");
+assert.deepEqual(ledger.permanentPilotEvidence?.activeEvaluationSurfaces, [], "permanent acceptance may not depend on an evaluation surface");
+assert.equal(ledger.permanentPilotEvidence?.evaluationFlags, "absent", "permanent acceptance may not depend on evaluation flags");
+assert.equal(ledger.permanentPilotEvidence?.evaluationDropins, 0, "permanent acceptance may not depend on evaluation drop-ins");
+assert.deepEqual(ledger.permanentPilotEvidence?.health, { local: "ok", public: "ok" }, "both local and public Pilot health must be recorded");
+assert.equal(ledger.permanentPilotEvidence?.authenticatedPilot?.tableRows, 25, "authenticated Weekly Pilot table must retain the accepted row count");
+assert.equal(ledger.permanentPilotEvidence?.authenticatedPilot?.tableHeaders, 11, "authenticated Weekly Pilot table must retain the accepted header count");
+assert.deepEqual(ledger.permanentPilotEvidence?.authenticatedPilot?.viewports, ["desktop", "narrow"], "authenticated Weekly acceptance must cover desktop and narrow viewports");
+assert.equal(ledger.permanentPilotEvidence?.authenticatedPilot?.queryIsolation, "verified", "authenticated Weekly acceptance must prove query isolation");
+assert.equal(ledger.permanentPilotEvidence?.authenticatedPilot?.console, "clean", "authenticated Weekly acceptance must retain a clean browser console");
+assert.deepEqual(ledger.permanentPilotEvidence?.rollbackDrill, {
+  status: "verified",
+  target: "v.1.500.18-93d02ed",
+  reactivation: "verified",
+}, "permanent Weekly acceptance must include rollback to the pinned legacy release and reactivation");
 
 const packageJson = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
 const dependencyNames = Object.keys({
@@ -67,7 +86,10 @@ for (const module of ledger.modules) {
   assert(allowedRuntimeModes.has(module.runtimeMode), `${module.id}: unsupported runtime mode`);
   assert.equal(typeof module.normalLegacyPath, "boolean", `${module.id}: normal legacy path must be explicit`);
   assert.equal(typeof module.productionReady, "boolean", `${module.id}: production readiness must be explicit`);
-  assert(Array.isArray(module.remainingScopes) && module.remainingScopes.length > 0, `${module.id}: remaining scope must stay visible before 100%`);
+  assert(Array.isArray(module.remainingScopes), `${module.id}: remaining scope must be explicit`);
+  if (!module.productionReady) {
+    assert(module.remainingScopes.length > 0, `${module.id}: remaining scope must stay visible before production acceptance`);
+  }
   if (module.productionReady) {
     assert.equal(module.reactSurface, "production-island", `${module.id}: production-ready route must have a production React surface`);
     assert(["complete", "read-only-complete"].includes(module.functionalStatus), `${module.id}: production-ready route must have complete functional parity`);
@@ -116,8 +138,16 @@ assert.deepEqual(
   ["marking"],
   "Marking must remain explicitly MOCK until it has an owner, API and persistence",
 );
-assert.equal(ledger.modules.filter((module) => module.runtimeMode === "react").length, 0, "no module may be reported permanent React before a default-on rollout");
-assert.equal(ledger.modules.filter((module) => module.productionReady).length, 0, "no route is production-ready on the audited baseline");
+assert.deepEqual(
+  ledger.modules.filter((module) => module.runtimeMode === "react").map((module) => module.id),
+  ["weeklyProductionControl"],
+  "Weekly Production Control is the only permanent React module on the accepted Pilot release",
+);
+assert.deepEqual(
+  ledger.modules.filter((module) => module.productionReady).map((module) => module.id),
+  ["weeklyProductionControl"],
+  "Weekly Production Control is the only production-ready route on the accepted Pilot release",
+);
 
 const commandScenarioIds = commandMatrix.scenarios.map((scenario) => scenario.id);
 const acceptanceIds = ledger.scenarioAcceptance.map((scenario) => scenario.id);
@@ -134,7 +164,11 @@ assert(ledger.scenarioAcceptance.every((scenario) => allowedPilotReads.has(scena
 assert(ledger.scenarioAcceptance.every((scenario) => allowedPilotReads.has(scenario.currentReleaseRead)), "current-release Pilot read status must use the closed vocabulary");
 assert(ledger.scenarioAcceptance.every((scenario) => allowedPilotWrites.has(scenario.pilotWrite)), "Pilot write status must use the closed vocabulary");
 assert(ledger.scenarioAcceptance.every((scenario) => allowedCleanupStatuses.has(scenario.cleanup)), "cleanup status must use the closed vocabulary");
-assert(ledger.scenarioAcceptance.every((scenario) => scenario.defaultOn === false), "no scenario may claim default-on before permanent rollout acceptance");
+assert.deepEqual(
+  ledger.scenarioAcceptance.filter((scenario) => scenario.defaultOn).map((scenario) => scenario.id),
+  ["weeklyProductionControl"],
+  "only Weekly Production Control may claim permanent default-on acceptance",
+);
 assert.equal(ledger.scenarioAcceptance.filter((scenario) => scenario.historicalPilotRead === "accepted").length, 21, "historical Pilot read evidence is 21/24 across releases");
 assert.deepEqual(
   ledger.scenarioAcceptance.filter((scenario) => scenario.historicalPilotRead === "pending").map((scenario) => scenario.id),
@@ -143,8 +177,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   ledger.scenarioAcceptance.filter((scenario) => scenario.currentReleaseRead === "accepted").map((scenario) => scenario.id),
-  ["nomenclature"],
-  "only Nomenclature has read evidence on the current audited release",
+  ["weeklyProductionControl"],
+  "only Weekly Production Control has read evidence on the current accepted release",
 );
 assert.deepEqual(
   ledger.scenarioAcceptance.filter((scenario) => scenario.pilotWrite === "accepted").map((scenario) => scenario.id),
@@ -168,4 +202,4 @@ if (computedProgress === 100) {
   assert(ledger.scenarioAcceptance.every((scenario) => ["accepted", "not-applicable"].includes(scenario.pilotWrite)), "100% requires complete Pilot write acceptance");
 }
 
-console.log(`React cutover ledger QA passed: ${ledger.modules.length} routes, ${commandScenarioIds.length} scenarios, ${computedProgress}% audited progress, 21/24 historical Pilot reads, 1/24 current-release reads, 1/22 Pilot writes.`);
+console.log(`React cutover ledger QA passed: ${ledger.modules.length} routes, ${commandScenarioIds.length} scenarios, ${computedProgress}% audited progress, 1 permanent React surface, 21/24 historical Pilot reads, 1/24 current-release reads, 1/22 Pilot writes.`);

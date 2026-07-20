@@ -1,18 +1,44 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "updatedAt": "2026-07-21",
   "baselineProgress": 46,
+  "currentProgress": 48,
   "designSystem": "mes-line",
+  "activePilotRelease": "v.1.500.19-53022a2",
+  "legacyRollbackRelease": "v.1.500.18-93d02ed",
+  "permanentPilotEvidence": {
+    "surfaceId": "weeklyProductionControl",
+    "release": "v.1.500.19-53022a2",
+    "releaseQa": "passed",
+    "releaseStage": "passed",
+    "health": { "local": "ok", "public": "ok" },
+    "reactSurfaces": ["weeklyProductionControl"],
+    "activeEvaluationSurfaces": [],
+    "evaluationFlags": "absent",
+    "evaluationDropins": 0,
+    "authenticatedPilot": {
+      "tableRows": 25,
+      "tableHeaders": 11,
+      "viewports": ["desktop", "narrow"],
+      "queryIsolation": "verified",
+      "console": "clean"
+    },
+    "rollbackDrill": {
+      "status": "verified",
+      "target": "v.1.500.18-93d02ed",
+      "reactivation": "verified"
+    }
+  },
   "criteria": [
     { "id": "typed-scope", "label": "Complete scope and typed React surface", "maximum": 15, "earned": 14 },
     { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 17 },
     { "id": "pilot-acceptance", "label": "Real Pilot read and write acceptance", "maximum": 20, "earned": 9 },
-    { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 0 },
-    { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 1 },
+    { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 1 },
+    { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 2 },
     { "id": "quality-controls", "label": "Strict QA, release and rollback controls", "maximum": 5, "earned": 5 }
   ],
   "scenarioAcceptance": [
-    { "id": "nomenclature", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.17", "currentReleaseRead": "accepted", "pilotWrite": "accepted", "cleanup": "verified", "defaultOn": false },
+    { "id": "nomenclature", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.17", "currentReleaseRead": "pending", "pilotWrite": "accepted", "writeEvidenceRelease": "v.1.500.17", "cleanup": "verified", "defaultOn": false },
     { "id": "componentTypes", "historicalPilotRead": "accepted", "readEvidenceRelease": ".73", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "operations", "historicalPilotRead": "accepted", "readEvidenceRelease": ".73", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "nomenclatureTypes", "historicalPilotRead": "accepted", "readEvidenceRelease": ".86", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
@@ -26,7 +52,7 @@
     { "id": "structureResponsibilityPolicies", "historicalPilotRead": "pending", "readEvidenceRelease": null, "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "structureMigrationDiagnostics", "historicalPilotRead": "accepted", "readEvidenceRelease": ".98", "currentReleaseRead": "pending", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": false },
     { "id": "roles", "historicalPilotRead": "accepted", "readEvidenceRelease": ".91", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
-    { "id": "weeklyProductionControl", "historicalPilotRead": "accepted", "readEvidenceRelease": ".74", "currentReleaseRead": "pending", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": false },
+    { "id": "weeklyProductionControl", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.19-53022a2", "currentReleaseRead": "accepted", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": true },
     { "id": "timesheet", "historicalPilotRead": "accepted", "readEvidenceRelease": ".93", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "planningWorkbench", "historicalPilotRead": "accepted", "readEvidenceRelease": ".95", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "shiftWorkOrders", "historicalPilotRead": "accepted", "readEvidenceRelease": ".79", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
@@ -128,10 +154,10 @@
       "scenarios": ["weeklyProductionControl"],
       "reactSurface": "production-island",
       "functionalStatus": "read-only-complete",
-      "runtimeMode": "legacy-default",
-      "normalLegacyPath": true,
-      "productionReady": false,
-      "remainingScopes": ["permanent React runtime", "default-on soak"]
+      "runtimeMode": "react",
+      "normalLegacyPath": false,
+      "productionReady": true,
+      "remainingScopes": []
     },
     {
       "id": "shiftMasterBoard",
