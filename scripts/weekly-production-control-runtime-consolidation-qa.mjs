@@ -135,12 +135,18 @@ assert.match(selectorSource, /if \(accessMode === "react"\)/);
 const weekly = ledger.modules.find((module) => module.id === "weeklyProductionControl");
 assert(weekly);
 assert.equal(weekly.visibleLegacyRendererPath, false);
-assert.equal(weekly.candidateRuntimeLegacyModelDependency, false,
-  "local candidate must record the proven isolated import graph");
-assert.equal(weekly.runtimeLegacyModelDependency, true,
-  "accepted-live dependency must remain true until Pilot publication and rollback/reactivation proof");
-assert.equal(weekly.candidateEvidence?.status, "local-verified-pilot-pending");
-assert.equal(weekly.productionReady, false);
-assert.equal(ledger.currentProgress, 48, "local consolidation candidate must not increase global progress");
+assert.equal(weekly.runtimeLegacyModelDependency, false,
+  "accepted-live Weekly must use the runtime-independent production read-model");
+assert.equal(weekly.normalLegacyPath, false,
+  "accepted-live Weekly may load legacy only through the explicit rollback selector");
+assert.equal(weekly.productionReady, true);
+assert.equal(weekly.acceptedRuntimeEvidence?.status, "accepted-live");
+assert.equal(weekly.acceptedRuntimeEvidence?.release, "v.1.500.26-097d66c");
+assert.equal(weekly.acceptedRuntimeEvidence?.gitCommit, "097d66c416ef61e091099c63b8bc272841c364f5");
+assert.equal(weekly.acceptedRuntimeEvidence?.freshRead, "verified");
+assert.equal(weekly.acceptedRuntimeEvidence?.rollbackReactivationDrill, "verified");
+assert.equal(Object.hasOwn(weekly, "candidateRuntimeLegacyModelDependency"), false);
+assert.equal(Object.hasOwn(weekly, "candidateEvidence"), false);
+assert.equal(ledger.currentProgress, 50, "accepted-live consolidation must earn exactly two legacy-consolidation points");
 
-console.log("Weekly Production Control runtime consolidation QA: OK (local candidate, Pilot pending; global 48%)");
+console.log("Weekly Production Control runtime consolidation QA: OK (accepted-live .26, lazy legacy rollback retained; global 50%)");
