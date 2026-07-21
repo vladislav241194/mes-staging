@@ -2,7 +2,9 @@
 
 Дата повторного аудита: 2026-07-21  
 Рабочая ветка: `codex/frontend-react-migration`  
-Аудитируемый immutable Pilot commit: `8fb92d9`
+Immutable permanent-acceptance commit: `8fb92d9`
+
+Текущий live Pilot commit: `1f8369c`
 
 ## Исправление прежней оценки
 
@@ -41,11 +43,27 @@ permanent-runtime и legacy-consolidation баллы не повышены: эт
 смешанный `productionStructureMatrix`, где шесть соседних реестров
 по-прежнему имеют normal legacy path.
 
+На последующем live release `v.1.500.25-1f8369c` выполнена свежая
+аутентифицированная evaluation-приёмка Nomenclature через новый server owner:
+create -> owner read-back -> edit -> reload/read-back -> delete -> zero cleanup.
+Все три команды намеренно выполнялись после истечения пятисекундного cache TTL,
+что отдельно доказывает исправление capability-refresh race. После теста
+удалены credential, PIN-файлы, systemd drop-ins, evaluation flags и rollback
+timer. Это обязательное Foundation-доказательство, но не permanent default-on,
+поэтому общий прогресс честно остаётся **50%**.
+
 ## Что проверено 2026-07-21
 
-- Permanent-кандидат прошёл полный локальный QA и release staging.
-- Pilot здоров по local и public health; активный release:
-  `v.1.500.21-8fb92d9`, immediate previous — `v.1.500.20-a4d8b2f`.
+- Текущий live Pilot release `v.1.500.25-1f8369c` прошёл полный чистый QA,
+  release staging и активацию; immediate previous —
+  `v.1.500.24-200ba06`.
+- Pilot здоров по local и public health. Activation record привязан к commit
+  `1f8369cb6725a53e029acd0d66d57a764289a79d`, source SHA-256
+  `b78458eda659099c50957b29c96a396adcaa6667497caa329a24f96cba12bc20`
+  и dist SHA-256
+  `dc12962a4ec775d247f6750eb9a8bb5002c1e1c39e9428e89829da8b6726b4b3`.
+- Принятый permanent baseline остаётся `v.1.500.21-8fb92d9`; его исторический
+  immediate previous — `v.1.500.20-a4d8b2f`.
 - Runtime сообщает ровно две permanent React-поверхности:
   `structureMigrationDiagnostics` и `weeklyProductionControl`; active evaluation
   surfaces отсутствуют.
@@ -84,12 +102,16 @@ permanent-runtime и legacy-consolidation баллы не повышены: эт
   функциональности модуля.
 - Во всех 24 сценариях сохраняется legacy rollback.
 - По накопленному журналу Pilot meaningful read evidence есть у 21/24
-  сценариев, но оно собрано на разных релизах. На текущем
+  сценариев, но оно собрано на разных релизах. На принятом permanent baseline
   `v.1.500.21-8fb92d9` fresh read доказан для Weekly Production Control
-  и Structure Migration Diagnostics — 2/24.
+  и Structure Migration Diagnostics — 2/24. Nomenclature дополнительно принят
+  в evaluation на текущем `.25`, но не засчитан как permanent read.
 - Полный Pilot create/edit/read-back/delete/cleanup доказан только для
-  Номенклатуры на `v.1.500.17`: 1 из 22 write-сценариев. Это историческое
-  write-доказательство не превращено в current-release acceptance.
+  Номенклатуры на текущем `v.1.500.25-1f8369c`: 1 из 22 write-сценариев.
+  Точная disposable запись `nom-70a3f62d-93d0-46d3-b012-2c56def8e0d7` /
+  `MOCK-QA-V25-20260721-0740` удалена; итоговый owner read-back — 0 строк и
+  0 точных совпадений. Это evaluation-доказательство не превращено в
+  default-on acceptance.
 - Permanent rollout доказан для Weekly Production Control и Structure
   Migration Diagnostics; остальные 22 production-сценария не засчитаны
   как default-on.
@@ -107,7 +129,7 @@ permanent-runtime и legacy-consolidation баллы не повышены: эт
 | --- | ---: | ---: | --- |
 | Полный scope и typed React-поверхность | 15 | 14 | Все routes/islands/aliases/commands учтены; Dispatch без island, Marking — MOCK, TypeScript ещё не покрывает весь runtime |
 | Функциональный parity без обычного возврата в legacy | 25 | 18 | В Roles, Planning, Boards/BOM, Shift Master, Employee Desktop, Specifications 2.0 и Gantt остаются legacy-only команды |
-| Реальная Pilot read/write приёмка | 20 | 9 | Historical read 21/24; fresh current-release read 2/24; полный write lifecycle только 1/22 и на более раннем release |
+| Реальная Pilot read/write приёмка | 20 | 9 | Historical read 21/24; permanent-baseline read 2/24; полный write lifecycle только 1/22 и пока evaluation-only |
 | Постоянный default-on React runtime | 20 | 2 | Permanent приняты Weekly и Diagnostics: 2/24 production-сценариев; остальные не засчитаны |
 | Вывод legacy из обычного runtime | 15 | 2 | Weekly больше не использует legacy в normal path; Diagnostics — permanent-остров внутри смешанного Structure route, поэтому новый legacy-removal балл не начислен |
 | Strict QA, release и rollback-контроли | 5 | 5 | Полный QA/stage, immutable provenance и реальный rollback/reactivation drill доказаны |
@@ -116,9 +138,10 @@ permanent-runtime и legacy-consolidation баллы не повышены: эт
 Расчёт прироста в целочисленной ведомости: permanent runtime —
 `round(20 × 2/24) = 2`; legacy consolidation остаётся 2, потому что
 Diagnostics не выводит из legacy весь верхнеуровневый
-`productionStructureMatrix`. Pilot acceptance остаётся 9 баллов: fresh
-current-release coverage выросло до 2/24, но write coverage не изменилось и
-следующий консервативный порог не пройден. Functional parity остаётся 18.
+`productionStructureMatrix`. Pilot acceptance остаётся 9 баллов: permanent-
+baseline coverage остаётся 2/24, а свежий Nomenclature lifecycle `.25` всё ещё
+evaluation-only, поэтому следующий консервативный порог не пройден. Functional
+parity остаётся 18.
 Итого: `14 + 18 + 9 + 2 + 2 + 5 = 50`.
 
 Процент меняется только после появления перечисленного доказательства. Зелёный
@@ -264,13 +287,16 @@ Weekly повторно проверен на `.21` в desktop; его narrow-д
 получено ранее на `.19`. Diagnostics принят в desktop; narrow не
 засчитан из-за platform restriction. Волны B и C остаются незакрытыми.
 
-Статус Foundation волны B 2026-07-21: кандидат `.22` подготавливает
-аутентифицированный RBAC/CAS/idempotency command-owner для Номенклатуры, но
-остаётся только evaluation. Постоянный default-on запрещён до объединения всех
-писателей общей Directory-проекции: Типов номенклатуры, Плат/BOM,
-Спецификаций и их фоновых/cross-module записей. Временная Pilot-приёмка
-Foundation не увеличивает глобальный процент; она является обязательным
-предусловием следующего owner-backed вертикального среза.
+Статус Foundation волны B 2026-07-21: live release `.25` доказал
+аутентифицированный RBAC/CAS/idempotency command-owner Номенклатуры полным
+одноразовым lifecycle и нулевым cleanup. Production preview wiring, root-private
+employee credential CLI и capability refresh после истечения TTL также
+проверены на реальном Pilot. Foundation завершён, но остаётся evaluation-only.
+Постоянный default-on запрещён до объединения всех писателей общей
+Directory-проекции: Типов номенклатуры, Плат/BOM, Спецификаций и их
+фоновых/cross-module записей. Временная Pilot-приёмка Foundation не увеличивает
+глобальный процент; она является обязательным предусловием следующего
+owner-backed вертикального среза.
 
 Готово, когда: все in-scope сценарии имеют свежую browser/Pilot приёмку на
 одном и том же release, а после тестов не остаётся mock-записей.
@@ -315,10 +341,12 @@ Structure Migration Diagnostics. Responsive/narrow Pilot-приёмка дока
 а release rollback реально выполнен и задокументирован.
 
 Статус 2026-07-21: частичный rollback drill двух permanent-сценариев
-выполнен по цепочкам `.21 -> .20 -> .21` и
-`.21 -> .18 -> .19 -> .20 -> .21`. Immediate previous `.20` и pinned legacy
-`.18` проверены, финальный active release снова `.21`. Финальный drill всей
-системы и вывод mixed runtime не закрыты.
+исторически выполнен по цепочкам `.21 -> .20 -> .21` и
+`.21 -> .18 -> .19 -> .20 -> .21`. Текущий live release — `.25`, его
+activation record указывает immediate rollback `.24`, а pinned immutable legacy
+остался `.18`. Evaluation stack `.25` полностью выключен. Отдельный фактический
+drill `.25 -> .24 -> .25`, финальный drill всей системы и вывод mixed runtime
+ещё не закрыты.
 
 ## Определение настоящих 100%
 

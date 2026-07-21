@@ -53,7 +53,7 @@ if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate policy must stay explicitly unaccepted");
   assert.deepEqual(candidateSurfaceIds, ["nomenclature"], "this candidate policy must contain only Nomenclature");
   assert.equal(candidatePolicy.runtimePolicySha256, policy.sha256, "candidate evidence contract must bind the exact current policy bytes");
-  assert.equal(candidatePolicy.baseAcceptedRelease, ledger.activePilotRelease, "candidate must name the accepted release it extends");
+  assert.equal(candidatePolicy.baseAcceptedRelease, ledger.acceptedPilotRelease, "candidate must name the accepted release it extends");
   assert.deepEqual(candidatePolicy.requiredEvidence, [
     "current-release-read",
     "create-edit-readback-delete-cleanup",

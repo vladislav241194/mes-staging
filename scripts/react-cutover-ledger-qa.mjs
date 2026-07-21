@@ -29,8 +29,8 @@ assert.equal(ledger.schemaVersion, 3, "cutover ledger schema must be explicit");
 assert.equal(ledger.designSystem, "mes-line", "React cutover must retain the MES Line design system");
 assert.equal(ledger.updatedAt, "2026-07-21", "cutover ledger date must match the audited baseline");
 assert.equal(ledger.baselineProgress, 46, "the pre-rollout audited baseline must remain explicit");
-assert.equal(ledger.activePilotRelease, "v.1.500.21-8fb92d9", "Pilot evidence must name the immutable accepted release");
-assert.equal(ledger.previousPilotRelease, "v.1.500.20-a4d8b2f", "Pilot evidence must name the immutable immediate rollback release");
+assert.equal(ledger.acceptedPilotRelease, "v.1.500.21-8fb92d9", "permanent Pilot evidence must name the immutable accepted release");
+assert.equal(ledger.acceptedPilotPreviousRelease, "v.1.500.20-a4d8b2f", "permanent Pilot evidence must name its immutable immediate rollback release");
 assert.equal(ledger.legacyRollbackRelease, "v.1.500.18-93d02ed", "Pilot evidence must retain the pinned legacy rollback release");
 
 const criteriaIds = ledger.criteria.map((criterion) => criterion.id);
@@ -50,7 +50,7 @@ const computedProgress = ledger.criteria.reduce((sum, criterion) => sum + criter
 assert.equal(computedProgress, ledger.currentProgress, "reported progress must equal the evidence-weighted criterion total");
 assert.equal(computedProgress, 50, "the second permanent React surface raises audited cutover progress conservatively to 50%");
 
-assert.equal(ledger.permanentPilotEvidence?.release, ledger.activePilotRelease, "permanent Pilot evidence must bind the active immutable release");
+assert.equal(ledger.permanentPilotEvidence?.release, ledger.acceptedPilotRelease, "permanent Pilot evidence must bind the accepted immutable release");
 const acceptedSurfaceIds = sorted(ledger.scenarioAcceptance.filter((scenario) => scenario.defaultOn).map((scenario) => scenario.id));
 const evidenceAcceptedSurfaceIds = sorted(ledger.permanentPilotEvidence?.reactSurfaces || []);
 assert.deepEqual(acceptedSurfaceIds, evidenceAcceptedSurfaceIds, "accepted IDs must be derived from matching scenario default-on and permanent Pilot evidence");
@@ -101,8 +101,40 @@ assert.deepEqual(ledger.permanentPilotEvidence?.rollbackDrill?.legacyBaseline?.s
   "v.1.500.21-8fb92d9",
 ], "legacy rollback must restore the complete immutable release chain before final reactivation");
 assert.deepEqual(ledger.permanentPilotEvidence?.rollbackDrill?.legacyBaseline?.reactSurfacesAtBaseline, [], "pinned legacy rollback must disable every permanent React surface");
-assert.equal(ledger.permanentPilotEvidence?.rollbackDrill?.finalRelease, ledger.activePilotRelease, "rollback drill must finish on the accepted release");
-assert.equal(ledger.permanentPilotEvidence?.rollbackDrill?.finalPreviousRelease, ledger.previousPilotRelease, "rollback drill must restore the immediate previous release");
+assert.equal(ledger.permanentPilotEvidence?.rollbackDrill?.finalRelease, ledger.acceptedPilotRelease, "rollback drill must finish on the accepted release");
+assert.equal(ledger.permanentPilotEvidence?.rollbackDrill?.finalPreviousRelease, ledger.acceptedPilotPreviousRelease, "rollback drill must restore the accepted release's immediate predecessor");
+
+const livePilotEvidence = ledger.livePilotEvidence;
+assert.equal(livePilotEvidence?.release, "v.1.500.25-1f8369c", "ledger must distinguish the current live Pilot release from the permanent acceptance baseline");
+assert.equal(livePilotEvidence?.previousRelease, "v.1.500.24-200ba06", "live Pilot evidence must retain the immediate rollback release");
+assert.equal(livePilotEvidence?.legacyRollbackRelease, ledger.legacyRollbackRelease, "live Pilot evidence must retain the pinned immutable legacy rollback");
+assert.equal(livePilotEvidence?.gitCommit, "1f8369cb6725a53e029acd0d66d57a764289a79d", "live Pilot evidence must bind the exact commit");
+assert.equal(livePilotEvidence?.sourceTreeSha256, "b78458eda659099c50957b29c96a396adcaa6667497caa329a24f96cba12bc20", "live Pilot evidence must bind the exact source tree");
+assert.equal(livePilotEvidence?.distTreeSha256, "dc12962a4ec775d247f6750eb9a8bb5002c1e1c39e9428e89829da8b6726b4b3", "live Pilot evidence must bind the exact dist tree");
+assert.equal(livePilotEvidence?.runtimePolicySha256, ledger.permanentPilotEvidence?.runtimePolicySha256, "temporary evaluation may not alter the accepted permanent runtime policy");
+assert.deepEqual(sorted(livePilotEvidence?.reactSurfaces || []), acceptedSurfaceIds, "live release must retain only the accepted permanent React surfaces after cleanup");
+assert.deepEqual(livePilotEvidence?.health, { local: "ok", public: "ok" }, "live Pilot must be healthy after cleanup");
+assert.deepEqual(livePilotEvidence?.evaluationAfterCleanup, {
+  activeEvaluationSurfaces: [],
+  evaluationFlags: "absent",
+  evaluationDropins: 0,
+  rollbackTimer: "inactive",
+  temporaryEmployeeCredentials: 0,
+  temporaryPinFiles: 0,
+}, "temporary Nomenclature evaluation must leave no authorization, flag, timer or credential residue");
+const liveNomenclatureEvidence = livePilotEvidence?.authenticatedEvaluation?.nomenclature;
+assert.equal(liveNomenclatureEvidence?.recordId, "nom-70a3f62d-93d0-46d3-b012-2c56def8e0d7", "Nomenclature lifecycle must bind the exact disposable row");
+assert.equal(liveNomenclatureEvidence?.article, "MOCK-QA-V25-20260721-0740", "Nomenclature lifecycle must bind the exact disposable article");
+assert.equal(liveNomenclatureEvidence?.writeLifecycle, "create-readback-edit-reload-readback-delete-cleanup", "Nomenclature evaluation must prove the complete lifecycle");
+assert.equal(liveNomenclatureEvidence?.ownerReadback, "verified", "Nomenclature evaluation must include authoritative owner readback");
+assert(liveNomenclatureEvidence?.eachActionDelayExceededSeconds >= 5, "live QA must prove capability refresh beyond its five-second cache TTL");
+assert.deepEqual(liveNomenclatureEvidence?.deleteImpact, { specifications: 0, bomRows: 0 }, "disposable delete must have zero cross-owner impact");
+assert.equal(liveNomenclatureEvidence?.initialRows, 0);
+assert.equal(liveNomenclatureEvidence?.finalRows, 0);
+assert.equal(liveNomenclatureEvidence?.exactIdMatchesAfterCleanup, 0);
+assert.equal(liveNomenclatureEvidence?.exactArticleMatchesAfterCleanup, 0);
+assert.equal(liveNomenclatureEvidence?.defaultOn, false, "evaluation evidence may not masquerade as permanent default-on acceptance");
+assert.equal(liveNomenclatureEvidence?.progressDelta, 0, "temporary evaluation alone may not raise global cutover progress");
 
 const packageJson = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
 const dependencyNames = Object.keys({
@@ -223,7 +255,7 @@ assert.deepEqual(sorted(Object.keys(ledger.permanentPilotEvidence?.authenticated
 for (const surfaceId of acceptedSurfaceIds) {
   const acceptance = ledger.scenarioAcceptance.find((scenario) => scenario.id === surfaceId);
   assert.equal(acceptance?.currentReleaseRead, "accepted", `${surfaceId}: permanent runtime requires current-release Pilot read evidence`);
-  assert.equal(acceptance?.readEvidenceRelease, ledger.activePilotRelease, `${surfaceId}: current-release evidence must bind the immutable active release`);
+  assert.equal(acceptance?.readEvidenceRelease, ledger.acceptedPilotRelease, `${surfaceId}: accepted-release evidence must bind the immutable permanent baseline`);
 }
 const candidatePolicy = ledger.candidatePolicy ?? null;
 const candidateSurfaceIds = candidatePolicy ? sorted(candidatePolicy.surfaceIds || []) : [];
@@ -245,7 +277,7 @@ if (candidatePolicy) {
   assert(candidateSurfaceIds.every((surfaceId) => acceptanceIds.includes(surfaceId)), "every candidate must map to an audited scenario");
   assert.equal(candidatePolicy.runtimePolicySha256, runtimePolicySha256, "candidate must bind the exact current runtime policy SHA-256");
   assert.notEqual(candidatePolicy.runtimePolicySha256, ledger.permanentPilotEvidence.runtimePolicySha256, "candidate bytes must not masquerade as the already accepted policy bytes");
-  assert.equal(candidatePolicy.baseAcceptedRelease, ledger.activePilotRelease, "candidate must extend the current accepted release");
+  assert.equal(candidatePolicy.baseAcceptedRelease, ledger.acceptedPilotRelease, "candidate must extend the current accepted release");
   assert.deepEqual(candidatePolicy.requiredEvidence, [
     "current-release-read",
     "create-edit-readback-delete-cleanup",
@@ -266,8 +298,11 @@ if (candidatePolicy) {
 assert.deepEqual(
   ledger.scenarioAcceptance.filter((scenario) => scenario.pilotWrite === "accepted").map((scenario) => scenario.id),
   ["nomenclature"],
-  "historical Nomenclature write evidence must remain separate from current-release default-on acceptance",
+  "Nomenclature evaluation write evidence must remain separate from permanent default-on acceptance",
 );
+const nomenclatureAcceptance = ledger.scenarioAcceptance.find((scenario) => scenario.id === "nomenclature");
+assert.equal(nomenclatureAcceptance?.readEvidenceRelease, livePilotEvidence.release, "latest Nomenclature read evidence must bind the live evaluation release");
+assert.equal(nomenclatureAcceptance?.writeEvidenceRelease, livePilotEvidence.release, "latest Nomenclature write evidence must bind the live evaluation release");
 assert.deepEqual(
   ledger.scenarioAcceptance.filter((scenario) => scenario.cleanup === "verified").map((scenario) => scenario.id),
   ["nomenclature"],
@@ -285,4 +320,4 @@ if (computedProgress === 100) {
   assert(ledger.scenarioAcceptance.every((scenario) => ["accepted", "not-applicable"].includes(scenario.pilotWrite)), "100% requires complete Pilot write acceptance");
 }
 
-console.log(`React cutover ledger QA passed: ${ledger.modules.length} routes, ${commandScenarioIds.length} scenarios, ${computedProgress}% audited progress, ${acceptedSurfaceIds.length} accepted permanent React surfaces, 21/24 historical Pilot reads, ${currentReleaseAcceptedSurfaceIds.length}/24 current-release reads, 1/22 historical Pilot writes; ${candidatePolicy ? `${candidateSurfaceIds.join(", ")} acceptance pending` : "no candidate policy"}.`);
+console.log(`React cutover ledger QA passed: ${ledger.modules.length} routes, ${commandScenarioIds.length} scenarios, ${computedProgress}% audited progress, ${acceptedSurfaceIds.length} accepted permanent React surfaces, 21/24 historical Pilot reads, ${currentReleaseAcceptedSurfaceIds.length}/24 accepted-baseline reads, 1/22 evaluation write lifecycles; live release ${livePilotEvidence.release}; ${candidatePolicy ? `${candidateSurfaceIds.join(", ")} acceptance pending` : "no candidate policy"}.`);

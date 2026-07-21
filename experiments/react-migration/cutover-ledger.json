@@ -4,8 +4,8 @@
   "baselineProgress": 46,
   "currentProgress": 50,
   "designSystem": "mes-line",
-  "activePilotRelease": "v.1.500.21-8fb92d9",
-  "previousPilotRelease": "v.1.500.20-a4d8b2f",
+  "acceptedPilotRelease": "v.1.500.21-8fb92d9",
+  "acceptedPilotPreviousRelease": "v.1.500.20-a4d8b2f",
   "legacyRollbackRelease": "v.1.500.18-93d02ed",
   "permanentPilotEvidence": {
     "release": "v.1.500.21-8fb92d9",
@@ -65,6 +65,45 @@
       "reactivation": "verified"
     }
   },
+  "livePilotEvidence": {
+    "release": "v.1.500.25-1f8369c",
+    "previousRelease": "v.1.500.24-200ba06",
+    "legacyRollbackRelease": "v.1.500.18-93d02ed",
+    "gitCommit": "1f8369cb6725a53e029acd0d66d57a764289a79d",
+    "appVersion": "v.1.500.25",
+    "sourceTreeSha256": "b78458eda659099c50957b29c96a396adcaa6667497caa329a24f96cba12bc20",
+    "distTreeSha256": "dc12962a4ec775d247f6750eb9a8bb5002c1e1c39e9428e89829da8b6726b4b3",
+    "runtimePolicySha256": "bf7af8065ad83206742725a003c5cc11f6eefaf21b314220f45f6c24480674b4",
+    "reactSurfaces": ["structureMigrationDiagnostics", "weeklyProductionControl"],
+    "health": { "local": "ok", "public": "ok" },
+    "evaluationAfterCleanup": {
+      "activeEvaluationSurfaces": [],
+      "evaluationFlags": "absent",
+      "evaluationDropins": 0,
+      "rollbackTimer": "inactive",
+      "temporaryEmployeeCredentials": 0,
+      "temporaryPinFiles": 0
+    },
+    "authenticatedEvaluation": {
+      "nomenclature": {
+        "employeeId": "ROLE-D-TECH-RUKOVODITEL-TEHNOLOGICHESKOGO-NAPR-1-EMP-01",
+        "recordId": "nom-70a3f62d-93d0-46d3-b012-2c56def8e0d7",
+        "article": "MOCK-QA-V25-20260721-0740",
+        "createdName": "MOCK QA Номенклатура v25 20260721-0740",
+        "editedName": "MOCK QA Номенклатура v25 EDIT 20260721-0740",
+        "writeLifecycle": "create-readback-edit-reload-readback-delete-cleanup",
+        "ownerReadback": "verified",
+        "eachActionDelayExceededSeconds": 5,
+        "deleteImpact": { "specifications": 0, "bomRows": 0 },
+        "initialRows": 0,
+        "finalRows": 0,
+        "exactIdMatchesAfterCleanup": 0,
+        "exactArticleMatchesAfterCleanup": 0,
+        "defaultOn": false,
+        "progressDelta": 0
+      }
+    }
+  },
   "criteria": [
     { "id": "typed-scope", "label": "Complete scope and typed React surface", "maximum": 15, "earned": 14 },
     { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 18 },
@@ -74,7 +113,7 @@
     { "id": "quality-controls", "label": "Strict QA, release and rollback controls", "maximum": 5, "earned": 5 }
   ],
   "scenarioAcceptance": [
-    { "id": "nomenclature", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.17", "currentReleaseRead": "pending", "pilotWrite": "accepted", "writeEvidenceRelease": "v.1.500.17", "cleanup": "verified", "defaultOn": false },
+    { "id": "nomenclature", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.25-1f8369c", "currentReleaseRead": "pending", "pilotWrite": "accepted", "writeEvidenceRelease": "v.1.500.25-1f8369c", "cleanup": "verified", "defaultOn": false },
     { "id": "componentTypes", "historicalPilotRead": "accepted", "readEvidenceRelease": ".73", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "operations", "historicalPilotRead": "accepted", "readEvidenceRelease": ".73", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "nomenclatureTypes", "historicalPilotRead": "accepted", "readEvidenceRelease": ".86", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
