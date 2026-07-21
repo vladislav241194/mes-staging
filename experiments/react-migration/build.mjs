@@ -15,6 +15,8 @@ await build({
   bundle: true,
   format: "esm",
   minify: false,
+  charset: "utf8",
+  legalComments: "none",
   sourcemap: true,
   target: "es2020",
   jsx: "automatic",

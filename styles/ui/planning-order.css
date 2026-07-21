@@ -159,6 +159,14 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-date{
   min-width: 9.5rem;
   max-width: 10.5rem;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-start-date{
+  display: flex;
+  align-items: flex-end;
+  gap: var(--mes-space-1);
+  min-width: 0;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-start-date .action{
+  min-width: 0;
+  white-space: nowrap;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-quantity{
   display: flex;
   align-items: flex-end;

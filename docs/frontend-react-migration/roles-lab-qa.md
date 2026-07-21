@@ -18,8 +18,17 @@ call an API, persist UI/data, or infer a role from position text. The production
 host alone exposes local-only typed metadata, grant, role-default-scope,
 exact-employee assignment and unassigned-role deactivate/reactivate commands
 and delegates them to the existing revision-checked `access-control` owner.
-Multiple/effective-window assignment editing, personal/assignment scope,
-read-only, assigned-role lifecycle and reset commands remain outside React.
+Role-default `self` scope is included in `set-default-scope`. Multiple-assignment
+management has no targeted owner, while effective-window,
+subject/assignment responsibility-scope and `readOnly` fields have no durable
+PostgreSQL contract. Deactivation of an assigned role or the current effective
+role is an intentional fail-closed invariant rather than a missing command.
+Reset remains outside React as a compatibility-only destructive operation. Its
+domain and legacy callbacks both stop at the shared guard before mutation on
+Pilot, staging, user-testing and production while destructive actions are
+disabled. The visible legacy control/callback plumbing is not evidence of an
+approved protected-contour command and is classified as a guarded invariant,
+not a parity gap.
 
 ## Contract preserved
 
@@ -119,7 +128,10 @@ that employee, so multiple assignments and future/effective-window editing
 remain fail-closed in React until a richer authority/persistence contract is
 available.
 The advertised role `readOnly` field is likewise not persisted by the current
-repository and therefore remains intentionally outside the lifecycle slice.
+repository and therefore remains intentionally outside the lifecycle slice. The
+same durable boundary applies to assignment effective windows; subject- and
+assignment-specific responsibility scopes are modeled by the access-control
+service but are not a System Domains registry or PostgreSQL projection.
 
 ## Pilot acceptance
 

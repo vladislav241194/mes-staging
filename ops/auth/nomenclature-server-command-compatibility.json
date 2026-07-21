@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "contract": "nomenclature-server-commands",
+  "authorityTransitionVersion": 1,
+  "revisionConcurrencyVersion": 1,
+  "idempotencyReceiptVersion": 1,
+  "authenticatedRbacVersion": 1,
+  "controlledRootExclusivity": {
+    "required": true,
+    "lockName": "mes-authority-rollout.lock",
+    "incompatibleTargetRequiresDisabledFlags": [
+      "MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS"
+    ]
+  },
+  "requiredMigrations": [
+    "027_employee_auth_credentials"
+  ]
+}

@@ -34,6 +34,7 @@ export function createAppInteractionsModule(dependencies = {}) {
     getModuleDefinitions,
     getOperationMapRows,
     getPlanningWorkCenters,
+    getPlanningStartDateReconciliation = () => null,
     getRouteInstructionWorkCenterId,
     getRouteInstructionWorkCenters,
     getShiftMasterBoardModel = () => ({ rows: [], allRows: [] }),
@@ -62,6 +63,7 @@ export function createAppInteractionsModule(dependencies = {}) {
     normalizeLookupText = (rawValue = "") => String(rawValue || "").trim().toLowerCase(),
     normalizeShiftMasterBoardQuantity = (rawValue = 0) => Number(rawValue) || 0,
     normalizeShiftWorkOrderIssueReports = (value = {}) => dependencies.normalizePlainRecord?.(value) || {},
+    notifySaveSuccess = () => {},
     option,
     persistState,
     persistUiState,
@@ -836,6 +838,11 @@ async function navigateToModule(moduleId) {
   // remains reserved for XLSX, Word and planning calculations that can really
   // occupy the interface for a noticeable time.
   const previousModule = ui.activeModule;
+  const startDateReconciliation = getPlanningStartDateReconciliation();
+  if (previousModule === "planning" && moduleId !== "planning" && startDateReconciliation) {
+    notifySaveSuccess("Сначала проверьте незавершённую команду даты старта.");
+    return;
+  }
   ui.activeModule = moduleId;
   ui.selectedSlotId = null;
   ui.editor = null;
@@ -845,7 +852,9 @@ async function navigateToModule(moduleId) {
     ui.activeNomenclatureId = "";
     ui.activeNomenclaturePane = requestedModuleId === "bomLists" ? "boards" : "items";
   }
-  if (moduleId === "planning" && previousModule !== "planning") ui.activeRouteId = "";
+  if (moduleId === "planning" && previousModule !== "planning") {
+    ui.activeRouteId = String(startDateReconciliation?.routeId || "");
+  }
   updateModuleUrlParam(moduleId);
   persistUiState();
   render();

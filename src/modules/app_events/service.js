@@ -98,6 +98,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     getPlanningRouteQuantity,
     getPlanningRouteSlots,
     getPlanningWorkCenters,
+    getPlanningStartDateReconciliation = () => null,
     getSpecificationDeleteUsage = () => ({ routeIds: new Set(), routeStepIds: new Set(), routesCount: 0, slotsCount: 0 }),
     getWorkingDurationBetween = (_workCenterId, start, end) => Math.max(0, new Date(end).getTime() - new Date(start).getTime()),
     getProductionContexts,
@@ -142,6 +143,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     importRows = [],
     importBomFromXlsxFile,
     isLegacyDirectoryWriteBlocked = () => false,
+    isPlanningStartDateServerCommandsPrimary = () => false,
     input = null,
     isGanttSlotCompleted,
     isUserManagedDirectoryStatus = () => false,
@@ -1013,6 +1015,7 @@ const {
   getModuleDefinitions,
   getOperationMapRows,
   getPlanningWorkCenters,
+  getPlanningStartDateReconciliation,
   getRouteInstructionWorkCenterId,
   getRouteInstructionWorkCenters,
   getShiftMasterBoardModel,
@@ -1041,6 +1044,7 @@ const {
   normalizeLookupText,
   normalizeShiftMasterBoardQuantity,
   normalizeShiftWorkOrderIssueReports,
+  notifySaveSuccess,
   option,
   persistState,
   persistUiState,
@@ -1156,6 +1160,12 @@ function bindPlanningEvents(root = app) {
   });
 
   root.querySelectorAll("[data-planning-start-date]").forEach((input) => {
+    if (isPlanningStartDateServerCommandsPrimary()) {
+      input.disabled = true;
+      input.setAttribute("aria-disabled", "true");
+      input.title = "Изменение даты доступно только через подтверждённую серверную команду Planning.";
+      return;
+    }
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();

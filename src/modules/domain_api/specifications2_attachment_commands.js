@@ -18,7 +18,13 @@ export function createSpecifications2AttachmentCommands({
     if (capabilities) return capabilities;
     try {
       const response = await fetchImpl(capabilitiesUrl, { credentials: "same-origin" });
-      capabilities = response.ok ? await response.json().catch(() => ({})) : {};
+      const payload = response.ok ? await response.json().catch(() => ({})) : {};
+      // The shared Specifications 2.0 capability endpoint wraps individual
+      // flags in `capabilities`. Keep the flat fallback for isolated adapters,
+      // but make the live API contract authoritative.
+      capabilities = payload?.capabilities && typeof payload.capabilities === "object"
+        ? payload.capabilities
+        : payload;
     } catch { capabilities = {}; }
     return capabilities;
   }

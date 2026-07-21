@@ -42,6 +42,16 @@ assert.match(
   /(?:^|&&\s*)npm run typecheck:react(?:\s*&&|$)/,
   "global stabilization must run the strict React TypeScript gate",
 );
+assert.equal(
+  packageManifest.scripts?.["qa:domain-specifications2-command-authorization"],
+  "node scripts/specifications2-command-authorization-qa.mjs",
+  "Specifications 2.0 employee/RBAC authorization must remain a named executable QA contract",
+);
+assert.match(
+  packageManifest.scripts?.["qa:domain-migration"] || "",
+  /(?:^|&&\s*)npm run qa:domain-specifications2-command-authorization(?:\s*&&|$)/,
+  "the Specifications 2.0 authorization contract must remain in the stabilization domain profile",
+);
 assert.ok(packageManifest.devDependencies?.typescript, "TypeScript compiler must be a pinned project dependency");
 assert.ok(packageManifest.devDependencies?.["@types/react"], "React type declarations must be a project dependency");
 assert.ok(packageManifest.devDependencies?.["@types/react-dom"], "React DOM type declarations must be a project dependency");
@@ -1640,7 +1650,9 @@ try {
   assert.match(productionAppSource, /waitingForScheduledReadRetry/, "Weekly read errors must wait for the bounded retry instead of re-entering render immediately");
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /ensureProductionStructureMatrixModule\(\);[\s\S]*?hydrateWeeklyPlanningPeriod\(\)/);
+  assert.match(productionAppSource, /if \(!waitingForScheduledReadRetry\) hydrateWeeklyPlanningPeriod\(\);[\s\S]*?weeklyProductionControlReactIslandHost\.prepareRender\(\)[\s\S]*?if \(reactDecision\.activateReact\) return weeklyProductionControlReactIslandHost\.renderTarget\(\);[\s\S]*?ensureProductionStructureMatrixModule\(\);/, "Permanent Weekly must hydrate bounded owners and return its React shell before loading the legacy Structure renderer used only by rollback");
+  assert.match(productionAppSource, /projectSystemDomainWorkCenters\(systemDomainsState, \[\]\)/, "Permanent Weekly must project canonical System Domains without a legacy fallback seed");
+  assert.match(productionAppSource, /getPayload: \(\) => \(\{ productionInput: getWeeklyProductionControlReadModelInput\(\) \}\)/, "Permanent Weekly must pass a strict raw DTO rather than the legacy model");
   assert.match(productionAppSource, /MES_REACT_ROLES === true/);
   assert.match(productionAppSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-roles"\) === "1"/);
@@ -1879,6 +1891,7 @@ try {
   }
   const nomenclatureCommandContractPaths = new Set([
     "scripts/domain-nomenclature-command.mjs",
+    "scripts/domain-nomenclature-reducer.mjs",
     "scripts/domain-nomenclature-command-qa.mjs",
     "scripts/nomenclature-command-authorization.mjs",
     "scripts/nomenclature-command-server-wiring-qa.mjs",
@@ -1920,6 +1933,391 @@ try {
     );
     await execFileAsync("npm", ["run", "qa:domain-directory-cluster-command"], { cwd: repositoryRoot });
   }
+  const sharedStateAuthorityBridgeContractPaths = new Set([
+    "package.json",
+    "db/migrations/028_specifications2_publication_idempotency.sql",
+    "db/migrations/029_specifications2_revision_identity_backfill.sql",
+    "db/migrations/030_specifications2_legacy_revision_identity_guard.sql",
+    "ops/shared-state/with-authority-rollout-lock.sh",
+    "ops/auth/activate-pilot-nomenclature-command-owner.sh",
+    "ops/auth/deactivate-pilot-nomenclature-command-owner.sh",
+    "ops/postgres/activate-specifications2-publication.sh",
+    "ops/postgres/deactivate-specifications2-publication.sh",
+    "ops/postgres/activate-specifications2-work-orders.sh",
+    "ops/postgres/deactivate-specifications2-work-orders.sh",
+    "ops/postgres/apply-domain-migrations.sh",
+    "ops/postgres/specifications2-server-command-compatibility.json",
+    "scripts/apply-domain-migrations-rollout-qa.mjs",
+    "scripts/postgres-autonomy-bootstrap-qa.mjs",
+    "scripts/release-activate.mjs",
+    "scripts/release-stage.mjs",
+    "scripts/release-rollback.mjs",
+    "scripts/release-rollback-qa.mjs",
+    "scripts/release-activation-transaction-qa.mjs",
+    "scripts/release-specifications2-command-contract.mjs",
+    "scripts/release-specifications2-stage-preflight.mjs",
+    "scripts/release-specifications2-stage-preflight-qa.mjs",
+    "scripts/release-specifications2-switch-guard-qa.mjs",
+    "scripts/specifications2-rollout-readiness-policy.mjs",
+    "scripts/specifications2-rollout-readiness-policy-qa.mjs",
+    "ops/postgres/activate-system-domains-command-surfaces.sh",
+    "ops/postgres/deactivate-system-domains-command-surfaces.sh",
+    "ops/postgres/retire-system-domains-snapshot.sh",
+    "ops/postgres/recover-system-domains-primary-command-surfaces.sh",
+    "scripts/shared-state-endpoint.mjs",
+    "scripts/shared-state-storage.mjs",
+    "scripts/shared-state-functional-qa.mjs",
+    "scripts/shared-state-authority-bridge-qa.mjs",
+    "scripts/sync-shared-state-contours.mjs",
+    "scripts/sync-shared-state-contours-authority-qa.mjs",
+    "scripts/domain-nomenclature-command.mjs",
+    "scripts/domain-nomenclature-reducer.mjs",
+    "scripts/nomenclature-command-server-wiring-qa.mjs",
+    "scripts/domain-directory-cluster-command.mjs",
+    "scripts/directory-cluster-type-reducer.mjs",
+    "scripts/directory-cluster-command-server-wiring-qa.mjs",
+    "scripts/domain-specifications2-export.mjs",
+    "scripts/domain-specifications2-import.mjs",
+    "scripts/domain-specifications2-import-qa.mjs",
+    "scripts/domain-specifications2-snapshot-export-qa.mjs",
+    "scripts/domain-specifications2-snapshot-repository.mjs",
+    "scripts/domain-specifications2-repository.mjs",
+    "scripts/domain-specifications2-repository-qa.mjs",
+    "scripts/domain-work-orders-repository.mjs",
+    "scripts/domain-specifications2-compatibility-fingerprint-bound-qa.mjs",
+    "scripts/domain-specifications2-snapshot-sync.mjs",
+    "scripts/domain-specifications2-snapshot-sync-qa.mjs",
+    "src/domain/specifications2_quantity.js",
+    "scripts/specifications2-publish-revision.mjs",
+    "scripts/specifications2-server-first-publish-qa.mjs",
+    "scripts/specifications2-pilot-chain-seed.mjs",
+    "scripts/planning-snapshot-writer-coverage-qa.mjs",
+    "scripts/specifications2-command-authorization.mjs",
+    "scripts/specifications2-command-authorization-qa.mjs",
+    "scripts/domain-api.mjs",
+    "scripts/domain-api-qa.mjs",
+    "src/modules/specifications2/publication.js",
+    "scripts/specifications2-publication-qa.mjs",
+  ]);
+  if ([...sharedStateAuthorityBridgeContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...sharedStateAuthorityBridgeContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...sharedStateAuthorityBridgeContractPaths].sort(),
+      "Protected shared-state domains must migrate to explicit owner ports as one atomic authority bridge",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/shared-state-authority-bridge-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-specifications2-snapshot-sync-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/specifications2-publish-revision-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/specifications2-command-authorization-qa.mjs")], { cwd: repositoryRoot });
+  }
+  const specifications2AttachmentCommandContractPaths = new Set([
+    "package.json",
+    "ops/shared-state/with-authority-rollout-lock.sh",
+    "ops/postgres/activate-specifications2-attachments.sh",
+    "ops/postgres/deactivate-specifications2-attachments.sh",
+    "ops/postgres/specifications2-server-command-compatibility.json",
+    "scripts/release-server-command-contract-verify.mjs",
+    "scripts/release-specifications2-command-contract.mjs",
+    "scripts/release-specifications2-switch-guard-qa.mjs",
+    "scripts/specifications2-rollout-readiness-policy.mjs",
+    "scripts/specifications2-rollout-readiness-policy-qa.mjs",
+    "scripts/specifications2-attachment-commands-client-qa.mjs",
+    "src/modules/domain_api/specifications2_attachment_commands.js",
+  ]);
+  if ([...specifications2AttachmentCommandContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...specifications2AttachmentCommandContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...specifications2AttachmentCommandContractPaths].sort(),
+      "Specifications 2.0 attachment rollout must keep its client, readiness policy, manifest verifier and root lifecycle atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/specifications2-attachment-commands-client-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/specifications2-rollout-readiness-policy-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/release-specifications2-switch-guard-qa.mjs")], { cwd: repositoryRoot });
+  }
+  const specifications2WorkOrderIdentityContractPaths = new Set([
+    "scripts/domain-specifications2-repository.mjs",
+    "scripts/domain-specifications2-repository-qa.mjs",
+    "scripts/specifications2-work-order-command-qa.mjs",
+    "src/domain/specifications2_work_order.js",
+  ]);
+  if ([...specifications2WorkOrderIdentityContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...specifications2WorkOrderIdentityContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...specifications2WorkOrderIdentityContractPaths].sort(),
+      "Specifications 2.0 Work Order identity must keep its SHA-256 builder, repository and executable QA atomic",
+    );
+    await execFileAsync("npm", ["run", "qa:domain-specifications2-work-order-command"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-specifications2-repository"], { cwd: repositoryRoot });
+  }
+  const shiftExecutionAuthorizationContractPaths = new Set([
+    "package.json",
+    "scripts/domain-api.mjs",
+    "scripts/domain-api-qa.mjs",
+    "scripts/domain-shift-execution-repository.mjs",
+    "scripts/nomenclature-command-authorization.mjs",
+    "scripts/shift-execution-carryover-cancel-api-qa.mjs",
+    "scripts/shift-execution-carryover-lifecycle-qa.mjs",
+    "scripts/shift-execution-command-authorization.mjs",
+    "scripts/shift-execution-command-authorization-qa.mjs",
+    "scripts/shift-execution-dispatch-repository-qa.mjs",
+  ]);
+  if ([...shiftExecutionAuthorizationContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...shiftExecutionAuthorizationContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...shiftExecutionAuthorizationContractPaths].sort(),
+      "Shift Execution writes must keep session/RBAC resolution, target lookup, repository TOCTOU guards and executable QA atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/shift-execution-command-authorization-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-shift-command"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-api"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-shift-repository"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-shift-read-model"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-shift-command-client"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:employee-auth-core"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-specifications2-command-authorization"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-directory-cluster-command"], { cwd: repositoryRoot });
+  }
+  const releaseCommandContractPaths = new Set([
+    "package.json",
+    "ops/auth/nomenclature-server-command-compatibility.json",
+    "ops/postgres/specifications2-server-command-compatibility.json",
+    "ops/postgres/system-domains-server-command-compatibility.json",
+    "ops/postgres/shift-execution-server-command-compatibility.json",
+    "scripts/release-specifications2-command-contract.mjs",
+    "scripts/release-nomenclature-command-contract.mjs",
+    "scripts/release-system-domains-command-contract.mjs",
+    "scripts/release-shift-execution-command-contract.mjs",
+    "scripts/release-server-command-contract-verify.mjs",
+    "scripts/release-specifications2-switch-guard-qa.mjs",
+    "scripts/release-nomenclature-command-contract-qa.mjs",
+    "scripts/release-system-domains-command-contract-qa.mjs",
+    "scripts/release-shift-execution-command-contract-qa.mjs",
+    "scripts/release-stage.mjs",
+    "scripts/release-activate.mjs",
+    "scripts/release-rollback.mjs",
+    "scripts/release-activation-diagnostics-qa.mjs",
+    "scripts/release-activation-transaction-qa.mjs",
+    "scripts/release-rollback-qa.mjs",
+    "ops/shared-state/with-authority-rollout-lock.sh",
+    "ops/postgres/activate-specifications2-attachments.sh",
+    "ops/postgres/deactivate-specifications2-attachments.sh",
+    "ops/postgres/activate-specifications2-work-orders.sh",
+    "ops/postgres/deactivate-specifications2-work-orders.sh",
+    "ops/postgres/activate-specifications2-publication.sh",
+    "ops/postgres/deactivate-specifications2-publication.sh",
+    "ops/postgres/activate-system-domains-command-surfaces.sh",
+    "ops/postgres/deactivate-system-domains-command-surfaces.sh",
+    "ops/postgres/recover-system-domains-primary-command-surfaces.sh",
+    "ops/postgres/retire-system-domains-snapshot.sh",
+    "ops/postgres/activate-shift-execution-commands.sh",
+    "ops/postgres/deactivate-shift-execution-commands.sh",
+    "ops/postgres/deactivate-staged-candidate-command-surfaces.sh",
+    "ops/postgres/mes-pilot-shift-execution-commands.conf",
+    "ops/postgres/apply-domain-migrations.sh",
+    "scripts/apply-domain-migrations-rollout-qa.mjs",
+    "scripts/release-specifications2-stage-preflight.mjs",
+    "scripts/release-specifications2-stage-preflight-qa.mjs",
+    "scripts/specifications2-rollout-readiness-policy.mjs",
+    "scripts/specifications2-rollout-readiness-policy-qa.mjs",
+    "scripts/release-staged-command-deactivation-policy.mjs",
+    "scripts/domain-postgres-preflight-policy.mjs",
+    "scripts/domain-postgres-preflight-policy-qa.mjs",
+    "scripts/postgres-autonomy-bootstrap-qa.mjs",
+  ]);
+  if ([...releaseCommandContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...releaseCommandContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...releaseCommandContractPaths].sort(),
+      "Release command rollout must keep markers, manifest builders/verifier, transactional switch, root lifecycle and focused QA atomic",
+    );
+    await execFileAsync("npm", ["run", "qa:release-command-contracts"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:release-activation-diagnostics"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:release-provenance"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:postgres-autonomy-bootstrap"], { cwd: repositoryRoot });
+  }
+  const releaseRootRecoveryContractPaths = new Set([
+    "package.json",
+    "ops/frontend/harden-pilot-release-root-trust.sh",
+    "ops/frontend/recover-pilot-release-transitions.sh",
+    "ops/frontend/with-pilot-release-authority-lock.sh",
+    "scripts/pilot-root-trust-bootstrap.mjs",
+    "scripts/pilot-root-trust-bootstrap-qa.mjs",
+    "scripts/release-immutable-source.mjs",
+    "scripts/release-immutable-source-qa.mjs",
+    "scripts/release-root-seal-verify.mjs",
+    "scripts/release-root-seal-verify-qa.mjs",
+    "scripts/release-root-stage-policy.mjs",
+    "scripts/release-root-stage-policy-qa.mjs",
+    "scripts/release-root-reinode-active.mjs",
+    "scripts/release-root-reinode-active-qa.mjs",
+    "scripts/release-switch-journal.mjs",
+    "scripts/release-switch-journal-qa.mjs",
+    "scripts/release-recovery-gate-qa.mjs",
+    "scripts/release-stage.mjs",
+    "scripts/release-activate.mjs",
+    "scripts/release-rollback.mjs",
+    "scripts/release-provenance-qa.mjs",
+    "scripts/release-activation-record-qa.mjs",
+    "scripts/release-activation-diagnostics-qa.mjs",
+    "scripts/release-activation-transaction-qa.mjs",
+    "scripts/release-rollback-qa.mjs",
+  ]);
+  const releaseRootRecoveryTriggerPaths = [...releaseRootRecoveryContractPaths]
+    .filter((path) => path !== "package.json");
+  if (releaseRootRecoveryTriggerPaths.some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...releaseRootRecoveryContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...releaseRootRecoveryContractPaths].sort(),
+      "Release root trust, immutable helper bundle, durable journals and recovery gates must remain one atomic executable contract",
+    );
+    assert.equal(
+      packageManifest.scripts?.["qa:release-provenance"],
+      "node scripts/release-provenance-qa.mjs && node scripts/release-activation-record-qa.mjs && node scripts/release-rollback-qa.mjs && npm run qa:release-root-stage-trust && npm run qa:release-command-contracts",
+      "Release provenance QA must retain the complete root trust and rollback chain",
+    );
+    await execFileAsync("npm", ["run", "qa:release-provenance"], { cwd: repositoryRoot });
+  }
+
+  const pilotRuntimeIsolationContractPaths = new Set([
+    "package.json",
+    "deploy/systemd/mes-pilot.service",
+    "ops/postgres/mes-pilot-domain-import.service",
+    "ops/postgres/mes-pilot-domain-migrate.service",
+    "ops/postgres/mes-pilot-domain-snapshot-sync.service",
+    "ops/postgres/mes-provision-postgres.sh",
+    "ops/security/check-postgres-credential.mjs",
+    "ops/security/install-pilot-runtime-uid-isolation.sh",
+    "ops/security/mes-pilot-admin-auth.conf",
+    "ops/security/mes-pilot-credential-rotation-recovery.service",
+    "ops/security/mes-pilot-domain-migrator-credential-check.service",
+    "ops/security/mes-pilot-domain-runtime-credential-check.service",
+    "ops/security/mes-pilot-public-auth.conf",
+    "ops/security/mes-pilot-runtime-transition-recovery.conf",
+    "ops/security/mes-pilot-writer-transition-recovery.conf",
+    "ops/security/pilot-base-env-migrate.mjs",
+    "ops/security/pilot-credential-rotation-journal.sh",
+    "ops/security/pilot-root-identity-lock.sh",
+    "ops/security/pilot-runtime-security-dispatch.sh",
+    "ops/security/pilot-runtime-transition-gate.sh",
+    "ops/security/pilot-secret-env-rewrite.mjs",
+    "ops/security/recover-pilot-credential-rotation.sh",
+    "ops/security/recover-pilot-uid-cutover.sh",
+    "ops/security/rotate-pilot-credentials.sh",
+    "ops/security/verify-pilot-runtime-uid-isolation.sh",
+    "scripts/domain-system-domains-import.mjs",
+    "scripts/postgres-autonomy-bootstrap-qa.mjs",
+    "scripts/pilot-credential-rotation-crash-qa.mjs",
+    "scripts/pilot-runtime-recovery-authority-qa.mjs",
+    "scripts/pilot-runtime-uid-isolation-qa.mjs",
+  ]);
+  const pilotRuntimeIsolationTriggerPaths = [...pilotRuntimeIsolationContractPaths]
+    .filter((path) => path !== "package.json");
+  if (pilotRuntimeIsolationTriggerPaths.some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...pilotRuntimeIsolationContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...pilotRuntimeIsolationContractPaths].sort(),
+      "Pilot UID, split credentials, writer identities and crash recovery must remain one atomic runtime isolation contract",
+    );
+    await execFileAsync("npm", ["run", "qa:postgres-autonomy-bootstrap"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:pilot-credential-rotation-crash"], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-system-domains-import-guard-qa.mjs")], { cwd: repositoryRoot });
+  }
+
+  const specifications2GuardRepairContractPaths = new Set([
+    "db/migrations/031_specifications2_guard_function_repair.sql",
+    "ops/postgres/activate-specifications2-publication.sh",
+    "ops/postgres/activate-specifications2-work-orders.sh",
+    "ops/postgres/specifications2-server-command-compatibility.json",
+    "scripts/apply-domain-migrations-rollout-qa.mjs",
+    "scripts/domain-postgres-migrate.mjs",
+    "scripts/domain-postgres-preflight-policy.mjs",
+    "scripts/domain-specifications2-repository.mjs",
+    "scripts/domain-specifications2-repository-qa.mjs",
+    "scripts/release-activate.mjs",
+    "scripts/release-rollback.mjs",
+    "scripts/release-rollback-qa.mjs",
+    "scripts/release-specifications2-command-contract.mjs",
+  ]);
+  if ([...specifications2GuardRepairContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...specifications2GuardRepairContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...specifications2GuardRepairContractPaths].sort(),
+      "Specifications 2.0 repeatable guard repair must keep SQL, readiness fingerprints, release markers and rollback proof atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-specifications2-repository-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/apply-domain-migrations-rollout-qa.mjs")], { cwd: repositoryRoot });
+  }
+
+  const shiftAuthoritySeparationContractPaths = new Set([
+    "package.json",
+    "ops/postgres/mes-pilot-domain-migrate.service",
+    "scripts/domain-postgres-migrate.mjs",
+    "scripts/domain-shift-execution-authority-reconcile.mjs",
+    "scripts/domain-shift-execution-authority-reconcile-qa.mjs",
+    "scripts/pilot-runtime-uid-isolation-qa.mjs",
+    "scripts/postgres-autonomy-bootstrap-qa.mjs",
+  ]);
+  const shiftAuthoritySeparationTriggerPaths = [...shiftAuthoritySeparationContractPaths]
+    .filter((path) => path !== "package.json");
+  if (shiftAuthoritySeparationTriggerPaths.some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...shiftAuthoritySeparationContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...shiftAuthoritySeparationContractPaths].sort(),
+      "Pure SQL migration and explicit Shift authority reconciliation must remain separately invocable and jointly QA-gated",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-shift-execution-authority-reconcile-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-shift-authority"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-shift-parity"], { cwd: repositoryRoot });
+  }
+
+  const planningCommandAuthorizationContractPaths = new Set([
+    "package.json",
+    "scripts/domain-api.mjs",
+    "scripts/domain-api-qa.mjs",
+    "scripts/domain-postgres-repository.mjs",
+    "scripts/nomenclature-command-authorization.mjs",
+    "scripts/planning-command-authorization.mjs",
+    "scripts/planning-command-authorization-qa.mjs",
+    "scripts/planning-command-server-wiring-qa.mjs",
+    "scripts/planning-postgres-projection-safety-qa.mjs",
+    "scripts/planning-runtime-projection-cache-qa.mjs",
+  ]);
+  const planningCommandAuthorizationTriggerPaths = [...planningCommandAuthorizationContractPaths]
+    .filter((path) => path !== "package.json");
+  if (planningCommandAuthorizationTriggerPaths.some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...planningCommandAuthorizationContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...planningCommandAuthorizationContractPaths].sort(),
+      "Planning quantity/slot writes must keep signed employee RBAC, bounded request handling and durable actor audit atomic",
+    );
+    await execFileAsync("npm", ["run", "qa:domain-api"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:planning-postgres-safety"], { cwd: repositoryRoot });
+    await execFileAsync("npm", ["run", "qa:domain-postgres-repository"], { cwd: repositoryRoot });
+  }
+  const planningStartDatePersistenceContractPaths = new Set([
+    "db/migrations/032_planning_work_order_start_date.sql",
+    "scripts/domain-postgres-import-qa.mjs",
+    "scripts/domain-postgres-import.mjs",
+    "scripts/domain-read-model-qa.mjs",
+    "scripts/domain-snapshot-export-qa.mjs",
+    "scripts/domain-snapshot-export.mjs",
+    "scripts/domain-snapshot-sync-qa.mjs",
+    "scripts/domain-snapshot-sync-runner.mjs",
+    "scripts/domain-snapshot-sync.mjs",
+    "scripts/planning-runtime-projection-postgres-repository-qa.mjs",
+    "scripts/planning-workbench-bootstrap-postgres-repository-qa.mjs",
+    "src/domain/calendar_date.js",
+    "src/modules/domain_api/work_orders_read_model.js",
+  ]);
+  if ([...planningStartDatePersistenceContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...planningStartDatePersistenceContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...planningStartDatePersistenceContractPaths].sort(),
+      "Planning start-date persistence must keep migration, import/export/snapshot, projection and client read-model changes atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/planning-start-date-owner-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-read-model-qa.mjs")], { cwd: repositoryRoot });
+  }
   if (changedPaths.includes(specificationsAuthorityQaPath)) {
     const { stdout: authorityQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", specificationsAuthorityQaPath], { cwd: repositoryRoot });
     const assertionChanges = authorityQaDiff
@@ -1936,24 +2334,111 @@ try {
     "scripts/domain-schema-qa.mjs",
     "scripts/domain-system-domains-repository.mjs",
   ]);
+  const systemDomainsConsistentReadContractPaths = new Set([
+    "scripts/domain-system-domains-repository.mjs",
+    "scripts/domain-system-domains-consistent-read-qa.mjs",
+  ]);
+  if ([...systemDomainsConsistentReadContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...systemDomainsConsistentReadContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...systemDomainsConsistentReadContractPaths].sort(),
+      "System Domains RBAC reads must keep the repeatable-read repository change and executable concurrency QA atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-system-domains-consistent-read-qa.mjs")], { cwd: repositoryRoot });
+  }
   if ([...responsibilityLifecyclePaths].some((path) => changedPaths.includes(path))) {
     assert.deepEqual([...responsibilityLifecyclePaths].filter((path) => changedPaths.includes(path)).sort(), [...responsibilityLifecyclePaths].sort(), "Responsibility-policy lifecycle owner contract must remain an atomic schema/repository/QA change");
     const lifecycleMigration = await readFile(join(repositoryRoot, "db/migrations/026_system_responsibility_policy_lifecycle.sql"), "utf8");
     assert.equal(lifecycleMigration, `BEGIN;\n\nALTER TABLE system_responsibility_policies\n  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,\n  ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;\n\nINSERT INTO mes_schema_migrations(version)\nVALUES ('026_system_responsibility_policy_lifecycle')\nON CONFLICT (version) DO NOTHING;\n\nCOMMIT;\n`, "Responsibility-policy lifecycle migration must stay additive and non-destructive");
     const { stdout: repositoryDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-system-domains-repository.mjs"], { cwd: repositoryRoot });
     const repositoryChanges = repositoryDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
-    assert.deepEqual(repositoryChanges, [
+    const lifecycleRepositoryChanges = [
       "-      INSERT INTO system_responsibility_policies (id, subject_employee_id, mode, updated_at_source, source_ref)",
       "-      VALUES (${text(item.id)}, ${text(item.subjectEmployeeId)}, ${text(item.mode)}, ${text(item.updatedAt)}, ${tx.json(item.sourceRef || {})})`;",
       "+      INSERT INTO system_responsibility_policies (id, subject_employee_id, mode, updated_at_source, is_active, archived_at, source_ref)",
       "+      VALUES (${text(item.id)}, ${text(item.subjectEmployeeId)}, ${text(item.mode)}, ${text(item.updatedAt)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;",
       "-          responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, sourceRef:r.source_ref || {} })),",
       "+          responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, isActive:r.is_active, archivedAt:iso(r.archived_at), sourceRef:r.source_ref || {} })),",
-    ], "Responsibility-policy repository exception may only persist and hydrate lifecycle fields");
+    ];
+    const lifecycleRepositoryChangeSet = new Set(lifecycleRepositoryChanges);
+    assert.deepEqual(
+      repositoryChanges.filter((line) => lifecycleRepositoryChangeSet.has(line)),
+      lifecycleRepositoryChanges,
+      "Responsibility-policy repository exception may only persist and hydrate lifecycle fields",
+    );
+    const consistentReadRepositoryChanges = repositoryChanges.filter((line) => !lifecycleRepositoryChangeSet.has(line));
+    assert.deepEqual(consistentReadRepositoryChanges, [
+      '-      const [set] = await sql`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;',
+      '-      if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };',
+      "-      const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([",
+      '-        sql`SELECT * FROM system_org_units ORDER BY id`, sql`SELECT * FROM system_work_centers ORDER BY id`, sql`SELECT * FROM system_schedule_templates ORDER BY id`, sql`SELECT * FROM system_positions ORDER BY id`, sql`SELECT * FROM system_employees ORDER BY id`, sql`SELECT * FROM system_employment_assignments ORDER BY id`, sql`SELECT * FROM system_equipment ORDER BY id`, sql`SELECT * FROM system_schedule_assignments ORDER BY id`, sql`SELECT * FROM system_attendance_events ORDER BY id`, sql`SELECT * FROM system_access_roles ORDER BY id`, sql`SELECT * FROM system_access_grants ORDER BY id`, sql`SELECT * FROM system_role_assignments ORDER BY id`, sql`SELECT * FROM system_responsibility_policies ORDER BY id`, sql`SELECT * FROM system_responsibility_targets ORDER BY policy_id, employee_id`,',
+      "-      ]);",
+      "+      // RBAC decisions must never combine a revision row from one projection",
+      "+      // with grants or assignments from another. replace() swaps all 14",
+      "+      // registries transactionally, while PostgreSQL READ COMMITTED gives",
+      "+      // each statement a fresh snapshot. Hold one repeatable-read snapshot",
+      "+      // for the complete aggregate instead of borrowing parallel pool clients.",
+      '+      return sql.begin("isolation level repeatable read read only", async (tx) => {',
+      '+        const [set] = await tx`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;',
+      '+        if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };',
+      "+        const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([",
+      '+          tx`SELECT * FROM system_org_units ORDER BY id`, tx`SELECT * FROM system_work_centers ORDER BY id`, tx`SELECT * FROM system_schedule_templates ORDER BY id`, tx`SELECT * FROM system_positions ORDER BY id`, tx`SELECT * FROM system_employees ORDER BY id`, tx`SELECT * FROM system_employment_assignments ORDER BY id`, tx`SELECT * FROM system_equipment ORDER BY id`, tx`SELECT * FROM system_schedule_assignments ORDER BY id`, tx`SELECT * FROM system_attendance_events ORDER BY id`, tx`SELECT * FROM system_access_roles ORDER BY id`, tx`SELECT * FROM system_access_grants ORDER BY id`, tx`SELECT * FROM system_role_assignments ORDER BY id`, tx`SELECT * FROM system_responsibility_policies ORDER BY id`, tx`SELECT * FROM system_responsibility_targets ORDER BY policy_id, employee_id`,',
+      "+        ]);",
+      "-      return {",
+      "-        ...storage,",
+      "-        item: normalizeInput(item),",
+      "-        revision: Number(set.revision),",
+      "-        fingerprint: text(set.source_fingerprint),",
+      "-        updatedAt: iso(set.updated_at),",
+      "-      };",
+      "+        return {",
+      "+          ...storage,",
+      "+          item: normalizeInput(item),",
+      "+          revision: Number(set.revision),",
+      "+          fingerprint: text(set.source_fingerprint),",
+      "+          updatedAt: iso(set.updated_at),",
+      "+        };",
+      "+      });",
+      "-      const [set, countRow] = await Promise.all([",
+      '-        sql`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),',
+      "-        sql`",
+      '+      return sql.begin("isolation level repeatable read read only", async (tx) => {',
+      "+        const [set, countRow] = await Promise.all([",
+      '+          tx`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),',
+      "+          tx`",
+      "-        `.then((result) => result[0]),",
+      "-      ]);",
+      '-      if (!set) return { ...storage, revision: 0, updatedAt: "", configured: true, summary: { registryCounts: Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, 0])), totalRows: 0 } };',
+      "-      const aliases = {",
+      '-        orgUnits: "org_units", workCenters: "work_centers", scheduleTemplates: "schedule_templates", positions: "positions",',
+      '-        employees: "employees", employmentAssignments: "employment_assignments", equipment: "equipment",',
+      '-        scheduleAssignments: "schedule_assignments", attendanceEvents: "attendance_events", accessRoles: "access_roles",',
+      '-        grants: "grants", roleAssignments: "role_assignments", responsibilityPolicies: "responsibility_policies",',
+      "-      };",
+      "-      const counts = Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, Number(countRow?.[aliases[name]] || 0)]));",
+      "-      return { ...storage, revision: Number(set.revision), updatedAt: iso(set.updated_at), configured: true, summary: { registryCounts: counts, totalRows: Object.values(counts).reduce((sum, count) => sum + count, 0) } };",
+      "+          `.then((result) => result[0]),",
+      "+        ]);",
+      '+        if (!set) return { ...storage, revision: 0, updatedAt: "", configured: true, summary: { registryCounts: Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, 0])), totalRows: 0 } };',
+      "+        const aliases = {",
+      '+          orgUnits: "org_units", workCenters: "work_centers", scheduleTemplates: "schedule_templates", positions: "positions",',
+      '+          employees: "employees", employmentAssignments: "employment_assignments", equipment: "equipment",',
+      '+          scheduleAssignments: "schedule_assignments", attendanceEvents: "attendance_events", accessRoles: "access_roles",',
+      '+          grants: "grants", roleAssignments: "role_assignments", responsibilityPolicies: "responsibility_policies",',
+      "+        };",
+      "+        const counts = Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, Number(countRow?.[aliases[name]] || 0)]));",
+      "+        return { ...storage, revision: Number(set.revision), updatedAt: iso(set.updated_at), configured: true, summary: { registryCounts: counts, totalRows: Object.values(counts).reduce((sum, count) => sum + count, 0) } };",
+      "+      });",
+    ], "System Domains repository may additionally contain only the separately QA-gated repeatable-read projection change");
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-system-domains-consistent-read-qa.mjs")], { cwd: repositoryRoot });
     const { stdout: preflightDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-postgres-preflight.mjs"], { cwd: repositoryRoot });
     const preflightChanges = preflightDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
     assert.deepEqual(preflightChanges, [
-      '+import { getRequiredDomainMigrations } from "./domain-postgres-preflight-policy.mjs";',
+      "+import {",
+      "+  getRequiredDomainMigrations,",
+      "+  requiresPlanningStartDateCommandMigration,",
+      '+} from "./domain-postgres-preflight-policy.mjs";',
+      '+import { createPostgresWorkOrdersRepository } from "./domain-postgres-repository.mjs";',
       "+",
       "-  const requiredMigrations = [",
       '-    "009_specifications2_revision_read_model",',
@@ -1962,12 +2447,20 @@ try {
       '-    "023_system_domains_postgres_primary_authority",',
       "-  ];",
       "+  const requiredMigrations = getRequiredDomainMigrations(process.env);",
-    ], "PostgreSQL preflight may only delegate the frozen foundation list to its separately tested policy");
+      "+  if (requiresPlanningStartDateCommandMigration(process.env)) {",
+      "+    const readiness = await createPostgresWorkOrdersRepository({ sql }).startDateCommandReadiness();",
+      "+    if (readiness.schemaReady !== true) {",
+      '+      throw new Error(`PostgreSQL Planning start-date owner schema is not exact: ${readiness.error || "readiness proof failed"}`);',
+      "+    }",
+      "+  }",
+    ], "PostgreSQL preflight may only delegate the frozen migration list and exact Planning start-date schema proof to their separately tested policies");
     const { stdout: schemaQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-schema-qa.mjs"], { cwd: repositoryRoot });
     const schemaQaChanges = schemaQaDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
     assert.deepEqual(schemaQaChanges, [
       '+const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/026_system_responsibility_policy_lifecycle.sql", import.meta.url));',
       '+const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");',
+      '+const planningStartDateMigrationPath = fileURLToPath(new URL("../db/migrations/032_planning_work_order_start_date.sql", import.meta.url));',
+      '+const planningStartDateSql = await readFile(planningStartDateMigrationPath, "utf-8");',
       '+const postgresPreflightPolicyPath = fileURLToPath(new URL("./domain-postgres-preflight-policy.mjs", import.meta.url));',
       '+const postgresPreflightPolicySql = await readFile(postgresPreflightPolicyPath, "utf-8");',
       '-  postgresPreflightSql.includes(\'"023_system_domains_postgres_primary_authority"\'),',
@@ -1980,12 +2473,20 @@ try {
       '+  "VALUES (\'026_system_responsibility_policy_lifecycle\')",',
       "+].forEach((fragment) => assert(responsibilityPolicyLifecycleSql.includes(fragment), `Responsibility-policy lifecycle migration is missing: ${fragment}`));",
       '+assert(!/DROP\\s+(TABLE|DATABASE|SCHEMA)/i.test(responsibilityPolicyLifecycleSql), "Responsibility-policy lifecycle migration must not contain destructive statements");',
+      "+[",
+      '+  "ADD COLUMN IF NOT EXISTS planning_start_date DATE",',
+      '+  "ADD COLUMN IF NOT EXISTS idempotency_key TEXT",',
+      '+  "CREATE UNIQUE INDEX IF NOT EXISTS domain_change_log_actor_idempotency_uidx",',
+      '+  "WHERE actor_id IS NOT NULL AND idempotency_key IS NOT NULL",',
+      '+  "VALUES (\'032_planning_work_order_start_date\')",',
+      "+].forEach((fragment) => assert(planningStartDateSql.includes(fragment), `Planning start-date migration is missing: ${fragment}`));",
+      '+assert(!/DROP\\s+(TABLE|DATABASE|SCHEMA|COLUMN)/i.test(planningStartDateSql), "Planning start-date migration must not contain destructive statements");',
       "+assert(",
       '+  postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")',
       '+    && postgresPreflightPolicySql.includes(\'"026_system_responsibility_policy_lifecycle"\'),',
       '+  "PostgreSQL domain preflight must require the Responsibility Policy lifecycle migration",',
       "+);",
-    ], "Responsibility-policy schema QA exception must remain the exact lifecycle gate plus policy delegation");
+    ], "Schema QA exception must remain the exact Responsibility Policy/Planning start-date migration gates plus policy delegation");
   }
   const reactRuntimePolicyDeliveryPaths = new Set([
     "server.js",
@@ -2102,7 +2603,18 @@ try {
       && !reactRuntimePolicyDeliveryPaths.has(path)
       && !employeeAuthSchemaContractPaths.has(path)
       && !nomenclatureCommandContractPaths.has(path)
-      && !directoryClusterCommandContractPaths.has(path));
+      && !directoryClusterCommandContractPaths.has(path)
+      && !sharedStateAuthorityBridgeContractPaths.has(path)
+      && !specifications2AttachmentCommandContractPaths.has(path)
+      && !specifications2WorkOrderIdentityContractPaths.has(path)
+      && !shiftExecutionAuthorizationContractPaths.has(path)
+      && !releaseCommandContractPaths.has(path)
+      && !pilotRuntimeIsolationContractPaths.has(path)
+      && !specifications2GuardRepairContractPaths.has(path)
+      && !shiftAuthoritySeparationContractPaths.has(path)
+      && !planningCommandAuthorizationContractPaths.has(path)
+      && !planningStartDatePersistenceContractPaths.has(path)
+      && !systemDomainsConsistentReadContractPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([
@@ -2333,8 +2845,20 @@ try {
       "+    );",
     ],
   ].map((lines) => JSON.stringify(lines)));
+  const reviewedPlanningLegacyQuiesceRuntimeHunkSignatures = new Set([
+    "+    isPlanningLegacyWritesQuiesced = () => false,",
+    "+  let legacyDomainRestoreRequiresRefresh = false;",
+    "+  if (legacyDomainRestoreRequiresRefresh) return false;",
+    "+  if (isPlanningLegacyWritesQuiesced() && !isCompactSharedUiReason(requestedReason)) {",
+    "+function discardBlockedLegacyDomainWriteIntent() {",
+    "+  if (isPlanningLegacyWritesQuiesced() && !isCompactSharedUiReason(reason)) {",
+    "+    if (response.legacyDomainWritesQuiesced === true",
+    "+      if (response.legacyDomainWritesQuiesced === true",
+    "+function restoreAuthoritativeLegacyDomainSnapshot() {",
+    "+  if (isPlanningLegacyWritesQuiesced() && !sharedStateApplyingRemote) {",
+  ]);
   const runtimeStateDiffLines = runtimeStateDiff.split("\n");
-  const reviewedNomenclatureRuntimeLineIndexes = new Set();
+  const reviewedRuntimeLineIndexes = new Set();
   let runtimeHunkStart = -1;
   const reviewRuntimeHunk = (endIndex) => {
     if (runtimeHunkStart < 0) return;
@@ -2344,9 +2868,10 @@ try {
       || (line.startsWith("-") && !line.startsWith("---"))
     ));
     if (!hunkLines.some((line) => reviewedNomenclatureRuntimeHunkSignatures.has(line))
-      && !reviewedNomenclatureRuntimeExactHunkChanges.has(JSON.stringify(hunkChanges))) return;
+      && !reviewedNomenclatureRuntimeExactHunkChanges.has(JSON.stringify(hunkChanges))
+      && !hunkLines.some((line) => reviewedPlanningLegacyQuiesceRuntimeHunkSignatures.has(line))) return;
     for (let index = runtimeHunkStart; index < endIndex; index += 1) {
-      reviewedNomenclatureRuntimeLineIndexes.add(index);
+      reviewedRuntimeLineIndexes.add(index);
     }
   };
   runtimeStateDiffLines.forEach((line, index) => {
@@ -2356,11 +2881,37 @@ try {
   });
   reviewRuntimeHunk(runtimeStateDiffLines.length);
   const unexpectedRuntimeStateLines = runtimeStateDiffLines.filter((line, index) => (
-    (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line) && !reviewedNomenclatureRuntimeAdditions.has(line) && !reviewedNomenclatureRuntimeLineIndexes.has(index))
-    || (line.startsWith("-") && !line.startsWith("---") && !allowedRuntimeStateRemovals.has(line) && !reviewedNomenclatureRuntimeLineIndexes.has(index))
+    (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line) && !reviewedNomenclatureRuntimeAdditions.has(line) && !reviewedRuntimeLineIndexes.has(index))
+    || (line.startsWith("-") && !line.startsWith("---") && !allowedRuntimeStateRemovals.has(line) && !reviewedRuntimeLineIndexes.has(index))
   ));
   assert.deepEqual(unexpectedRuntimeStateLines, [], `frontend migration changed runtime state outside the reviewed directory-removal flush:\n${unexpectedRuntimeStateLines.join("\n")}`);
   const runtimeStateContractSource = await readFile(join(repositoryRoot, "src/modules/runtime_state/service.js"), "utf8");
+  const runtimeFunctionSource = (startMarker, endMarker) => {
+    const start = runtimeStateContractSource.indexOf(startMarker);
+    const end = runtimeStateContractSource.indexOf(endMarker, start + startMarker.length);
+    assert.ok(start >= 0 && end > start, `runtime-state contract markers are missing: ${startMarker} -> ${endMarker}`);
+    return runtimeStateContractSource.slice(start, end);
+  };
+  const scheduleSharedStatePushSource = runtimeFunctionSource("function scheduleSharedStatePush", "function mergeSystemDomainsAttendanceConflict");
+  const pushSharedStateSource = runtimeFunctionSource("async function pushSharedState", "async function pollSharedState");
+  const discardBlockedIntentSource = runtimeFunctionSource("function discardBlockedLegacyDomainWriteIntent", "function disableSharedStateAfterLegacyDomainRestoreFailure");
+  const restoreLegacyDomainSource = runtimeFunctionSource("function restoreAuthoritativeLegacyDomainSnapshot", "function persistState");
+  const persistStateSource = runtimeFunctionSource("function persistState", "function recoverPlanningStateFromStorageIfRuntimeEmpty");
+  const persistDirectoryStateSource = runtimeFunctionSource("function persistDirectoryState()", "let planningCoreService");
+  assert.match(scheduleSharedStatePushSource, /if \(legacyDomainRestoreRequiresRefresh\) return false;[\s\S]*if \(isPlanningLegacyWritesQuiesced\(\) && !isCompactSharedUiReason\(requestedReason\)\) \{[\s\S]*discardBlockedLegacyDomainWriteIntent\(\);[\s\S]*restoreAuthoritativeLegacyDomainSnapshot\(\);[\s\S]*return false;/, "known Planning evaluation must discard a queued legacy-domain intent and restore authority before any scheduled POST");
+  assert.match(pushSharedStateSource, /if \(legacyDomainRestoreRequiresRefresh\) return false;[\s\S]*if \(isPlanningLegacyWritesQuiesced\(\) && !isCompactSharedUiReason\(reason\)\) \{[\s\S]*discardBlockedLegacyDomainWriteIntent\(\);[\s\S]*restoreAuthoritativeLegacyDomainSnapshot\(\);[\s\S]*return false;/, "the direct push entry point must independently fail closed when the evaluation flag is already known");
+  const quiesceResponseMarkers = [...pushSharedStateSource.matchAll(/if \(response\.legacyDomainWritesQuiesced === true\s*\|\| response\.planningLegacyWritesQuiesced === true\) \{/g)].map((match) => match.index);
+  const genericConflictMarkers = [...pushSharedStateSource.matchAll(/if \(response\.conflict && response\.current\) \{/g)].map((match) => match.index);
+  assert.equal(quiesceResponseMarkers.length, 2, "both the first POST and its one conflict retry must consume the dedicated legacy-domain quiesce marker");
+  assert.ok(genericConflictMarkers.length >= 2
+    && quiesceResponseMarkers[0] < genericConflictMarkers[0]
+    && quiesceResponseMarkers[1] < genericConflictMarkers[1], "authority quiesce must terminate each POST stage before its generic conflict/retry branch");
+  assert.match(discardBlockedIntentSource, /pendingReason = "";[\s\S]*pendingWriteMode = "";[\s\S]*pendingValues = null;[\s\S]*pendingSharedUi = null;[\s\S]*pendingSharedUiFull = null;[\s\S]*clearTimeout\(sharedStateStatus\.saveTimer\)[\s\S]*removeItem\(SHARED_UI_LOCAL_DIRTY_KEY\)/, "a denied legacy-domain intent must clear every in-memory, timer and durable replay channel");
+  assert.match(restoreLegacyDomainSource, /requestSharedState\("GET"\)[\s\S]*snapshot\.configured === false \|\| !snapshot\.values[\s\S]*applySharedStateSnapshot\(snapshot, \{[\s\S]*allowSharedUiOnly: false,[\s\S]*preserveLocalSharedUi: false,[\s\S]*disableSharedStateAfterLegacyDomainRestoreFailure\(\)/, "legacy-domain recovery must fetch and apply one complete canonical projection or disable this tab until refresh");
+  assert.equal((runtimeStateContractSource.match(/legacyDomainRestoreRequiresRefresh\s*=\s*false/g) || []).length, 1, "a failed authority restore must not be reset inside the running page");
+  assert.match(persistStateSource, /if \(isPlanningLegacyWritesQuiesced\(\) && !sharedStateApplyingRemote\) \{[\s\S]*discardBlockedLegacyDomainWriteIntent\(\);[\s\S]*restoreAuthoritativeLegacyDomainSnapshot\(\);[\s\S]*return \{ changed: false, blocked: true \};[\s\S]*localStorage\.setItem\(STORAGE_KEY/, "legacy Planning persistence must be blocked before local storage or shared-state mutation");
+  assert.match(persistDirectoryStateSource, /if \(isPlanningLegacyWritesQuiesced\(\) && !sharedStateApplyingRemote\) \{[\s\S]*discardBlockedLegacyDomainWriteIntent\(\);[\s\S]*restoreAuthoritativeLegacyDomainSnapshot\(\);[\s\S]*return false;[\s\S]*localStorage\.setItem\(DIRECTORY_STORAGE_KEY/, "legacy Directory persistence must be blocked and canonically restored before any local write");
+  await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/shared-state-runtime-rebase-qa.mjs")], { cwd: repositoryRoot });
   assert.match(runtimeStateContractSource, /isNomenclatureServerCommandsPrimary = \(\) => false/, "Nomenclature command-primary dependency must default off so the CAS rollback remains selectable");
   assert.match(runtimeStateContractSource, /function persistDirectoryState\(\)[\s\S]*if \(isNomenclatureServerCommandsPrimary\(\)\)[\s\S]*directoryState = previousState;[\s\S]*return false;[\s\S]*localStorage\.setItem\(DIRECTORY_STORAGE_KEY[\s\S]*return true;/, "command-primary must reject monolithic Directory writes while the unchanged rollback path remains selectable");
   assert.match(runtimeStateContractSource, /function getSharedStateValuesForReason\(reason = "snapshot"\)[\s\S]*isDirectoryStateReason\(reason\) && !isNomenclatureServerCommandsPrimary\(\)[\s\S]*delete values\[DIRECTORY_STORAGE_KEY\]/, "generic snapshots must retain Directory only in the command-primary-off rollback path");
@@ -2400,7 +2951,7 @@ try {
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /accepted Pilot read baseline.*manual lane movement.*write acceptance.*cleanup approval/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /accepted Pilot read baseline.*task start.*fact.*Report write acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "specifications2")?.nextVerticalScope || "", /Pilot draft-row publication.*exact-revision work-order acceptance.*attachment binding.*route structure.*server-owned contracts/);
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /start-time reschedule is locally complete.*dependency editing.*drag.*resize.*optimization remain separate/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /period, scale, zoom, expand\/collapse, quantity visibility and today are React-native.*existing UI-state owner.*without a toolbar fallback.*start-time reschedule is locally complete.*read-only slot edit.*schedule-mutating refresh.*dependency editing.*drag.*resize.*optimization remain separate/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "authPicker")?.nextVerticalScope || "", /Pilot PIN acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "contourAdmin")?.nextVerticalScope || "", /authenticated Admin acceptance/);
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");

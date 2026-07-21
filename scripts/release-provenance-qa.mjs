@@ -226,17 +226,18 @@ assert(stageSource.includes("refreshRemote: !args.dryRun"), "Only real staging m
 assert(stageSource.includes("schemaVersion: 3"), "New staged manifests must carry the runtime-policy provenance schema");
 assert(stageSource.includes("runtimePolicySha256") && stageSource.includes("REACT_RUNTIME_POLICY_FILE"), "Release staging must package and hash the React runtime policy");
 assert(stageSource.includes("assertReleaseSourceStillMatchesProvenance(gitCommit)"), "Release staging must recheck source provenance after building");
-assert(stageSource.includes("prepareLocalBootstrapSnapshotArtifact"), "Release staging must materialize the external bootstrap snapshot for clean local builds");
-assert(stageSource.includes("await localBootstrapSnapshot.cleanup()"), "Release staging must remove the temporary local bootstrap snapshot before provenance is rechecked");
+assert(stageSource.includes("materializePublishedGitSnapshot({ projectRoot, gitCommit })"), "Release staging must materialize one immutable published Git-object snapshot");
+assert(stageSource.includes("downloadPinnedBootstrapSnapshot"), "Release staging must download the external bootstrap snapshot exactly once");
+assert(stageSource.includes("installPinnedBootstrapIntoSnapshot"), "Release staging must build the immutable snapshot with the pinned bootstrap bytes");
+assert(stageSource.includes("installPinnedBootstrapSnapshotArtifact"), "Release staging must stage both bootstrap destinations from the same pinned local bytes");
+assert(!stageSource.includes("prepareLocalBootstrapSnapshotArtifact"), "Release staging must not recopy mutable working-tree bootstrap bytes");
+assert(!stageSource.includes("installBootstrapSnapshotArtifact"), "Release staging must not recopy the live operational bootstrap path into a candidate");
 assert(stageSource.includes("assertLocalDistBootstrapSnapshotArtifact"), "Release staging must verify the built bootstrap artifact before digesting dist");
 assert(stageSource.includes("BOOTSTRAP_SNAPSHOT_GENERATED_PATHS"), "Release staging must classify compressed bootstrap sidecars as compatibility artifacts");
 assert(stageSource.includes("bootstrapSnapshotArtifact.generatedPaths = await collectGeneratedCompatibilityArtifacts"), "Release staging must record compressed bootstrap sidecar digests in the manifest");
 assert(
-  stageSource.indexOf("await localBootstrapSnapshot.cleanup()") < stageSource.indexOf("await assertReleaseSourceStillMatchesProvenance(gitCommit)"),
-  "Release staging must clean the temporary bootstrap artifact before rechecking Git provenance",
-);
-assert(
-  (stageSource.match(/treeSha\(\["dist"\], \{ excludes: distCompatibilityExcludes \}\)/g) || []).length === 2,
+  (stageSource.match(/await treeSha\(\["dist"\]/g) || []).length === 2
+    && (stageSource.match(/cwd: sourceRoot/g) || []).length >= 4,
   "Both deterministic dist hashes must exclude the external bootstrap compatibility artifact",
 );
 

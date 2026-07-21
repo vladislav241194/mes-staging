@@ -353,9 +353,16 @@ exact-ID confirmation and rejects assigned roles plus the current effective
 role before PUT. Assignment confirmation is bound to the stable employee ID,
 rechecks employee-scoped `roles:assign`, the expected previous role and the
 active target role, and rejects self-mutation or multiple explicit rows before
-PUT. The UI is immediate-only, so the owner stores no lower date boundary;
-future/effective-window editing, personal/assignment scopes, `readOnly`,
-assigned-role lifecycle and reset remain legacy. Missing configure
+PUT. The UI is immediate-only, so the owner stores no lower date boundary.
+Role-default `self` is already part of `set-default-scope`. Multiple-assignment
+management lacks a targeted owner; effective-window, subject/assignment
+responsibility-scope and `readOnly` persistence lack durable System Domains and
+PostgreSQL contracts. Assigned/current-role deactivation is intentionally
+guarded rather than delegated to legacy. Reset is compatibility-only: both the
+domain and legacy callbacks invoke the shared destructive-action guard before
+mutation, so Pilot, staging, user-testing and production reject it while
+`MES_ALLOW_DESTRUCTIVE_ACTIONS` is false. It is therefore a protected invariant,
+not an approved React command or a parity gap. Missing configure
 permission, PostgreSQL readiness or explicit write evaluation fails closed
 before React exposes either command surface.
 

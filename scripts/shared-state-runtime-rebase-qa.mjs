@@ -58,7 +58,11 @@ const previousFetch = globalThis.fetch;
 const localStorage = createStorage();
 const sessionStorage = createStorage();
 const requests = [];
+const notifications = [];
 let durableMetadataReads = 0;
+let canonicalGetSnapshot = null;
+let canonicalGetFailure = false;
+let clientLegacyDomainQuiesced = false;
 let ui = sharedUiFixture();
 let planningState = { routes: [], routeSteps: [], slots: [], workCenters: [] };
 let directoryState = { statuses: [] };
@@ -98,6 +102,14 @@ try {
     const body = JSON.parse(request.body || "{}");
     if (String(request.method || "GET").toUpperCase() === "GET") {
       durableMetadataReads += 1;
+      if (canonicalGetFailure) throw new Error("canonical GET unavailable");
+      if (canonicalGetSnapshot) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => clone(canonicalGetSnapshot),
+        };
+      }
       return {
         ok: true,
         status: 200,
@@ -165,12 +177,86 @@ try {
       payload = { ok: false, conflict: true, current: { version: 10, values: {}, sharedUi: sharedUiFixture({ remoteCell: true }) } };
     } else if (index === 10) {
       payload = { ok: true, configured: true, version: 11, values: {}, sharedUi: sharedUiFixture({ remoteCell: true }) };
+    } else if (index === 11) {
+      payload = {
+        ok: false,
+        configured: true,
+        conflict: true,
+        legacyDomainWritesQuiesced: true,
+        planningLegacyWritesQuiesced: true,
+        code: "legacy-domain-writes-quiesced",
+        current: {
+          version: 12,
+          values: {
+            "qa-planning": JSON.stringify({
+              version: 1,
+              routes: [{ id: "route-quiesce", planningStartDate: "2026-07-22" }],
+              routeSteps: [],
+              slots: [],
+            }),
+            "qa-directories": JSON.stringify(directoryState),
+          },
+          sharedUi: sharedUiFixture({ remoteCell: true }),
+        },
+      };
+    } else if (index === 12) {
+      payload = {
+        ok: false,
+        configured: true,
+        conflict: true,
+        current: {
+          version: 13,
+          values: {
+            "qa-planning": JSON.stringify({
+              version: 1,
+              routes: [{ id: "route-quiesce", planningStartDate: "2026-07-22" }],
+              routeSteps: [],
+              slots: [],
+            }),
+            "qa-directories": JSON.stringify(directoryState),
+          },
+          sharedUi: sharedUiFixture({ remoteCell: true }),
+        },
+      };
+    } else if (index === 13) {
+      payload = {
+        ok: false,
+        configured: true,
+        conflict: true,
+        legacyDomainWritesQuiesced: true,
+        planningLegacyWritesQuiesced: true,
+        code: "legacy-domain-writes-quiesced",
+        current: {
+          version: 14,
+          values: {
+            "qa-planning": JSON.stringify({
+              version: 1,
+              routes: [{ id: "route-quiesce", planningStartDate: "2026-07-23" }],
+              routeSteps: [],
+              slots: [],
+            }),
+            "qa-directories": JSON.stringify(directoryState),
+          },
+          sharedUi: sharedUiFixture({ remoteCell: true }),
+        },
+      };
+    } else if ([14, 15].includes(index)) {
+      payload = {
+        ok: false,
+        configured: false,
+        conflict: true,
+        legacyDomainWritesQuiesced: true,
+        planningLegacyWritesQuiesced: true,
+        code: "legacy-domain-writes-quiesced",
+        currentVersion: index + 1,
+        changedSharedUiKeys: ["timesheetCellOverrides"],
+      };
     } else {
       throw new Error(`Unexpected shared-state request ${index}`);
     }
     return {
-      ok: true,
-      status: 200,
+      ok: ![11, 12, 13, 14, 15].includes(index),
+      status: [11, 12, 13, 14, 15].includes(index) ? 409 : 200,
       json: async () => payload,
     };
   };
@@ -200,7 +286,7 @@ try {
     SHARED_STATE_DISABLED_UNTIL_KEY: "qa-disabled-until",
     SHARED_STATE_POLL_INTERVAL_MS: 1_000,
     SHARED_STATE_SAVE_DEBOUNCE_MS: 0,
-    SHARED_STATE_VALUE_KEYS: [],
+    SHARED_STATE_VALUE_KEYS: ["qa-planning", "qa-directories", "qa-directory-defaults", "qa-directory-deleted"],
     SPECIFICATIONS2_STORAGE_KEY: "qa-specifications2",
     SHARED_UI_LOCAL_DIRTY_KEY: "qa-ui-dirty",
     SHARED_UI_LOCAL_DIRTY_TTL_MS: 60_000,
@@ -215,6 +301,7 @@ try {
     getBootstrapSnapshotCountsFromState: () => ({}),
     isMeaningfulBootstrapSnapshotCounts: () => false,
     isUsableBootstrapSnapshotPayload: () => false,
+    isPlanningLegacyWritesQuiesced: () => clientLegacyDomainQuiesced,
     loadUiState: () => ({}),
     measureBootStep: (_label, callback) => callback(),
     mergeMesWorkCenters: (workCenters = []) => workCenters,
@@ -230,7 +317,7 @@ try {
     normalizeShiftMasterAssignment: (value) => value,
     normalizeShiftMasterAssignmentMatrix: normalizeRecord,
     normalizeShiftMasterRecordMap: normalizeRecord,
-    notifySaveSuccess: () => {},
+    notifySaveSuccess: (message) => { notifications.push(String(message || "")); },
     persistUiState: () => {},
     publishBootPerformance: () => {},
     reloadSystemDomainsState: () => {},
@@ -344,6 +431,126 @@ try {
       && !Object.prototype.hasOwnProperty.call(request.values || {}, "qa-planning")),
     "Durable directory retries must use only a narrow directory-value payload, a UI patch and compact acknowledgement",
   );
+
+  // A current tab must consume the dedicated quiesce marker before the
+  // generic conflict retry. Its optimistic Planning copy is replaced by the
+  // authoritative response in one request, and the UI receives an explicit
+  // read-only notice instead of a save acknowledgement.
+  planningState = {
+    version: 1,
+    routes: [{ id: "route-quiesce", planningStartDate: "2026-07-29" }],
+    routeSteps: [],
+    slots: [],
+  };
+  localStorage.setItem("qa-planning", JSON.stringify(planningState));
+  service.scheduleSharedStatePush("planning-state");
+  await waitFor(() => requests.length === 11 && !sharedStateStatus.saveInFlight, "Planning quiesce marker recovery did not complete");
+  assert(requests.length === 11, "Planning quiesce marker must suppress the generic conflict retry");
+  assert(planningState.routes[0]?.planningStartDate === "2026-07-22", "Planning quiesce marker must restore the authoritative aggregate in memory");
+  assert(JSON.parse(localStorage.getItem("qa-planning") || "{}").routes?.[0]?.planningStartDate === "2026-07-22", "Planning quiesce marker must restore the authoritative local cache");
+  assert(notifications.some((message) => message.includes("изменения данных") && message.includes("приостановлены")), "The all-domain quiesce marker must show a truthful pause notice");
+
+  // Activation can race between a normal stale-version response and the
+  // automatic retry. The second response's authority marker must terminate
+  // that retry chain, restore its newer canonical Planning value and never
+  // emit a third write.
+  planningState = {
+    version: 1,
+    routes: [{ id: "route-quiesce", planningStartDate: "2026-07-30" }],
+    routeSteps: [],
+    slots: [],
+  };
+  localStorage.setItem("qa-planning", JSON.stringify(planningState));
+  const noticesBeforeRetryRace = notifications.length;
+  service.scheduleSharedStatePush("planning-state");
+  await waitFor(() => requests.length === 13 && !sharedStateStatus.saveInFlight, "Planning quiesce activation-during-retry recovery did not complete");
+  assert(requests.length === 13, "A quiesce marker on conflict retry must terminate after exactly two requests");
+  assert(planningState.routes[0]?.planningStartDate === "2026-07-23", "Retry-time quiesce must restore the newest authoritative Planning response");
+  assert(JSON.parse(localStorage.getItem("qa-planning") || "{}").routes?.[0]?.planningStartDate === "2026-07-23", "Retry-time quiesce must restore the canonical local cache");
+  assert(notifications.slice(noticesBeforeRetryRace).some((message) => message.includes("изменения данных") && message.includes("приостановлены")), "Retry-time quiesce must show the same truthful all-domain notice");
+
+  // Domain-backed sharedUi denials intentionally omit `current` so an old
+  // bundle cannot preserve and replay a dirty Timesheet/Shift/access intent.
+  // The current bundle must perform one exact GET, apply the full canonical
+  // snapshot, discard even a signature-mismatched dirty marker and remain
+  // enabled without issuing a generic POST retry.
+  canonicalGetSnapshot = {
+    ok: true,
+    configured: true,
+    version: 15,
+    values: {
+      "qa-planning": JSON.stringify({
+        version: 1,
+        routes: [{ id: "route-quiesce", planningStartDate: "2026-07-24" }],
+        routeSteps: [],
+        slots: [],
+      }),
+      "qa-directories": JSON.stringify({ statuses: [{ id: "canonical-directory" }] }),
+      "qa-directory-defaults": "1",
+      "qa-directory-deleted": "{}",
+    },
+    sharedUi: sharedUiFixture({ remoteCell: true, terminalRemoteCell: true }),
+  };
+  ui.timesheetCellOverrides["employee-denied::2026-07-21"] = { value: "absence" };
+  localStorage.setItem("qa-ui-dirty", JSON.stringify({ signature: "mismatched-in-flight-signature" }));
+  service.scheduleSharedStatePush("shared-ui");
+  await waitFor(() => requests.length === 14 && !sharedStateStatus.saveInFlight, "Domain sharedUi marker canonical GET did not complete");
+  assert(requests.length === 14, "A domain sharedUi marker without current must not enter the generic POST retry");
+  assert(!ui.timesheetCellOverrides["employee-denied::2026-07-21"]
+    && ui.timesheetCellOverrides["employee-terminal-remote::2026-07-18"], "the exact GET must replace optimistic sharedUi with the canonical projection");
+  assert(localStorage.getItem("qa-ui-dirty") === null, "a blocked dirty marker must be discarded unconditionally despite a signature mismatch");
+  assert(sharedStateStatus.enabled === true && sharedStateStatus.configured === true, "a successful canonical restore must keep the current client transport enabled");
+
+  // A current bundle also fails closed before transport when it already knows
+  // the all-domain evaluation flag. A durable Directory command must return a
+  // pause, restore its prior canonical row and issue zero POST/retry attempts.
+  const requestsBeforeQuiescedDirectory = requests.length;
+  clientLegacyDomainQuiesced = true;
+  directoryState = { statuses: [{ id: "optimistic-directory" }] };
+  localStorage.setItem("qa-ui-dirty", JSON.stringify({
+    signature: "blocked-known-flag-domain-intent",
+    updatedAt: new Date().toISOString(),
+    version: "qa-version",
+  }));
+  const quiescedDirectoryResult = await service.persistDirectoryStateDurably("directory-state");
+  await waitFor(() => directoryState.statuses?.[0]?.id === "canonical-directory", "Quiesced Directory state was not restored");
+  assert(quiescedDirectoryResult !== true && String(quiescedDirectoryResult).includes("приостановлены"), "a quiesced durable Directory command must never report success");
+  assert(requests.length === requestsBeforeQuiescedDirectory, "a known-quiesced durable Directory command must issue zero POST or retry attempts");
+  assert(localStorage.getItem("qa-ui-dirty") === null, "a known-quiesced domain command must discard its dirty replay marker before evaluation OFF");
+  clientLegacyDomainQuiesced = false;
+
+  // If that exact GET is unavailable, no optimistic dirty state may remain
+  // replayable. Disable this tab until a real page refresh, then simulate the
+  // root evaluation turning OFF and prove the denied intent still cannot POST.
+  canonicalGetFailure = true;
+  ui.timesheetCellOverrides["employee-denied-outage::2026-07-21"] = { value: "absence" };
+  localStorage.setItem("qa-ui-dirty", JSON.stringify({ signature: "another-mismatch" }));
+  service.scheduleSharedStatePush("shared-ui");
+  await waitFor(() => requests.length === 15 && !sharedStateStatus.saveInFlight, "Failed canonical GET fail-closed path did not complete");
+  assert(sharedStateStatus.enabled === false && sharedStateStatus.configured === false, "a failed canonical GET must disable shared-state for this tab until refresh");
+  assert(sharedStateStatus.pendingReason === "" && sharedStateStatus.pendingValues === null
+    && sharedStateStatus.pendingSharedUi === null && localStorage.getItem("qa-ui-dirty") === null,
+  "failed restore must discard every pending/dirty replay channel");
+  assert(notifications.some((message) => message.includes("обновите страницу")), "failed restore must require a page refresh explicitly");
+  canonicalGetFailure = false;
+  clientLegacyDomainQuiesced = false;
+  service.scheduleSharedStatePush("local-shared-ui");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert(requests.length === 15 && sharedStateStatus.pendingReason === "", "turning evaluation OFF must not replay a denied dirty intent in the unrefreshed tab");
+
+  // Pilot .25 does not know the new marker; configured=false still stops its
+  // transport until refresh, but its dirty marker can remain in localStorage.
+  // A refreshed .26 bundle must drop that prior-version marker before it can
+  // schedule any POST, even when root has already turned evaluation OFF.
+  const requestsBeforeVersionCleanup = requests.length;
+  localStorage.setItem("qa-ui-dirty", JSON.stringify({
+    signature: "pilot-25-denied-intent",
+    updatedAt: new Date().toISOString(),
+    version: "v.1.500.25",
+  }));
+  assert(service.getSharedUiDirtyMarker() === null, "a refreshed bundle must reject a dirty marker created by the blocked prior bundle version");
+  assert(localStorage.getItem("qa-ui-dirty") === null, "prior-version dirty intent must be removed before any post-refresh scheduling");
+  assert(requests.length === requestsBeforeVersionCleanup, "dirty-marker version cleanup must happen locally before any POST");
 
   console.log("Shared-state runtime rebase QA: OK");
 } finally {

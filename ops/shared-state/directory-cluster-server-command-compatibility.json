@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "contract": "directory-cluster-server-commands",
+  "commandSurfaceVersion": 1,
+  "authenticatedActorVersion": 1,
+  "authorizationSnapshotVersion": 1,
+  "concurrencyVersion": 1,
+  "idempotencyReceiptVersion": 1,
+  "destructiveRecoveryVersion": 1,
+  "supportedSurfaces": [
+    "nomenclature-types",
+    "boards"
+  ],
+  "storageAuthority": "shared-state-file",
+  "controlledRootExclusivity": {
+    "required": true,
+    "lockName": "mes-authority-rollout.lock",
+    "incompatibleTargetRequiresDisabledFlags": [
+      "MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS"
+    ]
+  },
+  "requiredMigrations": []
+}

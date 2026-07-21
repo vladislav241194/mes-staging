@@ -31,6 +31,7 @@ import {
   toDate,
   toDateInput,
 } from "./time.js";
+import { isExactIsoCalendarDate } from "./domain/calendar_date.js";
 import {
   byId,
   calculateProjectProgress,
@@ -83,9 +84,14 @@ import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactI
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
+import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
+import { selectWeeklyProductionControlRuntime } from "./modules/weekly_production_control/runtime_selection.js";
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
-import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
+import {
+  createPlanningWorkbenchReactIslandHost,
+  PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR,
+} from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
@@ -190,7 +196,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.25";
+const APP_VERSION_FALLBACK = "v.1.500.26";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -198,6 +204,168 @@ const APP_VERSION = (
 )
   ? window.__MES_DEPLOY_VERSION__
   : APP_VERSION_FALLBACK;
+
+const PLANNING_START_DATE_RECONCILIATION_STORAGE_KEY = "mes-planning-start-date-reconciliation-v1";
+const PLANNING_START_DATE_RECONCILIATION_SCHEMA_VERSION = 2;
+// The root-controlled write evaluation auto-rolls back after fifteen minutes.
+// A browser reconciliation intent must never outlive that bounded window.
+const PLANNING_START_DATE_RECONCILIATION_TTL_MS = 15 * 60 * 1000;
+const PLANNING_START_DATE_RECONCILIATION_STATUSES = new Set([
+  "submitting",
+  "transport-unknown",
+  "readback-pending",
+  "rollback-pending",
+]);
+
+function normalizeNullablePlanningStartDate(value) {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return isExactIsoCalendarDate(normalized) ? normalized : undefined;
+}
+
+function readCanonicalPlanningStartDate(item) {
+  if (!item || typeof item !== "object" || Array.isArray(item)
+    || !Object.prototype.hasOwnProperty.call(item, "planningStartDate")) {
+    return { available: false, value: undefined };
+  }
+  const value = normalizeNullablePlanningStartDate(item.planningStartDate);
+  return value === undefined
+    ? { available: false, value: undefined }
+    : { available: true, value };
+}
+
+function clearPlanningStartDateReconciliation() {
+  try {
+    window.sessionStorage?.removeItem(PLANNING_START_DATE_RECONCILIATION_STORAGE_KEY);
+  } catch {
+    // A disabled session store must not alter the owner command result.
+  }
+}
+
+function normalizePlanningStartDateReconciliation(value, { activeRouteId = "" } = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const now = Date.now();
+  const schemaVersion = Number(value.schemaVersion);
+  const appVersion = String(value.appVersion || "");
+  const routeId = String(value.routeId || "").trim();
+  const ownsPlanningStartDate = Object.prototype.hasOwnProperty.call(value, "planningStartDate");
+  const planningStartDate = normalizeNullablePlanningStartDate(value.planningStartDate);
+  const intent = String(value.intent || "").trim();
+  const expectedRevision = Number(value.expectedRevision);
+  const idempotencyKey = String(value.idempotencyKey || "").trim();
+  const status = String(value.status || "").trim();
+  const createdAt = Number(value.createdAt);
+  const updatedAt = Number(value.updatedAt);
+  const expiresAt = Number(value.expiresAt);
+  if (schemaVersion !== PLANNING_START_DATE_RECONCILIATION_SCHEMA_VERSION
+    || appVersion !== APP_VERSION
+    || !routeId
+    || routeId.length > 160
+    || (activeRouteId && routeId !== String(activeRouteId))
+    || !ownsPlanningStartDate
+    || planningStartDate === undefined
+    || (intent === "clear" ? planningStartDate !== null : intent === "set" ? planningStartDate === null : true)
+    || !Number.isInteger(expectedRevision)
+    || expectedRevision < 1
+    || !idempotencyKey.startsWith("planning-start-date:")
+    || idempotencyKey.length > 160
+    || !PLANNING_START_DATE_RECONCILIATION_STATUSES.has(status)
+    || !Number.isFinite(createdAt)
+    || createdAt > now + 60_000
+    || !Number.isFinite(updatedAt)
+    || updatedAt < createdAt
+    || updatedAt > now + 60_000
+    || !Number.isFinite(expiresAt)
+    || expiresAt <= now
+    || expiresAt - createdAt > PLANNING_START_DATE_RECONCILIATION_TTL_MS + 1_000) return null;
+  return {
+    schemaVersion,
+    appVersion,
+    routeId,
+    planningStartDate,
+    intent,
+    expectedRevision,
+    idempotencyKey,
+    status,
+    message: String(value.message || "").slice(0, 500),
+    createdAt,
+    updatedAt,
+    expiresAt,
+  };
+}
+
+function readPlanningStartDateReconciliation({ activeRouteId = "", enabled = true } = {}) {
+  if (!enabled) {
+    clearPlanningStartDateReconciliation();
+    return null;
+  }
+  try {
+    const raw = window.sessionStorage?.getItem(PLANNING_START_DATE_RECONCILIATION_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const normalized = normalizePlanningStartDateReconciliation(parsed);
+    if (!normalized && raw) clearPlanningStartDateReconciliation();
+    if (normalized && activeRouteId && normalized.routeId !== String(activeRouteId)) return null;
+    return normalized;
+  } catch {
+    clearPlanningStartDateReconciliation();
+    return null;
+  }
+}
+
+function retainPlanningStartDateReconciliation(request = {}, { status = "submitting", message = "" } = {}) {
+  const now = Date.now();
+  const current = readPlanningStartDateReconciliation();
+  const requestPlanningStartDate = normalizeNullablePlanningStartDate(request.planningStartDate);
+  const requestIntent = requestPlanningStartDate === null ? "clear" : "set";
+  const sameRequest = current
+    && current.routeId === String(request.routeId || "").trim()
+    && current.planningStartDate === requestPlanningStartDate
+    && current.intent === requestIntent
+    && current.expectedRevision === Number(request.expectedRevision)
+    && current.idempotencyKey === String(request.idempotencyKey || "").trim();
+  // Never overwrite an unresolved command with a different key. The caller
+  // must explicitly resolve/discard the first intent before creating another.
+  if (current && !sameRequest) return null;
+  const createdAt = sameRequest ? current.createdAt : now;
+  const normalized = normalizePlanningStartDateReconciliation({
+    schemaVersion: PLANNING_START_DATE_RECONCILIATION_SCHEMA_VERSION,
+    appVersion: APP_VERSION,
+    routeId: request.routeId,
+    planningStartDate: requestPlanningStartDate,
+    intent: requestIntent,
+    expectedRevision: request.expectedRevision,
+    idempotencyKey: request.idempotencyKey,
+    status,
+    message,
+    createdAt,
+    updatedAt: now,
+    expiresAt: sameRequest ? current.expiresAt : createdAt + PLANNING_START_DATE_RECONCILIATION_TTL_MS,
+  });
+  if (!normalized) return null;
+  try {
+    const store = window.sessionStorage;
+    if (!store) return null;
+    store.setItem(PLANNING_START_DATE_RECONCILIATION_STORAGE_KEY, JSON.stringify(normalized));
+    const persisted = normalizePlanningStartDateReconciliation(JSON.parse(store.getItem(PLANNING_START_DATE_RECONCILIATION_STORAGE_KEY) || "null"));
+    if (!persisted
+      || persisted.routeId !== normalized.routeId
+      || persisted.planningStartDate !== normalized.planningStartDate
+      || persisted.intent !== normalized.intent
+      || persisted.expectedRevision !== normalized.expectedRevision
+      || persisted.idempotencyKey !== normalized.idempotencyKey
+      || persisted.status !== normalized.status
+      || persisted.expiresAt !== normalized.expiresAt) {
+      clearPlanningStartDateReconciliation();
+      return null;
+    }
+    return persisted;
+  } catch {
+    // The browser must prove that the exact request is durable before a live
+    // PATCH. Without that proof a shell remount could lose the only safe key.
+    return null;
+  }
+}
 
 function appendLocalDataSafetyAudit(action = "", details = {}) {
   try {
@@ -265,6 +433,8 @@ let nomenclatureTypesServerCapabilitiesEpoch = 0;
 let nomenclatureTypesDeleteContractsState = { status: "idle", revision: 0, byId: {}, error: "" };
 let nomenclatureTypesDeleteContractsPromise = null;
 const nomenclatureTypesUncertainCommands = new Map();
+let planningCommandCapabilitiesState = { status: "idle", result: null, error: "" };
+let planningCommandCapabilitiesPromise = null;
 
 function isEmployeeServerAuthRequired() {
   return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_REQUIRED === true;
@@ -273,7 +443,8 @@ function isEmployeeServerAuthRequired() {
 function isEmployeeServerAuthAvailable() {
   return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_AVAILABLE === true
     || isNomenclatureServerCommandsPrimary()
-    || isDirectoryClusterServerCommandsPrimary();
+    || isDirectoryClusterServerCommandsPrimary()
+    || isPlanningStartDateServerCommandsPrimary();
 }
 
 function isNomenclatureEmployeeElevationActive() {
@@ -286,6 +457,19 @@ function isNomenclatureServerCommandsPrimary() {
 
 function isDirectoryClusterServerCommandsPrimary() {
   return MES_RUNTIME_CONFIG.MES_DIRECTORY_CLUSTER_SERVER_COMMANDS_PRIMARY === true;
+}
+
+function isPlanningStartDateServerCommandsPrimary() {
+  return MES_RUNTIME_CONFIG.MES_PLANNING_START_DATE_SERVER_COMMANDS_PRIMARY === true;
+}
+
+function isLegacyDomainWritesQuiesced() {
+  return MES_RUNTIME_CONFIG.MES_LEGACY_DOMAIN_WRITES_QUIESCED === true
+    || MES_RUNTIME_CONFIG.MES_PLANNING_LEGACY_WRITES_QUIESCED === true;
+}
+
+function isPlanningLegacyWritesQuiesced() {
+  return isLegacyDomainWritesQuiesced();
 }
 
 function isLegacyDirectoryWriteBlocked() {
@@ -310,6 +494,8 @@ function resetNomenclatureTypesServerCapabilities() {
 function resetEmployeeServerCapabilities() {
   resetNomenclatureServerCapabilities();
   resetNomenclatureTypesServerCapabilities();
+  planningCommandCapabilitiesState = { status: "idle", result: null, error: "" };
+  planningCommandCapabilitiesPromise = null;
 }
 
 function getEmployeeServerActor() {
@@ -477,13 +663,22 @@ function ensureNomenclatureTypesServerCapabilities({ force = false } = {}) {
   if (nomenclatureTypesServerCapabilitiesPromise) return nomenclatureTypesServerCapabilitiesPromise;
   const requestEpoch = nomenclatureTypesServerCapabilitiesEpoch;
   nomenclatureTypesServerCapabilitiesState = { status: "loading", result: null, error: "" };
+  let retryWhenLocalActorReady = false;
   let requestPromise;
   requestPromise = nomenclatureTypesServerOwnerClient.getCapabilities().then((result) => {
     if (requestEpoch !== nomenclatureTypesServerCapabilitiesEpoch) return nomenclatureTypesServerCapabilitiesState;
     const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
     const serverEmployeeId = String(result?.actor?.employeeId || "");
+    // System Domains and command capabilities are independent cold-boot reads.
+    // A valid server actor may therefore arrive before the local employee
+    // projection. Keep writes disabled and retry after hydration; absence of a
+    // local row is not evidence that the signed server session belongs to a
+    // different employee and must not terminate that session.
+    const localActorPending = result?.ok === true && result.authenticated === true
+      && !localEmployeeId && Boolean(serverEmployeeId);
     const actorMismatch = result?.ok === true && result.authenticated === true
-      && (!localEmployeeId || !serverEmployeeId || localEmployeeId !== serverEmployeeId);
+      && Boolean(localEmployeeId)
+      && (!serverEmployeeId || localEmployeeId !== serverEmployeeId);
     if (actorMismatch) {
       void nomenclatureServerOwnerClient.deleteEmployeeSession().catch(() => {});
       employeeServerSessionState = {
@@ -497,16 +692,23 @@ function ensureNomenclatureTypesServerCapabilities({ force = false } = {}) {
       employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "Серверная сессия сотрудника завершена." };
       resetNomenclatureServerCapabilities();
     }
+    retryWhenLocalActorReady = localActorPending;
     nomenclatureTypesServerCapabilitiesState = {
-      status: "ready",
-      result: result?.ok === true && !actorMismatch ? result : null,
-      error: result?.ok === true && !actorMismatch ? "" : actorMismatch
+      status: localActorPending ? "idle" : "ready",
+      result: result?.ok === true && !actorMismatch && !localActorPending ? result : null,
+      error: localActorPending
+        ? "Ожидаем локальную проекцию сотрудника для сверки серверной сессии."
+        : result?.ok === true && !actorMismatch ? "" : actorMismatch
         ? employeeServerSessionState.error
         : getNomenclatureTypesServerFailureMessage(result),
     };
-    nomenclatureTypesServerCapabilitiesFetchedAt = Date.now();
-    const directoryRevision = Number(nomenclatureTypesServerCapabilitiesState.result?.directoryRevision || 0);
-    if (directoryRevision && directoryRevision !== getHydratedDirectoryRevision()) {
+    nomenclatureTypesServerCapabilitiesFetchedAt = localActorPending ? 0 : Date.now();
+    const directoryRevision = Number(result?.ok === true && !actorMismatch ? result.directoryRevision : 0);
+    const nomenclatureTypesSurfaceActive = ui?.activeModule === "directories"
+      && normalizeDirectorySectionId(ui.activeDirectory) === "nomenclatureTypes";
+    if (nomenclatureTypesSurfaceActive
+      && directoryRevision
+      && directoryRevision !== getHydratedDirectoryRevision()) {
       hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY], { allowBeforeInitialSync: true, failClosed: true });
     }
     void ensureNomenclatureTypesDeleteContracts();
@@ -524,6 +726,9 @@ function ensureNomenclatureTypesServerCapabilities({ force = false } = {}) {
     return nomenclatureTypesServerCapabilitiesState;
   }).finally(() => {
     if (nomenclatureTypesServerCapabilitiesPromise === requestPromise) nomenclatureTypesServerCapabilitiesPromise = null;
+    if (retryWhenLocalActorReady && getAuthenticatedAccessPerson()?.id) {
+      void ensureNomenclatureTypesServerCapabilities({ force: true });
+    }
   });
   nomenclatureTypesServerCapabilitiesPromise = requestPromise;
   return requestPromise;
@@ -611,13 +816,16 @@ function getNomenclatureElevationAuthModel() {
   return { ...model, departments, forcedPersonId: employeeId, elevation: true };
 }
 
-async function beginNomenclatureEmployeeElevation() {
+async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature") {
   const person = getAuthenticatedAccessPerson();
   if (!person?.id || !isEmployeeServerAuthAvailable()) {
     return { ok: false, message: "Подтверждение PIN для текущего сотрудника недоступно." };
   }
   await deleteEmployeeServerSession().catch(() => {});
-  nomenclatureEmployeeElevationState = { active: true, employeeId: person.id, returnModule: "nomenclature" };
+  const normalizedReturnModule = ["nomenclature", "planning"].includes(String(returnModule || ""))
+    ? String(returnModule)
+    : "nomenclature";
+  nomenclatureEmployeeElevationState = { active: true, employeeId: person.id, returnModule: normalizedReturnModule };
   const authModel = getAuthPrototypeReactModel();
   const department = (authModel.departments || []).find((entry) => (
     (entry.directPeople || []).some((candidate) => candidate.id === person.id)
@@ -637,6 +845,10 @@ async function beginNomenclatureEmployeeElevation() {
   persistUiState();
   render({ skipRememberScroll: true });
   return { ok: true, id: person.id };
+}
+
+function beginPlanningEmployeeElevation() {
+  return beginNomenclatureEmployeeElevation("planning");
 }
 
 function finishNomenclatureEmployeeElevation(actor = null) {
@@ -961,6 +1173,8 @@ function initializePlanningRoutesServiceModule() {
   isGanttSlotCompleted: (slot = {}) => slot?.status === "completed" || slot?.completed === true,
   isManufacturingOutputReceiptRouteStep,
   isLegacyDirectoryWriteBlocked,
+  isPlanningLegacyWritesQuiesced,
+  isPlanningStartDateServerCommandsPrimary,
   isPlanningWorkCenter,
   isSmtOperationWorkCenter,
   isWarehouseIssueRouteStep,
@@ -1681,9 +1895,9 @@ function ensureShiftWorkOrdersModule() {
   return shiftWorkOrdersModuleLoad;
 }
 
-let weeklyProductionControlRuntimeInstance = null;
-let weeklyProductionControlRuntimeLoad = null;
-let weeklyProductionControlRuntimeError = null;
+let weeklyProductionControlLegacyRuntimeInstance = null;
+let weeklyProductionControlLegacyRuntimeLoad = null;
+let weeklyProductionControlLegacyRuntimeError = null;
 let planningPeriodReadModel = null;
 let buildWeeklyPlanningPeriodRows = null;
 let buildWeeklyPlanningPeriodRowsFromCompact = null;
@@ -1705,33 +1919,43 @@ let weeklyPlanningPeriodState = {
 let weeklyPlanningPeriodRefreshTimer = null;
 
 const weeklyProductionControlLoadingInstance = Object.freeze({
-  formatWeeklyProductionControlPercent: (value = 0) => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.formatWeeklyProductionControlPercent(value)
+  formatWeeklyProductionControlPercent: (value = 0) => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.formatWeeklyProductionControlPercent(value)
     : `${Math.round(Number(value || 0))}%`,
-  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.formatWeeklyProductionControlQuantity(value, unit)
+  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.formatWeeklyProductionControlQuantity(value, unit)
     : `${Number(value || 0).toLocaleString("ru-RU")} ${unit}`,
-  getWeeklyProductionControlModel: () => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.getWeeklyProductionControlModel()
+  getWeeklyProductionControlModel: () => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.getWeeklyProductionControlModel()
     : ({ rows: [], totals: {} }),
-  renderWeeklyProductionControlPage: () => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.renderWeeklyProductionControlPage()
+  renderWeeklyProductionControlPage: () => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.renderWeeklyProductionControlPage()
     : renderMesModulePatternPage({
     moduleId: "weeklyProductionControl",
     header: {
       title: "Контроль недели",
-      description: weeklyProductionControlRuntimeError
+      description: weeklyProductionControlLegacyRuntimeError
         ? "Не удалось загрузить модуль контроля недели. Обновите страницу."
         : "Загружаем данные контроля недели…",
     },
     content: renderUiEmptyState({
-      title: weeklyProductionControlRuntimeError ? "Модуль недоступен" : "Загружаем модуль",
-      description: weeklyProductionControlRuntimeError
+      title: weeklyProductionControlLegacyRuntimeError ? "Модуль недоступен" : "Загружаем модуль",
+      description: weeklyProductionControlLegacyRuntimeError
         ? "Обновите страницу. Если ошибка повторится, передайте время её появления в поддержку."
         : "Экран откроется автоматически.",
     }),
     }),
-  bindWeeklyProductionControlEvents: () => weeklyProductionControlRuntimeInstance?.bindWeeklyProductionControlEvents(),
+  bindWeeklyProductionControlEvents: () => weeklyProductionControlLegacyRuntimeInstance?.bindWeeklyProductionControlEvents(),
+});
+
+const weeklyProductionControlProductionRuntimeInstance = Object.freeze({
+  formatWeeklyProductionControlPercent: (value = 0) => {
+    const rounded = Math.round(Number(value || 0));
+    return `${rounded > 0 ? "+" : ""}${rounded}%`;
+  },
+  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => (
+    `${Math.round(Number(value || 0)).toLocaleString("ru-RU")} ${unit || "шт."}`
+  ),
 });
 
 // Weekly control is intentionally usable before either Gantt or the workshop
@@ -1924,11 +2148,20 @@ function ensureWeeklyPlanningPeriodModule() {
   return weeklyPlanningPeriodModuleLoad;
 }
 
-function getWeeklyPlanningPeriodLookups() {
-  const overrides = getProductionStructureMatrixRuntimeOverrides();
-  const workCentersById = new Map(getProductionStructureWorkCenters(overrides)
+function getWeeklyPlanningPeriodLookups({ canonicalOnly = false } = {}) {
+  if (canonicalOnly && (systemDomainsServerReadState.status !== "server" || !systemDomainsState)) {
+    throw new Error("Canonical System Domains projection is unavailable");
+  }
+  const overrides = canonicalOnly ? null : getProductionStructureMatrixRuntimeOverrides();
+  const workCenters = canonicalOnly
+    ? projectSystemDomainWorkCenters(systemDomainsState, [])
+    : getProductionStructureWorkCenters(overrides);
+  const resources = canonicalOnly
+    ? projectSystemDomainResources(systemDomainsState, [], [])
+    : getProductionStructureResources(overrides);
+  const workCentersById = new Map(workCenters
     .map((item) => [String(item?.id || ""), item]));
-  const resourcesById = new Map(getProductionStructureResources(overrides)
+  const resourcesById = new Map(resources
     .map((item) => [String(item?.id || ""), item]));
   return {
     getWorkCenter: (id) => workCentersById.get(String(id || "")) || null,
@@ -1981,7 +2214,15 @@ function invalidateWeeklyPlanningPeriod() {
   weeklyPlanningPeriodState = {
     ...weeklyPlanningPeriodState,
     stale: true,
-    preferLocal: true,
+    // Startup hydration precedes the first bounded period read and is not a
+    // local write conflict. Preserve compatibility preference only once a
+    // bounded answer exists (or is in flight); subsequent writes still force
+    // the permanent React route to fail closed until its owner catches up.
+    preferLocal: Boolean(
+      weeklyPlanningPeriodState.preferLocal
+      || Array.isArray(weeklyPlanningPeriodState.rows)
+      || weeklyPlanningPeriodState.loading,
+    ),
     epoch: Number(weeklyPlanningPeriodState.epoch || 0) + 1,
   };
   // Service facades publish their current state after a call, including
@@ -2026,6 +2267,15 @@ function setPlanningStateAndInvalidate(nextState) {
 }
 
 function hydrateWeeklyPlanningPeriod() {
+  const weeklyReactAccessMode = getWeeklyProductionControlReactActivation().accessMode;
+  const typedReactRead = weeklyReactAccessMode === "react" || weeklyReactAccessMode === "read-only-evaluation";
+  if (typedReactRead && (systemDomainsServerReadState.status !== "server" || !systemDomainsState)) {
+    if (systemDomainsServerReadState.status === "idle"
+      || (systemDomainsServerReadState.status === "fallback" && systemDomainsServerReadRetryTimer === null)) {
+      void hydrateSystemDomainsServerRead("weeklyProductionControl", { fallbackToLegacy: false });
+    }
+    return;
+  }
   const bounds = getWeeklyPlanningPeriodBounds();
   if (weeklyPlanningPeriodState.loading && weeklyPlanningPeriodState.key === bounds.key) return;
   // The read model owns TTL/ETag revalidation. Avoid a needless render cycle
@@ -2067,17 +2317,17 @@ function hydrateWeeklyPlanningPeriod() {
       if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
       return;
     }
-    const lookups = getWeeklyPlanningPeriodLookups();
+    const lookups = getWeeklyPlanningPeriodLookups({ canonicalOnly: typedReactRead });
     const rows = hasCompactRows
       ? buildWeeklyPlanningPeriodRowsFromCompact(result.rows, {
         toDate,
-        mapWorkCenterId: mapLegacyWorkCenterId,
+        mapWorkCenterId: typedReactRead ? (value) => String(value || "") : mapLegacyWorkCenterId,
         ...lookups,
-        resolveSlotPresentation: resolveWeeklyCompactSlotPresentation,
+        ...(typedReactRead ? {} : { resolveSlotPresentation: resolveWeeklyCompactSlotPresentation }),
       })
       : buildWeeklyPlanningPeriodRows(result.projection, {
         toDate,
-        mapWorkCenterId: mapLegacyWorkCenterId,
+        mapWorkCenterId: typedReactRead ? (value) => String(value || "") : mapLegacyWorkCenterId,
         ...lookups,
       });
     // A 304 only means the server answer did not change; it does not prove
@@ -2085,8 +2335,8 @@ function hydrateWeeklyPlanningPeriod() {
     // Accept the compact response again only after its visible weekly rows
     // match the in-memory compatibility projection.
     const preferLocal = preferLocalBeforeRefresh
-      && !(typeof weeklyPlanningRowsEquivalent === "function"
-        && weeklyPlanningRowsEquivalent(rows, getWeeklyPlanningLocalRows(bounds), { toDate }));
+      && (typedReactRead || !(typeof weeklyPlanningRowsEquivalent === "function"
+        && weeklyPlanningRowsEquivalent(rows, getWeeklyPlanningLocalRows(bounds), { toDate })));
     weeklyPlanningPeriodState = {
       key: bounds.key,
       rows,
@@ -2112,24 +2362,32 @@ function hydrateWeeklyPlanningPeriod() {
   });
 }
 
-function getWeeklyProductionControlRuntimeInstance() {
-  if (weeklyProductionControlRuntimeInstance) return weeklyProductionControlRuntimeInstance;
-  if (!weeklyProductionControlRuntimeLoad) {
-    weeklyProductionControlRuntimeLoad = import("./modules/weekly_production_control/render.js")
+function getWeeklyProductionControlLegacyRuntimeInstance() {
+  if (weeklyProductionControlLegacyRuntimeInstance) return weeklyProductionControlLegacyRuntimeInstance;
+  if (!weeklyProductionControlLegacyRuntimeLoad) {
+    weeklyProductionControlLegacyRuntimeLoad = import("./modules/weekly_production_control/render.js")
       .then(({ createWeeklyProductionControlModule }) => {
-        weeklyProductionControlRuntimeInstance = createWeeklyProductionControlRuntimeInstance(createWeeklyProductionControlModule);
+        weeklyProductionControlLegacyRuntimeInstance = createWeeklyProductionControlRuntimeInstance(createWeeklyProductionControlModule);
         hydrateWeeklyPlanningPeriod();
         if (ui.activeModule === "weeklyProductionControl") render();
-        return weeklyProductionControlRuntimeInstance;
+        return weeklyProductionControlLegacyRuntimeInstance;
       })
       .catch((error) => {
-        weeklyProductionControlRuntimeError = error;
+        weeklyProductionControlLegacyRuntimeError = error;
         console.error("Не удалось загрузить модуль контроля недели", error);
         if (ui.activeModule === "weeklyProductionControl") render();
         return weeklyProductionControlLoadingInstance;
       });
   }
   return weeklyProductionControlLoadingInstance;
+}
+
+function getWeeklyProductionControlRuntimeInstance() {
+  return selectWeeklyProductionControlRuntime({
+    accessMode: getWeeklyProductionControlReactActivation().accessMode,
+    productionInstance: weeklyProductionControlProductionRuntimeInstance,
+    loadLegacyRuntime: getWeeklyProductionControlLegacyRuntimeInstance,
+  });
 }
 
 const PRODUCTION_STRUCTURE_REGISTRY_IDS = new Set(["employees", "positions", "orgUnits", "workCenters", "equipment", "responsibilityPolicies", "migrationDiagnostics"]);
@@ -2801,9 +3059,12 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
     prepareSpecifications2Publication,
     commitSpecifications2Publication,
     publishSpecifications2Entry: (entry) => commitSpecifications2Publication(entry),
-    publishServerRevision: (entry, { expectedPreviousRevision } = {}) => isLegacyDirectoryWriteBlocked()
-      ? Promise.resolve({ ok: false, disabled: true, error: "Публикация доступна только для чтения: серверная команда совместимого состава изделия ещё не подключена." })
-      : specifications2PublishCommands?.publishRevision?.({ entry, expectedPreviousRevision }) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
+    // Nomenclature/Directory primary ownership blocks only the legacy local
+    // compatibility commit above. A server-first publication has its own
+    // authenticated PostgreSQL command and exact shared-state authority bridge,
+    // so the three owners are safe to run together during permanent cutover.
+    publishServerRevision: (entry, { expectedPreviousRevision } = {}) => specifications2PublishCommands?.publishRevision?.({ entry, expectedPreviousRevision })
+      || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
     getServerPublicationCapability: (options) => specifications2PublishCommands?.refreshCapability?.(options) || Promise.resolve({
       ok: false,
       enabled: false,
@@ -3916,38 +4177,87 @@ function isWeeklyProductionControlReactEvaluationRequested() {
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
 function getWeeklyProductionControlReactReadState() {
-  const serverReadFailure = weeklyProductionControlRuntimeError
-    ? "model-unavailable"
-    : weeklyPlanningPeriodState.fallbackReason
+  const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+    ? "read-unavailable"
+    : weeklyPlanningPeriodState.fallbackReason || weeklyPlanningPeriodState.preferLocal
       ? "compatibility-fallback"
       : weeklyPlanningPeriodState.error
         ? "read-unavailable"
         : "";
   return {
     serverReadFailure,
-    serverReadReady: Boolean(weeklyProductionControlRuntimeInstance)
+    serverReadReady: systemDomainsServerReadState.status === "server"
+      && Boolean(systemDomainsState)
       && Array.isArray(weeklyPlanningPeriodState.rows)
       && !weeklyPlanningPeriodState.loading
       && !serverReadFailure,
   };
 }
+
+function getWeeklyProductionControlReactActivation() {
+  const localQa = getWeeklyProductionControlReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "weeklyProductionControl",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true && serverEvaluationAllowed,
+    evaluationRequested: isWeeklyProductionControlReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && localQa.readOnlyEvaluation,
+  });
+  const activation = {
+    ...runtimeActivation,
+    ...getWeeklyProductionControlReactReadState(),
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+  if (new URLSearchParams(window.location.search).get("qa-auth-bypass") === "1"
+    && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)) {
+    window.__MES_WEEKLY_PRODUCTION_CONTROL_ACTIVATION__ = activation;
+  }
+  return activation;
+}
+
+function getWeeklyProductionControlReadModelInput() {
+  const bounds = getWeeklyPlanningPeriodBounds();
+  if (weeklyPlanningPeriodState.key !== bounds.key
+    || systemDomainsServerReadState.status !== "server"
+    || !systemDomainsState
+    || !Array.isArray(weeklyPlanningPeriodState.rows)
+    || weeklyPlanningPeriodState.loading
+    || weeklyPlanningPeriodState.preferLocal
+    || weeklyPlanningPeriodState.error
+    || weeklyPlanningPeriodState.fallbackReason) {
+    throw new Error("Weekly Production Control bounded owner projection is unavailable");
+  }
+  const weekStart = startOfWeek(new Date());
+  const workCenters = projectSystemDomainWorkCenters(systemDomainsState, []).map((center) => ({
+    ...center,
+    id: String(center?.id || ""),
+    parentWorkCenterId: String(center?.parentWorkCenterId || ""),
+  }));
+  const resources = projectSystemDomainResources(systemDomainsState, [], []).map((resource) => ({
+    ...resource,
+    workCenterId: String(resource?.workCenterId || resource?.id || ""),
+  }));
+  return buildWeeklyProductionControlReadInput({
+    generatedAt: new Date(),
+    weekStart,
+    weekAnchor: toDateInput(weekStart),
+    // `rows` is the bounded /api/v1/planning/period?view=weekly projection.
+    // Raw execution/report stores are runtime owners; no renderer view-model
+    // or Weekly legacy model is allowed across this DTO boundary.
+    periodRows: weeklyPlanningPeriodState.rows,
+    workCenters,
+    resources,
+    planningAssignments: planningState.shiftMasterAssignments,
+    boardAssignments: ui.shiftMasterBoardAssignments,
+    boardFacts: ui.shiftMasterBoardFacts,
+    authSessionFactDrafts: ui.authSessionFactDrafts,
+    issueReports: ui.shiftWorkOrderIssueReports,
+  });
+}
+
 const weeklyProductionControlReactIslandHost = createWeeklyProductionControlReactIslandHost({
-  getActivation: () => {
-    const localQa = getWeeklyProductionControlReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true;
-    const runtimeActivation = resolveReactRuntimeActivation({
-      surfaceId: "weeklyProductionControl",
-      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true && serverEvaluationAllowed,
-      evaluationRequested: isWeeklyProductionControlReactEvaluationRequested(),
-      localQaEnabled: localQa.featureFlagEnabled && localQa.readOnlyEvaluation,
-    });
-    return {
-      ...runtimeActivation,
-      ...getWeeklyProductionControlReactReadState(),
-      policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
-    };
-  },
-  getPayload: () => ({ model: getWeeklyProductionControlRuntimeInstance().getWeeklyProductionControlModel() }),
+  getActivation: getWeeklyProductionControlReactActivation,
+  getPayload: () => ({ productionInput: getWeeklyProductionControlReadModelInput() }),
   getTargetRoot: () => app,
   requestLegacyRender: () => {
     if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
@@ -4054,23 +4364,197 @@ function isPlanningWorkbenchReactEvaluationRequested() {
   if (params.get("react-planning-workbench-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function isPlanningWorkbenchReactWriteEvaluationRequested() {
+  return isPlanningWorkbenchReactWriteEvaluationUrlRequested()
+    && Boolean(getAuthenticatedAccessPerson());
+}
+function isPlanningWorkbenchReactWriteEvaluationUrlRequested() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("react-planning-workbench-write-evaluation") === "1";
+}
+function ensurePlanningCommandCapabilities({ force = false } = {}) {
+  if (!workOrdersReadModel?.getCommandCapabilities) return Promise.resolve(planningCommandCapabilitiesState);
+  if (!force && planningCommandCapabilitiesState.status === "ready") return Promise.resolve(planningCommandCapabilitiesState);
+  if (planningCommandCapabilitiesPromise) return planningCommandCapabilitiesPromise;
+  planningCommandCapabilitiesState = { status: "loading", result: null, error: "" };
+  planningCommandCapabilitiesPromise = workOrdersReadModel.getCommandCapabilities().then((result) => {
+    const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
+    const serverEmployeeId = String(result?.actor?.employeeId || "");
+    const actorMatches = result?.ok === true
+      && Boolean(localEmployeeId)
+      && serverEmployeeId === localEmployeeId;
+    if (result?.ok === true && !actorMatches) {
+      void deleteEmployeeServerSession().catch(() => {});
+      planningCommandCapabilitiesState = {
+        status: "error",
+        result: null,
+        error: "Серверные права Planning подтвердил другой сотрудник. Сессия закрыта.",
+      };
+    } else {
+      planningCommandCapabilitiesState = {
+        status: "ready",
+        result: actorMatches ? result : null,
+        error: actorMatches ? "" : String(result?.error || "Серверные права Planning не подтверждены."),
+      };
+    }
+    if (appBootstrapped && ui?.activeModule === "planning") render({ skipRememberScroll: true });
+    return planningCommandCapabilitiesState;
+  }).catch((error) => {
+    planningCommandCapabilitiesState = {
+      status: "error",
+      result: null,
+      error: `Серверные права Planning недоступны: ${error?.message || String(error)}`,
+    };
+    return planningCommandCapabilitiesState;
+  }).finally(() => { planningCommandCapabilitiesPromise = null; });
+  return planningCommandCapabilitiesPromise;
+}
+function getPlanningWorkbenchReactActivation() {
+  const localQa = getPlanningWorkbenchReactLocalQaOverrides();
+  const readStatus = workOrdersReadModel?.getStatus?.() || {};
+  const model = getPlanningWorkbenchModel();
+  const serverProjectionReady = model.projectionSource === "server";
+  const authenticatedPerson = getAuthenticatedAccessPerson();
+  const authenticatedAccess = Boolean(authenticatedPerson);
+  const signedServerActor = getEmployeeServerActor();
+  const signedServerSessionReady = employeeServerSessionState.authenticated === true
+    && Boolean(signedServerActor?.employeeId)
+    && String(signedServerActor.employeeId) === String(authenticatedPerson?.id || "");
+  const canEditPlanning = authorizeSystemDomainAction("planning", "edit");
+  const planningCapability = planningCommandCapabilitiesState.result;
+  const signedPlanningCapabilityReady = planningCapability?.ok === true
+    && planningCapability.authenticated === true
+    && String(planningCapability.actor?.employeeId || "") === String(authenticatedPerson?.id || "")
+    && planningCapability.capabilities?.canEditPlanning === true
+    && planningCapability.capabilities?.startDateEnabled === true
+    && planningCapability.capabilities?.quantityEnabled !== true
+    && planningCapability.capabilities?.slotScheduleEnabled !== true;
+  const serverWriteEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH_WRITE_EVALUATION === true;
+  const writeEvaluationRequested = isPlanningWorkbenchReactWriteEvaluationRequested();
+  const liveWriteEvaluationEligible = serverWriteEvaluationAllowed
+    && writeEvaluationRequested
+    && isPlanningStartDateServerCommandsPrimary()
+    && authenticatedAccess
+    && canEditPlanning
+    && serverProjectionReady;
+  const liveWriteEvaluationReady = liveWriteEvaluationEligible
+    && signedServerSessionReady
+    && signedPlanningCapabilityReady;
+  const readEvaluationRequested = MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION === true
+    && isPlanningWorkbenchReactEvaluationRequested();
+  const localEvaluationEnabled = localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation);
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "planningWorkbench",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH === true,
+    evaluationRequested: readEvaluationRequested || liveWriteEvaluationEligible,
+    localQaEnabled: localEvaluationEnabled,
+  });
+  if (!localQa.writeEvaluation
+    && (serverWriteEvaluationAllowed || runtimeActivation.runtimeMode === "react")
+    && employeeServerSessionState.status === "idle") {
+    void reconcileEmployeeServerSession();
+  }
+  if (!localQa.writeEvaluation
+    && liveWriteEvaluationEligible
+    && signedServerSessionReady
+    && planningCommandCapabilitiesState.status === "idle") {
+    void ensurePlanningCommandCapabilities();
+  }
+  // Retention follows the explicit browser session, not transient owner
+  // readiness during config/bootstrap hydration. Otherwise a reload can erase
+  // the only safe retry key milliseconds before the owner flag becomes ready.
+  const startDateReconciliationSessionRequested = localQa.writeEvaluation
+    || runtimeActivation.runtimeMode === "react"
+    || (serverWriteEvaluationAllowed && isPlanningWorkbenchReactWriteEvaluationUrlRequested());
+  const startDateReconciliationScopeEnabled = isPlanningStartDateServerCommandsPrimary()
+    && startDateReconciliationSessionRequested;
+  const activation = {
+    ...runtimeActivation,
+    serverReadReady: readStatus.bootstrapAvailable === true
+      && !readStatus.bootstrapLoading
+      && !readStatus.bootstrapError
+      && Boolean(getDomainWorkOrderDetail(ui.activeRouteId)),
+    serverProjectionReady,
+    startDateServerCommandsPrimary: isPlanningStartDateServerCommandsPrimary(),
+    authenticatedAccess,
+    signedServerSessionReady,
+    signedPlanningCapabilityReady,
+    canEditPlanning,
+    writeEvaluationRequested,
+    liveWriteEvaluationEligible,
+    liveWriteEvaluationReady,
+    startDateReconciliationScopeEnabled,
+    startDateReconciliationSessionRequested,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && (localQa.writeEvaluation || liveWriteEvaluationEligible)
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+  const planningCapabilityProvesStartDateOwnerDisabled = planningCommandCapabilitiesState.status === "ready"
+    && planningCapability?.ok === true
+    && planningCapability.capabilities?.startDateOwnerConfigured === false;
+  if (activation.startDateReconciliationSessionRequested !== true || planningCapabilityProvesStartDateOwnerDisabled) {
+    // A retained command is meaningful only inside the exact bounded owner
+    // rollout. Removing the request flag or owner flag must never leave a
+    // latent replay CTA in a read-only/legacy session.
+    clearPlanningStartDateReconciliation();
+  }
+  return activation;
+}
+function canPlanningWorkbenchReactWrite(activation = getPlanningWorkbenchReactActivation(), model = getPlanningWorkbenchModel()) {
+  const localQa = getPlanningWorkbenchReactLocalQaOverrides();
+  if (localQa.writeEvaluation) {
+    return model.projectionSource === "server" && authorizeSystemDomainAction("planning", "edit");
+  }
+  return ["write-evaluation", "react"].includes(activation.accessMode)
+    && activation.startDateServerCommandsPrimary === true
+    && activation.authenticatedAccess === true
+    && activation.signedServerSessionReady === true
+    && activation.signedPlanningCapabilityReady === true
+    && activation.canEditPlanning === true
+    && model.projectionSource === "server";
+}
 const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost({
-  getActivation: () => {
-    const localQa = getPlanningWorkbenchReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION === true;
-    const readStatus = workOrdersReadModel?.getStatus?.() || {};
+  getActivation: getPlanningWorkbenchReactActivation,
+  getPayload: () => {
+    const activation = getPlanningWorkbenchReactActivation();
+    const model = getPlanningWorkbenchModel();
+    const canEdit = canPlanningWorkbenchReactWrite(activation, model);
+    const reconciliationEnabled = activation.startDateReconciliationSessionRequested === true;
+    const startDateReconciliation = readPlanningStartDateReconciliation({
+      activeRouteId: model.activeRouteId,
+      enabled: reconciliationEnabled,
+    });
     return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH === true || localQa.featureFlagEnabled,
-      serverReadReady: readStatus.bootstrapAvailable === true && !readStatus.bootstrapLoading && !readStatus.bootstrapError && Boolean(getDomainWorkOrderDetail(ui.activeRouteId)),
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isPlanningWorkbenchReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      model,
+      startDateReconciliation,
+      capabilities: {
+        quantityEdit: false,
+        startDateEdit: canEdit,
+        employeeElevation: activation.liveWriteEvaluationEligible === true
+          && activation.signedServerSessionReady !== true,
+      },
+      employeeAuth: {
+        status: String(employeeServerSessionState.status || "idle"),
+        capabilityStatus: String(planningCommandCapabilitiesState.status || "idle"),
+        message: String(employeeServerSessionState.error || planningCommandCapabilitiesState.error || ""),
+      },
     };
   },
-  getPayload: () => { const model = getPlanningWorkbenchModel(); const localQa = getPlanningWorkbenchReactLocalQaOverrides(); return { model, capabilities: { quantityEdit: localQa.writeEvaluation && model.projectionSource === "server" && authorizeSystemDomainAction("planning", "edit") } }; },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
     const [action, ...parts] = String(scope || "").split(":");
     const value = parts.join(":");
-    if (action === "route" && value) { ui.activeRouteId = value; ui.planningWorkItem = ""; persistUiState(); hydratePlanningWorkOrderReadModel(); }
+    if (action === "route" && value) {
+      const reconciliation = readPlanningStartDateReconciliation();
+      if (reconciliation && reconciliation.routeId !== value) {
+        notifySaveSuccess("Сначала проверьте незавершённую команду даты старта.");
+        return;
+      }
+      ui.activeRouteId = value; ui.planningWorkItem = ""; persistUiState(); hydratePlanningWorkOrderReadModel();
+    }
     if (action === "item" && value) { ui.planningWorkItem = value; persistUiState(); }
     if (ui.activeModule === "planning") render({ skipRememberScroll: true });
   },
@@ -4085,6 +4569,8 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     }
     if (!model.queue.some((route) => route.id === id)) return { ok: false, message: "Заказ-наряд больше не существует." };
     if (id === model.activeRouteId) return { ok: true, id };
+    const unresolvedReconciliation = readPlanningStartDateReconciliation();
+    if (unresolvedReconciliation && unresolvedReconciliation.routeId !== id) return { ok: false, message: "Сначала проверьте незавершённую команду даты старта." };
     const previousRouteId = String(ui.activeRouteId || ""); const previousWorkItem = String(ui.planningWorkItem || "");
     ui.activeRouteId = id; ui.planningWorkItem = ""; persistUiState();
     const hydrated = await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
@@ -4097,18 +4583,139 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
   },
   executeCommand: async (command = {}) => {
     const localQa = getPlanningWorkbenchReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "change-quantity") return { ok: false, message: "Изменение тиража недоступно." };
-    if (!authorizeSystemDomainAction("planning", "edit")) return { ok: false, message: "Нет права изменять заказ-наряд." };
-    const model = getPlanningWorkbenchModel(); const routeId = String(command.routeId || "").trim(); const quantity = Number(command.quantity);
+    if (command.type === "request-elevation") return beginPlanningEmployeeElevation();
+    if (!localQa.writeEvaluation) {
+      await reconcileEmployeeServerSession({ force: true });
+      if (employeeServerSessionState.authenticated === true) {
+        await ensurePlanningCommandCapabilities({ force: true });
+      }
+    }
+    const activation = getPlanningWorkbenchReactActivation();
+    if (command.type !== "change-start-date") return { ok: false, message: "В этой проверке доступно только изменение даты старта." };
+    const model = getPlanningWorkbenchModel(); const routeId = String(command.routeId || "").trim();
+    if (!canPlanningWorkbenchReactWrite(activation, model)) return { ok: false, message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false ? "Выполните подтверждённый вход сотрудника, чтобы изменять заказ-наряд." : "Нет подтверждённого права изменять заказ-наряд." };
     if (!routeId || routeId !== model.activeRouteId || !model.queue.some((route) => route.id === routeId)) return { ok: false, message: "Заказ-наряд больше не является активным." };
-    if (!Number.isInteger(quantity) || quantity <= 0) return { ok: false, message: "Укажите целое количество изделий больше нуля." };
     if (model.projectionSource !== "server") return { ok: false, message: "PostgreSQL-проекция заказ-наряда недоступна." };
-    const updated = await changePlanningRouteQuantity(routeId, quantity, { updateSlots: true, requireServerCommand: true, renderOnConflict: false, message: "Тираж заказ-наряда и незавершённые операции пересчитаны" });
-    if (updated !== true) return { ok: false, message: "Тираж не сохранён. Данные могли измениться в другом сеансе — проверьте значения и повторите." };
-    const bootstrapReady = await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
-    if (!bootstrapReady || !getDomainWorkOrderDetail(routeId)) return { ok: false, message: "Тираж сохранён, но обновлённый заказ-наряд пока не загружен. Обновите экран." };
-    queueMicrotask(() => { if (ui.activeModule === "planning") render({ skipRememberScroll: true }); });
-    return { ok: true, id: routeId, quantity };
+    if (command.type === "change-start-date") {
+      const ownsPlanningStartDate = Object.prototype.hasOwnProperty.call(command, "planningStartDate");
+      const planningStartDate = normalizeNullablePlanningStartDate(command.planningStartDate);
+      const expectedRevision = Number(command.expectedRevision);
+      const idempotencyKey = String(command.idempotencyKey || "").trim();
+      if (!ownsPlanningStartDate || planningStartDate === undefined) return { ok: false, message: "Укажите корректную дату старта или явно очистите её." };
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 1) return { ok: false, message: "Не удалось определить исходную ревизию заказ-наряда." };
+      if (!idempotencyKey.startsWith("planning-start-date:") || idempotencyKey.length > 160) return { ok: false, message: "Не удалось подготовить безопасный идентификатор команды." };
+      const reconciliationRequest = { routeId, planningStartDate, expectedRevision, idempotencyKey };
+      const existingReconciliation = readPlanningStartDateReconciliation();
+      if (existingReconciliation && (
+        existingReconciliation.routeId !== routeId
+        || existingReconciliation.planningStartDate !== planningStartDate
+        || existingReconciliation.expectedRevision !== expectedRevision
+        || existingReconciliation.idempotencyKey !== idempotencyKey
+      )) return { ok: false, preserveRequest: false, message: "Сначала проверьте или отмените предыдущую незавершённую команду даты старта." };
+      const retainedReconciliation = retainPlanningStartDateReconciliation(reconciliationRequest, {
+        status: "submitting",
+        message: "Ответ команды ещё не подтверждён. Проверьте состояние тем же безопасным запросом.",
+      });
+      if (!retainedReconciliation) return { ok: false, preserveRequest: false, message: "Запрос не отправлен: браузер не смог безопасно сохранить команду в памяти сеанса. Разрешите sessionStorage или обновите страницу." };
+      let result;
+      try {
+        result = await changePlanningRouteStartDate(routeId, planningStartDate, { expectedRevision, idempotencyKey, requireServerCommand: true, renderOnConflict: false });
+      } catch (error) {
+        retainPlanningStartDateReconciliation(reconciliationRequest, {
+          status: "transport-unknown",
+          message: "Ответ сервера не получен. Проверьте состояние тем же безопасным запросом.",
+        });
+        planningWorkbenchReactIslandHost.update();
+        throw error;
+      }
+      if (result.kind === "superseded") {
+        clearPlanningStartDateReconciliation();
+        const bootstrapReady = await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
+        const readBack = getDomainWorkOrderDetail(routeId) || result.item || null;
+        const canonicalStartDate = readCanonicalPlanningStartDate(readBack);
+        const canonicalPlanningStartDate = canonicalStartDate.value;
+        // Keep the mounted Scenario alive until it receives the superseded
+        // result below. A shell render here would unmount the component while
+        // its save promise is still pending and erase the canonical-B
+        // explanation that the Scenario is about to publish.
+        planningWorkbenchReactIslandHost.update();
+        return {
+          ok: false,
+          preserveRequest: false,
+          code: "superseded-idempotent-replay",
+          ...(canonicalStartDate.available ? { canonicalPlanningStartDate } : {}),
+          message: bootstrapReady && canonicalStartDate.available
+            ? canonicalPlanningStartDate
+              ? `Пока ответ проверялся, дата была изменена другим сотрудником на ${canonicalPlanningStartDate}. Показано актуальное значение; если нужно вернуть прежнюю дату, выберите её снова и сохраните новой командой.`
+              : "Пока ответ проверялся, дата была очищена другой командой. Показано актуальное пустое значение; при необходимости выберите дату и сохраните новой командой."
+            : "Пока ответ проверялся, дата была изменена другой командой. Обновите заказ-наряд и при необходимости сохраните дату заново.",
+        };
+      }
+      if (result.applied !== true) {
+        let canonicalConflictItem = null;
+        if (result.kind === "conflict") {
+          clearPlanningStartDateReconciliation();
+          // The 409 item invalidates the atomic workbench bootstrap cache.
+          // Re-hydrate it before updating the mounted island; otherwise
+          // getActivation() sees serverReadReady=false and a fallback render
+          // silently switches the user to legacy after the conflict.
+          await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
+          canonicalConflictItem = getDomainWorkOrderDetail(routeId) || result.item || null;
+          // The host deliberately suppressed the legacy conflict render, so
+          // update the mounted React payload without unmounting Scenario state;
+          // otherwise the next explicit retry rotates its key but still uses
+          // the stale pre-conflict expectedRevision and loops on 409.
+          planningWorkbenchReactIslandHost.update();
+        } else {
+          retainPlanningStartDateReconciliation(reconciliationRequest, {
+            status: "transport-unknown",
+            message: "Дата старта не подтверждена сервером. Проверьте состояние тем же безопасным запросом.",
+          });
+          planningWorkbenchReactIslandHost.update();
+        }
+        return {
+          ok: false,
+          preserveRequest: result.kind !== "conflict",
+          code: result.kind === "conflict" ? "conflict" : result.kind || "unavailable",
+          ...(canonicalConflictItem ? {
+            ...(readCanonicalPlanningStartDate(canonicalConflictItem).available
+              ? { canonicalPlanningStartDate: readCanonicalPlanningStartDate(canonicalConflictItem).value }
+              : {}),
+            canonicalRevision: Number(canonicalConflictItem.concurrencyRevision || 0),
+          } : {}),
+          message: result.kind === "conflict"
+            ? "Дата не сохранена: заказ-наряд изменился в другом сеансе. Показано актуальное значение; проверьте его и повторите новой командой."
+            : "Дата старта не подтверждена сервером. Проверьте состояние тем же безопасным запросом.",
+        };
+      }
+      const bootstrapReady = await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
+      const readBack = getDomainWorkOrderDetail(routeId);
+      const canonicalReadBack = readCanonicalPlanningStartDate(readBack);
+      if (!bootstrapReady || !canonicalReadBack.available || canonicalReadBack.value !== planningStartDate) {
+        const message = "Дата сохранена, но подтверждённое значение пока не загружено. Повторите сохранение с тем же безопасным идентификатором.";
+        retainPlanningStartDateReconciliation(reconciliationRequest, { status: "readback-pending", message });
+        planningWorkbenchReactIslandHost.update();
+        return { ok: false, preserveRequest: true, committed: true, message };
+      }
+      // Publish the canonical owner revision without replacing the React root.
+      // In particular, the rollback-pending branch below must retain the exact
+      // request key and its reconciliation CTA inside the mounted Scenario.
+      if (result.rollbackReady !== true) {
+        const message = "Дата сохранена в PostgreSQL, но legacy-зеркало ещё не подтверждено. Повторите сохранение: безопасный идентификатор команды сохранён.";
+        retainPlanningStartDateReconciliation(reconciliationRequest, { status: "rollback-pending", message });
+        planningWorkbenchReactIslandHost.update();
+        return {
+          ok: false,
+          preserveRequest: true,
+          committed: true,
+          code: "rollback-pending",
+          message,
+        };
+      }
+      clearPlanningStartDateReconciliation();
+      planningWorkbenchReactIslandHost.update();
+      return { ok: true, id: routeId, planningStartDate };
+    }
   },
 });
 async function executeShiftExecutionAssignmentCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
@@ -4773,6 +5380,36 @@ const ganttReactIslandHost = createGanttReactIslandHost({
     const [action, slotId] = String(scope || "").split(":");
     if (action === "slot" && slotId) ui.selectedSlotId = slotId;
     if (ui.activeModule === "gantt") render({ skipRememberScroll: true });
+  },
+  navigate: async (navigation = {}) => {
+    if (navigation.type === "set-window-start") {
+      const value = String(navigation.value || "").trim();
+      const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(fromDateInput(value)) : new Date(Number.NaN);
+      if (Number.isNaN(parsed.getTime()) || toDateInput(parsed) !== value) return { ok: false, message: "Дата начала периода некорректна." };
+      ui.windowStart = value;
+      ui.scrollLeft = 0;
+      ui.scrollTop = 0;
+      persistUiState({ skipRememberScroll: true });
+      render({ skipRememberScroll: true });
+      return { ok: true };
+    }
+    if (navigation.type === "set-scale") {
+      const scale = String(navigation.scale || "");
+      if (!scaleConfig[scale]) return { ok: false, message: "Масштаб времени недоступен." };
+      ui.scale = scale;
+      ui.ganttZoom = scale === "hours" ? Math.max(normalizeGanttZoom(ui.ganttZoom), 1.5) : normalizeGanttZoom(ui.ganttZoom);
+      persistUiState({ skipRememberScroll: true });
+      render({ skipRememberScroll: true });
+      return { ok: true };
+    }
+    if (navigation.type === "set-zoom" && ["out", "reset", "in"].includes(navigation.action)) {
+      setGanttZoom(navigation.action);
+      return { ok: true };
+    }
+    if (navigation.type === "jump-today") return { ok: true, ...jumpGanttToToday() };
+    if (navigation.type === "toggle-expanded-routes") return { ok: true, ...toggleAllVisibleGanttRoutes() };
+    if (navigation.type === "toggle-quantity") return { ok: true, ...toggleGanttQuantityVisibility() };
+    return { ok: false, message: "Команда панели Ганта не поддерживается." };
   },
   executeCommand: async (command = {}) => {
     const localQa = getGanttReactLocalQaOverrides();
@@ -6265,7 +6902,7 @@ function initializePlanningWorkbenchModule(factory) {
   renderUiModulePage,
   renderUiPanel, renderUiPanelBody, renderUiStatusToken, renderUiModuleSidebar, renderUiSidebarItem, renderUiTableControlAttributes, renderUiTableWrap,
   resolveProductionResourceType,
-  routeStepRequiresManualPlanningLine, toDate,
+  routeStepRequiresManualPlanningLine, toDate, toDateInput,
   }));
 }
 function ensurePlanningWorkbenchModule() {
@@ -7139,6 +7776,13 @@ async function restorePlanningWorkbenchSnapshotFallback() {
 }
 async function hydratePlanningWorkbenchBootstrap({ force = false, renderOnChange = false } = {}) {
   if (!await ensurePlanningDomainApiModule()) return false;
+  const retainedStartDateReconciliation = readPlanningStartDateReconciliation();
+  if (retainedStartDateReconciliation?.routeId) {
+    // Module re-entry and page reload normally clear/canonicalize the Planning
+    // selection. An unknown command outcome must instead reopen its exact
+    // aggregate so the retained key can be reconciled visibly.
+    ui.activeRouteId = retainedStartDateReconciliation.routeId;
+  }
   const requestedActiveRouteId = String(ui.activeRouteId || "");
   const result = await workOrdersReadModel.refreshWorkbenchBootstrap(requestedActiveRouteId, { force });
   if (!result.ok) {
@@ -7272,7 +7916,7 @@ function ensureGanttPlanningRuntimeProjection() {
   });
   return ganttPlanningProjectionGateLoad;
 }
-async function hydratePlanningRuntimeProjection({ force = false } = {}) {
+async function hydratePlanningRuntimeProjection({ force = false, renderOnChange = true } = {}) {
   // Both the initial shared-state handshake and the first Gantt render can
   // request this projection in the same browser tick. They must share one
   // network request; otherwise a slow link spuriously activates the legacy
@@ -7325,7 +7969,7 @@ async function hydratePlanningRuntimeProjection({ force = false } = {}) {
       // forced caller must then observe one more PostgreSQL projection rather
       // than accepting the pre-command response it happened to join.
     } while (planningRuntimeProjectionForceRefreshRequested);
-    if (applied && ["planning", "gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)) {
+    if (renderOnChange && applied && ["planning", "gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)) {
       render({ skipRememberScroll: true });
     }
     return applied;
@@ -7767,12 +8411,14 @@ async function mirrorShiftMasterBoardCarryoverRemovalToServer(row, carryover, { 
   }
 }
 async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
-  if (!await ensurePlanningDomainApiModule()) return options.requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
+  if (isPlanningLegacyWritesQuiesced()) return false;
+  const requireServerCommand = options.requireServerCommand === true;
+  if (!await ensurePlanningDomainApiModule()) return requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   const route = (planningState?.routes || []).find((item) => item.id === routeId);
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
   const expectedRevision = Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
-  if ((!route && options.requireServerCommand !== true) || !Number.isInteger(expectedRevision)) {
-    return options.requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
+  if ((!route && !requireServerCommand) || !Number.isInteger(expectedRevision)) {
+    return requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   }
   const result = await workOrdersReadModel.changeQuantity(routeId, quantity, expectedRevision);
   if (result.ok) {
@@ -7784,7 +8430,7 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
       hydratePlanningRuntimeProjection({ force: true }),
     ]);
     if (serverProjectionApplied) return true;
-    if (options.requireServerCommand === true) {
+    if (requireServerCommand) {
       invalidateWeeklyPlanningPeriod();
       return true;
     }
@@ -7803,7 +8449,7 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
     return fallbackApplied;
   }
   if (result.kind === "unavailable") {
-    return options.requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
+    return requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   }
   if (result.kind === "conflict") {
     await Promise.all([
@@ -7815,12 +8461,68 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
   }
   return false;
 }
+async function changePlanningRouteStartDate(routeId, planningStartDate, options = {}) {
+  if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: "unavailable" };
+  const route = (planningState?.routes || []).find((item) => item.id === routeId);
+  const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
+  const requestedRevision = Number(options.expectedRevision);
+  const expectedRevision = Number.isInteger(requestedRevision)
+    ? requestedRevision
+    : Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
+  if ((!projected && !route) || !Number.isInteger(expectedRevision)) return { applied: false, kind: "unavailable" };
+  const result = await workOrdersReadModel.changeStartDate(routeId, planningStartDate, expectedRevision, {
+    idempotencyKey: String(options.idempotencyKey || ""),
+  });
+  if (result.kind === "superseded") {
+    const [detailResult] = await Promise.all([
+      workOrdersReadModel.refreshDetail(routeId, { force: true }),
+      hydratePlanningRuntimeProjection({ force: true, renderOnChange: false }),
+    ]);
+    return {
+      applied: false,
+      kind: "superseded",
+      code: "superseded-idempotent-replay",
+      item: detailResult.item || result.item,
+    };
+  }
+  if (result.ok) {
+    const [detailResult, serverProjectionApplied] = await Promise.all([
+      workOrdersReadModel.refreshDetail(routeId, { force: true }),
+      hydratePlanningRuntimeProjection({ force: true, renderOnChange: false }),
+    ]);
+    const canonicalDate = readCanonicalPlanningStartDate(detailResult.item);
+    if (!canonicalDate.available || canonicalDate.value !== planningStartDate) return { applied: false, kind: "unavailable" };
+    if (!serverProjectionApplied && route) {
+      syncPlanningRouteStartDate(routeId, planningStartDate, {
+        persist: false,
+        notify: false,
+        render: false,
+        domainConcurrencyRevision: result.item.concurrencyRevision,
+      });
+    }
+    return {
+      applied: true,
+      kind: result.idempotentReplay ? "idempotent-replay" : "updated",
+      item: result.item,
+      snapshotSync: result.snapshotSync || null,
+      rollbackReady: result.compatibilityReady !== false,
+    };
+  }
+  if (result.kind === "conflict") {
+    await Promise.all([workOrdersReadModel.refresh({ force: true }), workOrdersReadModel.refreshDetail(routeId, { force: true })]);
+    notifySaveSuccess("Дата старта уже изменена в другом сеансе. Экран обновлён.");
+    if (options.renderOnConflict !== false) render();
+  }
+  return { applied: false, kind: result.kind || "unavailable" };
+}
 async function changePlanningSlotSchedule(routeId, operationId, plannedStart, options = {}) {
-  if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: "local" };
+  if (isPlanningLegacyWritesQuiesced()) return { applied: false, kind: "evaluation-quiesced" };
+  const requireServerCommand = options.requireServerCommand === true;
+  if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
   const route = (planningState?.routes || []).find((item) => item.id === routeId);
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
   const expectedRevision = Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
-  if (!route || !String(operationId || "") || !Number.isInteger(expectedRevision)) return { applied: false, kind: "local" };
+  if (!route || !String(operationId || "") || !Number.isInteger(expectedRevision)) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
   const result = await workOrdersReadModel.changeSlotSchedule(routeId, operationId, plannedStart, expectedRevision);
   if (result.ok) {
     const [detailResult, serverProjectionApplied] = await Promise.all([
@@ -7844,7 +8546,7 @@ async function changePlanningSlotSchedule(routeId, operationId, plannedStart, op
     notifySaveSuccess("Срок уже изменён в другом сеансе. Экран обновлён.");
     if (options.renderOnConflict !== false) render();
   }
-  return { applied: false, kind: result.kind || "unavailable" };
+  return { applied: false, kind: requireServerCommand && result.kind === "unavailable" ? "server-required" : result.kind || "unavailable" };
 }
 let planningCoreService = {};
 let operationalRuntimeService = {};
@@ -8923,6 +9625,7 @@ function initializeRuntimeStateServiceModule() {
   isShiftExecutionServerAuthoritative,
   isSystemDomainsServerAuthoritative: () => hasObservedSystemDomainsPrimaryAuthority(),
   isNomenclatureServerCommandsPrimary: () => isNomenclatureServerCommandsPrimary(),
+  isPlanningLegacyWritesQuiesced: () => isPlanningLegacyWritesQuiesced(),
   loadUiState,
   measureBootStep,
   mergeMesWorkCenters,
@@ -9227,6 +9930,9 @@ function getVisiblePlanningProjects(...args) { return planningCoreService.getVis
 function getVisibleGanttRoutes(...args) { return planningCoreService.getVisibleGanttRoutes(...args); }
 function isGanttRouteExpanded(...args) { return planningCoreService.isGanttRouteExpanded(...args); }
 function areAllVisibleProjectsExpanded(...args) { return planningCoreService.areAllVisibleProjectsExpanded(...args); }
+function jumpGanttToToday(...args) { return planningCoreService.jumpGanttToToday(...args); }
+function toggleAllVisibleGanttRoutes(...args) { return planningCoreService.toggleAllVisibleGanttRoutes(...args); }
+function toggleGanttQuantityVisibility(...args) { return planningCoreService.toggleGanttQuantityVisibility(...args); }
 function extendTimelineIfNeeded(...args) { return planningCoreService.extendTimelineIfNeeded(...args); }
 function prependTimelineIfNeeded(...args) { return planningCoreService.prependTimelineIfNeeded(...args); }
 function cascadeBatchFromSlot(...args) { return planningCoreService.cascadeBatchFromSlot(...args); }
@@ -9493,10 +10199,8 @@ function initializeModuleRuntime() {
       publicPorts: [
         "formatWeeklyProductionControlPercent",
         "formatWeeklyProductionControlQuantity",
-        "getWeeklyProductionControlModel",
       ],
       render: (instance) => {
-        ensureProductionStructureMatrixModule();
         const waitingForScheduledReadRetry = Boolean(
           (weeklyPlanningPeriodState.error || weeklyPlanningPeriodState.fallbackReason)
           && weeklyPlanningPeriodRefreshTimer !== null,
@@ -9504,6 +10208,7 @@ function initializeModuleRuntime() {
         if (!waitingForScheduledReadRetry) hydrateWeeklyPlanningPeriod();
         const reactDecision = weeklyProductionControlReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return weeklyProductionControlReactIslandHost.renderTarget();
+        ensureProductionStructureMatrixModule();
         return instance.renderWeeklyProductionControlPage();
       },
       bind: (instance) => {
@@ -9754,6 +10459,111 @@ function applyUiDomainFieldContract() {
   });
 }
 
+const LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE = "На время проверки даты старта изменения данных в legacy-разделах приостановлены. Доступны просмотр и навигация; единственная запись — дата старта в React-блоке.";
+const GANTT_LEGACY_MUTATION_CONTROL_SELECTOR = [
+  "#dependencyEditButton",
+  "#refreshButton",
+  "#optimizePlanButton",
+  "#ganttOptimizationForm",
+  "#slotForm",
+  "[data-slot-quantity]",
+  "[data-resize-slot]",
+  "[data-dependency-edit-route]",
+  "[data-edit-slot]",
+  "[data-cycle-status]",
+  "[data-delete-slot]",
+  "[data-find-window-slot]",
+  "[data-cascade-slot]",
+  "[data-toggle-lock-slot]",
+  "[data-fix-warning]",
+  "[data-fix-all-warnings]",
+  "[data-confirm-approve]",
+].join(",");
+const GANTT_LEGACY_MUTATION_SELECTOR = `${GANTT_LEGACY_MUTATION_CONTROL_SELECTOR},.operation-slot`;
+
+function getPlanningLegacyMutationSelector() {
+  if (ui?.activeModule === "planning") return PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR;
+  if (ui?.activeModule === "gantt") return GANTT_LEGACY_MUTATION_SELECTOR;
+  return "";
+}
+
+function isPlanningLegacyMutationEvent(event) {
+  if (!isPlanningLegacyWritesQuiesced()) return false;
+  const selector = getPlanningLegacyMutationSelector();
+  const target = event?.target;
+  if (!selector || !target?.closest?.(selector)) return false;
+  // A single click on a slot is a read/focus interaction. Keep it available;
+  // only drag/resize (pointerdown), double-click editing and explicit slot
+  // controls are domain mutations during the bounded read-only window.
+  if (ui?.activeModule === "gantt"
+    && event.type === "click"
+    && target.closest(".operation-slot")
+    && !target.closest(GANTT_LEGACY_MUTATION_CONTROL_SELECTOR)) return false;
+  return true;
+}
+
+function blockPlanningLegacyMutationEvent(event) {
+  if (!isPlanningLegacyMutationEvent(event)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (["click", "dblclick", "submit"].includes(event.type)
+    || (event.type === "keydown" && ["Enter", " "].includes(event.key))) {
+    notifySaveSuccess(LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
+  }
+}
+
+function bindPlanningLegacyWriteQuiesceGuard() {
+  if (app.dataset.planningLegacyWriteGuardBound === "1") return;
+  app.dataset.planningLegacyWriteGuardBound = "1";
+  ["click", "dblclick", "submit", "change", "input", "keydown", "pointerdown"].forEach((eventName) => {
+    app.addEventListener(eventName, blockPlanningLegacyMutationEvent, true);
+  });
+}
+
+function disablePlanningLegacyMutationTarget(element) {
+  const targets = element.matches?.("form")
+    ? [element, ...element.querySelectorAll("button, input, select, textarea")]
+    : [element];
+  targets.forEach((target) => {
+    target.classList?.add("is-planning-write-quiesced");
+    target.setAttribute?.("aria-disabled", "true");
+    target.setAttribute?.("title", LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
+    if ("disabled" in target) target.disabled = true;
+  });
+}
+
+function applyPlanningLegacyWriteQuiesceContract() {
+  const active = isLegacyDomainWritesQuiesced();
+  app.dataset.legacyDomainWritesQuiesced = active ? "true" : "false";
+  // Transitional dataset keeps the staged CSS/runtime contract reversible
+  // across an atomic release where the older public flag may still exist.
+  app.dataset.planningLegacyWritesQuiesced = active ? "true" : "false";
+  if (!active) return;
+
+  if (["planning", "gantt"].includes(String(ui?.activeModule || ""))) {
+    bindPlanningLegacyWriteQuiesceGuard();
+    const selector = getPlanningLegacyMutationSelector();
+    if (selector) app.querySelectorAll(selector).forEach(disablePlanningLegacyMutationTarget);
+  }
+
+  if (app.querySelector("[data-legacy-domain-write-pause]")) return;
+  const shell = app.querySelector("main.app-shell[data-layout='app-shell']");
+  if (!shell) return;
+  const banner = document.createElement("div");
+  banner.className = "legacy-domain-write-pause";
+  banner.dataset.legacyDomainWritePause = "true";
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-live", "polite");
+  const title = document.createElement("strong");
+  title.textContent = "Изменения legacy-данных приостановлены";
+  const description = document.createElement("span");
+  description.textContent = LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE;
+  banner.append(title, description);
+  const topbar = shell.querySelector(":scope > .app-topbar");
+  if (topbar) topbar.after(banner);
+  else shell.prepend(banner);
+}
+
 function applyUiRuntimeContracts() {
   if (!app?.isConnected) return;
   UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach(({ selector, component }) => {
@@ -9764,6 +10574,7 @@ function applyUiRuntimeContracts() {
   UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach((selector) => {
     applyUiTableScrollContract(selector);
   });
+  applyPlanningLegacyWriteQuiesceContract();
 }
 
 function isPerformanceQaMode() {
@@ -10549,6 +11360,7 @@ appEventsService = createAppEventsServiceModule({
   completeAuthPrototypeLogin,
   deleteEmployeeSession: () => deleteEmployeeServerSession(),
   isLegacyDirectoryWriteBlocked,
+  isPlanningStartDateServerCommandsPrimary,
   deleteRouteMapConfirmed,
   closeModals: () => closeAppModals(),
   doesAuthSessionFactNeedDeviationComment: (...args) => doesAuthSessionFactNeedDeviationComment(...args),
@@ -10598,6 +11410,7 @@ appEventsService = createAppEventsServiceModule({
   getPlanningRouteQuantity,
   getPlanningRouteSlots,
   getPlanningWorkCenters,
+  getPlanningStartDateReconciliation: () => readPlanningStartDateReconciliation(),
   getProductionContexts,
   getProductionResource,
   getProject,
@@ -11078,6 +11891,7 @@ const {
   isManufacturingOutputReceiptRouteStep,
   isManufacturingOutputReceiptSlot,
   isoLocal,
+  jumpGanttToToday,
   isPlanningUnit: (center) => center?.isPlanningUnit !== false,
   isPlanningWorkCenter,
   isSmtLineWorkCenterId,
@@ -11165,6 +11979,8 @@ const {
   toDate,
   toDateInput,
   toSlotDateTime,
+  toggleAllVisibleGanttRoutes,
+  toggleGanttQuantityVisibility,
   total: 0,
   type: "",
   updateDependencyClip,

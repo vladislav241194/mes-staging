@@ -1,9 +1,8 @@
-import { copyFile, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import { withSharedStateFileLock } from "./shared-state-storage.mjs";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { backupSharedStateFile } from "./shared-state-storage.mjs";
+import { updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
 import {
-  beginPlanningSnapshotObservation,
-  recordPlanningSnapshotObservation,
   resolvePlanningSnapshotObservationEnvironment,
 } from "./planning-snapshot-observer.mjs";
 
@@ -12,6 +11,8 @@ if (!statePath || !routeId) throw new Error("Usage: node specifications2-pilot-c
 
 const initialRaw = await readFile(statePath, "utf8");
 const root = JSON.parse(initialRaw);
+const initialVersion = Number(root.version || 0);
+const initialUpdatedAt = String(root.updatedAt || "");
 const stateKey = "mes-planning-prototype-state-v2";
 const state = JSON.parse(root.values?.[stateKey] || "{}");
 const route = (state.routes || []).find((item) => item.id === routeId);
@@ -173,50 +174,46 @@ if (root.sharedUi.shiftMasterBoardAssignments[assignmentId].sheetContract) {
 root.sharedUi.shiftMasterBoardLaneBySlot[firstSlotId] = "assigned";
 root.values[stateKey] = JSON.stringify(state);
 root.updatedAt = stamp;
-root.updatedBy = "specifications2-end-to-end-qa";
+root.updatedBy = { actor: "specifications2-end-to-end-qa" };
 
 const planningObservationEnv = await resolvePlanningSnapshotObservationEnvironment({
   env: process.env,
   targetSharedStateFile: resolve(statePath),
 });
-let backupPath = "";
-let planningObservation = null;
-
-await withSharedStateFileLock(statePath, async () => {
-  // This seed is deliberately a one-shot QA utility. It must never overwrite
-  // a concurrent Planning change that happened after its test fixture was
-  // prepared, because the durable observation must refer to the actual prior
-  // snapshot.
-  const lockedRaw = await readFile(statePath, "utf8");
-  if (lockedRaw !== initialRaw) {
-    const error = new Error("Specifications 2.0 pilot-chain seed conflicts with a newer shared-state snapshot");
-    error.code = "MES_SHARED_STATE_CONFLICT";
-    throw error;
-  }
-  const currentSnapshot = JSON.parse(lockedRaw);
-  const observation = await beginPlanningSnapshotObservation({
-    env: planningObservationEnv,
-    current: currentSnapshot,
-    next: root,
-    source: "specifications2-pilot-chain-seed",
-  });
-  if (!observation.ok) {
-    const error = new Error(`Specifications 2.0 pilot-chain seed was blocked before writing Planning data: ${observation.error || "Planning snapshot observation is unavailable"}`);
-    error.code = "MES_PLANNING_SNAPSHOT_OBSERVATION_UNAVAILABLE";
-    throw error;
-  }
-
-  backupPath = join(dirname(statePath), `${new Date().toISOString().replaceAll(":", "-")}__before-specifications2-e2e.json`);
-  await copyFile(statePath, backupPath);
-  const temporaryPath = `${statePath}.spec2-e2e.tmp`;
-  await writeFile(temporaryPath, `${JSON.stringify(root, null, 2)}\n`);
-  await rename(temporaryPath, statePath);
-  planningObservation = await recordPlanningSnapshotObservation({
-    observation,
-    snapshot: root,
-    source: "specifications2-pilot-chain-seed",
-  });
+let backup = null;
+const updated = await updateSharedStateSnapshot({
+  env: planningObservationEnv,
+  filePath: resolve(statePath),
+  expectedVersion: initialVersion,
+  planningObservationSource: "specifications2-pilot-chain-seed",
+  update: (current) => {
+    if (Number(current.version || 0) !== initialVersion
+      || String(current.updatedAt || "") !== initialUpdatedAt) {
+      const error = new Error("Specifications 2.0 pilot-chain seed conflicts with a newer shared-state snapshot");
+      error.code = "MES_SHARED_STATE_CONFLICT";
+      throw error;
+    }
+    return root;
+  },
+  beforeWrite: async ({ store }) => {
+    if (store.kind !== "file") {
+      throw new Error("Specifications 2.0 pilot-chain seed requires a file backup before its disposable write");
+    }
+    backup = await backupSharedStateFile({
+      filePath: store.filePath || resolve(statePath),
+      backupDir: dirname(resolve(statePath)),
+      reason: "before-specifications2-e2e",
+      actor: "specifications2-end-to-end-qa",
+      env: planningObservationEnv,
+      allowMissing: false,
+    });
+  },
 });
+if (!updated.ok) {
+  const error = new Error(updated.error || "Specifications 2.0 pilot-chain seed was not persisted by the shared-state authority bridge");
+  error.code = updated.code || (updated.conflict ? "MES_SHARED_STATE_CONFLICT" : "MES_SHARED_STATE_WRITE_FAILED");
+  throw error;
+}
 
 console.log(JSON.stringify({
   routeId,
@@ -224,8 +221,8 @@ console.log(JSON.stringify({
   snapshotId,
   slotIds,
   assignmentId,
-  backupPath,
-  planningSnapshotObservation: planningObservation?.attempted
-    ? (planningObservation.recorded ? "recorded" : "pending")
+  backupPath: backup?.backupPath || "",
+  planningSnapshotObservation: updated.planningObservation?.attempted
+    ? (updated.planningObservation.recorded ? "recorded" : "pending")
     : "not-required",
 }));

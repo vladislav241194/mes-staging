@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "contract": "specifications2-server-commands",
+  "publicationFingerprintAdapterVersion": 6,
+  "workOrderRevisionIdentityVersion": 1,
+  "workOrderRequestFingerprintVersion": 1,
+  "workOrderAggregateIdentityVersion": 1,
+  "attachmentCommandVersion": 1,
+  "authenticatedActorVersion": 1,
+  "rbacAuthorizationVersion": 1,
+  "requestSecurityVersion": 1,
+  "outboxEnvelopeVersion": 1,
+  "controlledRootExclusivity": {
+    "required": true,
+    "lockName": "mes-authority-rollout.lock",
+    "incompatibleTargetRequiresDisabledFlags": [
+      "MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS",
+      "MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS",
+      "MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS"
+    ]
+  },
+  "requiredMigrations": [
+    "019_specifications2_attachment_blobs",
+    "028_specifications2_publication_idempotency",
+    "029_specifications2_revision_identity_backfill",
+    "030_specifications2_legacy_revision_identity_guard",
+    "031_specifications2_guard_function_repair"
+  ]
+}

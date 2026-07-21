@@ -40,6 +40,68 @@ function iso(value) {
   return value?.toISOString?.() || (value ? new Date(value).toISOString() : "");
 }
 
+export async function deleteEmployeeCredential(sql, employeeId, now = new Date()) {
+  const normalizedId = normalizedEmployeeId(employeeId);
+  if (!normalizedId) throw new TypeError("Employee id is required");
+  const at = normalizedDate(now);
+
+  return sql.begin(async (tx) => {
+    // Lock the employee identity first so the credential can only be removed
+    // from the exact requested employee and cannot race an employee lifecycle
+    // change. A missing credential is an idempotent-safe cleanup result, while
+    // a missing employee remains an operator error at the CLI boundary.
+    const [employee] = await tx`
+      SELECT id
+      FROM system_employees
+      WHERE id = ${normalizedId}
+      FOR UPDATE`;
+    if (!employee) {
+      return {
+        employeeExists: false,
+        deleted: false,
+        alreadyAbsent: false,
+        sessionsRevoked: false,
+        authVersion: 0,
+      };
+    }
+
+    // Advance auth_version before deletion so every issued session is
+    // explicitly revoked inside the same transaction. Once committed, the
+    // missing credential is also fail-closed for every session inspection.
+    const [revoked] = await tx`
+      UPDATE system_employee_auth_credentials
+      SET auth_version = auth_version + 1, updated_at = ${at}
+      WHERE employee_id = ${normalizedId}
+      RETURNING auth_version`;
+    if (!revoked) {
+      return {
+        employeeExists: true,
+        deleted: false,
+        alreadyAbsent: true,
+        sessionsRevoked: true,
+        authVersion: 0,
+      };
+    }
+
+    const authVersion = Number(revoked.auth_version);
+    const [deleted] = await tx`
+      DELETE FROM system_employee_auth_credentials
+      WHERE employee_id = ${normalizedId}
+        AND auth_version = ${authVersion}
+      RETURNING employee_id`;
+    if (!deleted || normalizedEmployeeId(deleted.employee_id) !== normalizedId) {
+      throw new Error("Employee credential changed during deletion");
+    }
+    return {
+      employeeExists: true,
+      deleted: true,
+      alreadyAbsent: false,
+      sessionsRevoked: true,
+      authVersion,
+    };
+  });
+}
+
 export function getFailedEmployeeAuthenticationUpdate(row, {
   now = new Date(),
   maxAttempts = 5,
@@ -212,6 +274,10 @@ export function createEmployeeAuthRepository({
         WHERE employee_id = ${normalizedId}
         RETURNING auth_version`;
       return row ? { revoked: true, authVersion: Number(row.auth_version) } : { revoked: false, authVersion: 0 };
+    },
+
+    async deleteCredential(employeeId, now = new Date()) {
+      return deleteEmployeeCredential(sql, employeeId, now);
     },
 
     async close() {},

@@ -36,12 +36,14 @@ permanent-runtime и legacy-consolidation баллы не повышены: эт
 опубликован и не принят на Pilot.
 
 После permanent default-on приёмки Structure Migration Diagnostics на
-`v.1.500.21-8fb92d9` доказанная готовность составляет **50%**. Добавлен
-только один балл permanent runtime: теперь без evaluation/query-флагов
-постоянно работают два read-only сценария из 24. Pilot acceptance
-остаётся 9 баллов, а legacy consolidation — 2: Diagnostics входит в
-смешанный `productionStructureMatrix`, где шесть соседних реестров
-по-прежнему имеют normal legacy path.
+`v.1.500.21-8fb92d9` первоначально было заявлено **50%**. Повторный аудит
+mixed runtime показал, что эта цифра была завышена: у Weekly действительно
+нет видимого legacy renderer, но production React payload всё ещё строился
+через `getWeeklyProductionControlModel()` из legacy `render.js`. После
+разделения `visibleLegacyRendererPath` и `runtimeLegacyModelDependency`
+accepted-live прогресс исправлен до **48%**. Diagnostics добавляет второй
+permanent-runtime балл, но ни он, ни Weekly пока не дают баллов вывода legacy
+из normal runtime принятого Pilot release.
 
 На последующем live release `v.1.500.25-1f8369c` выполнена свежая
 аутентифицированная evaluation-приёмка Nomenclature через новый server owner:
@@ -50,7 +52,17 @@ create -> owner read-back -> edit -> reload/read-back -> delete -> zero cleanup.
 что отдельно доказывает исправление capability-refresh race. После теста
 удалены credential, PIN-файлы, systemd drop-ins, evaluation flags и rollback
 timer. Это обязательное Foundation-доказательство, но не permanent default-on,
-поэтому общий прогресс честно остаётся **50%**.
+поэтому общий прогресс честно остаётся **48%**.
+
+Локально подготовлен Weekly consolidation candidate: React получает явный raw
+DTO из bounded Planning Period API, proven server System Domains и runtime-owner
+fact/report stores; strict TypeScript самостоятельно строит недельную модель.
+Import-graph QA и browser resource proof запрещают загрузку Weekly/Structure
+legacy renderer в постоянном React-пути, model parity сохраняет `25 x 11`, а
+loading/read/mount ошибки остаются fail-closed. Этот результат записан отдельно
+как `local-verified-pilot-pending`: он не возвращает два legacy-consolidation
+балла до публикации точного кандидата на Pilot, fresh authenticated read и
+реального immutable rollback/reactivation drill.
 
 ## Что проверено 2026-07-21
 
@@ -115,13 +127,18 @@ timer. Это обязательное Foundation-доказательство, 
 - Permanent rollout доказан для Weekly Production Control и Structure
   Migration Diagnostics; остальные 22 production-сценария не засчитаны
   как default-on.
-- `requestLegacyRender` остаётся в 29 host/runtime местах.
+- Accepted Pilot Weekly всё ещё имеет runtime dependency от legacy model
+  factory, хотя визуально не показывает legacy renderer. Локальный typed
+  candidate эту зависимость устраняет, но его live acceptance остаётся pending.
+- `requestLegacyRender` остаётся в 25 явных host/runtime definitions.
 - `dispatch` не имеет React-island и остаётся видимым placeholder-модулем.
 - `marking` всегда открывается через React, но пока явно является
   `memory-only MOCK`: без API, БД и сохранения.
-- Strict TypeScript покрывает React-island-дерево, но не весь активный
-  frontend-runtime: в `src` остаётся примерно 83 тыс. строк legacy JavaScript,
-  включая `src/app.js` размером более 10 тыс. строк.
+- Strict TypeScript покрывает React-island-дерево и новый Weekly read-model, но
+  не весь активный frontend-runtime: исполняемый audit сейчас видит 131
+  JavaScript-файл и примерно 87.5 тыс. строк в `src`, при нулевом числе
+  TypeScript-файлов в этом active shell; typed boundary находится в
+  `experiments/react-migration`.
 
 ## Формула прогресса
 
@@ -131,18 +148,18 @@ timer. Это обязательное Foundation-доказательство, 
 | Функциональный parity без обычного возврата в legacy | 25 | 18 | В Roles, Planning, Boards/BOM, Shift Master, Employee Desktop, Specifications 2.0 и Gantt остаются legacy-only команды |
 | Реальная Pilot read/write приёмка | 20 | 9 | Historical read 21/24; permanent-baseline read 2/24; полный write lifecycle только 1/22 и пока evaluation-only |
 | Постоянный default-on React runtime | 20 | 2 | Permanent приняты Weekly и Diagnostics: 2/24 production-сценариев; остальные не засчитаны |
-| Вывод legacy из обычного runtime | 15 | 2 | Weekly больше не использует legacy в normal path; Diagnostics — permanent-остров внутри смешанного Structure route, поэтому новый legacy-removal балл не начислен |
+| Вывод legacy из обычного runtime | 15 | 0 | Accepted Pilot Weekly всё ещё исполняет legacy model factory; локальный typed candidate не засчитывается до Pilot publication/read/rollback proof; Diagnostics остаётся внутри смешанного Structure route |
 | Strict QA, release и rollback-контроли | 5 | 5 | Полный QA/stage, immutable provenance и реальный rollback/reactivation drill доказаны |
-| **Итого** | **100** | **50** | Weekly дал первые 2 permanent/legacy балла; три owner-backed перехода — 1 functional балл; Diagnostics — второй permanent-runtime балл |
+| **Итого** | **100** | **48** | Два permanent read-only сценария приняты, но accepted-live legacy consolidation ещё не доказан |
 
 Расчёт прироста в целочисленной ведомости: permanent runtime —
-`round(20 × 2/24) = 2`; legacy consolidation остаётся 2, потому что
-Diagnostics не выводит из legacy весь верхнеуровневый
-`productionStructureMatrix`. Pilot acceptance остаётся 9 баллов: permanent-
+`round(20 × 2/24) = 2`; legacy consolidation исправлен до 0, потому что
+accepted-live Weekly всё ещё вызывает legacy model factory, а Diagnostics не
+выводит из legacy весь верхнеуровневый `productionStructureMatrix`. Pilot acceptance остаётся 9 баллов: permanent-
 baseline coverage остаётся 2/24, а свежий Nomenclature lifecycle `.25` всё ещё
 evaluation-only, поэтому следующий консервативный порог не пройден. Functional
 parity остаётся 18.
-Итого: `14 + 18 + 9 + 2 + 2 + 5 = 50`.
+Итого: `14 + 18 + 9 + 2 + 0 + 5 = 48`.
 
 Процент меняется только после появления перечисленного доказательства. Зелёный
 локальный тест сам по себе не увеличивает Pilot/default-on/legacy-removal часть.
@@ -151,13 +168,21 @@ parity остаётся 18.
 
 ### Roles и доступ
 
-- multiple и effective-window assignments;
-- personal/assignment responsibility scopes;
-- lifecycle `readOnly` / `active` и связанные owner-контракты.
+- targeted owner для multiple assignments;
+- durable persistence для effective-window assignments;
+- System Domains registry/owner/persistence для subject/assignment responsibility scopes;
+- durable `readOnly` owner/persistence; role-default `self` уже реализован;
+- assigned/current-role deactivation остаётся fail-closed invariant, пока
+  владелец продукта явно не определит атомарную replacement-семантику;
+- полный reset access control не является parity gap: это compatibility-only
+  destructive operation, которую Pilot/staging/user-testing/production
+  блокируют до мутации при `MES_ALLOW_DESTRUCTIVE_ACTIONS=false`.
 
 ### Planning и производственное исполнение
 
-- даты запуска, трудозатраты, перенос в Gantt, отмена;
+- Pilot lifecycle для локально готовой owner-backed даты старта; количество,
+  размещение и перенос слотов, трудозатраты, передача в Gantt и отмена остаются
+  отдельными scope;
 - ручное перемещение lane в Shift Master;
 - durable Report persistence и Pilot lifecycle Employee Desktop;
 - Pilot assignment/fact lifecycle Shift Work Orders.
@@ -209,12 +234,18 @@ parity остаётся 18.
 `experiments/react-migration/cutover-ledger.json`; команда
 `npm run qa:react-cutover` сверяет 16 маршрутов, 24 сценария, 21/24 historical
 Pilot reads, 2/24 current-release reads, 1/22 Pilot writes, две permanent
-React-поверхности и доказанные 50% при сохранённой контрольной точке 46%.
+React-поверхности и доказанные 48% при сохранённой контрольной точке 46%.
 Ledger также сверяет все 25 island entry points, deep-link aliases,
 implemented/missing commands, normal-action fallback, immutable release
 evidence и отсутствие зависимости Blueprint UI. Dispatch помечен как
 placeholder до ТЗ, Marking — как `mock-not-production`; ни один из них не
 увеличивает production completion.
+
+Mixed-runtime schema отдельно хранит accepted-live
+`runtimeLegacyModelDependency=true` и локальный candidate
+`candidateRuntimeLegacyModelDependency=false`. Поэтому зелёные typecheck,
+model-parity, import-graph и production-shell тесты не меняют 48% раньше
+Pilot publication/fresh read/rollback-reactivation evidence.
 
 Блок 0 завершён.
 
@@ -347,6 +378,15 @@ activation record указывает immediate rollback `.24`, а pinned immutab
 остался `.18`. Evaluation stack `.25` полностью выключен. Отдельный фактический
 drill `.25 -> .24 -> .25`, финальный drill всей системы и вывод mixed runtime
 ещё не закрыты.
+
+Локальный Weekly candidate завершил первый кодовый шаг этого блока: strict TS
+read-model получает только canonical System Domains, bounded Planning Period и
+явный raw execution/report DTO; normal React selector не вызывает lazy legacy
+loader, а browser QA подтверждает отсутствие запросов к Weekly и Production
+Structure `render.js`. Legacy loader сохранён только как rollback/evaluation
+ветка. Accepted-live флаг и баллы не меняются до публикации этого точного
+кандидата, fresh authenticated Pilot read и фактического
+previous-release -> candidate rollback/reactivation drill.
 
 ## Определение настоящих 100%
 

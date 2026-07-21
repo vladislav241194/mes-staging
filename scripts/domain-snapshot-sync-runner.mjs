@@ -9,6 +9,25 @@ function readLimit(argv = []) {
   return Math.max(1, Math.min(100, Number.isInteger(value) ? value : 50));
 }
 
+export function inspectDomainSnapshotSyncOutcome(result = {}) {
+  const workOrders = result.workOrders && typeof result.workOrders === "object" ? result.workOrders : {};
+  const planningConflictIds = [...new Set((Array.isArray(workOrders.jobs) ? workOrders.jobs : [])
+    .filter((job) => job?.state === "conflict")
+    .map((job) => Number(job.id))
+    .filter((id) => Number.isSafeInteger(id) && id > 0))];
+  const planningConflicts = Number(workOrders.conflicts || 0);
+  const failed = Number(result.failed || 0);
+  const planningConflictMessage = planningConflicts > 0
+    ? `Planning snapshot conflicts (${planningConflicts}); outbox IDs: ${planningConflictIds.length ? planningConflictIds.join(",") : "unavailable"}`
+    : "";
+  return {
+    serviceFailure: failed > 0 || planningConflicts > 0,
+    planningConflicts,
+    planningConflictIds,
+    planningConflictMessage,
+  };
+}
+
 export async function runDomainSnapshotSync({ env = process.env, limit = 50 } = {}) {
   const primary = await createWorkOrdersRepository({ env });
   const health = await primary.health();
@@ -34,6 +53,11 @@ export async function runDomainSnapshotSync({ env = process.env, limit = 50 } = 
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const result = await runDomainSnapshotSync({ limit: readLimit(process.argv.slice(2)) });
+  const outcome = inspectDomainSnapshotSyncOutcome(result);
   console.log(`Domain snapshot sync: ${result.applied} applied, ${result.conflicts} conflicts, ${result.failed} deferred`);
-  if (result.failed) process.exitCode = 1;
+  if (outcome.planningConflictMessage) console.error(outcome.planningConflictMessage);
+  // A terminal Planning compatibility conflict blocks safe rollback and must
+  // fail the systemd run. Specifications2 keeps its established conflict
+  // semantics; its stream is reported above but is not reclassified here.
+  if (outcome.serviceFailure) process.exitCode = 1;
 }

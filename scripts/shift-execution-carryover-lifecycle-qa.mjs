@@ -5,7 +5,13 @@ function assert(value, message) {
 }
 
 const state = {
-  assignments: new Map([["assignment-1", { id: "assignment-1" }]]),
+  assignments: new Map([["assignment-1", {
+    id: "assignment-1",
+    source_slot_id: "slot-1",
+    work_order_id: "WO-1",
+    work_order_operation_id: "OP-1",
+    work_center_id: "D5",
+  }]]),
   carryovers: new Map(),
   carryoverRequests: new Map(),
   cancellationRequests: new Map(),
@@ -28,7 +34,7 @@ const sql = (strings, ...values) => {
     const item = state.carryoverRequests.get(values[0]);
     return Promise.resolve(item ? [{ ...item }] : []);
   }
-  if (/SELECT id FROM shift_assignments WHERE id = \? FOR SHARE/.test(query)) {
+  if (/SELECT id, source_slot_id, work_order_id, work_order_operation_id, work_center_id FROM shift_assignments WHERE id = \? FOR SHARE/.test(query)) {
     const item = state.assignments.get(values[0]);
     return Promise.resolve(item ? [{ ...item }] : []);
   }
@@ -101,10 +107,11 @@ const createInput = {
   workOrderId: "WO-1",
   operationId: "OP-1",
   workCenterId: "D5",
+  authorizedWorkCenterId: "D5",
   dateKey: "2026-07-19",
   remainingQuantity: 4,
   reason: "Остаток после смены",
-  actorId: "public:master",
+  actorId: "employee:master",
 };
 
 const created = await repository.createCarryover({ ...createInput, idempotencyKey: "carryover-create-1" });
@@ -123,9 +130,10 @@ const canceled = await repository.cancelCarryover({
   idempotencyKey: "carryover-cancel-1",
   carryoverId,
   reason: "Факт скорректирован: операция закрыта",
-  actorId: "public:master",
+  actorId: "employee:master",
+  authorizedWorkCenterId: "D5",
 });
-assert(canceled.created && canceled.item?.canceled_at && canceled.item?.canceled_by === "public:master", "cancellation must preserve a durable actor-attributed audit state");
+assert(canceled.created && canceled.item?.canceled_at && canceled.item?.canceled_by === "employee:master", "cancellation must preserve a durable employee-attributed audit state");
 assert(/скорректирован/.test(canceled.item?.cancellation_reason || ""), "cancellation must retain its reason for audit");
 assert(!activeCarryover("assignment-1", "2026-07-19"), "canceled carryovers must no longer be active dispatch obligations");
 
@@ -133,13 +141,14 @@ const cancellationReplay = await repository.cancelCarryover({
   idempotencyKey: "carryover-cancel-1",
   carryoverId,
   reason: "Факт скорректирован: операция закрыта",
-  actorId: "public:master",
+  actorId: "employee:master",
+  authorizedWorkCenterId: "D5",
 });
 assert(!cancellationReplay.created && cancellationReplay.item?.canceled_at, "cancellation retry must replay the same audited result without another write");
 
 let conflictingCancellationKey = "";
 try {
-  await repository.cancelCarryover({ idempotencyKey: "carryover-cancel-1", carryoverId, reason: "Другая причина", actorId: "public:master" });
+  await repository.cancelCarryover({ idempotencyKey: "carryover-cancel-1", carryoverId, reason: "Другая причина", actorId: "employee:master", authorizedWorkCenterId: "D5" });
 } catch (error) {
   conflictingCancellationKey = error.message;
 }

@@ -123,7 +123,11 @@ const legacyOrder = {
 const legacySql = (strings, ...values) => {
   const query = strings.join("?");
   legacyCalls.push({ query, values });
-  if (/FROM work_orders wo WHERE/.test(query)) return Promise.resolve([legacyOrder]);
+  if (/FROM work_orders wo\s+WHERE wo\.id = \? OR wo\.number = \?/.test(query)) {
+    assert(/ORDER BY CASE WHEN wo\.id = \? THEN 0 ELSE 1 END, wo\.id\s+LIMIT 1/.test(query),
+      "legacy-compatible detail must retain exact-id-first canonical selection");
+    return Promise.resolve([legacyOrder]);
+  }
   if (/SELECT \* FROM work_order_operations WHERE/.test(query)) return Promise.resolve(operationRows.filter((row) => row.work_order_id === "route-new"));
   if (/FROM planning_slots ps/.test(query)) return Promise.resolve(slotRows.filter((row) => row.work_order_operation_id.startsWith("route-new")));
   throw new Error(`Unexpected legacy SQL: ${query}`);

@@ -8,10 +8,16 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
+  exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
+fi
+ACTIVE_APP_DIR="${MES_PILOT_ACTIVE_APP_DIR:-/srv/mes/pilot/app}"
+RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
 DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 DROPIN_FILE="${DROPIN_DIR}/64-specifications2-publication.conf"
 SOURCE_FILE="${APP_DIR}/ops/postgres/mes-pilot-specifications2-publication.conf"
+COMPATIBILITY_MARKER="${APP_DIR}/ops/postgres/specifications2-server-command-compatibility.json"
 READINESS_URL="http://127.0.0.1:4175/api/v1/domain-readiness"
 backup_dir="$(mktemp -d /root/.mes-specifications2-publication.XXXXXX)"
 had_previous=0
@@ -21,6 +27,59 @@ configuration_changed=0
 request_readiness() {
   curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
     -H 'Host: mes-internal' "$READINESS_URL"
+}
+
+validate_compatibility_marker() {
+  node --input-type=module -e '
+    import { readFile } from "node:fs/promises";
+    const marker = JSON.parse(await readFile(process.argv[1], "utf8"));
+    const required = [
+      "019_specifications2_attachment_blobs",
+      "028_specifications2_publication_idempotency",
+      "029_specifications2_revision_identity_backfill",
+      "030_specifications2_legacy_revision_identity_guard",
+      "031_specifications2_guard_function_repair",
+    ];
+    if (marker?.schemaVersion !== 1
+      || marker?.contract !== "specifications2-server-commands"
+      || marker?.publicationFingerprintAdapterVersion !== 6
+      || marker?.workOrderRevisionIdentityVersion !== 1
+      || marker?.workOrderRequestFingerprintVersion !== 1
+      || marker?.workOrderAggregateIdentityVersion !== 1
+      || marker?.attachmentCommandVersion !== 1
+      || marker?.authenticatedActorVersion !== 1
+      || marker?.rbacAuthorizationVersion !== 1
+      || marker?.requestSecurityVersion !== 1
+      || marker?.outboxEnvelopeVersion !== 1
+      || marker?.controlledRootExclusivity?.required !== true
+      || marker?.controlledRootExclusivity?.lockName !== "mes-authority-rollout.lock"
+      || JSON.stringify(marker?.controlledRootExclusivity?.incompatibleTargetRequiresDisabledFlags) !== JSON.stringify([
+        "MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS",
+        "MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS",
+        "MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS",
+      ])
+      || !required.every((migration) => marker?.requiredMigrations?.includes(migration))) process.exit(1);
+  ' "$COMPATIBILITY_MARKER"
+}
+
+verify_active_release_contract() {
+  local active_target release_path release_id manifest
+  [[ -L "$ACTIVE_APP_DIR" ]] || {
+    echo "Specifications 2.0 publication activation requires an immutable active release pointer." >&2
+    return 1
+  }
+  active_target="$(readlink -f "$ACTIVE_APP_DIR" 2>/dev/null || true)"
+  release_path="$(dirname "$active_target")"
+  release_id="$(basename "$release_path")"
+  manifest="${release_path}/release-manifest.json"
+  [[ "$release_id" =~ ^[A-Za-z0-9._-]{1,96}$ ]] || return 1
+  [[ "$active_target" == "${RELEASES_DIR}/${release_id}/app" ]] || return 1
+  [[ -f "$manifest" ]] || return 1
+  /usr/bin/node "${active_target}/scripts/release-server-command-contract-verify.mjs" \
+    --app="$active_target" \
+    --manifest="$manifest" \
+    --expected-release-id="$release_id" \
+    --contract=specifications2 >/dev/null
 }
 
 restore_on_failure() {
@@ -40,9 +99,20 @@ restore_on_failure() {
 trap restore_on_failure EXIT
 
 [[ -f "$SOURCE_FILE" ]] || { echo "Missing rollout artifact: $SOURCE_FILE" >&2; exit 1; }
+[[ -f "$COMPATIBILITY_MARKER" ]] || { echo "Missing Specifications 2.0 command compatibility marker: $COMPATIBILITY_MARKER" >&2; exit 1; }
+verify_active_release_contract \
+  || { echo "Active release provenance or manifest-bound Specifications 2.0 command contract is invalid." >&2; exit 1; }
+source_app_target="$(readlink -f "$APP_DIR" 2>/dev/null || true)"
+active_app_target="$(readlink -f "$ACTIVE_APP_DIR" 2>/dev/null || true)"
+[[ -n "$source_app_target" && "$source_app_target" == "$active_app_target" ]] || {
+  echo "Specifications 2.0 publication activation must run from the active, manifest-verified candidate release." >&2
+  exit 1
+}
+validate_compatibility_marker \
+  || { echo "Specifications 2.0 command compatibility marker is invalid." >&2; exit 1; }
 
 readiness="$(request_readiness)"
-node -e 'const value = JSON.parse(process.argv[1]); if (value?.readiness?.commands?.specifications2RevisionPublication?.schemaReady !== true) process.exit(1);' "$readiness" \
+node "${APP_DIR}/scripts/specifications2-rollout-readiness-policy.mjs" publication-schema-ready "$readiness" \
   || { echo "Specifications 2.0 publication schema is not ready." >&2; exit 1; }
 
 install -d -m 0755 "$DROPIN_DIR"
@@ -57,11 +127,8 @@ systemctl restart "$SERVICE"
 
 readiness=""
 for attempt in $(seq 1 12); do
-  if readiness="$(request_readiness 2>/dev/null)" && node -e '
-    const value = JSON.parse(process.argv[1]);
-    const status = value?.readiness?.commands?.specifications2RevisionPublication;
-    if (status?.enabled !== true || status?.schemaReady !== true) process.exit(1);
-  ' "$readiness"; then
+  if readiness="$(request_readiness 2>/dev/null)" \
+    && node "${APP_DIR}/scripts/specifications2-rollout-readiness-policy.mjs" publication-ready "$readiness"; then
     completed=1
     break
   fi

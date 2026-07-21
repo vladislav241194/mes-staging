@@ -5,12 +5,18 @@ set -euo pipefail
 if [[ ${EUID} -ne 0 ]]; then echo "Run as root." >&2; exit 1; fi
 
 APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
+  exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
+fi
+ACTIVE_APP_DIR="${MES_PILOT_ACTIVE_APP_DIR:-/srv/mes/pilot/app}"
+RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
 SERVICE_USER="${MES_PILOT_SERVICE_USER:-deploy}"
 PORT="${MES_PILOT_PORT:-4175}"
 DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 DROPIN_FILE="${DROPIN_DIR}/68-nomenclature-command-owner.conf"
 SOURCE_FILE="${APP_DIR}/ops/auth/mes-pilot-nomenclature-command-owner.conf"
+COMPATIBILITY_MARKER="${APP_DIR}/ops/auth/nomenclature-server-command-compatibility.json"
 backup_dir="$(mktemp -d /root/.mes-pilot-nomenclature-command-owner.XXXXXX)"
 had_previous=0
 configuration_changed=0
@@ -31,6 +37,27 @@ request_command_denial() {
     "http://127.0.0.1:${PORT}/api/v1/nomenclature"
 }
 
+verify_active_release_contract() {
+  local active_target source_target release_path release_id manifest
+  [[ -L "$ACTIVE_APP_DIR" ]] || {
+    echo "Nomenclature command activation requires an immutable active release pointer." >&2
+    return 1
+  }
+  active_target="$(readlink -f "$ACTIVE_APP_DIR" 2>/dev/null || true)"
+  source_target="$(readlink -f "$APP_DIR" 2>/dev/null || true)"
+  release_path="$(dirname "$active_target")"
+  release_id="$(basename "$release_path")"
+  manifest="${release_path}/release-manifest.json"
+  [[ "$release_id" =~ ^[A-Za-z0-9._-]{1,96}$ ]] || return 1
+  [[ "$active_target" == "${RELEASES_DIR}/${release_id}/app" ]] || return 1
+  [[ "$source_target" == "$active_target" && -f "$manifest" && -f "$COMPATIBILITY_MARKER" ]] || return 1
+  /usr/bin/node "${active_target}/scripts/release-server-command-contract-verify.mjs" \
+    --app="$active_target" \
+    --manifest="$manifest" \
+    --expected-release-id="$release_id" \
+    --contract=nomenclature >/dev/null
+}
+
 restore_on_failure() {
   if [[ $completed -eq 1 || $configuration_changed -eq 0 ]]; then rm -rf "$backup_dir"; return; fi
   if [[ $had_previous -eq 1 ]]; then cp -a "$backup_dir/previous.conf" "$DROPIN_FILE"; else rm -f "$DROPIN_FILE"; fi
@@ -41,6 +68,8 @@ restore_on_failure() {
 trap restore_on_failure EXIT
 
 [[ -f "$SOURCE_FILE" ]] || { echo "Missing command-owner drop-in artifact." >&2; exit 1; }
+verify_active_release_contract \
+  || { echo "Active release provenance or manifest-bound Nomenclature command contract is invalid." >&2; exit 1; }
 pre_capabilities="$(request_capabilities)"
 /usr/bin/node -e '
   const value = JSON.parse(process.argv[1]);

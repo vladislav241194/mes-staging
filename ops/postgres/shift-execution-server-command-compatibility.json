@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "contract": "shift-execution-server-commands",
+  "commandSurfaceVersion": 2,
+  "authenticatedActorVersion": 2,
+  "revisionConcurrencyVersion": 1,
+  "idempotencyReceiptVersion": 1,
+  "authorityTransitionVersion": 1,
+  "controlledRootExclusivity": {
+    "required": true,
+    "lockName": "mes-authority-rollout.lock",
+    "incompatibleTargetRequiresDisabledFlags": [
+      "MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS"
+    ]
+  },
+  "requiredMigrations": [
+    "008_shift_execution_read_model",
+    "014_shift_execution_command_idempotency",
+    "015_shift_execution_assignment_revisions",
+    "016_shift_execution_fact_idempotency",
+    "017_shift_execution_carryover_idempotency",
+    "022_shift_execution_carryover_lifecycle",
+    "025_shift_execution_postgres_authority"
+  ]
+}

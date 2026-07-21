@@ -31,16 +31,38 @@ function pause(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
+async function syncPath(path) {
+  const handle = await open(path, "r");
+  try { await handle.sync(); }
+  finally { await handle.close(); }
+}
+
+async function syncDirectory(path) {
+  const handle = await open(path, "r");
+  try { await handle.sync(); }
+  finally { await handle.close(); }
+}
+
 export async function withSharedStateFileLock(filePath, action, {
   timeoutMs = 12_000,
   retryDelayMs = 25,
   staleMs = 120_000,
+  createParent = true,
 } = {}) {
   if (!filePath) throw new Error("Shared state file path is required for a file lock");
   if (typeof action !== "function") throw new Error("Shared state file lock requires an action callback");
   const lockPath = `${filePath}.lock`;
   const startedAt = Date.now();
-  await mkdir(dirname(lockPath), { recursive: true });
+  if (createParent) {
+    await mkdir(dirname(lockPath), { recursive: true });
+  } else {
+    const parent = await stat(dirname(lockPath)).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+    if (!parent?.isDirectory()) {
+      const missing = new Error(`Shared-state lock parent directory is missing and was not created: ${dirname(lockPath)}`);
+      missing.code = "MES_SHARED_STATE_LOCK_PARENT_MISSING";
+      throw missing;
+    }
+  }
 
   while (true) {
     let acquired = false;
@@ -101,7 +123,15 @@ export async function writeSharedStateFileAtomic(filePath, payload) {
         await chown(tempPath, Number(existing.uid), Number(existing.gid));
       }
     }
+    // chmod/chown update inode metadata after the initial data fsync. Flush
+    // once more so a root-run promotion cannot reappear as root:root 0600
+    // after a power loss even though rename itself survived.
+    await syncPath(tempPath);
     await rename(tempPath, filePath);
+    // fsync(file) alone does not make the directory entry created by rename
+    // crash-durable. A destructive command may acknowledge success only after
+    // both the new bytes and their name are on stable storage.
+    await syncDirectory(directory);
   } catch (error) {
     await handle?.close().catch(() => {});
     await rm(tempPath, { force: true }).catch(() => {});
@@ -212,6 +242,7 @@ export function getPublicRuntimeConfig(env = process.env, { reactRuntimePolicy =
     MES_REACT_TIMESHEET_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_TIMESHEET_READ_ONLY_EVALUATION) === "1",
     MES_REACT_PLANNING_WORKBENCH: normalizeEnvValue(env.MES_REACT_PLANNING_WORKBENCH) === "1",
     MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION) === "1",
+    MES_REACT_PLANNING_WORKBENCH_WRITE_EVALUATION: normalizeEnvValue(env.MES_REACT_PLANNING_WORKBENCH_WRITE_EVALUATION) === "1",
     MES_REACT_SHIFT_WORK_ORDERS: normalizeEnvValue(env.MES_REACT_SHIFT_WORK_ORDERS) === "1",
     MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION) === "1",
     MES_REACT_SHIFT_MASTER_BOARD: normalizeEnvValue(env.MES_REACT_SHIFT_MASTER_BOARD) === "1",
@@ -241,6 +272,16 @@ export function getPublicRuntimeConfig(env = process.env, { reactRuntimePolicy =
     // command path instead of attempting a legacy snapshot write.
     MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY: normalizeEnvValue(env.MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS) === "1",
     MES_DIRECTORY_CLUSTER_SERVER_COMMANDS_PRIMARY: normalizeEnvValue(env.MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS) === "1",
+    MES_PLANNING_START_DATE_SERVER_COMMANDS_PRIMARY: normalizeEnvValue(env.MES_ENABLE_PLANNING_START_DATE_COMMANDS) === "1"
+      && normalizeEnvValue(env.MES_DOMAIN_STORAGE) === "postgres",
+    MES_LEGACY_DOMAIN_WRITES_QUIESCED: normalizeEnvValue(env.MES_ENABLE_PLANNING_START_DATE_COMMANDS) === "1"
+      && normalizeEnvValue(env.MES_DOMAIN_STORAGE) === "postgres"
+      && normalizeEnvValue(env.MES_ENABLE_PLANNING_SERVER_COMMANDS) !== "1",
+    // Transitional public alias for an already-staged browser bundle. Both
+    // names are derived from the same root-controlled evaluation flags.
+    MES_PLANNING_LEGACY_WRITES_QUIESCED: normalizeEnvValue(env.MES_ENABLE_PLANNING_START_DATE_COMMANDS) === "1"
+      && normalizeEnvValue(env.MES_DOMAIN_STORAGE) === "postgres"
+      && normalizeEnvValue(env.MES_ENABLE_PLANNING_SERVER_COMMANDS) !== "1",
     MES_EMPLOYEE_AUTH_AVAILABLE: [
       env.MES_ENABLE_EMPLOYEE_AUTH,
       env.MES_EMPLOYEE_AUTH_ENABLED,
@@ -290,16 +331,25 @@ export async function backupSharedStateFile({
 } = {}) {
   if (!filePath) throw new Error("Shared state file path is required");
 
+  let sourceStat;
   try {
-    const fileStat = await stat(filePath);
-    if (!fileStat.isFile()) throw new Error("Shared state path is not a file");
+    sourceStat = await stat(filePath);
+    if (!sourceStat.isFile()) throw new Error("Shared state path is not a file");
   } catch (error) {
     if (allowMissing && error?.code === "ENOENT") return null;
     throw error;
   }
 
   const targetDir = backupDir || resolveSharedStateBackupDir({ sharedStateFile: filePath, env });
-  await mkdir(targetDir, { recursive: true });
+  const existingTargetDir = await stat(targetDir).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+  await mkdir(targetDir, { recursive: true, mode: 0o700 });
+  if (!existingTargetDir) {
+    await chmod(targetDir, 0o700);
+    if (typeof process.getuid === "function" && process.getuid() === 0) {
+      await chown(targetDir, Number(sourceStat.uid), Number(sourceStat.gid));
+    }
+    await syncDirectory(dirname(targetDir));
+  }
 
   const stamp = timestampForFile();
   const key = safeSlug(getSharedStateKey(env));
@@ -314,19 +364,44 @@ export async function backupSharedStateFile({
   try {
     await copyFile(filePath, backupPath);
     await chmod(backupPath, 0o600);
+    if (typeof process.getuid === "function" && process.getuid() === 0) {
+      await chown(backupPath, Number(sourceStat.uid), Number(sourceStat.gid));
+    }
+    await syncPath(backupPath);
   } catch (error) {
     await rm(backupPath, { force: true }).catch(() => {});
     throw error;
   }
-  await writeFile(metaPath, `${JSON.stringify({
-    createdAt: new Date().toISOString(),
-    appEnv: getAppEnv(env),
-    sharedStateKey: getSharedStateKey(env),
-    sourcePath: filePath,
-    backupPath,
-    reason,
-    actor,
-  }, null, 2)}\n`, { encoding: "utf-8", flag: "wx", mode: 0o600 });
+  let metaHandle = null;
+  try {
+    metaHandle = await open(metaPath, "wx", 0o600);
+    await metaHandle.writeFile(`${JSON.stringify({
+      createdAt: new Date().toISOString(),
+      appEnv: getAppEnv(env),
+      sharedStateKey: getSharedStateKey(env),
+      sourcePath: filePath,
+      backupPath,
+      reason,
+      actor,
+    }, null, 2)}\n`, "utf8");
+    await metaHandle.sync();
+    await metaHandle.close();
+    metaHandle = null;
+    if (typeof process.getuid === "function" && process.getuid() === 0) {
+      await chown(metaPath, Number(sourceStat.uid), Number(sourceStat.gid));
+      await syncPath(metaPath);
+    }
+    // The receipt may advertise the artifact only after both files and both
+    // directory entries are durable against an immediate host power loss.
+    await syncDirectory(targetDir);
+  } catch (error) {
+    await metaHandle?.close().catch(() => {});
+    await Promise.all([
+      rm(metaPath, { force: true }).catch(() => {}),
+      rm(backupPath, { force: true }).catch(() => {}),
+    ]);
+    throw error;
+  }
 
   return { backupPath, metaPath };
 }

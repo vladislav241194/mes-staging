@@ -23,6 +23,8 @@ export async function getCurrentDirectoryAuthorization(employeePrincipal, {
   now = () => new Date(),
   moduleId = "directories",
   resourceId = "nomenclature",
+  action = "edit",
+  resourceContext = {},
 } = {}) {
   if (!employeePrincipal?.employeeId || employeePrincipal.scope !== "employee") {
     return denied("employee-session-required");
@@ -42,11 +44,16 @@ export async function getCurrentDirectoryAuthorization(employeePrincipal, {
     });
     const normalizedModuleId = String(moduleId || "").trim().slice(0, 160);
     const normalizedResourceId = String(resourceId || "").trim().slice(0, 160);
+    const normalizedAction = String(action || "").trim().slice(0, 160);
     if (!normalizedModuleId) return denied("directory-module-required", employeePrincipal, current.revision);
     if (!normalizedResourceId) return denied("directory-resource-required", employeePrincipal, current.revision);
-    const resource = { resourceId: normalizedResourceId };
+    if (!normalizedAction) return denied("directory-action-required", employeePrincipal, current.revision);
+    const resource = {
+      ...(resourceContext && typeof resourceContext === "object" && !Array.isArray(resourceContext) ? resourceContext : {}),
+      resourceId: normalizedResourceId,
+    };
     const viewDecision = service.explainCan(subject, normalizedModuleId, "view", resource);
-    const decision = service.explainCan(subject, normalizedModuleId, "edit", resource);
+    const decision = service.explainCan(subject, normalizedModuleId, normalizedAction, resource);
     return Object.freeze({
       allowed: Boolean(decision.allowed),
       reason: decision.reason,

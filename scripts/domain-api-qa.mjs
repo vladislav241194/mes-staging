@@ -1,13 +1,21 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 
-import { handleDomainApiRequest } from "./domain-api.mjs";
+import { getSpecifications2WorkOrderCommandHttpStatus, handleDomainApiRequest, readRequestBody } from "./domain-api.mjs";
 import { createWorkOrdersRepository } from "./domain-work-orders-repository.mjs";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
+
+assert(getSpecifications2WorkOrderCommandHttpStatus({ created: false, item: null, conflict: true, idempotencyConflict: true }) === 409,
+  "a reused Work Order idempotency key with a different canonical request must map to HTTP 409");
+assert(getSpecifications2WorkOrderCommandHttpStatus({ created: false, item: null, error: "invalid route" }) === 422,
+  "a non-conflicting invalid Work Order command must remain HTTP 422");
+assert(getSpecifications2WorkOrderCommandHttpStatus({ created: false, item: { id: "wo-replay" } }) === 200,
+  "an exact Work Order replay must remain HTTP 200");
 
 function makeResponse() {
   return {
@@ -44,9 +52,52 @@ function assertBootstrapServerTiming(headers = {}, message) {
   );
 }
 
+const boundedBody = Readable.from([Buffer.from(JSON.stringify({ entry: { id: "small" } }))]);
+boundedBody.headers = {};
+const boundedPayload = await readRequestBody(boundedBody, { maxBytes: 128 });
+assert(boundedPayload.entry?.id === "small", "bounded JSON reader must accept a publication request within its byte limit");
+const oversizedBody = Readable.from([Buffer.alloc(129, 0x78)]);
+oversizedBody.headers = {};
+let oversizedError = null;
+try { await readRequestBody(oversizedBody, { maxBytes: 128 }); }
+catch (error) { oversizedError = error; }
+assert(oversizedError?.code === "REQUEST_BODY_TOO_LARGE", "bounded JSON reader must reject a streaming body before buffering beyond its byte limit");
+let preParsedOversizedError = null;
+try { await readRequestBody({ body: { value: "x".repeat(129) }, headers: {} }, { maxBytes: 128 }); }
+catch (error) { preParsedOversizedError = error; }
+assert(preParsedOversizedError?.code === "REQUEST_BODY_TOO_LARGE", "bounded JSON reader must also reject an oversized body pre-parsed by an HTTP adapter");
+
 async function request(filePath, pathname, method = "GET", body = null, headers = {}, env = undefined) {
   const res = makeResponse();
-  const handled = await handleDomainApiRequest({ method, body, headers }, res, new URL(`http://mes.local${pathname}`), { filePath, env });
+  const specifications2CommandHeaders = method === "POST" && /^\/api\/v1\/specifications2\/(?:revisions(?:\/[^/]+\/work-orders)?|attachments)$/u.test(pathname)
+    ? { host: "mes.local", origin: "http://mes.local", "sec-fetch-site": "same-origin", "content-type": "application/json" }
+    : {};
+  const shiftExecutionCommandHeaders = ["POST", "PATCH"].includes(method)
+    && /^\/api\/v1\/workshop\/shift-execution\/(?:assignments(?:\/[^/]+(?:\/facts)?)?|carryovers(?:\/[^/]+)?)$/u.test(pathname)
+    ? { host: "mes.local", origin: "http://mes.local", "sec-fetch-site": "same-origin", "content-type": "application/json" }
+    : {};
+  const planningCommandHeaders = method === "PATCH"
+    && /^\/api\/v1\/planning\/work-orders\/[^/]+(?:\/operations\/[^/]+\/slot)?$/u.test(pathname)
+    ? { host: "mes.local", origin: "http://mes.local", "sec-fetch-site": "same-origin", "content-type": "application/json" }
+    : {};
+  const handled = await handleDomainApiRequest(
+    { method, body, headers: { ...specifications2CommandHeaders, ...shiftExecutionCommandHeaders, ...planningCommandHeaders, ...headers } },
+    res,
+    new URL(`http://mes.local${pathname}`),
+    {
+      filePath,
+      env,
+      // This broad domain contract exercises snapshot/revision behavior. The
+      // focused Planning authorization QA uses real signed-session and RBAC
+      // resolvers; keep this fixture explicit instead of a live query bypass.
+      planningAuthorizationResolver: async () => ({
+        allowed: true,
+        reason: "allowed",
+        principal: { id: "employee:domain-api-qa", employeeId: "domain-api-qa", scope: "employee" },
+        revision: 1,
+      }),
+    },
+  );
   return { handled, statusCode: res.statusCode, headers: res.headers, body: res.body, json: JSON.parse(res.body || "{}") };
 }
 
@@ -84,6 +135,7 @@ try {
   assert(readiness.statusCode === 200 && readiness.json.status === "attention", "domain readiness must report a partial snapshot migration without hiding unavailable domains");
   assert(readiness.json.readiness?.workOrders?.ready === false && /DATABASE_URL/.test(readiness.json.readiness?.systemDomains?.error || ""), "domain readiness must expose the exact unavailable server domains");
   assert(readiness.json.readiness?.commands?.specifications2WorkOrderCreation?.enabled === false
+    && readiness.json.readiness?.commands?.specifications2WorkOrderCreation?.schemaReady === false
     && readiness.json.readiness?.commands?.specifications2RevisionPublication?.enabled === false
     && readiness.json.readiness?.commands?.specifications2RevisionPublication?.schemaReady === false
     && readiness.json.readiness?.commands?.systemDomains?.enabled === false
@@ -95,7 +147,7 @@ try {
     "domain readiness must explain whether a command is blocked by storage or by a rollout flag",
   );
   const capabilities = await request(filePath, "/api/v1/specifications2/capabilities");
-  assert(capabilities.statusCode === 200 && capabilities.json.capabilities?.workOrderCreationEnabled === false && capabilities.json.capabilities?.revisionPublicationEnabled === false && capabilities.json.capabilities?.attachmentUploadEnabled === false && capabilities.json.capabilities?.workOrderPrimaryPostgres === false, "command capability endpoint must explicitly report that snapshot primary cannot create server orders, revisions or attachments");
+  assert(capabilities.statusCode === 200 && capabilities.json.capabilities?.workOrderCreationEnabled === false && capabilities.json.capabilities?.workOrderCreationSchemaReady === false && capabilities.json.capabilities?.revisionPublicationEnabled === false && capabilities.json.capabilities?.attachmentUploadEnabled === false && capabilities.json.capabilities?.workOrderPrimaryPostgres === false, "command capability endpoint must explicitly report that snapshot primary cannot create server orders, revisions or attachments");
   const primaryConfiguredCapabilities = await request(filePath, "/api/v1/specifications2/capabilities", "GET", null, {}, { MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS: "1" });
   assert(primaryConfiguredCapabilities.statusCode === 200
     && primaryConfiguredCapabilities.json.capabilities?.revisionPublicationPrimaryConfigured === true
@@ -189,7 +241,8 @@ try {
   const missing = await request(filePath, "/api/v1/planning/work-orders/missing");
   assert(missing.statusCode === 404, "unknown work order must return 404");
 
-  const updated = await request(filePath, "/api/v1/planning/work-orders/WO-001", "PATCH", { quantity: 24 }, { "if-match": detail.headers.ETag });
+  const planningMutationEnv = { MES_ENABLE_PLANNING_SERVER_COMMANDS: "1" };
+  const updated = await request(filePath, "/api/v1/planning/work-orders/WO-001", "PATCH", { quantity: 24 }, { "if-match": detail.headers.ETag }, planningMutationEnv);
   assert(updated.statusCode === 200 && updated.json.item?.quantity === 24 && updated.json.item?.concurrencyRevision === 5 && updated.json.revision === 8, "quantity command must update the work order and revision");
   assert(updated.headers.ETag === '"5"', "quantity command must return updated ETag");
 
@@ -212,16 +265,16 @@ try {
   const scheduled = await request(filePath, "/api/v1/planning/work-orders/WO-001/operations/step-1/slot", "PATCH", {
     plannedStart: "2026-07-18T08:00:00.000Z",
     expectedRevision: 6,
-  }, { "if-match": '"6"' });
+  }, { "if-match": '"6"' }, planningMutationEnv);
   assert(scheduled.statusCode === 200 && scheduled.json.item?.concurrencyRevision === 7, "slot schedule command must update the aggregate revision");
   const scheduledDetail = await request(filePath, "/api/v1/planning/work-orders/WO-001");
   assert(scheduledDetail.json.item?.operations?.[0]?.slot?.plannedStart === "2026-07-18T08:00:00.000Z", "slot schedule command must persist its new start");
   assert(scheduledDetail.json.item?.operations?.[0]?.slot?.plannedEnd === "2026-07-18T10:00:00.000Z", "snapshot schedule command must preserve slot duration");
 
-  const stale = await request(filePath, "/api/v1/planning/work-orders/WO-001", "PATCH", { quantity: 30, expectedRevision: 4 });
+  const stale = await request(filePath, "/api/v1/planning/work-orders/WO-001", "PATCH", { quantity: 30, expectedRevision: 4 }, {}, planningMutationEnv);
   assert(stale.statusCode === 409 && stale.json.conflict === true, "stale quantity command must be rejected");
 
-  const contradictory = await request(filePath, "/api/v1/planning/work-orders/WO-001", "PATCH", { quantity: 30, expectedRevision: 5 }, { "if-match": '"4"' });
+  const contradictory = await request(filePath, "/api/v1/planning/work-orders/WO-001", "PATCH", { quantity: 30, expectedRevision: 5 }, { "if-match": '"4"' }, planningMutationEnv);
   assert(contradictory.statusCode === 400, "contradictory body and If-Match revisions must be rejected");
 
   console.log("Domain API QA: OK");

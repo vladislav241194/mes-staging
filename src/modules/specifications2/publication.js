@@ -1,24 +1,55 @@
-const clean = (value) => String(value ?? "").trim();
-const LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION = 5;
+import { assertSpecifications2Quantity } from "../../domain/specifications2_quantity.js";
 
-function releaseFingerprintAdapterVersion(entry = {}) {
+const clean = (value) => String(value ?? "").trim();
+const LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION = 6;
+export const SPECIFICATIONS2_RELEASE_FINGERPRINT_MAX_BYTES = 512 * 1024;
+
+function canonicalJsonValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalJsonValue(value[key])]));
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(canonicalJsonValue(JSON.parse(JSON.stringify(value))));
+}
+
+export function specifications2ReleaseFingerprintByteLength(value = "") {
+  return new TextEncoder().encode(String(value || "")).byteLength;
+}
+
+export function specifications2ReleaseFingerprintAdapterVersion(value = "") {
   try {
-    const version = Number(JSON.parse(clean(entry?.publication?.fingerprint) || "{}").adapterVersion);
+    const version = Number(JSON.parse(clean(value) || "{}").adapterVersion);
     return Number.isInteger(version) && version >= 4 && version <= LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION
       ? version
-      : LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION;
+      : 0;
   } catch {
-    return LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION;
+    return 0;
   }
+}
+
+function releaseFingerprintAdapterVersion(entry = {}) {
+  return specifications2ReleaseFingerprintAdapterVersion(entry?.publication?.fingerprint)
+    || LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION;
 }
 
 function productionFilesForReleaseFingerprint(value = {}, adapterVersion) {
   if (adapterVersion < 5) return value || {};
+  if (adapterVersion >= 6) {
+    return Object.fromEntries(Object.entries(value || {}).map(([kind, raw]) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [kind, raw];
+      // Keep the exact metadata persisted by compatibilityRouteDrafts and the
+      // relational route-operation exporter. Only inline binary copies are
+      // removed from that durable payload; attachment/storage ids are content.
+      const { inlineDataUrl, dataUrl, content, ...metadata } = raw;
+      return [kind, metadata];
+    }));
+  }
   return Object.fromEntries(Object.entries(value || {}).flatMap(([kind, raw]) => {
     if (!raw || typeof raw !== "object") return [];
-    // Storage keys, remote ids and inline bytes are transport details.  A
-    // released route is identified by its declared production file, not by a
-    // browser-specific IndexedDB key or a base64 copy of that file.
+    // Historical adapter v5 intentionally retained only display metadata.
+    // Keep that exact contract for durable v5 replay.
     return [[kind, {
       name: clean(raw.name),
       size: Math.max(0, Number(raw.size) || 0),
@@ -36,30 +67,130 @@ function makeId(prefix, seed = "") {
   return `${prefix}-${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
-function getRows(entry = {}) {
-  if (!Array.isArray(entry.editorRows) || !entry.editorRows.length) {
-    return Array.isArray(entry.treeRows) ? entry.treeRows : [];
-  }
-  const byId = new Map(entry.editorRows.map((row) => [clean(row.id || row.selectionKey || row.nodeKey), row]));
+export function analyzeSpecifications2EditorRowsHierarchy(entry = {}) {
+  const rows = Array.isArray(entry.editorRows) && entry.editorRows.length
+    ? entry.editorRows
+    : Array.isArray(entry.treeRows) ? entry.treeRows : [];
+  const byAlias = new Map();
+  const canonicalIdByRow = new Map();
+  const duplicateIds = new Set();
+  const emptyRowIndexes = [];
+  rows.forEach((row, index) => {
+    const id = clean(row?.id || row?.selectionKey || row?.nodeKey);
+    if (!id) {
+      emptyRowIndexes.push(index);
+      return;
+    }
+    canonicalIdByRow.set(row, id);
+    const aliases = new Set([row?.id, row?.selectionKey, row?.nodeKey].map(clean).filter(Boolean));
+    for (const alias of aliases) {
+      if (byAlias.has(alias) && byAlias.get(alias)?.row !== row) duplicateIds.add(alias);
+      else byAlias.set(alias, { id, row });
+    }
+  });
+
   const depthById = new Map();
-  const depthOf = (row, path = new Set()) => {
-    const id = clean(row.id || row.selectionKey || row.nodeKey);
-    if (depthById.has(id)) return depthById.get(id);
-    const parentId = clean(row.parentId || row.parentKey);
-    if (!parentId || !byId.has(parentId) || parentId === id || path.has(id)) return 0;
-    const depth = depthOf(byId.get(parentId), new Set([...path, id])) + 1;
-    depthById.set(id, depth);
-    return depth;
+  const missingParentLinks = new Set();
+  const selfParentIds = new Set();
+  const cycleIds = new Set();
+  const assignTerminalPath = (path) => {
+    let depth = -1;
+    for (let index = path.length - 1; index >= 0; index -= 1) {
+      depth += 1;
+      depthById.set(path[index], depth);
+    }
   };
-  return entry.editorRows.map((row) => ({
+
+  for (const startRow of rows) {
+    const startId = canonicalIdByRow.get(startRow) || "";
+    if (!startId || depthById.has(startId)) continue;
+    const path = [];
+    const pathIndexById = new Map();
+    let cursor = startRow;
+    while (cursor) {
+      const id = canonicalIdByRow.get(cursor) || "";
+      if (depthById.has(id)) {
+        let depth = depthById.get(id);
+        for (let index = path.length - 1; index >= 0; index -= 1) {
+          depth += 1;
+          depthById.set(path[index], depth);
+        }
+        break;
+      }
+      if (pathIndexById.has(id)) {
+        const cycleStart = pathIndexById.get(id);
+        for (let index = cycleStart; index < path.length; index += 1) {
+          cycleIds.add(path[index]);
+          depthById.set(path[index], 0);
+        }
+        let depth = 0;
+        for (let index = cycleStart - 1; index >= 0; index -= 1) {
+          depth += 1;
+          depthById.set(path[index], depth);
+        }
+        break;
+      }
+      pathIndexById.set(id, path.length);
+      path.push(id);
+      const parentId = clean(cursor?.parentId || cursor?.parentKey);
+      if (!parentId) {
+        assignTerminalPath(path);
+        break;
+      }
+      const parent = byAlias.get(parentId);
+      if (parent?.id === id) {
+        selfParentIds.add(id);
+        assignTerminalPath(path);
+        break;
+      }
+      if (!parent) {
+        missingParentLinks.add(`${id}\u0000${parentId}`);
+        assignTerminalPath(path);
+        break;
+      }
+      cursor = parent.row;
+    }
+  }
+
+  let maxDepth = 0;
+  for (const depth of depthById.values()) maxDepth = Math.max(maxDepth, depth);
+  return {
+    depthById,
+    maxDepth,
+    duplicateIds: [...duplicateIds].sort(),
+    emptyRowIndexes,
+    missingParentLinks: [...missingParentLinks].sort(),
+    selfParentIds: [...selfParentIds].sort(),
+    cycleIds: [...cycleIds].sort(),
+  };
+}
+
+export function getSpecifications2EffectiveRows(entry = {}) {
+  const rows = Array.isArray(entry.editorRows) && entry.editorRows.length
+    ? entry.editorRows
+    : Array.isArray(entry.treeRows) ? entry.treeRows : [];
+  if (!rows.length) return [];
+  const hierarchy = analyzeSpecifications2EditorRowsHierarchy(entry);
+  return rows.map((row) => ({
     ...row,
     parentKey: clean(row.parentKey || row.parentId),
-    level: depthOf(row),
+    level: hierarchy.depthById.get(clean(row.id || row.selectionKey || row.nodeKey)) || 0,
   }));
 }
 
+function rowsForReleaseFingerprint(entry = {}, adapterVersion) {
+  // Historical v4/v5 treeRows-only fingerprints trusted the persisted level.
+  // Preserve that exact replay contract while all new v6 publications derive
+  // and validate the effective parent graph server-side.
+  if (adapterVersion < 6 && (!Array.isArray(entry.editorRows) || !entry.editorRows.length)) {
+    return Array.isArray(entry.treeRows) ? entry.treeRows : [];
+  }
+  return getSpecifications2EffectiveRows(entry);
+}
+
 function getRootRow(entry = {}) {
-  return getRows(entry).find((row) => Number(row.level || 0) === 0) || getRows(entry)[0] || null;
+  const rows = getSpecifications2EffectiveRows(entry);
+  return rows.find((row) => Number(row.level || 0) === 0) || rows[0] || null;
 }
 
 function getDesignation(row = {}) {
@@ -75,9 +206,11 @@ function displayName(row = {}) {
 export function buildSpecifications2ReleaseFingerprint(entry = {}, {
   adapterVersion = releaseFingerprintAdapterVersion(entry),
 } = {}) {
-  return JSON.stringify({
+  const rows = rowsForReleaseFingerprint(entry, adapterVersion);
+  const routes = Array.isArray(entry.routeDrafts) ? entry.routeDrafts : [];
+  if (adapterVersion < 6) return JSON.stringify({
     adapterVersion,
-    rows: getRows(entry).map((row) => ({
+    rows: rows.map((row) => ({
       id: clean(row.id || row.selectionKey || row.nodeKey),
       parentId: clean(row.parentId || row.parentKey),
       level: Number(row.level || 0),
@@ -87,7 +220,7 @@ export function buildSpecifications2ReleaseFingerprint(entry = {}, {
       quantity: Number(row.quantity || 0),
       unit: clean(row.unitOfMeasure || row.unit),
     })),
-    routes: (Array.isArray(entry.routeDrafts) ? entry.routeDrafts : []).map((draft) => ({
+    routes: routes.map((draft) => ({
       productKey: clean(draft.productKey),
       designation: clean(draft.designation),
       operations: (Array.isArray(draft.operations) ? draft.operations : []).map((operation) => ({
@@ -102,13 +235,102 @@ export function buildSpecifications2ReleaseFingerprint(entry = {}, {
       })),
     })),
   });
+
+  // Adapter v6 is the complete immutable input contract for both the
+  // PostgreSQL revision and the legacy Directory/Planning projection. Keep
+  // array order (structure and route sequence are semantic), while sorting
+  // every record key so JSONB key order cannot change revision identity.
+  return canonicalJson({
+    adapterVersion,
+    sourceEntryId: clean(entry.id),
+    title: clean(entry.title),
+    selectedRouteDraftId: clean(entry.selectedRouteDraftId),
+    rows: rows.map((row) => ({
+      id: clean(row.id || row.selectionKey || row.nodeKey),
+      sourceId: clean(row.id),
+      selectionKey: clean(row.selectionKey),
+      nodeKey: clean(row.nodeKey),
+      parentId: clean(row.parentId || row.parentKey),
+      sourceParentId: clean(row.parentId),
+      parentKey: clean(row.parentKey),
+      level: Number(row.level || 0),
+      label: clean(row.label),
+      designation: getDesignation(row),
+      type: clean(row.type),
+      quantity: assertSpecifications2Quantity(row.quantity || 0, `Specifications 2.0 row ${clean(row.id || row.selectionKey || row.nodeKey) || "unknown"} quantity`),
+      unit: clean(row.unitOfMeasure || row.unit),
+      status: clean(row.status),
+    })),
+    routes: routes.map((draft) => ({
+      id: clean(draft.id),
+      productKey: clean(draft.productKey),
+      productLabel: clean(draft.productLabel || draft.title),
+      designation: clean(draft.designation),
+      status: clean(draft.status) || "draft",
+      operations: (Array.isArray(draft.operations) ? draft.operations : []).map((operation) => ({
+        id: clean(operation.id),
+        operationId: clean(operation.operationId),
+        name: clean(operation.name || operation.operationName),
+        workCenterId: clean(operation.workCenterId),
+        nextWorkCenterId: clean(operation.nextWorkCenterId),
+        nextOperationId: clean(operation.nextOperationId),
+        changesProperty: operation.changesProperty !== false,
+        inputState: clean(operation.inputState),
+        outputState: clean(operation.outputState),
+        instructionRequired: operation.instructionRequired === true,
+        laborNorm: operation.laborNorm || {},
+        productionFiles: productionFilesForReleaseFingerprint(operation.productionFiles, adapterVersion),
+      })),
+    })),
+  });
+}
+
+function withoutLegacyV4AttachmentTransport(fingerprint = {}) {
+  return {
+    ...fingerprint,
+    routes: (Array.isArray(fingerprint.routes) ? fingerprint.routes : []).map((draft) => ({
+      ...draft,
+      operations: (Array.isArray(draft?.operations) ? draft.operations : []).map((operation) => ({
+        ...operation,
+        productionFiles: Object.fromEntries(Object.entries(operation?.productionFiles || {}).map(([kind, raw]) => {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [kind, raw];
+          const { inlineDataUrl, dataUrl, content, ...metadata } = raw;
+          return [kind, metadata];
+        })),
+      })),
+    })),
+  };
+}
+
+export function matchesSpecifications2ReleaseFingerprint(entry = {}, fingerprint = "", {
+  allowTransportStrippedLegacyV4 = false,
+} = {}) {
+  const persistedFingerprint = clean(fingerprint);
+  const adapterVersion = specifications2ReleaseFingerprintAdapterVersion(persistedFingerprint);
+  if (!adapterVersion) return false;
+  const currentFingerprint = buildSpecifications2ReleaseFingerprint(entry, { adapterVersion });
+  if (persistedFingerprint === currentFingerprint) return true;
+  if (adapterVersion !== 4 || allowTransportStrippedLegacyV4 !== true) return false;
+  try {
+    const persisted = withoutLegacyV4AttachmentTransport(JSON.parse(persistedFingerprint));
+    const current = JSON.parse(currentFingerprint);
+    return canonicalJson(persisted) === canonicalJson(current);
+  } catch {
+    return false;
+  }
 }
 
 export function inspectSpecifications2Publication(entry = {}) {
-  const rows = getRows(entry);
+  const rows = getSpecifications2EffectiveRows(entry);
+  const hierarchy = analyzeSpecifications2EditorRowsHierarchy(entry);
   const roots = rows.filter((row) => Number(row.level || 0) === 0);
   const drafts = Array.isArray(entry.routeDrafts) ? entry.routeDrafts : [];
   const issues = [];
+  if (hierarchy.emptyRowIndexes.length) issues.push("В структуре есть строки без идентификатора");
+  if (hierarchy.duplicateIds.length) issues.push("В структуре есть повторяющиеся идентификаторы строк");
+  if (hierarchy.selfParentIds.length) issues.push("Строка структуры не может быть своим родителем");
+  if (hierarchy.missingParentLinks.length) issues.push("В структуре есть ссылка на отсутствующего родителя");
+  if (hierarchy.cycleIds.length) issues.push("В структуре есть циклическая связь родителей");
   if (!rows.length) issues.push("Структура спецификации пуста");
   if (roots.length !== 1) issues.push("Должно быть ровно одно результирующее изделие");
   if (rows.some((row) => row.status === "error")) issues.push("В структуре есть ошибки связей");
@@ -149,10 +371,26 @@ export function publishSpecifications2Entry(entry = {}, context = {}) {
   const acknowledgedPublication = context.acknowledgedPublication && typeof context.acknowledgedPublication === "object"
     ? context.acknowledgedPublication
     : null;
-  const currentFingerprint = buildSpecifications2ReleaseFingerprint(entry, { adapterVersion: LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION });
-  if (acknowledgedPublication?.fingerprint && acknowledgedPublication.fingerprint !== currentFingerprint) {
+  const currentFingerprint = buildSpecifications2ReleaseFingerprint(entry, {
+    // A durable outbox row may have been accepted by an older supported
+    // adapter. Replaying it must verify that exact immutable contract instead
+    // of silently upgrading the fingerprint and terminally rejecting the row.
+    adapterVersion: acknowledgedPublication
+      ? releaseFingerprintAdapterVersion({ publication: acknowledgedPublication })
+      : LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION,
+  });
+  const acknowledgedAdapterVersion = acknowledgedPublication
+    ? releaseFingerprintAdapterVersion({ publication: acknowledgedPublication })
+    : LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION;
+  const matchesAcknowledgedFingerprint = !acknowledgedPublication?.fingerprint
+    || matchesSpecifications2ReleaseFingerprint(entry, acknowledgedPublication.fingerprint, {
+      allowTransportStrippedLegacyV4: acknowledgedAdapterVersion === 4
+        && context.allowTransportStrippedLegacyFingerprint === true,
+    });
+  if (!matchesAcknowledgedFingerprint) {
     throw new Error("Нельзя создать локальную проекцию для изменённой после серверной публикации спецификации");
   }
+  const releaseFingerprint = clean(acknowledgedPublication?.fingerprint) || currentFingerprint;
   const revision = acknowledgedPublication
     ? Math.max(1, Number(acknowledgedPublication.revision || 0))
     : Math.max(1, Number(entry.publication?.revision || 0) + 1);
@@ -245,7 +483,7 @@ export function publishSpecifications2Entry(entry = {}, context = {}) {
     lifecycleStatus: "released",
     revision,
     sourceSpecifications2EntryId: clean(entry.id),
-    sourceSpecifications2Fingerprint: buildSpecifications2ReleaseFingerprint(entry, { adapterVersion: LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION }),
+    sourceSpecifications2Fingerprint: releaseFingerprint,
     releasedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -391,7 +629,10 @@ export function publishSpecifications2Entry(entry = {}, context = {}) {
   ]).filter(Boolean));
   const retainedRoutes = existingRoutes.filter((route) => (
     clean(route.sourceSpecifications2EntryId) !== clean(entry.id)
-    || referencedHistoricalRouteIds.has(clean(route.id))
+    || (clean(route.id) !== mainRouteId && (
+      referencedHistoricalRouteIds.has(clean(route.id))
+      || Boolean(clean(route.workOrderSnapshot?.id))
+    ))
   ));
   const retainedRouteIds = new Set(retainedRoutes.map((route) => clean(route.id)));
   const retainedSteps = existingSteps.filter((step) => retainedRouteIds.has(clean(step.routeId)));

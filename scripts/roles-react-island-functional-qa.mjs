@@ -179,6 +179,9 @@ async function main() {
       const panel = getComputedStyle(target.querySelector(".panel"));
       const metrics = getComputedStyle(target.querySelector(".metric-grid"));
       const token = getComputedStyle(target.querySelector(".status"));
+      const canonicalRadius = Number.parseFloat(
+        getComputedStyle(target).getPropertyValue("--mes-ui-radius-md"),
+      );
       return {
         roles: document.querySelectorAll('[data-ui-component="SidebarItem"]').length,
         modules: document.querySelectorAll(".roles-grant-table tbody tr").length,
@@ -190,7 +193,9 @@ async function main() {
         layoutDisplay: layout.display,
         layoutColumns: layout.gridTemplateColumns.split(" ").length,
         sidebarMinHeight: Number.parseFloat(sidebar.minHeight),
+        sidebarHeight: target.querySelector(".module-sidebar").getBoundingClientRect().height,
         panelRadius: Number.parseFloat(panel.borderRadius),
+        canonicalRadius,
         metricsDisplay: metrics.display,
         tokenBackground: token.backgroundColor,
       };
@@ -200,22 +205,41 @@ async function main() {
     assert(initial.writeDisabled && initial.revision === "1", "production island must remain read-only and report its first commit");
     assert(Number.isFinite(initial.commitMs) && initial.commitMs >= 0 && initial.commitMs < 2000, `first Roles commit must stay below 2000 ms, got ${initial.commitMs}`);
     assert(!initial.pageOverflow, "Roles island must not create page-level overflow");
-    assert(initial.layoutDisplay === "grid" && initial.layoutColumns === 2 && initial.sidebarMinHeight >= 600 && initial.panelRadius >= 16 && initial.metricsDisplay === "grid" && initial.tokenBackground !== "rgba(0, 0, 0, 0)", `Roles production UI contract failed: ${JSON.stringify(initial)}`);
+    assert(
+      initial.layoutDisplay === "grid"
+        && initial.layoutColumns === 2
+        && initial.sidebarMinHeight === 0
+        && initial.sidebarHeight >= 600
+        && initial.panelRadius === initial.canonicalRadius
+        && initial.metricsDisplay === "grid"
+        && initial.tokenBackground !== "rgba(0, 0, 0, 0)",
+      `Roles production UI contract failed: ${JSON.stringify(initial)}`,
+    );
 
     await client.send("Emulation.setDeviceMetricsOverride", { width: 487, height: 844, deviceScaleFactor: 1, mobile: false });
+    await waitForCondition(client, () => Boolean(
+      document.querySelector('[data-react-roles-island][data-react-island-state="ready"] .module-layout')
+      && document.querySelector('[data-react-roles-island] [data-ui-component="ModuleWorkspace"]')
+      && document.querySelector("[data-react-roles-island] .metric-grid"),
+    ), { message: "Roles React island did not settle after compact viewport change", timeoutMs: 15_000 });
     const compact = await evaluate(client, () => {
       const target = document.querySelector("[data-react-roles-island]");
       const layout = getComputedStyle(target.querySelector(".module-layout"));
-      const workspace = getComputedStyle(target.querySelector(".workspace"));
+      const workspace = getComputedStyle(target.querySelector('[data-ui-component="ModuleWorkspace"]'));
       const sidebar = getComputedStyle(target.querySelector(".module-sidebar"));
       const metrics = getComputedStyle(target.querySelector(".metric-grid"));
       const tableWrap = target.querySelector(".roles-grant-table")?.parentElement;
+      const gridTrackCount = (template) => {
+        const repeat = template.match(/^repeat\((\d+),/);
+        return repeat ? Number(repeat[1]) : template.trim().split(/\s+/).length;
+      };
       return {
-        layoutColumns: layout.gridTemplateColumns.split(" ").length,
-        workspaceColumns: workspace.gridTemplateColumns.split(" ").length,
-        sidebarColumns: sidebar.gridTemplateColumns.split(" ").length,
+        layoutColumns: gridTrackCount(layout.gridTemplateColumns),
+        workspaceColumns: gridTrackCount(workspace.gridTemplateColumns),
+        sidebarColumns: gridTrackCount(sidebar.gridTemplateColumns),
+        sidebarTemplate: sidebar.gridTemplateColumns,
         sidebarMinHeight: Number.parseFloat(sidebar.minHeight),
-        metricColumns: metrics.gridTemplateColumns.split(" ").length,
+        metricColumns: gridTrackCount(metrics.gridTemplateColumns),
         pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth,
       };

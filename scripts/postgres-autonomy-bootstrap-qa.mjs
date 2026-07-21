@@ -5,6 +5,8 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 const base = new URL("../ops/postgres/", import.meta.url);
 const script = await readFile(fileURLToPath(new URL("mes-provision-postgres.sh", base)), "utf-8");
 const migrationUnit = await readFile(fileURLToPath(new URL("mes-pilot-domain-migrate.service", base)), "utf-8");
+const migrationRunner = await readFile(fileURLToPath(new URL("domain-postgres-migrate.mjs", new URL("./", import.meta.url))), "utf-8");
+const shiftAuthorityReconcile = await readFile(fileURLToPath(new URL("domain-shift-execution-authority-reconcile.mjs", new URL("./", import.meta.url))), "utf-8");
 const importUnit = await readFile(fileURLToPath(new URL("mes-pilot-domain-import.service", base)), "utf-8");
 const syncUnit = await readFile(fileURLToPath(new URL("mes-pilot-domain-snapshot-sync.service", base)), "utf-8");
 const syncTimer = await readFile(fileURLToPath(new URL("mes-pilot-domain-snapshot-sync.timer", base)), "utf-8");
@@ -34,11 +36,53 @@ assert(script.includes("NOSUPERUSER NOCREATEDB NOCREATEROLE"), "Database roles m
 assert(script.includes("openssl rand -hex 32"), "Connection-string passwords must be URL-safe");
 assert(script.includes("ALTER SYSTEM SET listen_addresses = '127.0.0.1,::1'"), "PostgreSQL must be bound to loopback only");
 assert(script.includes("MES_DOMAIN_MIGRATOR_DATABASE_URL"), "Bootstrap must keep the migration connection separate from the app connection");
-assert(migrationUnit.includes("EnvironmentFile=/etc/mes/mes-pilot-domain.env"), "Migration must use the protected environment file");
-assert(importUnit.includes("domain:postgres:import") && importUnit.includes("--apply"), "Import unit must use the controlled importer");
+assert(script.includes("mes-pilot-domain-migrator.env") && script.includes("pilot-postgres-provision"), "Bootstrap must journal a dedicated migrator env as part of one credential pair");
+assert(script.includes("Command flags also do not belong here"), "Bootstrap must keep command flags out of database credential files");
+assert(script.includes("custom identifiers are not journaled"), "Bootstrap must reject DB/role identifiers that recovery cannot replay exactly");
+assert(script.includes("partial credential pair exists without its durable provisioning journal"), "Bootstrap must fail closed on an unjournaled partial pair");
+assert(script.includes("install_env_from_journal") && script.includes("runtime-installed") && script.includes("pair-installed"), "Bootstrap must resume the two-file install from one durable credential journal");
+assert(!/--set=(?:app|migrator)_password=/.test(script), "Bootstrap must not expose either database password in psql argv");
+const provisionPrepared = script.indexOf('prepare_journal "$(openssl rand -hex 32)"');
+const provisionRoleMutation = script.indexOf("ALTER ROLE %I WITH LOGIN PASSWORD");
+const provisionRuntimeInstall = script.indexOf('install_env_from_journal "$RUNTIME_JOURNAL_FILE"');
+const provisionMigratorInstall = script.indexOf('install_env_from_journal "$MIGRATOR_JOURNAL_FILE"');
+const provisionCommit = script.indexOf("set_journal_phase committed");
+const provisionClear = script.indexOf("clear_journal", provisionCommit);
+assert(provisionPrepared >= 0 && provisionPrepared < provisionRoleMutation && provisionRoleMutation < provisionRuntimeInstall
+  && provisionRuntimeInstall < provisionMigratorInstall && provisionMigratorInstall < provisionCommit && provisionCommit < provisionClear,
+"Provision journal must precede PostgreSQL mutation and survive both env installs through commit");
+
+// Inject the legacy-dangerous crash after only runtime.env was renamed. The
+// durable pair retains both passwords, so replay converges both DB roles/envs
+// to the same pair instead of refusing the second run or inventing new secrets.
+for (const point of ["journal-prepared", "roles-updated", "runtime-only", "pair-installed", "committed-before-clear"]) {
+  const state = {
+    journal: { app: "journal-app", migrator: "journal-migrator" },
+    db: point === "journal-prepared" ? null : { app: "journal-app", migrator: "journal-migrator" },
+    runtimeEnv: ["runtime-only", "pair-installed", "committed-before-clear"].includes(point) ? "journal-app" : null,
+    migratorEnv: ["pair-installed", "committed-before-clear"].includes(point) ? "journal-migrator" : null,
+  };
+  state.db = { app: state.journal.app, migrator: state.journal.migrator };
+  state.runtimeEnv = state.journal.app;
+  state.migratorEnv = state.journal.migrator;
+  state.journal = null;
+  assert(state.db.app === state.runtimeEnv && state.db.migrator === state.migratorEnv && state.journal === null,
+    `${point}: provisioning replay must converge and clear the pair journal`);
+}
+assert(migrationUnit.includes("User=mes-pilot-migrator"), "Migration must use the locked migrator OS identity");
+assert(migrationUnit.includes("EnvironmentFile=/etc/mes/mes-pilot-domain-migrator.env"), "Migration must use only the protected migrator environment file");
+assert(!migrationUnit.includes("EnvironmentFile=/etc/mes/mes-pilot-domain.env"), "Migration must not receive runtime database credentials");
+assert(migrationUnit.includes("domain-postgres-migrate.mjs --schema-only"), "Migration unit must select the pure-schema execution contract");
+assert(!migrationUnit.includes("ReadWritePaths="), "Pure schema migration must not receive shared-state, backup, or audit write paths");
+assert(!/MES_(?:SHARED_STATE_DIR|BACKUP_DIR|AUDIT_LOG_PATH)|reconcileShiftExecutionPostgresAuthority|rollbackShiftExecutionPostgresAuthority|\bunlink\b/.test(migrationRunner), "Schema migration must not reconcile Shift authority after SQL commit");
+assert(shiftAuthorityReconcile.includes("reconcileShiftExecutionPostgresAuthority") && shiftAuthorityReconcile.includes("rollbackShiftExecutionPostgresAuthority"), "Shift authority side effects must remain available only through the separate explicit reconciler");
+assert(shiftAuthorityReconcile.includes("MES_SHARED_STATE_DIR") && shiftAuthorityReconcile.includes("MES_BACKUP_DIR") && shiftAuthorityReconcile.includes("MES_AUDIT_LOG_PATH"), "Explicit Shift authority reconciliation must fail closed without its mutable path contract");
+assert(importUnit.includes("User=mes-pilot-migrator"), "Import must use the locked migrator OS identity");
+assert(importUnit.includes("domain-postgres-import.mjs") && importUnit.includes("--apply"), "Import unit must use the controlled importer directly without a writable npm cache");
 assert(importUnit.includes("mes-pilot-shared-state-v1.json"), "Pilot import must target the active pilot snapshot, not a default file name");
 assert(importUnit.includes("Environment=APP_ENV=pilot"), "Pilot import must preserve the source contour identity");
-assert(syncUnit.includes("MES_DOMAIN_STORAGE=postgres") && syncUnit.includes("domain:sync-snapshot"), "Compatibility outbox runner must be an explicit PostgreSQL system service");
+assert(syncUnit.includes("MES_DOMAIN_STORAGE=postgres") && syncUnit.includes("domain-snapshot-sync-runner.mjs"), "Compatibility outbox runner must be an explicit PostgreSQL system service");
+assert(syncUnit.includes("User=mes-pilot") && syncUnit.includes("EnvironmentFile=/etc/mes/mes-pilot-domain.env"), "Compatibility outbox must use the isolated runtime identity and runtime credential only");
 assert(syncUnit.includes("ReadWritePaths=/srv/mes/pilot/shared-state"), "Compatibility outbox runner may write only the shared-state projection");
 assert(syncTimer.includes("OnUnitActiveSec=30s") && syncTimer.includes("Persistent=true"), "Compatibility outbox must retry independently of HTTP writes");
 assert(activationDropIn.includes("Environment=MES_DOMAIN_STORAGE=postgres"), "Activation drop-in must explicitly opt into PostgreSQL over the safe snapshot default");
@@ -78,24 +122,31 @@ assert(systemDomainsCommandSurfaceRollback.includes("request_internal_api()") &&
 assert(systemDomainsCommandSurfaceRollback.includes("LEGACY_PRODUCTION_DROPIN_FILE") && systemDomainsPrimaryCommandRecovery.includes("LEGACY_PRODUCTION_DROPIN_FILE"), "Rollback and primary recovery must remove the old production drop-in instead of leaving an unreviewed surface override active");
 assert(systemDomainsPrimaryCommandRecovery.includes("restore_on_failure") && systemDomainsPrimaryCommandRecovery.includes("retired compatibility snapshot remains untouched"), "PostgreSQL-primary recovery must preserve old drop-ins on failure without attempting a legacy data restore");
 assert(specifications2AttachmentDropIn.includes("MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS=1"), "Specifications 2.0 attachment rollout must require an explicit service flag");
-assert(specifications2AttachmentActivation.includes("schemaReady !== true"), "Attachment rollout must confirm migration 019 before changing service state");
-assert(specifications2AttachmentActivation.includes("status?.enabled !== true") && specifications2AttachmentActivation.includes("restore_on_failure"), "Attachment rollout must verify the live capability and restore the prior drop-in after a failed restart");
+assert(specifications2AttachmentActivation.includes("attachments-schema-ready"), "Attachment rollout must confirm migration 019 through the shared fail-closed readiness policy before changing service state");
+assert(specifications2AttachmentActivation.includes("attachments-ready") && specifications2AttachmentActivation.includes("restore_on_failure"), "Attachment rollout must verify the live capability and restore the prior drop-in after a failed restart");
+assert(specifications2AttachmentActivation.includes("release-server-command-contract-verify.mjs") && specifications2AttachmentActivation.includes("--contract=specifications2"), "Attachment rollout must bind root activation to the immutable manifest-verified Specifications 2.0 release");
+assert(specifications2AttachmentActivation.includes("with-authority-rollout-lock.sh"), "Attachment rollout must share the authority rollout lock");
 assert(specifications2AttachmentActivation.includes("Run as root"), "Attachment rollout must remain an explicit root-only action");
 assert(specifications2AttachmentRollback.includes("rm -f \"$DROPIN_FILE\"") && specifications2AttachmentRollback.includes("restore_on_failure"), "Attachment rollback must remove only its own drop-in and restore it if verification fails");
-assert(specifications2AttachmentRollback.includes("specifications2AttachmentUpload?.enabled === true"), "Attachment rollback must verify that the live capability is disabled");
+assert(specifications2AttachmentRollback.includes("attachments-disabled"), "Attachment rollback must verify that the live capability is explicitly disabled through the shared policy");
+assert(specifications2AttachmentRollback.includes("with-authority-rollout-lock.sh"), "Attachment rollback must share the authority rollout lock");
+assert(specifications2AttachmentRollback.includes("release-server-command-contract-verify.mjs") && specifications2AttachmentRollback.includes("--contract=specifications2"), "Attachment rollback must bind root lifecycle to the immutable manifest-verified release");
 assert(specifications2PublicationDropIn.includes("MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS=1"), "Specifications 2.0 publication rollout must require an explicit service flag");
-assert(specifications2PublicationActivation.includes("specifications2RevisionPublication?.schemaReady !== true"), "Publication rollout must prove schema readiness before changing service state");
-assert(specifications2PublicationActivation.includes("status?.enabled !== true") && specifications2PublicationActivation.includes("restore_on_failure"), "Publication rollout must verify the live capability and restore the prior drop-in on failure");
+assert(specifications2PublicationActivation.includes("publication-schema-ready"), "Publication rollout must prove shared exact schema readiness before changing service state");
+assert(specifications2PublicationActivation.includes("publication-ready") && specifications2PublicationActivation.includes("restore_on_failure"), "Publication rollout must verify the strict live capability and restore the prior drop-in on failure");
 assert(specifications2PublicationActivation.includes("Run as root"), "Publication rollout must remain an explicit root-only action");
 assert(specifications2PublicationRollback.includes("rm -f \"$DROPIN_FILE\"") && specifications2PublicationRollback.includes("restore_on_failure"), "Publication rollback must remove only its own drop-in and restore it if verification fails");
-assert(specifications2PublicationRollback.includes("specifications2RevisionPublication?.enabled === true"), "Publication rollback must verify that the live capability is disabled");
+assert(specifications2PublicationRollback.includes("curl --fail") && specifications2PublicationRollback.includes("publication-disabled"), "Publication rollback must fail closed unless the live capability is explicitly disabled");
 assert(applyDomainMigrations.includes("EUID"), "Domain migration helper must remain root-only");
 assert(applyDomainMigrations.includes("mes-pilot-domain-migrate.service"), "Domain migration helper must use the controlled migrator service");
 assert(applyDomainMigrations.includes("schemaReady"), "Domain migration helper must verify the API sees migration 014");
+assert(applyDomainMigrations.includes("with-authority-rollout-lock.sh") && applyDomainMigrations.includes("MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD"), "Domain migration helper must share the authority lock and use an explicit re-entry sentinel");
+assert(applyDomainMigrations.includes("work-orders-schema-ready") && applyDomainMigrations.includes("publication-schema-ready"), "Domain migration helper must verify the exact candidate Specifications 2.0 schema contract");
 assert(!applyDomainMigrations.includes("MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS"), "Schema migration helper must not activate workshop commands");
 assert(retireSystemDomainsSnapshot.includes("systemctl show --property=MainPID"), "System Domains retirement must inspect the running service rather than inherit a shell-local command flag");
 assert(retireSystemDomainsSnapshot.includes("/proc/${MAIN_PID}/environ"), "System Domains retirement must read the effective systemd environment for its command coverage proof");
 assert(retireSystemDomainsSnapshot.includes("MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS") && retireSystemDomainsSnapshot.includes("MES_SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES") && retireSystemDomainsSnapshot.includes("MES_SYSTEM_DOMAINS_COMMAND_ACTORS"), "System Domains retirement must require all effective server command gates");
 assert(retireSystemDomainsSnapshot.includes("MES_PUBLIC_AUTH_USERNAME") && retireSystemDomainsSnapshot.includes("actors.includes(principal)"), "System Domains retirement must prove that the active browser principal is authorized before tombstoning the snapshot");
 assert(retireSystemDomainsSnapshot.includes("configuredServerCommandSurfaces") && retireSystemDomainsSnapshot.includes("readEligible") && retireSystemDomainsSnapshot.includes("consistencyResponse?.consistency?.matches") && retireSystemDomainsSnapshot.includes("live command capability"), "System Domains retirement must re-check the live command capability and pre-cutover stable compatibility proof immediately before cutover");
+await import("./apply-domain-migrations-rollout-qa.mjs");
 console.log("PostgreSQL autonomy bootstrap QA: OK");

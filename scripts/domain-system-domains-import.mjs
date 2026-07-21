@@ -22,7 +22,15 @@ if (!apply) {
   process.exit(0);
 }
 
-const repository = createSystemDomainsRepository();
+// The controlled importer runs as the dedicated migrator OS identity and is
+// intentionally given only the migrator URL. The long-running application
+// never receives this variable.
+const repository = createSystemDomainsRepository({
+  databaseUrl: process.env.MES_DOMAIN_MIGRATOR_DATABASE_URL
+    || process.env.MES_DOMAIN_DATABASE_URL
+    || process.env.DATABASE_URL
+    || "",
+});
 try {
   const result = await repository.replace(loaded.domains, {
     source: `shared-state:${basename(input)}`,

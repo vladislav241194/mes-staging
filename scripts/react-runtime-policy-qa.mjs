@@ -258,6 +258,14 @@ try {
 if (distPolicyText !== null) {
   assert.equal(distPolicyText, sourcePolicyText, "dist policy must be byte-identical to the immutable source policy");
 }
-if (requireDist) assert.notEqual(distPolicyText, null, "--require-dist needs a completed build artifact");
+if (requireDist) {
+  assert.notEqual(distPolicyText, null, "--require-dist needs a completed build artifact");
+  const [distIndexHtml, distLiveVisualOverrides] = await Promise.all([
+    readFile(join(projectRoot, "dist", "index.html"), "utf8"),
+    readFile(join(projectRoot, "dist", "styles", "visual-overrides.live.css"), "utf8"),
+  ]);
+  assert.equal(distIndexHtml.includes("base-blueprint"), false, "built index must not expose the abandoned Blueprint visual theme");
+  assert.equal(distLiveVisualOverrides.includes("base-blueprint"), false, "built live CSS must not ship the abandoned Blueprint visual theme");
+}
 
 console.log(`React runtime policy QA passed: protected fail-closed, exact evaluation env, policy masking, permanent-consumer allowlist, and immutable delivery identity; ${candidatePolicy ? `${candidateSurfaceIds.join(", ")} acceptance pending` : "no candidate policy"}.`);

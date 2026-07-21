@@ -6,7 +6,7 @@ import { exportSpecifications2Entry, exportSpecifications2Snapshot } from "./dom
 import { buildSpecifications2ReleaseFingerprint } from "../src/modules/specifications2/publication.js";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
-const entry = { id: "spec-A", title: "Изделие", updatedAt: "2026-07-17T09:00:00.000Z", publication: { revision: 2 }, treeRows: [{ id: "root", level: 0, label: "АБВГ.001.001 Изделие", quantity: 1, unit: "шт." }, { id: "child", parentId: "root", level: 1, label: "Деталь", quantity: 2, unit: "шт." }], routeDrafts: [{ id: "route-A", designation: "АБВГ.001.001", productLabel: "Изделие", operations: [{ id: "op-A", operationId: "SMT", name: "SMT-монтаж", workCenterId: "SMT", nextWorkCenterId: "AOI", laborNorm: { unitsPerHour: 60 }, productionFiles: { pnp: { name: "a.txt", inlineDataUrl: "data:text/plain;base64,Zm9v" } } }] }] };
+const entry = { id: "spec-A", title: "Изделие", updatedAt: "2026-07-17T09:00:00.000Z", publication: { revision: 2 }, treeRows: [{ id: "root", level: 0, label: "АБВГ.001.001 Изделие", quantity: 1, unit: "шт." }, { id: "child", parentId: "root", level: 1, label: "Деталь", quantity: 2, unit: "шт." }], routeDrafts: [{ id: "route-A", designation: "АБВГ.001.001", productLabel: "Изделие", operations: [{ id: "op-A", operationId: "SMT", name: "SMT-монтаж", workCenterId: "SMT", nextWorkCenterId: "AOI", laborNorm: { unitsPerHour: 60 }, productionFiles: { pnp: { name: "a.txt", serverAttachmentId: "attachment-a", inlineDataUrl: "data:text/plain;base64,Zm9v" } } }] }] };
 const payload = exportSpecifications2Snapshot({ values: { "mes-specifications-2-registry-v1": JSON.stringify({ registry: [entry, { id: "draft" }] }) } });
 assert(payload.documents.length === 1 && payload.revisions[0].revision_no === 2 && payload.revisions[0].fingerprint.startsWith("sha256:"), "Published revision must be exported with a compact immutable fingerprint");
 assert(payload.revisionItems.length === 2 && payload.routeOperations.length === 1, "Structure and route operations must be exported");
@@ -14,6 +14,33 @@ const entryPayload = exportSpecifications2Entry(entry);
 assert(JSON.stringify(entryPayload) === JSON.stringify({ ...payload, skippedDrafts: 0 }), "Single-entry export must use the same immutable revision contract without a shared-state envelope");
 assert(payload.skippedDrafts === 1, "Unpublished drafts must not become immutable revisions");
 assert(!JSON.stringify(payload).includes("data:text/plain"), "Inline attachment content must not enter a revision export");
+const v6Fingerprint = buildSpecifications2ReleaseFingerprint(entry);
+const uiMetadataVariant = structuredClone(entry);
+uiMetadataVariant.createdAt = "2000-01-01T00:00:00.000Z";
+uiMetadataVariant.updatedAt = "2099-01-01T00:00:00.000Z";
+uiMetadataVariant.uiExpanded = true;
+uiMetadataVariant.treeRows[0].temporaryUiColor = "red";
+uiMetadataVariant.routeDrafts[0].temporaryPanelWidth = 999;
+uiMetadataVariant.routeDrafts[0].operations[0].temporarySelection = { selected: true };
+assert(buildSpecifications2ReleaseFingerprint(uiMetadataVariant) === v6Fingerprint,
+  "non-contract editor metadata must not change immutable v6 identity");
+assert(JSON.stringify(exportSpecifications2Entry(uiMetadataVariant)) === JSON.stringify(entryPayload),
+  "equal v6 fingerprints must export identical relational revision rows despite extra row/draft/operation UI metadata and editor timestamps");
+const reorderedV6 = structuredClone(entry);
+reorderedV6.routeDrafts[0].operations[0].laborNorm = { unitsPerHour: 60 };
+reorderedV6.routeDrafts[0].operations[0].productionFiles = {
+  pnp: { inlineDataUrl: "data:text/plain;base64,RElGRkVSRU5U", serverAttachmentId: "attachment-a", name: "a.txt" },
+};
+assert(buildSpecifications2ReleaseFingerprint(reorderedV6) === v6Fingerprint
+  && JSON.stringify(exportSpecifications2Entry(reorderedV6)) === JSON.stringify(entryPayload),
+"JSON key order and omitted inline binary copies must not change v6 identity or relational export");
+const attachmentIdentityVariant = structuredClone(entry);
+attachmentIdentityVariant.routeDrafts[0].operations[0].productionFiles.pnp.serverAttachmentId = "attachment-b";
+const attachmentIdentityPayload = exportSpecifications2Entry(attachmentIdentityVariant);
+assert(buildSpecifications2ReleaseFingerprint(attachmentIdentityVariant) !== v6Fingerprint
+  && attachmentIdentityPayload.revisions[0].fingerprint !== entryPayload.revisions[0].fingerprint
+  && attachmentIdentityPayload.routeOperations[0].attachments.pnp.serverAttachmentId === "attachment-b",
+"attachment storage identity persisted in relational projection must change v6 revision identity");
 const legacyEntry = {
   ...entry,
   id: "spec-legacy-v4",

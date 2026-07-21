@@ -1786,7 +1786,7 @@ function loadUiState() {
       ...parsed,
       activeRole: normalizeInterfaceRoleId(parsed.activeRole, accessRoleProfiles),
       activeModule: storedModule,
-      scale: parsed.scale === "weeks" ? "days" : scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale,
+      scale: scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale,
       expandedProjects: new Set(parsed.expandedProjects || defaultUiState.expandedProjects),
       selectedDirectoryRows: parsed.selectedDirectoryRows || {},
       directoryColumnFilters: normalizeDirectoryColumnFilters(parsed.directoryColumnFilters),
@@ -4120,6 +4120,39 @@ function areAllVisibleProjectsExpanded() {
   return routes.length > 0 && routes.every((route) => isGanttRouteExpanded(route));
 }
 
+function jumpGanttToToday() {
+  ui.windowStart = toDateInput(startOfDay(ui.now));
+  ui.scrollLeft = 0;
+  ui.scrollTop = 0;
+  persistUiState({ skipRememberScroll: true });
+  render({ skipRememberScroll: true });
+  return { windowStart: ui.windowStart };
+}
+
+function toggleAllVisibleGanttRoutes() {
+  const routes = getVisibleGanttRoutes();
+  const expanded = !areAllVisibleProjectsExpanded();
+  routes.forEach((route) => {
+    const productionId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
+    if (expanded) {
+      ui.expandedProjects.add(route.id);
+    } else {
+      ui.expandedProjects.delete(route.id);
+      ui.expandedProjects.delete(productionId);
+    }
+  });
+  persistUiState({ skipRememberScroll: true });
+  render({ skipRememberScroll: true });
+  return { expanded };
+}
+
+function toggleGanttQuantityVisibility() {
+  ui.ganttShowQuantity = !ui.ganttShowQuantity;
+  persistUiState({ skipRememberScroll: true });
+  render({ skipRememberScroll: true });
+  return { showQuantity: Boolean(ui.ganttShowQuantity) };
+}
+
 function extendTimelineIfNeeded(shell, scaleInfo) {
   if (!shell || !scaleInfo) return false;
   const remaining = shell.scrollWidth - shell.clientWidth - shell.scrollLeft;
@@ -4475,6 +4508,9 @@ function resetRemovedGanttFilters() {
     getVisibleGanttRoutes,
     isGanttRouteExpanded,
     areAllVisibleProjectsExpanded,
+    jumpGanttToToday,
+    toggleAllVisibleGanttRoutes,
+    toggleGanttQuantityVisibility,
     extendTimelineIfNeeded,
     prependTimelineIfNeeded,
     cascadeBatchFromSlot,

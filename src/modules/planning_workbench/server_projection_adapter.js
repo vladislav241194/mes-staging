@@ -4,6 +4,7 @@ function asObject(value) {
 
 export function projectServerPlanningRoute(item = {}) {
   const metadata = asObject(item.metadata);
+  const ownsCanonicalStartDate = Object.prototype.hasOwnProperty.call(item, "planningStartDate");
   return {
     ...metadata,
     id: String(item.id || metadata.id || ""),
@@ -15,6 +16,9 @@ export function projectServerPlanningRoute(item = {}) {
     planningQuantity: Number(item.quantity || 0),
     lifecycleStatus: String(item.lifecycleStatus || metadata.lifecycleStatus || "draft"),
     planningStatus: String(item.planningStatus || metadata.planningStatus || "draft"),
+    planningStartDate: ownsCanonicalStartDate
+      ? String(item.planningStartDate || "")
+      : String(metadata.planningStartDate || ""),
     domainConcurrencyRevision: Number(item.concurrencyRevision || metadata.domainConcurrencyRevision || 0),
     updatedAt: String(item.updatedAt || metadata.updatedAt || ""),
     operationCount: Number(item.operationCount || 0),

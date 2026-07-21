@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
-import { readSharedStateSnapshot, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
+import {
+  readSharedStateSnapshot,
+  updateSharedStateSnapshot,
+  updateSpecifications2WorkOrderSharedStateSnapshot,
+} from "./shared-state-endpoint.mjs";
 import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
+import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
 
 export const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -8,6 +13,7 @@ const PLANNING_LIST_METADATA_FIELDS = [
   "projectId", "rootRouteId", "routeTaskId", "parentRouteId", "routeTaskName",
   "routeTaskSourceItemId", "planningStatus", "lifecycleStatus", "specificationId",
   "planningQuantity", "routeDocumentKind", "specificationName",
+  "planningStartDate",
   "sourceSpecifications2EntryId", "sourceSpecifications2RouteDraftId",
 ];
 
@@ -21,6 +27,17 @@ let cachedPlanningFingerprint = "";
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function isSpecifications2WorkOrderOwnerActive(env = process.env) {
+  return String(process.env?.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
+    || String(env?.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1";
+}
+
+function updateServerWorkOrderSnapshot(options, authorityProof) {
+  return isSpecifications2WorkOrderOwnerActive(options?.env)
+    ? updateSpecifications2WorkOrderSharedStateSnapshot({ ...options, authorityProof })
+    : updateSharedStateSnapshot(options);
 }
 
 function parsePlanningState(value) {
@@ -41,6 +58,20 @@ function getRouteConcurrencyRevision(route = {}) {
   ));
 }
 
+function normalizeNullablePlanningStartDate(value) {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return isExactIsoCalendarDate(normalized) ? normalized : undefined;
+}
+
+function applyPlanningStartDateToRoute(route = {}, planningStartDate) {
+  const next = { ...route };
+  if (planningStartDate === null) delete next.planningStartDate;
+  else next.planningStartDate = planningStartDate;
+  return next;
+}
+
 function orderProjection(route = {}, routeSteps = [], slots = [], { concurrencyRevision = 0 } = {}) {
   const routeId = String(route.id || "");
   const operations = routeSteps.filter((step) => String(step.routeId || "") === routeId);
@@ -54,6 +85,9 @@ function orderProjection(route = {}, routeSteps = [], slots = [], { concurrencyR
     unit: String(route.unit || "шт."),
     lifecycleStatus: String(route.lifecycleStatus || "draft"),
     planningStatus: String(route.planningStatus || "draft"),
+    planningStartDate: isExactIsoCalendarDate(route.planningStartDate)
+      ? String(route.planningStartDate)
+      : null,
     revision: Number(route.documentRevisionSnapshot?.routeRevision || route.revision || 0),
     // Document revision is immutable publication history. This separate value
     // is the command ETag and may change for planning-only edits such as run
@@ -255,7 +289,12 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
   }
 
   function findRoute(model, id) {
-    return model.routes.find((item) => String(item.id) === id || String(item.workOrderSnapshot?.id) === id);
+    const key = String(id || "");
+    // PostgreSQL outbox rows carry the canonical aggregate id. A legacy
+    // work-order number may happen to equal another route id, so resolve the
+    // exact route id first and use the historical number only as a fallback.
+    return model.routes.find((item) => String(item.id || "") === key)
+      || model.routes.find((item) => String(item.workOrderSnapshot?.id || "") === key);
   }
 
   return {
@@ -363,6 +402,7 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       const beforeModel = readModel(before.snapshot);
       const currentRoute = findRoute(beforeModel, id);
       if (!currentRoute) return { ...metaFromSnapshot(before), conflict: false, item: null };
+      const resolvedRouteId = String(currentRoute.id || "");
       const currentConcurrencyRevision = getRouteConcurrencyRevision(currentRoute);
       if (Number(expectedRevision) !== currentConcurrencyRevision) {
         return {
@@ -379,7 +419,7 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
           const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
           let found = false;
           nextPlanning.routes = asArray(nextPlanning.routes).map((item) => {
-            const matches = String(item.id) === id || String(item.workOrderSnapshot?.id) === id;
+            const matches = String(item.id || "") === resolvedRouteId;
             if (!matches) return item;
             found = true;
             return {
@@ -401,12 +441,58 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
         return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), conflict: Boolean(updated.conflict), item: null };
       }
       const model = readModel(updated.snapshot);
-      const route = findRoute(model, id);
+      const route = findRoute(model, resolvedRouteId);
       return {
         ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }),
         conflict: false,
         item: route ? orderProjection(route, model.routeSteps, model.slots) : null,
       };
+    },
+
+    async changeStartDate(id, command = {}) {
+      const { planningStartDate, expectedRevision } = command;
+      const hasPlanningStartDate = Object.prototype.hasOwnProperty.call(command, "planningStartDate");
+      const normalizedDate = normalizeNullablePlanningStartDate(planningStartDate);
+      if (!hasPlanningStartDate || normalizedDate === undefined) {
+        throw new Error("planningStartDate must be an ISO calendar date or explicit null");
+      }
+      const before = await read();
+      const beforeModel = readModel(before.snapshot);
+      const currentRoute = findRoute(beforeModel, id);
+      if (!currentRoute) return { ...metaFromSnapshot(before), conflict: false, item: null };
+      const resolvedRouteId = String(currentRoute.id || "");
+      const currentRevision = getRouteConcurrencyRevision(currentRoute);
+      if (Number(expectedRevision) !== currentRevision) {
+        return { ...metaFromSnapshot(before), conflict: true, item: orderProjection(currentRoute, beforeModel.routeSteps, beforeModel.slots) };
+      }
+      const currentDate = isExactIsoCalendarDate(currentRoute.planningStartDate)
+        ? String(currentRoute.planningStartDate)
+        : null;
+      if (currentDate === normalizedDate) {
+        return { ...metaFromSnapshot(before), conflict: false, idempotentReplay: true, item: orderProjection(currentRoute, beforeModel.routeSteps, beforeModel.slots) };
+      }
+      const stamp = new Date().toISOString();
+      const updated = await updateSharedStateSnapshot({
+        env,
+        filePath,
+        expectedVersion: before.snapshot.version,
+        update: (current) => {
+          const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
+          nextPlanning.routes = asArray(nextPlanning.routes).map((route) => {
+            if (String(route.id || "") !== resolvedRouteId) return route;
+            return applyPlanningStartDateToRoute({
+              ...route,
+              domainConcurrencyRevision: currentRevision + 1,
+              updatedAt: stamp,
+            }, normalizedDate);
+          });
+          return { ...current, values: { ...current.values, [PLANNING_STATE_KEY]: JSON.stringify(nextPlanning) } };
+        },
+      });
+      if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), conflict: Boolean(updated.conflict), item: null };
+      const model = readModel(updated.snapshot);
+      const route = findRoute(model, resolvedRouteId);
+      return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), conflict: false, item: route ? orderProjection(route, model.routeSteps, model.slots) : null };
     },
 
     async changeSlotSchedule(id, operationId, { plannedStart, expectedRevision }) {
@@ -416,11 +502,11 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       const model = readModel(before.snapshot);
       const route = findRoute(model, id);
       if (!route) return { ...metaFromSnapshot(before), conflict: false, item: null };
+      const routeId = String(route.id || "");
       const currentRevision = getRouteConcurrencyRevision(route);
       if (Number(expectedRevision) !== currentRevision) {
         return { ...metaFromSnapshot(before), conflict: true, item: orderProjection(route, model.routeSteps, model.slots) };
       }
-      const routeId = String(route.id || "");
       const currentSlot = model.slots.find((slot) => String(slot.routeId || "") === routeId && String(slot.routeStepId || "") === String(operationId));
       if (!currentSlot) return { ...metaFromSnapshot(before), conflict: false, item: null };
       if (currentSlot.locked || ["completed", "done"].includes(String(currentSlot.status || "").toLowerCase())) {
@@ -438,7 +524,7 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
           const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
           let found = false;
           nextPlanning.routes = asArray(nextPlanning.routes).map((item) => {
-            const matches = String(item.id) === id || String(item.workOrderSnapshot?.id) === id;
+            const matches = String(item.id || "") === routeId;
             if (!matches) return item;
             found = true;
             return { ...item, domainConcurrencyRevision: currentRevision + 1, updatedAt: new Date().toISOString() };
@@ -454,8 +540,121 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       });
       if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), conflict: Boolean(updated.conflict), item: null };
       const nextModel = readModel(updated.snapshot);
-      const nextRoute = findRoute(nextModel, id);
+      const nextRoute = findRoute(nextModel, routeId);
       return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), conflict: false, item: nextRoute ? orderProjection(nextRoute, nextModel.routeSteps, nextModel.slots) : null };
+    },
+
+    async applyServerAggregateProjection(id, {
+      expectedRevision,
+      targetRevision,
+      item = null,
+    } = {}) {
+      const before = await read();
+      const model = readModel(before.snapshot);
+      const route = findRoute(model, id);
+      if (!route || !item?.id) return { ...metaFromSnapshot(before), applied: false, conflict: false, item: null };
+      const routeId = String(route.id || "");
+      const currentRevision = getRouteConcurrencyRevision(route);
+      const quantity = Number(item.quantity);
+      const hasPlanningStartDate = Object.prototype.hasOwnProperty.call(item, "planningStartDate");
+      const planningStartDate = normalizeNullablePlanningStartDate(item.planningStartDate);
+      if (!Number.isFinite(quantity) || quantity <= 0
+        || !hasPlanningStartDate || planningStartDate === undefined) {
+        throw new Error("Authoritative work-order aggregate projection is invalid");
+      }
+      const slotProjection = new Map((item.operations || [])
+        .map((operation) => operation?.slot)
+        .filter((slot) => slot?.id)
+        .map((slot) => [String(slot.id), slot]));
+      const currentSlots = model.slots.filter((slot) => String(slot.routeId || "") === routeId);
+      const slotsMatch = currentSlots.length === slotProjection.size
+        && currentSlots.every((slot) => {
+          const projected = slotProjection.get(String(slot.id || ""));
+          return projected
+            && Number(slot.quantity) === Number(projected.quantity)
+            && String(slot.plannedStart || "") === String(projected.plannedStart || "")
+            && String(slot.plannedEnd || "") === String(projected.plannedEnd || "")
+            && String(slot.status || "planned") === String(projected.status || "planned")
+            && Boolean(slot.locked) === Boolean(projected.isLocked);
+        });
+      const alreadyApplied = currentRevision === Number(targetRevision)
+        && Number(route.planningQuantity ?? route.workOrderSnapshot?.quantity) === quantity
+        && (isExactIsoCalendarDate(route.planningStartDate) ? String(route.planningStartDate) : null) === planningStartDate
+        && slotsMatch;
+      if (alreadyApplied) {
+        return { ...metaFromSnapshot(before), applied: true, conflict: false, alreadyApplied: true, item: orderProjection(route, model.routeSteps, model.slots) };
+      }
+      // Planning commands covered by this outbox do not create/remove slots.
+      // A different set indicates an independent compatibility writer and
+      // must not be overwritten by a latest-state rebase.
+      if (currentRevision !== Number(expectedRevision)
+        || currentSlots.length !== slotProjection.size
+        || currentSlots.some((slot) => !slotProjection.has(String(slot.id || "")))) {
+        return { ...metaFromSnapshot(before), applied: false, conflict: true, item: orderProjection(route, model.routeSteps, model.slots) };
+      }
+      const stamp = new Date().toISOString();
+      const slotUpdates = [...slotProjection.values()].map((slot) => ({
+        id: String(slot.id || ""),
+        quantity: Number(slot.quantity),
+        plannedStart: String(slot.plannedStart || ""),
+        plannedEnd: String(slot.plannedEnd || ""),
+        status: String(slot.status || "planned"),
+        locked: Boolean(slot.isLocked),
+      }));
+      const updated = await updateServerWorkOrderSnapshot({
+        env,
+        filePath,
+        expectedVersion: before.snapshot.version,
+        update: (current) => {
+          const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
+          nextPlanning.routes = asArray(nextPlanning.routes).map((candidate) => {
+            if (String(candidate.id || "") !== routeId) return candidate;
+            return applyPlanningStartDateToRoute({
+              ...candidate,
+              planningQuantity: quantity,
+              domainConcurrencyRevision: Number(targetRevision),
+              updatedAt: stamp,
+              workOrderSnapshot: { ...candidate.workOrderSnapshot, quantity },
+            }, planningStartDate);
+          });
+          nextPlanning.slots = asArray(nextPlanning.slots).map((slot) => {
+            if (String(slot.routeId || "") !== routeId) return slot;
+            const projected = slotProjection.get(String(slot.id || ""));
+            if (!projected) return slot;
+            return {
+              ...slot,
+              quantity: Number(projected.quantity),
+              plannedStart: String(projected.plannedStart || ""),
+              plannedEnd: String(projected.plannedEnd || ""),
+              status: String(projected.status || "planned"),
+              locked: Boolean(projected.isLocked),
+              updatedAt: stamp,
+            };
+          });
+          return { ...current, values: { ...current.values, [PLANNING_STATE_KEY]: JSON.stringify(nextPlanning) } };
+        },
+      }, {
+        kind: "aggregate-rebase",
+        workOrderId: String(id),
+        routeId,
+        expectedRevision: Number(expectedRevision),
+        targetRevision: Number(targetRevision),
+        quantity,
+        planningStartDate,
+        slotUpdates,
+        stamp,
+      });
+      if (!updated.ok || updated.conflict) {
+        return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), applied: false, conflict: Boolean(updated.conflict), item: null };
+      }
+      const nextModel = readModel(updated.snapshot);
+      const nextRoute = findRoute(nextModel, routeId);
+      return {
+        ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }),
+        applied: true,
+        conflict: false,
+        item: nextRoute ? orderProjection(nextRoute, nextModel.routeSteps, nextModel.slots) : null,
+      };
     },
 
     async applyServerQuantityProjection(id, {
@@ -486,7 +685,14 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       if (currentRevision !== Number(expectedRevision)) {
         return { ...metaFromSnapshot(before), applied: false, conflict: true, item: orderProjection(currentRoute, beforeModel.routeSteps, beforeModel.slots) };
       }
-      const updated = await updateSharedStateSnapshot({
+      const stamp = new Date().toISOString();
+      const slotUpdates = [...slotProjection.values()].map((projected) => ({
+        id: String(projected.id || ""),
+        quantity: Number(projected.quantity),
+        plannedStart: String(projected.plannedStart || ""),
+        plannedEnd: String(projected.plannedEnd || ""),
+      }));
+      const updated = await updateServerWorkOrderSnapshot({
         env,
         filePath,
         expectedVersion: before.snapshot.version,
@@ -494,19 +700,20 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
           const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
           let found = false;
           nextPlanning.routes = asArray(nextPlanning.routes).map((route) => {
-            const matches = String(route.id) === id || String(route.workOrderSnapshot?.id) === id;
+            const matches = String(route.id || "") === routeId;
             if (!matches) return route;
             found = true;
             return {
               ...route,
               planningQuantity: Number(quantity),
               domainConcurrencyRevision: Number(targetRevision),
-              updatedAt: new Date().toISOString(),
+              updatedAt: stamp,
               workOrderSnapshot: { ...route.workOrderSnapshot, quantity: Number(quantity) },
             };
           });
           if (!found) return current;
           nextPlanning.slots = asArray(nextPlanning.slots).map((slot) => {
+            if (String(slot.routeId || "") !== routeId) return slot;
             const projected = slotProjection.get(String(slot.id));
             if (!projected) return slot;
             return {
@@ -514,15 +721,24 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
               quantity: Number(projected.quantity),
               plannedStart: String(projected.plannedStart || slot.plannedStart || ""),
               plannedEnd: String(projected.plannedEnd || slot.plannedEnd || ""),
-              updatedAt: new Date().toISOString(),
+              updatedAt: stamp,
             };
           });
           return { ...current, values: { ...current.values, [PLANNING_STATE_KEY]: JSON.stringify(nextPlanning) } };
         },
+      }, {
+        kind: "quantity",
+        workOrderId: String(id),
+        routeId,
+        expectedRevision: Number(expectedRevision),
+        targetRevision: Number(targetRevision),
+        quantity: Number(quantity),
+        slotUpdates,
+        stamp,
       });
       if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), applied: false, conflict: Boolean(updated.conflict), item: null };
       const model = readModel(updated.snapshot);
-      const route = findRoute(model, id);
+      const route = findRoute(model, routeId);
       return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), applied: true, conflict: false, item: route ? orderProjection(route, model.routeSteps, model.slots) : null };
     },
 
@@ -531,8 +747,9 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       const model = readModel(before.snapshot);
       const route = findRoute(model, id);
       if (!route || !slot?.id) return { ...metaFromSnapshot(before), applied: false, conflict: false, item: null };
+      const routeId = String(route.id || "");
       const currentRevision = getRouteConcurrencyRevision(route);
-      const currentSlot = model.slots.find((item) => String(item.id || "") === String(slot.id));
+      const currentSlot = model.slots.find((item) => String(item.routeId || "") === routeId && String(item.id || "") === String(slot.id));
       const alreadyApplied = currentRevision === Number(targetRevision)
         && currentSlot
         && String(currentSlot.plannedStart || "") === String(slot.plannedStart || "")
@@ -541,28 +758,92 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       if (currentRevision !== Number(expectedRevision) || !currentSlot) {
         return { ...metaFromSnapshot(before), applied: false, conflict: true, item: orderProjection(route, model.routeSteps, model.slots) };
       }
-      const updated = await updateSharedStateSnapshot({
+      const stamp = new Date().toISOString();
+      const plannedStart = String(slot.plannedStart || currentSlot.plannedStart || "");
+      const plannedEnd = String(slot.plannedEnd || currentSlot.plannedEnd || "");
+      const updated = await updateServerWorkOrderSnapshot({
         env,
         filePath,
         expectedVersion: before.snapshot.version,
         update: (current) => {
           const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
           nextPlanning.routes = asArray(nextPlanning.routes).map((item) => (
-            String(item.id) === id || String(item.workOrderSnapshot?.id) === id
-              ? { ...item, domainConcurrencyRevision: Number(targetRevision), updatedAt: new Date().toISOString() }
+            String(item.id || "") === routeId
+              ? { ...item, domainConcurrencyRevision: Number(targetRevision), updatedAt: stamp }
               : item
           ));
           nextPlanning.slots = asArray(nextPlanning.slots).map((item) => (
-            String(item.id || "") === String(slot.id)
-              ? { ...item, plannedStart: String(slot.plannedStart || item.plannedStart || ""), plannedEnd: String(slot.plannedEnd || item.plannedEnd || ""), updatedAt: new Date().toISOString() }
+            String(item.routeId || "") === routeId && String(item.id || "") === String(slot.id)
+              ? { ...item, plannedStart, plannedEnd, updatedAt: stamp }
               : item
           ));
           return { ...current, values: { ...current.values, [PLANNING_STATE_KEY]: JSON.stringify(nextPlanning) } };
         },
+      }, {
+        kind: "slot-schedule",
+        workOrderId: String(id),
+        routeId,
+        slotId: String(slot.id),
+        expectedRevision: Number(expectedRevision),
+        targetRevision: Number(targetRevision),
+        plannedStart,
+        plannedEnd,
+        stamp,
       });
       if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), applied: false, conflict: Boolean(updated.conflict), item: null };
       const nextModel = readModel(updated.snapshot);
-      const nextRoute = findRoute(nextModel, id);
+      const nextRoute = findRoute(nextModel, routeId);
+      return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), applied: true, conflict: false, item: nextRoute ? orderProjection(nextRoute, nextModel.routeSteps, nextModel.slots) : null };
+    },
+
+    async applyServerStartDateProjection(id, projection = {}) {
+      const { expectedRevision, targetRevision, planningStartDate } = projection;
+      const hasPlanningStartDate = Object.prototype.hasOwnProperty.call(projection, "planningStartDate");
+      const normalizedDate = normalizeNullablePlanningStartDate(planningStartDate);
+      if (!hasPlanningStartDate || normalizedDate === undefined) {
+        throw new Error("planningStartDate must be an ISO calendar date or explicit null");
+      }
+      const before = await read();
+      const beforeModel = readModel(before.snapshot);
+      const route = findRoute(beforeModel, id);
+      if (!route) return { ...metaFromSnapshot(before), applied: false, conflict: false, item: null };
+      const routeId = String(route.id || "");
+      const currentRevision = getRouteConcurrencyRevision(route);
+      const alreadyApplied = currentRevision === Number(targetRevision)
+        && (isExactIsoCalendarDate(route.planningStartDate) ? String(route.planningStartDate) : null) === normalizedDate;
+      if (alreadyApplied) return { ...metaFromSnapshot(before), applied: true, conflict: false, item: orderProjection(route, beforeModel.routeSteps, beforeModel.slots) };
+      if (currentRevision !== Number(expectedRevision)) {
+        return { ...metaFromSnapshot(before), applied: false, conflict: true, item: orderProjection(route, beforeModel.routeSteps, beforeModel.slots) };
+      }
+      const stamp = new Date().toISOString();
+      const updated = await updateServerWorkOrderSnapshot({
+        env,
+        filePath,
+        expectedVersion: before.snapshot.version,
+        update: (current) => {
+          const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
+          nextPlanning.routes = asArray(nextPlanning.routes).map((item) => {
+            if (String(item.id || "") !== routeId) return item;
+            return applyPlanningStartDateToRoute({
+              ...item,
+              domainConcurrencyRevision: Number(targetRevision),
+              updatedAt: stamp,
+            }, normalizedDate);
+          });
+          return { ...current, values: { ...current.values, [PLANNING_STATE_KEY]: JSON.stringify(nextPlanning) } };
+        },
+      }, {
+        kind: "start-date",
+        workOrderId: String(id),
+        routeId,
+        expectedRevision: Number(expectedRevision),
+        targetRevision: Number(targetRevision),
+        planningStartDate: normalizedDate,
+        stamp,
+      });
+      if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), applied: false, conflict: Boolean(updated.conflict), item: null };
+      const nextModel = readModel(updated.snapshot);
+      const nextRoute = findRoute(nextModel, routeId);
       return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), applied: true, conflict: false, item: nextRoute ? orderProjection(nextRoute, nextModel.routeSteps, nextModel.slots) : null };
     },
 
@@ -581,61 +862,71 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       if (!sourceEntryId || !Array.isArray(operations) || !operations.length) {
         return { ...metaFromSnapshot(before), applied: false, conflict: true, item: null };
       }
-      const updated = await updateSharedStateSnapshot({
+      const stamp = new Date().toISOString();
+      const route = {
+        id: String(id),
+        specificationId: `spec2-server-${source.specificationRevisionId || sourceEntryId}`,
+        specificationName: String(source.title || "Спецификация 2.0"),
+        projectId: `spec2-server-${source.specificationRevisionId || sourceEntryId}`,
+        name: `Маршрутная карта · ${String(source.title || source.designation || "Изделие")}`,
+        designation: String(source.designation || ""),
+        isDefault: true,
+        routeDocumentKind: "main",
+        rootRouteId: String(id),
+        planningQuantity: Number(source.quantity || 1),
+        planningStatus: "draft",
+        lifecycleStatus: "released",
+        revision: sourceRevision,
+        domainConcurrencyRevision: Number(targetRevision),
+        sourceSpecifications2EntryId: sourceEntryId,
+        sourceSpecifications2RouteDraftId: String(source.routeSourceDraftId || ""),
+        planningLaborByStepId: Object.fromEntries((operations || []).map((operation) => [String(operation.id), operation.labor || {}])),
+        documentRevisionSnapshot: {
+          source: "specifications2",
+          specificationEntryId: sourceEntryId,
+          specificationRevision: sourceRevision,
+          routeDraftId: String(source.routeSourceDraftId || ""),
+          routeRevision: sourceRevision,
+          releasedAt: stamp,
+          product: { designation: String(source.designation || ""), name: String(source.title || "Изделие") },
+          operations: (operations || []).map((operation) => ({ routeStepId: String(operation.id), operationId: String(operation.operationId || ""), operationName: String(operation.name || ""), workCenterId: String(operation.workCenterId || ""), nextWorkCenterId: String(operation.nextWorkCenterId || ""), labor: operation.labor || {} })),
+        },
+        workOrderSnapshot: { id: String(id), source: "specifications2", specificationRevision: sourceRevision, routeId: String(id), routeRevision: sourceRevision, quantity: Number(source.quantity || 1), operationRevisions: (operations || []).map((operation) => ({ routeStepId: String(operation.id), operationId: String(operation.operationId || ""), labor: operation.labor || {} })) },
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+      const steps = (operations || []).map((operation, index) => ({
+        id: String(operation.id), routeId: String(id), stepOrder: index + 1,
+        operationId: String(operation.operationId || ""), operationName: String(operation.name || "Операция"),
+        workCenterId: String(operation.workCenterId || ""), routeWorkCenterId: String(operation.workCenterId || ""), nextWorkCenterId: String(operation.nextWorkCenterId || ""),
+        isRequired: true, quantityMultiplier: Math.max(1, Number(operation.quantityMultiplier || 1)),
+        calculationType: String(operation.executionContext?.calculationType || ""), unitsPerHour: Number(operation.executionContext?.unitsPerHour || 0), setupMin: Number(operation.executionContext?.setupMin || 0), boardsPerPanel: Number(operation.executionContext?.boardsPerPanel || 1), secondsPerPanel: Number(operation.executionContext?.secondsPerPanel || 0),
+        labor: operation.labor || {}, sourceSpecifications2OperationId: String(operation.operationId || ""), updatedAt: stamp,
+      }));
+      const updated = await updateServerWorkOrderSnapshot({
         env,
         filePath,
         expectedVersion: before.snapshot.version,
         update: (current) => {
           const nextPlanning = parsePlanningState(current.values?.[PLANNING_STATE_KEY]);
           if (asArray(nextPlanning.routes).some((route) => String(route.id || "") === String(id))) return current;
-          const stamp = new Date().toISOString();
-          const route = {
-            id: String(id),
-            specificationId: `spec2-server-${source.specificationRevisionId || sourceEntryId}`,
-            specificationName: String(source.title || "Спецификация 2.0"),
-            projectId: `spec2-server-${source.specificationRevisionId || sourceEntryId}`,
-            name: `Маршрутная карта · ${String(source.title || source.designation || "Изделие")}`,
-            designation: String(source.designation || ""),
-            isDefault: true,
-            routeDocumentKind: "main",
-            rootRouteId: String(id),
-            planningQuantity: Number(source.quantity || 1),
-            planningStatus: "draft",
-            lifecycleStatus: "released",
-            revision: sourceRevision,
-            domainConcurrencyRevision: Number(targetRevision),
-            sourceSpecifications2EntryId: sourceEntryId,
-            sourceSpecifications2RouteDraftId: String(source.routeSourceDraftId || ""),
-            planningLaborByStepId: Object.fromEntries((operations || []).map((operation) => [String(operation.id), operation.labor || {}])),
-            documentRevisionSnapshot: {
-              source: "specifications2",
-              specificationEntryId: sourceEntryId,
-              specificationRevision: sourceRevision,
-              routeDraftId: String(source.routeSourceDraftId || ""),
-              routeRevision: sourceRevision,
-              releasedAt: stamp,
-              product: { designation: String(source.designation || ""), name: String(source.title || "Изделие") },
-              operations: (operations || []).map((operation) => ({ routeStepId: String(operation.id), operationId: String(operation.operationId || ""), operationName: String(operation.name || ""), workCenterId: String(operation.workCenterId || ""), nextWorkCenterId: String(operation.nextWorkCenterId || ""), labor: operation.labor || {} })),
-            },
-            workOrderSnapshot: { id: String(id), source: "specifications2", specificationRevision: sourceRevision, routeId: String(id), routeRevision: sourceRevision, quantity: Number(source.quantity || 1), operationRevisions: (operations || []).map((operation) => ({ routeStepId: String(operation.id), operationId: String(operation.operationId || ""), labor: operation.labor || {} })) },
-            createdAt: stamp,
-            updatedAt: stamp,
-          };
-          const steps = (operations || []).map((operation, index) => ({
-            id: String(operation.id), routeId: String(id), stepOrder: index + 1,
-            operationId: String(operation.operationId || ""), operationName: String(operation.name || "Операция"),
-            workCenterId: String(operation.workCenterId || ""), routeWorkCenterId: String(operation.workCenterId || ""), nextWorkCenterId: String(operation.nextWorkCenterId || ""),
-            isRequired: true, quantityMultiplier: Math.max(1, Number(operation.quantityMultiplier || 1)),
-            calculationType: String(operation.executionContext?.calculationType || ""), unitsPerHour: Number(operation.executionContext?.unitsPerHour || 0), setupMin: Number(operation.executionContext?.setupMin || 0), boardsPerPanel: Number(operation.executionContext?.boardsPerPanel || 1), secondsPerPanel: Number(operation.executionContext?.secondsPerPanel || 0),
-            labor: operation.labor || {}, sourceSpecifications2OperationId: String(operation.operationId || ""), updatedAt: stamp,
-          }));
           return { ...current, values: { ...current.values, [PLANNING_STATE_KEY]: JSON.stringify({ ...nextPlanning, routes: [...asArray(nextPlanning.routes), route], routeSteps: [...asArray(nextPlanning.routeSteps), ...steps] }) } };
         },
+      }, {
+        kind: "create",
+        workOrderId: String(id),
+        routeId: String(id),
+        sourceEntryId,
+        expectedRevision: 0,
+        targetRevision: Number(targetRevision),
+        route,
+        steps,
+        stamp,
       });
       if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), applied: false, conflict: Boolean(updated.conflict), item: null };
       const nextModel = readModel(updated.snapshot);
-      const route = findRoute(nextModel, id);
-      return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), applied: Boolean(route), conflict: false, item: route ? orderProjection(route, nextModel.routeSteps, nextModel.slots) : null };
+      const projectedRoute = findRoute(nextModel, id);
+      return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), applied: Boolean(projectedRoute), conflict: false, item: projectedRoute ? orderProjection(projectedRoute, nextModel.routeSteps, nextModel.slots) : null };
     },
   };
 }

@@ -1,9 +1,25 @@
+import { readFile } from "node:fs/promises";
+
 import { publishSpecifications2EntryWithServerFirst } from "../src/modules/specifications2/publish_flow.js";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
 const entry = { id: "spec-1", updatedAt: "before", publication: null, fingerprint: "draft-a" };
 
 const events = [];
+const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const serverAdapterStart = appSource.indexOf("publishServerRevision:");
+const serverAdapterEnd = appSource.indexOf("getServerPublicationCapability:", serverAdapterStart);
+const serverAdapterSource = appSource.slice(serverAdapterStart, serverAdapterEnd);
+const legacyCommitStart = appSource.indexOf("const commitSpecifications2Publication");
+const legacyCommitEnd = appSource.indexOf("const result = buildSpecifications2Publication", legacyCommitStart);
+const legacyCommitSource = appSource.slice(legacyCommitStart, legacyCommitEnd);
+assert(serverAdapterStart >= 0 && serverAdapterEnd > serverAdapterStart
+  && serverAdapterSource.includes("specifications2PublishCommands?.publishRevision?.")
+  && !serverAdapterSource.includes("isLegacyDirectoryWriteBlocked"),
+"server-first publication must remain callable when Nomenclature and Directory command owners are both primary");
+assert(legacyCommitStart >= 0 && legacyCommitEnd > legacyCommitStart
+  && legacyCommitSource.includes("isLegacyDirectoryWriteBlocked()"),
+"combined command ownership must continue blocking only the legacy local compatibility commit");
 const serverFirst = await publishSpecifications2EntryWithServerFirst({
   entry,
   getServerPublicationCapability: async () => ({ ok: true, enabled: true, serverPrimary: true }),

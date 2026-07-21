@@ -7,7 +7,7 @@ import { validateDomainExport } from "./domain-postgres-import.mjs";
 function assert(condition, message) { if (!condition) throw new Error(message); }
 const payload = {
   schemaVersion: "006_production_resources",
-  workOrders: [{ id: "wo-1" }],
+  workOrders: [{ id: "wo-1", planning_start_date: "2028-02-29" }],
   workOrderOperations: [{ id: "op-1", work_order_id: "wo-1", quantity_multiplier: 1, execution_context: {} }],
   planningSlots: [{ id: "slot-1", work_order_operation_id: "op-1", quantity: 1, is_locked: false }],
   workCenterCalendars: [{ work_center_id: "D1", work_schedule: "24/7", work_mode: "00:00-24:00", timezone: "Europe/Moscow", is_active: true }],
@@ -33,6 +33,9 @@ assert(/Production resource .* incomplete/.test(invalidResource), "Validator mus
 let invalidQuantity = "";
 try { validateDomainExport({ ...payload, planningSlots: [{ id: "slot-1", work_order_operation_id: "op-1", quantity: 0 }] }); } catch (error) { invalidQuantity = String(error.message); }
 assert(/positive quantity/.test(invalidQuantity), "Validator must reject an invalid planning slot quantity");
+let invalidStartDate = "";
+try { validateDomainExport({ ...payload, workOrders: [{ id: "wo-1", planning_start_date: "2026-02-31" }] }); } catch (error) { invalidStartDate = String(error.message); }
+assert(/invalid planning start date/.test(invalidStartDate), "Validator must reject impossible planning start dates before PostgreSQL import");
 
 const directory = await mkdtemp(join(tmpdir(), "mes-domain-import-qa-"));
 const file = join(directory, "export.json");

@@ -75,6 +75,8 @@ assert.match(source.provision, /read -r -s -p "Employee PIN:/);
 assert.match(source.provision, /APP_DIR="\$\(readlink -f "\$APP_DIR_INPUT"/);
 assert.match(source.provision, /--pin-stdin/);
 assert.match(source.provision, /employee-auth-credential-admin\.mjs/);
+assert.match(source.provision, /delete-credential/);
+assert.match(source.provision, /employee-auth-credential-admin\.mjs" delete-credential/);
 assert.doesNotMatch(source.provision, /--pin=|export employee_pin|MES_EMPLOYEE_AUTH_PIN/);
 
 for (const name of ["activateAuth", "activateCommands"]) {

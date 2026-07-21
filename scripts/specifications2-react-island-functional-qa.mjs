@@ -142,7 +142,36 @@ try {
   assert(react.revisionId === serverItem.id && react.rows === 4 && react.metrics === 4 && react.source.includes("PostgreSQL"), `Specifications 2.0 PostgreSQL parity failed: ${JSON.stringify(react)}`);
   assert(react.revision === "1" && react.commitMs < 2000 && react.grid === "grid" && react.columns === 2 && react.panelRadius >= 6 && react.publicationRadius >= 10 && !["", "rgba(0, 0, 0, 0)", "transparent"].includes(react.publicationBackground) && react.objectDisplay === "grid" && react.actionRadius >= 8 && !react.overflow, `Specifications 2.0 production style/telemetry failed: ${JSON.stringify(react)}`);
   await client.send("Emulation.setDeviceMetricsOverride", { width: 487, height: 844, deviceScaleFactor: 1, mobile: false });
-  const compact = await evaluate(client, () => { const target = document.querySelector("[data-react-specifications2-island]"); const tableWrap = target.querySelector('[data-ui-component="TableWrap"]'); return { layoutColumns: getComputedStyle(target.querySelector(".module-layout")).gridTemplateColumns.split(" ").length, sidebarColumns: getComputedStyle(target.querySelector(".module-sidebar")).gridTemplateColumns.split(" ").length, metricColumns: getComputedStyle(target.querySelector(".metric-grid")).gridTemplateColumns.split(" ").length, pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth }; });
+  const compact = await evaluate(client, () => {
+    const target = document.querySelector("[data-react-specifications2-island]");
+    const tableWrap = target.querySelector('[data-ui-component="TableWrap"]');
+    const countGridTracks = (value) => {
+      const normalized = String(value || "").trim();
+      const repeated = normalized.match(/^repeat\(\s*(\d+)\s*,[\s\S]+\)$/);
+      if (repeated) return Number(repeated[1]);
+      let depth = 0;
+      let tracks = 0;
+      let inTrack = false;
+      for (const character of normalized) {
+        if (/\s/.test(character) && depth === 0) {
+          if (inTrack) tracks += 1;
+          inTrack = false;
+          continue;
+        }
+        inTrack = true;
+        if (character === "(") depth += 1;
+        else if (character === ")") depth = Math.max(0, depth - 1);
+      }
+      return tracks + (inTrack ? 1 : 0);
+    };
+    return {
+      layoutColumns: countGridTracks(getComputedStyle(target.querySelector(".module-layout")).gridTemplateColumns),
+      sidebarColumns: countGridTracks(getComputedStyle(target.querySelector(".module-sidebar")).gridTemplateColumns),
+      metricColumns: countGridTracks(getComputedStyle(target.querySelector(".metric-grid")).gridTemplateColumns),
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth,
+    };
+  });
   assert(compact.layoutColumns === 1 && compact.sidebarColumns === 2 && compact.metricColumns === 2 && !compact.pageOverflow, `Specifications 2.0 compact UI contract failed: ${JSON.stringify(compact)}`);
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await evaluate(client, () => document.querySelector(".specifications2-react-publication .action")?.click());
@@ -175,17 +204,22 @@ try {
   }, { message: "Specifications 2.0 owner did not persist the edited draft row", timeoutMs: 10_000 });
   for (let index = 0; index < 80 && sharedStateWrites !== 1; index += 1) await delay(100);
   assert(sharedStateWrites === 1, `draft save must emit one compatibility persistence, received ${sharedStateWrites}`);
-  const writeResult = await evaluate(client, () => {
-    const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
-    const selected = store.registry?.[0];
-    return {
-      publicationRevision: selected?.publication?.revision,
-      publicationFingerprint: selected?.publication?.fingerprint,
-      draftLabel: selected?.editorRows?.find((row) => row.id === "board")?.label,
-      publishedLabel: [...document.querySelectorAll("[data-specifications2-tree-row] strong")].map((node) => node.textContent?.trim()).find((label) => label === "АБВГ.468332.002"),
-      badge: document.querySelector(".lab-badge")?.textContent?.trim(),
-    };
-  });
+  let writeResult = null;
+  for (let index = 0; index < 80; index += 1) {
+    writeResult = await evaluate(client, () => {
+      const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
+      const selected = store.registry?.[0];
+      return {
+        publicationRevision: selected?.publication?.revision,
+        publicationFingerprint: selected?.publication?.fingerprint,
+        draftLabel: selected?.editorRows?.find((row) => row.id === "board")?.label,
+        publishedLabel: [...document.querySelectorAll("[data-specifications2-tree-row] strong")].map((node) => node.textContent?.trim()).find((label) => label === "АБВГ.468332.002"),
+        badge: document.querySelector(".lab-badge")?.textContent?.trim(),
+      };
+    });
+    if (writeResult.draftLabel === "Плата управления КТ-7" && writeResult.publishedLabel === "АБВГ.468332.002") break;
+    await delay(100);
+  }
   assert(writeResult.publicationRevision === 7 && writeResult.publicationFingerprint === entry.publication.fingerprint, `published revision metadata changed during draft edit: ${JSON.stringify(writeResult)}`);
   assert(writeResult.draftLabel === "Плата управления КТ-7" && writeResult.publishedLabel === "АБВГ.468332.002", `draft/published separation failed: ${JSON.stringify(writeResult)}`);
   assert(writeResult.badge === "React · draft edit evaluation", `write-evaluation badge missing: ${JSON.stringify(writeResult)}`);
@@ -225,7 +259,7 @@ try {
   });
   assert(specificationWrites === 2 && publishAttempts === 2 && serverItem.revisionNo === 8, "publication retry must create exactly one next server revision");
   assert(publishRequests.length === 2 && publishRequests.every((request) => request.entryId === entry.id && request.expectedPreviousRevision === 7 && request.idempotencyKey.startsWith("specifications2-publish:")), `publication requests lost exact owner coordinates: ${JSON.stringify(publishRequests)}`);
-  assert(publicationResult.revision === 8 && publicationResult.fingerprint !== entry.publication.fingerprint && publicationResult.state.toLowerCase().includes("ревизия 8"), `publication acknowledgement did not preserve the next immutable revision: ${JSON.stringify(publicationResult)}`);
+  assert(publicationResult.revision === 8 && publicationResult.fingerprint !== entry.publication.fingerprint && publicationResult.state.toLowerCase().includes("postgresql подтвердил ревизию 8"), `publication acknowledgement did not preserve the next immutable revision: ${JSON.stringify(publicationResult)}`);
   assert(sharedStateWrites === 1, "server-primary publication must not add a browser compatibility write");
 
   await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Создать заказ-наряд"), { message: "server work-order capability did not expose the React command" });

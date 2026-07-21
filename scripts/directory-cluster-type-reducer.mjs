@@ -22,6 +22,7 @@ const INACTIVE_STATUS_KEYS = new Set([
   "удалён",
   "архив",
 ]);
+const REQUIRED_BOARD_TYPE_NAMES = new Set(["печатные платы", "рэа компоненты"]);
 
 export const DIRECTORY_CLUSTER_TYPE_REDUCER_CONTRACT = Object.freeze({
   requiredDirectoryArrays: REQUIRED_DIRECTORY_ARRAYS,
@@ -63,6 +64,28 @@ function normalizeTypeId(value) {
 export function normalizeNomenclatureTypeName(value) {
   if (typeof value !== "string") return "";
   return value.normalize("NFKC").trim().replace(/\s+/gu, " ");
+}
+
+// Nomenclature Types and Boards/BOM share one Directory projection. These two
+// semantic type names are part of the Board reducer contract and therefore
+// cannot be renamed or removed by the adjacent type owner.
+export function validateNomenclatureTypeBoardOwnerBoundary(directory, command) {
+  if (!isRecord(directory) || !isRecord(command)
+    || !["update", "delete"].includes(String(command.kind || ""))) return { ok: true };
+  const current = Array.isArray(directory.nomenclatureTypes)
+    ? directory.nomenclatureTypes.find((row) => row?.id === command.itemId) || null
+    : null;
+  if (!current) return { ok: true };
+  const currentName = normalizeNomenclatureTypeName(current.name).toLocaleLowerCase("ru-RU");
+  if (!REQUIRED_BOARD_TYPE_NAMES.has(currentName)) return { ok: true };
+  if (command.kind === "delete") {
+    return resultError(409, "board-required-type-delete-forbidden", "A Nomenclature type required by the Boards/BOM owner cannot be deleted");
+  }
+  const nextName = normalizeNomenclatureTypeName(command.row?.name === undefined ? current.name : command.row.name)
+    .toLocaleLowerCase("ru-RU");
+  return nextName === currentName
+    ? { ok: true }
+    : resultError(409, "board-required-type-rename-forbidden", "A Nomenclature type required by the Boards/BOM owner cannot be renamed");
 }
 
 function typeNameKey(value) {

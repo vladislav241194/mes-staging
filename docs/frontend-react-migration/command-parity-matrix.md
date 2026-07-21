@@ -13,8 +13,8 @@ Pilot read evidence is `21/24` across multiple releases. On current audited
 release `v.1.500.21-8fb92d9`, Weekly Production Control and Structure Migration
 Diagnostics have fresh read acceptance and permanent default-on policy:
 same-release read and permanent coverage are therefore `2/24`. The only full
-Pilot write/read-back/cleanup lifecycle remains Nomenclature on the earlier
-`v.1.500.17`, so write coverage is still `1/22`. The executable cross-route
+Pilot write/read-back/cleanup lifecycle remains Nomenclature on live evaluation
+release `v.1.500.25-1f8369c`, so write coverage is still `1/22`. The executable cross-route
 source of truth is `experiments/react-migration/cutover-ledger.json`.
 
 All 24 scenarios have local production-shell read evidence and keep legacy
@@ -70,14 +70,28 @@ lifecycle, import and other delete commands remain explicit legacy-only
 slices. Timesheet now has React-owned week/month and previous/next-period
 navigation plus locally complete single-day attendance and permanent schedule
 save/remove. Roles and Access now has locally complete passport
-metadata editing, six-action grant toggles, role default scope, immediate
-single-assignment replace/clear and explicit deactivate/reactivate for
-unassigned roles through the `access-control` owner. Multiple-assignment and
-effective-window editing, personal/assignment scopes, read-only and
-assigned-role lifecycle remain legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
+metadata editing, six-action grant toggles, role default scope including
+`self`, immediate single-assignment replace/clear and explicit
+deactivate/reactivate for unassigned roles through the `access-control`
+owner. Deactivation of an assigned role or the current effective role is an
+intentional fail-closed invariant, not a missing command. Multiple-assignment
+management lacks a targeted owner; effective-window, subject/assignment
+responsibility-scope and `readOnly` fields lack durable PostgreSQL contracts.
+Access-control reset is compatibility-only and is rejected by the shared
+destructive-action guard before mutation on protected contours; its legacy
+button/callback plumbing is a guarded invariant, not approved command parity.
+None of those gaps is a proven legacy write capability. Structure Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. Planning Workbench now has
-locally complete route/item navigation and quantity editing through its current
-PostgreSQL-backed owner; dates, labor, Gantt transfer and cancel remain legacy.
+locally complete route/item navigation and a narrowly gated pre-placement
+start-date anchor through its PostgreSQL-backed owner. The date command
+uses an exact `DATE` column, revision check, actor-scoped idempotency key and
+owner read-back; it deliberately does not reschedule existing Gantt slots.
+Quantity, slot/Gantt changes, labor, Gantt transfer and cancel are not part of
+this React write slice. During its bounded 15-minute Pilot evaluation, all
+browser legacy domain-value writes are paused system-wide while reads,
+navigation and the compatibility-safe `ganttDependencyRoutes` preference
+remain; domain-backed `sharedUi` writes are blocked with the other legacy
+domain writes.
 Shift Work Orders now keeps attachment inspection, SZN print preview, the
 work-order print package, bounded executor assignment and fact entry/correction inside React while
 reusing the existing package, print and Shift Execution owners. The host
@@ -111,8 +125,15 @@ same task payload. Authorized person switching and return to user selection now
 use the existing session owner without a legacy render; durable Report
 persistence remains separate. Gantt now also keeps dependency inspection
 inside React using the existing `getDependencyPairs` owner and a local-only
-typed start-time move through the revision-checked `changeSlotSchedule` owner;
-dependency editing, drag, resize and optimization remain legacy. The remaining scenarios
+typed start-time move through the revision-checked `changeSlotSchedule` owner.
+Period start, the `hours`/`days`/`weeks` scale and stepped zoom now use typed
+React navigation over the existing UI-state owner and survive route reloads;
+expand/collapse, quantity visibility and jump-to-today use the same owner and
+stay inside React. Those bounded controls have no user-action legacy fallback.
+Read-only slot editing, dependency editing, drag, resize and optimization
+remain legacy. Legacy refresh is deliberately not counted as a local control:
+it reschedules slots and persists Planning state, so it needs a separate
+command-owner slice. The remaining scenarios
 retain their explicit next vertical scopes.
 
 Specifications 2.0 now has locally complete editing of one existing draft row
@@ -140,7 +161,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
-| 1 | Nomenclature | Slice complete: create/edit/delete; authenticated Pilot lifecycle and zero-row cleanup accepted on `v.1.500.17` | Medium | Build the permanent runtime contract and repeat acceptance on the consolidated cutover release |
+| 1 | Nomenclature | Slice complete: create/edit/delete; authenticated Pilot lifecycle and zero-row cleanup accepted on `v.1.500.25-1f8369c` | Medium | Build the permanent runtime contract and repeat acceptance on the consolidated cutover release |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit/custom delete with Specifications and loaded-Planning cleanup; bundled rows protected | Medium | Separately gated Pilot create/edit/custom-delete evaluation with a disposable row and verified cleanup |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; permanent Pilot read accepted and desktop-rechecked on `.21` | Low | Keep the immutable legacy rollback and monitor the permanent read-only surface; `.19` retains the accepted narrow evidence |
@@ -154,13 +175,13 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 12 | Structure Responsibility Policies | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate; PostgreSQL persists `isActive`, duplicate masters and missing employees fail closed | High | Apply migration 026, then separately gate a disposable Pilot lifecycle evaluation with verified cleanup/reactivation |
 | 13 | Structure Work Centers | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy, active-reference and active-parent guards while preserving Planning/Gantt flags | High | Separately gated Pilot lifecycle evaluation with a disposable leaf work center and verified cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
-| 15 | Roles and Access | Local complete: role label, description, default module, six-action grant toggles, role default scope, exact-employee immediate assignment replace/clear and ID-bound deactivate/reactivate for unassigned roles; multiple/effective-window assignment editing, personal/assignment scopes, read-only and assigned-role lifecycle remain legacy | Critical | Separately gated Pilot metadata/grant/default-scope/assignment/lifecycle write evaluation with disposable coordinates and verified cleanup/reactivation |
-| 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
+| 15 | Roles and Access | Local complete: role label, description, default module, six-action grant toggles, role default scope including `self`, exact-employee immediate assignment replace/clear and ID-bound deactivate/reactivate for unassigned roles; assigned/current-role deactivation and protected-contour access-control reset stay intentionally guarded, while multiple-assignment management and durable effective-window, subject/assignment responsibility-scope and `readOnly` persistence remain owner/schema gaps rather than proven legacy parity | Critical | Separately gated Pilot metadata/grant/default-scope/assignment/unassigned-role lifecycle write evaluation with disposable coordinates and verified cleanup/reactivation; keep destructive reset outside React unless product policy explicitly changes; resolve each durable owner/schema contract separately |
+| 16 | Planning Workbench | Local complete: route/detail navigation and owner-backed start-date anchor; quantity is read-only in this slice, and all other Planning/Gantt writes remain outside it | Critical | Separately gated, 15-minute Pilot start-date-only evaluation with migration 032, exact schema/v7 parity, signed actor and compatibility receipt; pause every browser legacy domain-value write system-wide for the window |
 | 17 | Shift Work Orders | Local complete: attachment viewer, SZN/package print previews and owner-backed assignment plus fact entry/correction; Workshop remains legacy; Pilot read accepted | Critical | Keep default-off; any assignment/fact write acceptance on Pilot requires explicit disposable cleanup approval |
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit, exact-ID server-primary publication with conflict/retry and PostgreSQL/legacy read-back, plus idempotent exact-revision work-order creation; add/remove/reparent, attachments and route editing remain legacy | Critical | Separately gated disposable Pilot publication/work-order acceptance before any default-on decision |
-| 21 | Gantt | Local complete: dependency inspection, target-slot selection and revision-checked start-time reschedule; Pilot read accepted | Critical | Keep default-off; dependency editing, drag, resize and optimization remain separate command scopes |
+| 21 | Gantt | Local complete: dependency inspection, target-slot selection, revision-checked start-time reschedule and React-native period/scale/zoom, expand/collapse, quantity visibility and today persisted by the existing UI-state owner; Pilot read accepted | Critical | Keep default-off; read-only slot edit fallback, schedule-mutating refresh, dependency editing, drag, resize and optimization remain separate scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |
 | — | Structure Migration Diagnostics | Not applicable: product screen is read-only; permanent desktop Pilot acceptance completed on `.21` | Low | Keep immutable legacy rollback and monitor; narrow Pilot remains unclaimed because viewport resize was unavailable |

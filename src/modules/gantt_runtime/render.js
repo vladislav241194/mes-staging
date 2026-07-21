@@ -153,6 +153,7 @@ export function createGanttRuntimeModule(dependencies = {}) {
     isManufacturingOutputReceiptRouteStep = () => false,
     isManufacturingOutputReceiptSlot,
     isoLocal,
+    jumpGanttToToday,
     isPlanningUnit,
     isPlanningWorkCenter,
     isSmtLineWorkCenterId = () => false,
@@ -246,6 +247,8 @@ export function createGanttRuntimeModule(dependencies = {}) {
     toDate,
     toDateInput,
     toSlotDateTime,
+    toggleAllVisibleGanttRoutes,
+    toggleGanttQuantityVisibility,
     total,
     type,
     updateDependencyClip,
@@ -4025,10 +4028,7 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   });
 
   app.querySelector("#todayButton")?.addEventListener("click", () => {
-    ui.windowStart = toDateInput(startOfDay(ui.now));
-    ui.scrollLeft = 0;
-    ui.scrollTop = 0;
-    render({ skipRememberScroll: true });
+    jumpGanttToToday();
   });
 
   app.querySelector("#dependencyEditButton")?.addEventListener("click", () => {
@@ -4085,25 +4085,11 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   });
 
   app.querySelector("[data-toggle-all-projects]")?.addEventListener("click", () => {
-    const routes = getVisibleGanttRoutes();
-    const shouldExpand = !areAllVisibleProjectsExpanded();
-    routes.forEach((route) => {
-      const productionId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
-      if (shouldExpand) {
-        ui.expandedProjects.add(route.id);
-      } else {
-        ui.expandedProjects.delete(route.id);
-        ui.expandedProjects.delete(productionId);
-      }
-    });
-    persistUiState();
-    render();
+    toggleAllVisibleGanttRoutes();
   });
 
   app.querySelector("[data-toggle-gantt-quantity]")?.addEventListener("click", () => {
-    ui.ganttShowQuantity = !ui.ganttShowQuantity;
-    persistUiState();
-    render();
+    toggleGanttQuantityVisibility();
   });
 
   app.querySelectorAll("[data-toggle-project]").forEach((button) => {
@@ -5330,6 +5316,16 @@ function getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, projec
   return {
     projectionSource: String(projectionSource || "server"),
     scale: String(ui.scale || "days"),
+    scaleOptions: Object.entries(scaleConfig).map(([id, config]) => ({
+      id,
+      label: String(config?.label || id),
+    })),
+    zoom: normalizeGanttZoom(scaleInfo.zoom),
+    zoomLabel: getGanttZoomPercent(scaleInfo.zoom),
+    windowStartDate: String(ui.windowStart || toDateInput(scaleInfo.start)),
+    windowEndDate: toDateInput(scaleInfo.end),
+    allRoutesExpanded: areAllVisibleProjectsExpanded(),
+    showQuantity: Boolean(ui.ganttShowQuantity),
     windowStart: toDate(scaleInfo.start).toISOString(),
     windowEnd: toDate(scaleInfo.end).toISOString(),
     leftWidth: LEFT_WIDTH,

@@ -7,6 +7,7 @@ function assert(value, message) {
 function makeItem({
   plannedStart = "2026-07-18T08:00:00.000Z",
   plannedEnd = "2026-07-18T09:00:00.000Z",
+  planningStartDate = "2026-07-18",
   updatedAt = "2026-07-18T08:00:00.000Z",
 } = {}) {
   return {
@@ -18,12 +19,13 @@ function makeItem({
     unit: "шт.",
     lifecycleStatus: "released",
     planningStatus: "scheduled",
+    planningStartDate,
     revision: 3,
     concurrencyRevision: 3,
     operationCount: 1,
     scheduledOperationCount: 1,
     updatedAt,
-    metadata: { id: "route-1", specificationName: "Изделие", planningQuantity: 10, updatedAt },
+    metadata: { id: "route-1", specificationName: "Изделие", planningQuantity: 10, planningStartDate, updatedAt },
     operations: [{
       id: "operation-1",
       operationId: "OP-1",
@@ -57,6 +59,7 @@ function listItem(item) {
     unit: item.unit,
     lifecycleStatus: item.lifecycleStatus,
     planningStatus: item.planningStatus,
+    planningStartDate: item.planningStartDate,
     revision: item.revision,
     concurrencyRevision: item.concurrencyRevision,
     operationCount: item.operationCount,
@@ -157,7 +160,7 @@ assert(first.repository === primary && first.parity.matches, "equivalent local a
 assert(first.readVerification?.primaryRevision === 7, "successful full proof must bind a verification token to the primary epoch");
 assert(primaryCounters.list === 1 && primaryCounters.get === 1, "initial proof must execute aggregate list/detail reads");
 assert(markerRef.current.verifiedPrimaryRevision === 7 && markerRef.current.verifiedSnapshotFingerprint === "sha256:planning-a", "successful proof must persist the exact epoch and planning fingerprint");
-assert(markerRef.current.verifiedContractVersion === 5, "marker must bind the current parity contract");
+assert(markerRef.current.verifiedContractVersion === 7, "marker must bind the current parity contract");
 
 // An unrelated shared-state version bump must not re-run full parity: only the
 // planning payload fingerprint participates in the durable checkpoint.
@@ -167,15 +170,15 @@ const trusted = await inspect("planning-parity-watermark-unrelated-snapshot-chan
 assert(trusted.repository === primary && trusted.parity.skipped === "verified-projection-marker", "valid marker must skip the costly full comparison");
 assert(primaryCounters.list === beforeTrustedReads.primaryList && primaryCounters.get === beforeTrustedReads.primaryGet, "trusted marker must not call aggregate list/detail reads");
 
-// The bounded runtime projection makes split-slot selection deterministic.
-// A durable marker from the unordered v4 detail contract cannot skip the
-// proof even when its epoch and fingerprint still match exactly.
-markerRef.current = { ...markerRef.current, verifiedContractVersion: 4 };
+// v6 exposed the anchor but did not compare the canonical DATE in list parity.
+// Such a marker cannot skip the corrected v7 proof even when its epoch and
+// fingerprint still match exactly.
+markerRef.current = { ...markerRef.current, verifiedContractVersion: 6 };
 const beforeContractUpgradeReads = { primaryList: primaryCounters.list, primaryGet: primaryCounters.get };
 const contractUpgrade = await inspect("planning-parity-watermark-contract-upgrade");
 assert(contractUpgrade.repository === primary && contractUpgrade.parity.matches && contractUpgrade.parity.skipped !== "verified-projection-marker", "an earlier projection contract marker must force a fresh parity proof");
 assert(primaryCounters.list === beforeContractUpgradeReads.primaryList + 1 && primaryCounters.get === beforeContractUpgradeReads.primaryGet + 1, "an earlier projection contract marker must not bypass aggregate verification");
-assert(markerRef.current.verifiedContractVersion === 5, "fresh parity proof must replace an earlier projection contract marker");
+assert(markerRef.current.verifiedContractVersion === 7, "fresh parity proof must replace an earlier projection contract marker");
 
 // A planning-value replacement invalidates the marker even if the global
 // snapshot version is not the signal being trusted.  Full parity refreshes it.
@@ -185,6 +188,26 @@ const refreshed = await inspect("planning-parity-watermark-planning-change");
 assert(refreshed.repository === primary && refreshed.parity.matches, "matching changed planning payload must re-prove before PostgreSQL is used");
 assert(primaryCounters.list === beforeSnapshotChangeReads + 1, "planning fingerprint change must trigger a full comparison");
 assert(markerRef.current.verifiedSnapshotFingerprint === "sha256:planning-b", "fresh full proof must replace the checkpoint fingerprint");
+
+// The pre-placement anchor is independent of physical slots. A canonical
+// DATE mismatch must invalidate parity even when quantities, revisions and
+// every operation/slot coordinate still match.
+snapshotItem.current = makeItem({
+  plannedStart: snapshotLocalStart,
+  plannedEnd: snapshotLocalEnd,
+  planningStartDate: "2026-07-19",
+});
+snapshotHealth.current = { ...snapshotHealth.current, planningProjectionFingerprint: "sha256:planning-date-mismatch" };
+const dateMismatch = await inspect("planning-parity-watermark-start-date-mismatch");
+assert(dateMismatch.repository === snapshot && dateMismatch.fallbackReason === "postgres-projection-stale",
+  "a canonical planningStartDate mismatch must fail closed to the snapshot");
+assert(dateMismatch.parity?.mismatches?.[0]?.fields?.includes("planningStartDate"),
+  "planningStartDate must participate explicitly in list parity evidence");
+snapshotItem.current = makeItem({ plannedStart: snapshotLocalStart, plannedEnd: snapshotLocalEnd });
+snapshotHealth.current = { ...snapshotHealth.current, planningProjectionFingerprint: "sha256:planning-date-restored" };
+const restoredDateParity = await inspect("planning-parity-watermark-start-date-restored");
+assert(restoredDateParity.repository === primary && restoredDateParity.parity.matches,
+  "PostgreSQL may be selected again only after the canonical anchor matches");
 
 // A direct PostgreSQL planning write increments the trigger epoch.  It cannot
 // reuse an old proof, and a changed slot start must drive a snapshot fallback.
@@ -215,8 +238,8 @@ snapshotItem.current = makeItem({ plannedStart: "2026-07-18T08:00:00.000Z" });
 markerRef.current = {
   primaryRevision: 10,
   verifiedPrimaryRevision: 10,
-  verifiedSnapshotFingerprint: "sha256:planning-b",
-  verifiedContractVersion: 5,
+  verifiedSnapshotFingerprint: "sha256:planning-date-restored",
+  verifiedContractVersion: 7,
 };
 let mutateDuringPrimaryRead = true;
 primaryHooks.onList = async () => {

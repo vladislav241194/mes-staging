@@ -1,4 +1,5 @@
 import { buildSpecifications2ReleaseFingerprint } from "../src/modules/specifications2/publication.js";
+import { assertSpecifications2Quantity } from "../src/domain/specifications2_quantity.js";
 import { createHash } from "node:crypto";
 
 const STORAGE_KEY = "mes-specifications-2-registry-v1";
@@ -20,6 +21,24 @@ function stableId(prefix, seed) {
 
 function fingerprint(value) {
   return `sha256:${createHash("sha256").update(clean(value)).digest("hex")}`;
+}
+
+function canonicalJsonValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalJsonValue(value[key])]));
+}
+
+export function buildSpecifications2RelationalReleaseFingerprint(releaseFingerprint = "") {
+  return fingerprint(releaseFingerprint);
+}
+
+// JSONB does not preserve object-key insertion order. Normalize through the
+// JSON data model and sort every record before hashing so the digest computed
+// before INSERT is identical to the digest verified after an outbox read.
+export function buildSpecifications2CompatibilityPayloadDigest(entry = {}) {
+  const jsonSafe = JSON.parse(JSON.stringify(entry));
+  return fingerprint(JSON.stringify(canonicalJsonValue(jsonSafe)));
 }
 
 function designation(row = {}) {
@@ -100,29 +119,59 @@ export function exportSpecifications2Snapshot(snapshot = {}) {
     const entry = record(rawEntry);
     const revisionNo = Math.trunc(numeric(entry.publication?.revision));
     if (revisionNo < 1) { payload.skippedDrafts += 1; return; }
-    const sourceEntryId = clean(entry.id) || `entry-${entryIndex + 1}`;
-    const specificationId = stableId("spec2doc", sourceEntryId);
-    const revisionId = stableId("spec2rev", `${sourceEntryId}:r${revisionNo}`);
-    const treeRows = rowsFor(entry);
-    const root = treeRows.find((row) => numeric(row.level) === 0) || treeRows[0] || {};
     const currentReleaseFingerprint = buildSpecifications2ReleaseFingerprint(entry);
     const publishedFingerprint = clean(entry.publication?.fingerprint);
     if (publishedFingerprint && publishedFingerprint !== currentReleaseFingerprint) {
-      throw new Error(`Specifications 2.0 export: ${sourceEntryId} changed after published revision ${revisionNo}; publish a new revision before exporting`);
+      throw new Error(`Specifications 2.0 export: ${clean(entry.id) || `entry-${entryIndex + 1}`} changed after published revision ${revisionNo}; publish a new revision before exporting`);
     }
-    // The browser fingerprint intentionally contains the full route shape,
-    // including inline attachment contents. Keep its immutable identity, but
-    // persist a one-way digest so a database revision never duplicates files.
-    const releaseFingerprint = fingerprint(publishedFingerprint || currentReleaseFingerprint);
-    payload.documents.push({ id: specificationId, source_entry_id: sourceEntryId, title: clean(entry.title) || clean(root.label) || "Без названия", designation: designation(root), created_at: clean(entry.createdAt) || null, updated_at: clean(entry.updatedAt) || null });
+    const rawReleaseFingerprint = publishedFingerprint || currentReleaseFingerprint;
+    let v6Contract = null;
+    try {
+      const parsed = JSON.parse(rawReleaseFingerprint);
+      if (Number(parsed?.adapterVersion) === 6) v6Contract = parsed;
+    } catch { v6Contract = null; }
+    // A v6 revision is exported only from the exact canonical contract that
+    // defines its fingerprint. Arbitrary editor/UI properties are deliberately
+    // not revision data; therefore equal v6 fingerprints produce equal
+    // relational rows (apart from server-assigned ids, revision and time).
+    const sourceEntryId = clean(v6Contract?.sourceEntryId || entry.id) || `entry-${entryIndex + 1}`;
+    const specificationId = stableId("spec2doc", sourceEntryId);
+    const revisionId = stableId("spec2rev", `${sourceEntryId}:r${revisionNo}`);
+    const treeRows = v6Contract ? (Array.isArray(v6Contract.rows) ? v6Contract.rows : []) : rowsFor(entry);
+    const routeDrafts = v6Contract ? (Array.isArray(v6Contract.routes) ? v6Contract.routes : []) : (Array.isArray(entry.routeDrafts) ? entry.routeDrafts : []);
+    const root = treeRows.find((row) => numeric(row.level) === 0) || treeRows[0] || {};
+    const revisionTitle = clean(v6Contract?.title ?? entry.title) || clean(root.label) || "Без названия";
+    const revisionDesignation = designation(root);
+    const releaseFingerprint = buildSpecifications2RelationalReleaseFingerprint(rawReleaseFingerprint);
+    payload.documents.push({
+      id: specificationId,
+      source_entry_id: sourceEntryId,
+      title: revisionTitle,
+      designation: revisionDesignation,
+      created_at: v6Contract ? null : (clean(entry.createdAt) || null),
+      updated_at: v6Contract ? null : (clean(entry.updatedAt) || null),
+    });
     const publication = { ...record(entry.publication) };
     delete publication.fingerprint;
-    payload.revisions.push({ id: revisionId, specification_id: specificationId, revision_no: revisionNo, fingerprint: releaseFingerprint, source_updated_at: clean(entry.updatedAt) || null, released_at: clean(entry.publication?.releasedAt || entry.publication?.publishedAt) || null, source_payload: { publication, selectedRouteDraftId: clean(entry.selectedRouteDraftId) } });
+    payload.revisions.push({
+      id: revisionId,
+      specification_id: specificationId,
+      revision_no: revisionNo,
+      fingerprint: releaseFingerprint,
+      revision_title: revisionTitle,
+      revision_designation: revisionDesignation,
+      revision_identity_state: "authoritative",
+      source_updated_at: v6Contract ? null : (clean(entry.updatedAt) || null),
+      released_at: clean(entry.publication?.releasedAt || entry.publication?.publishedAt) || null,
+      source_payload: v6Contract
+        ? { adapterVersion: 6, selectedRouteDraftId: clean(v6Contract.selectedRouteDraftId), revisionTitle, revisionDesignation }
+        : { publication, selectedRouteDraftId: clean(entry.selectedRouteDraftId), revisionTitle, revisionDesignation },
+    });
     treeRows.forEach((row, rowIndex) => {
       const sourceId = sourceRowId(row, rowIndex);
-      payload.revisionItems.push({ id: stableId("spec2item", `${revisionId}:${sourceId}`), specification_revision_id: revisionId, source_row_id: sourceId, parent_source_row_id: clean(row.parentId || row.parentKey), designation: designation(row), name: clean(row.label) || designation(row) || `Строка ${rowIndex + 1}`, item_kind: clean(row.type) || "item", quantity: numeric(row.quantity, 0), unit: clean(row.unitOfMeasure || row.unit) || "шт.", source_payload: record(row) });
+      payload.revisionItems.push({ id: stableId("spec2item", `${revisionId}:${sourceId}`), specification_revision_id: revisionId, source_row_id: sourceId, parent_source_row_id: clean(row.parentId || row.parentKey), designation: designation(row), name: clean(row.label) || designation(row) || `Строка ${rowIndex + 1}`, item_kind: clean(row.type) || "item", quantity: assertSpecifications2Quantity(row.quantity ?? 0, `Specifications 2.0 row ${sourceId} quantity`), unit: clean(row.unitOfMeasure || row.unit) || "шт.", source_payload: record(row) });
     });
-    (Array.isArray(entry.routeDrafts) ? entry.routeDrafts : []).forEach((rawDraft, draftIndex) => {
+    routeDrafts.forEach((rawDraft, draftIndex) => {
       const draft = record(rawDraft);
       const sourceDraftId = clean(draft.id) || `route-${draftIndex + 1}`;
       const routeId = stableId("spec2route", `${revisionId}:${sourceDraftId}`);

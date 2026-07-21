@@ -12,6 +12,7 @@ const snapshot = {
       routes: [{
         id: "route-1", name: "Плата", designation: "АБВГ.001", planningQuantity: 20,
         lifecycleStatus: "released", planningStatus: "scheduled", revision: 2,
+        planningStartDate: "2026-07-18",
         sourceSpecifications2EntryId: "spec-1", unit: "шт.",
         workOrderSnapshot: { id: "WO-001", quantity: 20 },
       }],
@@ -29,6 +30,7 @@ assert(first.workCenterCalendars.length === 1 && first.workCenterCalendars[0].ti
 assert(first.productionResources.length > 0 && first.productionResources.every((row) => row.id && row.work_center_id), "Export must include the canonical production-resource projection");
 assert(first.workOrders[0].source_kind === "specifications2", "Export must preserve the Specifications 2.0 source boundary");
 assert(first.workOrders[0].metadata?.sourceSpecifications2EntryId === "spec-1", "Export must retain route rendering metadata for the server projection");
+assert(first.workOrders[0].planning_start_date === "2026-07-18", "Export must carry the exact planning start-date column");
 assert(first.workOrderOperations[0].work_order_id === first.workOrders[0].id, "Operation must point to exported work order");
 assert(first.workOrderOperations[0].quantity_multiplier === 4, "Export must preserve the source quantity multiplier for each operation");
 assert(first.workOrderOperations[0].execution_context.calculationType === "normative" && first.workOrderOperations[0].execution_context.unitsPerHour === 60, "Export must preserve portable execution context");
@@ -49,6 +51,13 @@ duplicateSequence.values["mes-planning-prototype-state-v2"] = JSON.stringify({
 });
 const normalized = exportPlanningSnapshot(duplicateSequence);
 assert(normalized.workOrderOperations.map((row) => row.sequence_no).join(",") === "1,2", "Export must make equal legacy stepOrder values unique per work order");
+
+const impossibleStartDate = structuredClone(snapshot);
+const impossibleStartDatePlanning = JSON.parse(impossibleStartDate.values["mes-planning-prototype-state-v2"]);
+impossibleStartDatePlanning.routes[0].planningStartDate = "2026-02-31";
+impossibleStartDate.values["mes-planning-prototype-state-v2"] = JSON.stringify(impossibleStartDatePlanning);
+assert(exportPlanningSnapshot(impossibleStartDate).workOrders[0].planning_start_date === null,
+  "Export must not normalise an impossible compatibility date into a different PostgreSQL day");
 
 const invalid = structuredClone(snapshot);
 invalid.values["mes-planning-prototype-state-v2"] = JSON.stringify({

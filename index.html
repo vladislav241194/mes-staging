@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0" />
     <title>MES Planning Module Prototype</title>
     <script>
-      window.__MES_DEPLOY_VERSION__ = "v.1.500.25";
+      window.__MES_DEPLOY_VERSION__ = "v.1.500.26";
       try {
         const key = "mes-staging-cache-refresh-version";
         const current = localStorage.getItem(key);
@@ -44,8 +44,9 @@
         if (allowVisualLive) {
           const visualLiveParams = new URL(window.location.href).searchParams;
           const requestedVisualTheme = String(visualLiveParams.get("visual_theme") || "").trim();
-          const visualTheme = requestedVisualTheme || "base-glass";
-          if (/^[a-z0-9_-]{1,32}$/i.test(visualTheme)) document.documentElement.dataset.visualTheme = visualTheme;
+          const allowedVisualThemes = new Set(["base-glass", "base-industrial"]);
+          const visualTheme = allowedVisualThemes.has(requestedVisualTheme) ? requestedVisualTheme : "base-glass";
+          document.documentElement.dataset.visualTheme = visualTheme;
         }
       } catch {}
     </script>

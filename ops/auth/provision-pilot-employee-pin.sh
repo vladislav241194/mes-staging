@@ -13,7 +13,7 @@ APP_DIR="$(readlink -f "$APP_DIR_INPUT" 2>/dev/null || true)"
 DATABASE_ENV_FILE="${MES_PILOT_DOMAIN_ENV_FILE:-/etc/mes/mes-pilot-domain.env}"
 ACTION="${1:-}"
 EMPLOYEE_ID="${2:-}"
-[[ -n "$EMPLOYEE_ID" ]] || { echo "Usage: $0 set-pin|set-pin-file|revoke-sessions EMPLOYEE_ID [credential-file]" >&2; exit 2; }
+[[ -n "$EMPLOYEE_ID" ]] || { echo "Usage: $0 set-pin|set-pin-file|revoke-sessions|delete-credential EMPLOYEE_ID [credential-file]" >&2; exit 2; }
 
 case "$ACTION" in
   set-pin)
@@ -37,5 +37,9 @@ case "$ACTION" in
     /usr/bin/node "$APP_DIR/scripts/employee-auth-credential-admin.mjs" revoke-sessions \
       "--employee-id=$EMPLOYEE_ID" "--database-env-file=$DATABASE_ENV_FILE"
     ;;
-  *) echo "Usage: $0 set-pin|set-pin-file|revoke-sessions EMPLOYEE_ID [credential-file]" >&2; exit 2 ;;
+  delete-credential)
+    /usr/bin/node "$APP_DIR/scripts/employee-auth-credential-admin.mjs" delete-credential \
+      "--employee-id=$EMPLOYEE_ID" "--database-env-file=$DATABASE_ENV_FILE"
+    ;;
+  *) echo "Usage: $0 set-pin|set-pin-file|revoke-sessions|delete-credential EMPLOYEE_ID [credential-file]" >&2; exit 2 ;;
 esac

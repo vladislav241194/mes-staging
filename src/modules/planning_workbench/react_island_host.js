@@ -3,6 +3,21 @@ import { createReactIslandHost } from "../react_island_host.js";
 const PLANNING_WORKBENCH_REACT_TARGET = "[data-react-planning-workbench-island]";
 const PLANNING_WORKBENCH_REACT_BUNDLE_VERSION = "__MES_PLANNING_WORKBENCH_REACT_BUNDLE_VERSION__";
 
+// Planning-specific legacy controls stay inside the extracted Planning
+// boundary. The application shell consumes this selector only while the
+// bounded start-date evaluation quiesces browser-owned legacy mutations.
+export const PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR = [
+  "[data-planning-start-date]",
+  "[data-planning-route-quantity-form]",
+  "[data-planning-boards-per-panel]",
+  "[data-planning-labor-note]",
+  "[data-planning-order-labor]",
+  "[data-planning-supply-mode]",
+  "[data-planning-route-to-gantt]",
+  "[data-planning-route-cancel]",
+  "[data-confirm-approve]",
+].join(",");
+
 export function createPlanningWorkbenchReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, navigate, reportError = (error) => console.error("[MES] Planning Workbench React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,

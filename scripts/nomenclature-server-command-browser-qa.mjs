@@ -119,6 +119,28 @@ function capabilityPayload(mode, sessionActor) {
   };
 }
 
+function nomenclatureTypesCapabilityPayload(sessionActor, directoryRevision = 1) {
+  const authenticated = Boolean(sessionActor);
+  return {
+    ok: true,
+    apiVersion: "v1",
+    surface: "nomenclature-types",
+    authenticated,
+    actor: sessionActor,
+    rbacRevision: 42,
+    directoryRevision,
+    authorizationReason: authenticated ? "server-commands-not-configured" : "employee-session-required",
+    capabilities: {
+      canViewNomenclatureTypes: authenticated,
+      canEditNomenclatureTypes: authenticated,
+      canCreateNomenclatureTypes: authenticated,
+      canDeleteNomenclatureTypes: authenticated,
+      serverCommandsConfigured: false,
+      serverCommandsEnabled: false,
+    },
+  };
+}
+
 function commandPayload({ item, directory, revision, commandRevision, baseRevision, replayed, superseded }) {
   return {
     apiVersion: "v1",
@@ -254,6 +276,7 @@ async function main() {
   let commandMode = "outage";
   let currentDirectory = structuredClone(initialDirectory);
   let employeeSessionDeletes = 0;
+  let nomenclatureTypesCapabilityReads = 0;
   let directorySnapshotWrites = 0;
   const employeeSessionPosts = [];
   const commandRequests = [];
@@ -333,6 +356,12 @@ async function main() {
           return;
         }
 
+        if (url.pathname === "/api/v1/directory/nomenclature-types/capabilities" && method === "GET") {
+          nomenclatureTypesCapabilityReads += 1;
+          await fulfill(requestId, nomenclatureTypesCapabilityPayload(sessionActor, snapshot.version));
+          return;
+        }
+
         if (url.pathname === "/api/v1/nomenclature" || url.pathname.startsWith("/api/v1/nomenclature/")) {
           const body = JSON.parse(request.postData || "{}");
           const record = { method, url: url.pathname, headers, body, postData: request.postData || "" };
@@ -386,6 +415,7 @@ async function main() {
       { urlPattern: "*api/shared-state*", requestStage: "Request" },
       { urlPattern: "*api/v1/auth/employee-session*", requestStage: "Request" },
       { urlPattern: "*api/v1/nomenclature*", requestStage: "Request" },
+      { urlPattern: "*api/v1/directory/nomenclature-types/capabilities*", requestStage: "Request" },
     ] });
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
@@ -457,6 +487,10 @@ async function main() {
     sharedReadMode = "success";
 
     await navigateNomenclature("scoped-elevation-cancel");
+    await waitForCondition(client, () => [...document.querySelectorAll("button")]
+      .some((button) => button.textContent.trim().startsWith("Подтвердить PIN")), {
+      message: "scoped elevation CTA did not become ready after owner recovery",
+    });
     await evaluate(client, () => [...document.querySelectorAll("button")].find((button) => button.textContent.trim().startsWith("Подтвердить PIN"))?.click());
     await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-picker-pin-step]")), { message: "scoped elevation did not open the React PIN step" });
     assert(employeeSessionDeletes >= 1, "opening scoped elevation must clear any stale signed employee session first");
@@ -488,7 +522,11 @@ async function main() {
       assert(request.headers.accept === "application/json" && /^application\/json/.test(request.headers["content-type"] || ""), "employee login request lost its JSON protocol headers");
     }
 
+    const nomenclatureTypesReadsBeforeReload = nomenclatureTypesCapabilityReads;
     await navigateNomenclature("signed-session-reload");
+    await waitForNodeCondition(() => nomenclatureTypesCapabilityReads > nomenclatureTypesReadsBeforeReload, {
+      message: "reload reconciliation did not re-check the shared signed session for Nomenclature Types",
+    });
     assert(await evaluate(client, () => [...document.querySelectorAll("button")].some((button) => button.textContent.trim() === "Добавить позицию" && button.disabled === false)), "signed employee session did not survive normal reload reconciliation");
 
     const rowCountBeforeOutage = await evaluate(client, () => document.querySelectorAll('[data-ui-component="SelectableRow"]').length);
@@ -559,6 +597,7 @@ async function main() {
         commandMode,
         sharedReadMode,
         employeeSessionDeletes,
+        nomenclatureTypesCapabilityReads,
         employeeSessionPosts: employeeSessionPosts.map((entry) => entry.body),
         commandRequests,
         directorySnapshotWrites,

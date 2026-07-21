@@ -5,15 +5,30 @@ import { createShiftExecutionCommandRepository, createShiftExecutionReadReposito
 import { inspectShiftExecutionAuthority } from "./domain-shift-execution-authority.mjs";
 import { createSpecifications2PublishCommandRepository, createSpecifications2ReadRepository, createSpecifications2WorkOrderCommandRepository } from "./domain-specifications2-repository.mjs";
 import { createSpecifications2AttachmentRepository } from "./domain-specifications2-attachment-repository.mjs";
+import { SPECIFICATIONS2_ATTACHMENT_MAX_BYTES } from "../src/domain/specifications2_attachment.js";
 import { createSpecifications2SnapshotRepository } from "./domain-specifications2-snapshot-repository.mjs";
 import { syncPendingSpecifications2PublicationChanges } from "./domain-specifications2-snapshot-sync.mjs";
 import { createSystemDomainsRepository } from "./domain-system-domains-repository.mjs";
 import { inspectSystemDomainsSnapshotConsistency, syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
 import { getPublicAuthPrincipal } from "./public-auth-guard.mjs";
+import {
+  isSpecifications2AuthorizationInfrastructureReason,
+  resolveSpecifications2CommandAuthorization,
+} from "./specifications2-command-authorization.mjs";
+import {
+  getCurrentShiftExecutionAuthorization,
+  inspectShiftExecutionCommandSession,
+  isShiftExecutionAuthorizationInfrastructureReason,
+} from "./shift-execution-command-authorization.mjs";
+import {
+  isPlanningAuthorizationInfrastructureReason,
+  resolvePlanningCommandAuthorization,
+} from "./planning-command-authorization.mjs";
 import { isPlanningSnapshotObservationEnabled } from "./planning-snapshot-observer.mjs";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
+import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
 
 const API_PREFIX = "/api/v1";
 const SYSTEM_DOMAINS_COMMAND_SURFACES = new Set(["production-structure", "timesheet", "access-control"]);
@@ -26,13 +41,33 @@ const SYSTEM_DOMAINS_SURFACE_REGISTRIES = Object.freeze({
   "access-control": new Set(["accessRoles", "grants", "roleAssignments"]),
 });
 const MAX_PLANNING_PERIOD_DAYS = 31;
+
+export function getSpecifications2WorkOrderCommandHttpStatus(result = {}) {
+  if (result.idempotencyConflict === true || result.conflict === true) return 409;
+  if (!result.item) return 422;
+  return result.created ? 201 : 200;
+}
+// Revision publication stores the complete compatibility command in the
+// durable outbox. Bound the HTTP envelope before JSON parsing so a forged
+// editor field cannot make the process buffer an arbitrarily large command.
+const SPECIFICATIONS2_PUBLISH_BODY_MAX_BYTES = 2 * 1024 * 1024;
+// The largest valid attachment is base64 encoded in JSON. Keep a small,
+// explicit allowance for bounded metadata and JSON syntax, but never buffer an
+// arbitrary request before the 1 MiB decoded-content validator runs.
+export const SPECIFICATIONS2_ATTACHMENT_BODY_MAX_BYTES = Math.ceil(SPECIFICATIONS2_ATTACHMENT_MAX_BYTES / 3) * 4 + (4 * 1024);
+export const SPECIFICATIONS2_WORK_ORDER_BODY_MAX_BYTES = 64 * 1024;
+export const SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES = 64 * 1024;
+export const PLANNING_COMMAND_BODY_MAX_BYTES = 64 * 1024;
 const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 // Bump this whenever fields included in planning parity change.  A durable
 // marker from an earlier contract must never be used to skip a newer proof.
 // v5 makes the formerly implicit one-slot-per-operation choice stable. Any
 // v4 marker was proved against an unordered split-slot result and therefore
 // must trigger a fresh full proof before this runtime projection is trusted.
-const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 5;
+// v7 proves the canonical work-order planningStartDate field from the DATE
+// owner itself. v6 exposed the field but did not include it in list parity,
+// so a v6 marker must never admit this runtime or any Planning write.
+const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 7;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
 // The established planning parity proof intentionally canonicalizes a route
 // to one slot per operation. It cannot therefore authorize a physical-slot
@@ -52,6 +87,183 @@ function isSpecifications2RevisionPublicationPrimaryConfigured(env = process.env
   // This is rollout intent rather than a health probe. A primary-configured
   // client must fail closed while PostgreSQL or its schema is unavailable.
   return String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1";
+}
+
+function normalizeSpecifications2EmployeeActor(principal = null) {
+  const employeeId = String(principal?.employeeId || "").trim();
+  const id = String(principal?.id || "").trim();
+  if (principal?.scope !== "employee" || !employeeId || id !== `employee:${employeeId}`) return null;
+  return Object.freeze({
+    id,
+    employeeId,
+    displayName: String(principal?.displayName || ""),
+    personnelNumber: String(principal?.personnelNumber || ""),
+    scope: "employee",
+  });
+}
+
+function inspectSpecifications2CommandAuthorizationResult(authorization = null) {
+  const reason = String(authorization?.reason || "specifications2-authorization-unavailable");
+  const actor = normalizeSpecifications2EmployeeActor(authorization?.principal);
+  const infrastructureUnavailable = authorization?.infrastructureUnavailable === true
+    || isSpecifications2AuthorizationInfrastructureReason(reason)
+    || (authorization?.allowed === true && !actor);
+  return Object.freeze({
+    allowed: authorization?.allowed === true && Boolean(actor) && !infrastructureUnavailable,
+    actor,
+    authenticated: Boolean(actor),
+    reason: infrastructureUnavailable && authorization?.allowed === true
+      ? "specifications2-authorization-invalid"
+      : reason,
+    revision: Number(authorization?.revision || 0),
+    infrastructureUnavailable,
+  });
+}
+
+function sendSpecifications2AuthorizationFailure(res, headers, authorization, actionLabel) {
+  if (authorization.infrastructureUnavailable) {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "specifications2-authorization-unavailable",
+      error: `Current Specifications 2.0 authorization is unavailable for ${actionLabel}`,
+    });
+    return;
+  }
+  if (!authorization.actor) {
+    sendJson(res, headers, 401, {
+      ok: false,
+      apiVersion: "v1",
+      code: "employee-session-required",
+      error: `Authenticated employee session is required for ${actionLabel}`,
+    });
+    return;
+  }
+  sendJson(res, headers, 403, {
+    ok: false,
+    apiVersion: "v1",
+    code: "specifications2-write-forbidden",
+    error: `Current employee is not authorized for ${actionLabel}`,
+  });
+}
+
+function normalizeShiftExecutionEmployeeActor(principal = null) {
+  const employeeId = String(principal?.employeeId || "").trim();
+  const id = String(principal?.id || "").trim();
+  if (principal?.scope !== "employee" || !employeeId || id !== `employee:${employeeId}`) return null;
+  return Object.freeze({
+    id,
+    employeeId,
+    displayName: String(principal?.displayName || ""),
+    personnelNumber: String(principal?.personnelNumber || ""),
+    scope: "employee",
+  });
+}
+
+function inspectShiftExecutionAuthorizationResult(authorization = null) {
+  const reason = String(authorization?.reason || "shift-execution-authorization-unavailable");
+  const actor = normalizeShiftExecutionEmployeeActor(authorization?.principal);
+  const infrastructureUnavailable = authorization?.infrastructureUnavailable === true
+    || isShiftExecutionAuthorizationInfrastructureReason(reason)
+    || (authorization?.allowed === true && !actor);
+  return Object.freeze({
+    allowed: authorization?.allowed === true && Boolean(actor) && !infrastructureUnavailable,
+    actor,
+    authenticated: Boolean(actor),
+    reason: infrastructureUnavailable && authorization?.allowed === true
+      ? "shift-execution-authorization-invalid"
+      : reason,
+    revision: Number(authorization?.revision || 0),
+    infrastructureUnavailable,
+    decision: authorization?.decision || null,
+    contract: authorization?.contract || null,
+    workCenterId: String(authorization?.workCenterId || ""),
+  });
+}
+
+function sendShiftExecutionAuthorizationFailure(res, headers, authorization, actionLabel) {
+  if (authorization.infrastructureUnavailable) {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "shift-execution-authorization-unavailable",
+      error: `Current Shift Execution authorization is unavailable for ${actionLabel}`,
+    });
+    return;
+  }
+  if (!authorization.actor) {
+    sendJson(res, headers, 401, {
+      ok: false,
+      apiVersion: "v1",
+      code: "employee-session-required",
+      error: `Authenticated employee session is required for ${actionLabel}`,
+    });
+    return;
+  }
+  sendJson(res, headers, 403, {
+    ok: false,
+    apiVersion: "v1",
+    code: "shift-execution-write-forbidden",
+    error: `Current employee is not authorized for ${actionLabel}`,
+  });
+}
+
+function normalizePlanningEmployeeActor(principal = null) {
+  const employeeId = String(principal?.employeeId || "").trim();
+  const id = String(principal?.id || "").trim();
+  if (principal?.scope !== "employee" || !employeeId || id !== `employee:${employeeId}`) return null;
+  return Object.freeze({
+    id,
+    employeeId,
+    displayName: String(principal?.displayName || ""),
+    personnelNumber: String(principal?.personnelNumber || ""),
+    scope: "employee",
+  });
+}
+
+function inspectPlanningCommandAuthorizationResult(authorization = null) {
+  const reason = String(authorization?.reason || "planning-authorization-unavailable");
+  const actor = normalizePlanningEmployeeActor(authorization?.principal);
+  const infrastructureUnavailable = authorization?.infrastructureUnavailable === true
+    || isPlanningAuthorizationInfrastructureReason(reason)
+    || (authorization?.allowed === true && !actor);
+  return Object.freeze({
+    allowed: authorization?.allowed === true && Boolean(actor) && !infrastructureUnavailable,
+    actor,
+    authenticated: Boolean(actor),
+    reason: infrastructureUnavailable && authorization?.allowed === true
+      ? "planning-authorization-invalid"
+      : reason,
+    revision: Number(authorization?.revision || 0),
+    infrastructureUnavailable,
+  });
+}
+
+function sendPlanningAuthorizationFailure(res, headers, authorization, actionLabel) {
+  if (authorization.infrastructureUnavailable) {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "planning-authorization-unavailable",
+      error: `Current Planning authorization is unavailable for ${actionLabel}`,
+    });
+    return;
+  }
+  if (!authorization.actor) {
+    sendJson(res, headers, 401, {
+      ok: false,
+      apiVersion: "v1",
+      code: "employee-session-required",
+      error: `Authenticated employee session is required for ${actionLabel}`,
+    });
+    return;
+  }
+  sendJson(res, headers, 403, {
+    ok: false,
+    apiVersion: "v1",
+    code: "planning-write-forbidden",
+    error: `Current employee is not authorized for ${actionLabel}`,
+  });
 }
 
 function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
@@ -420,6 +632,9 @@ function compareWorkOrderProjections(primaryItems = [], snapshotItems = []) {
     }
     const fields = ["quantity", "revision", "concurrencyRevision", "operationCount", "scheduledOperationCount"];
     const differing = fields.filter((field) => Number(primary[field]) !== Number(snapshot[field]));
+    if (String(primary.planningStartDate || "") !== String(snapshot.planningStartDate || "")) {
+      differing.push("planningStartDate");
+    }
     if (differing.length) mismatches.push({ id: key, fields: differing });
     snapshotByKey.delete(key);
   }
@@ -1126,6 +1341,11 @@ function buildPlanningRuntimeProjection(items = []) {
       name: String(item.name || route.name || "Заказ-наряд"),
       designation: String(item.designation || route.designation || ""),
       planningQuantity: Number(item.quantity ?? route.planningQuantity ?? 0),
+      // The top-level field is mapped from work_orders.planning_start_date.
+      // Never let stale compatibility metadata override that canonical owner.
+      planningStartDate: isExactIsoCalendarDate(item.planningStartDate)
+        ? String(item.planningStartDate)
+        : "",
       lifecycleStatus: String(item.lifecycleStatus || route.lifecycleStatus || "draft"),
       planningStatus: String(item.planningStatus || route.planningStatus || "draft"),
       domainConcurrencyRevision: Number(item.concurrencyRevision || route.domainConcurrencyRevision || 0),
@@ -1327,21 +1547,73 @@ function buildPlanningWorkbenchDetail(item = {}) {
   };
 }
 
-async function readRequestBody(req) {
-  if (req.body && typeof req.body === "object") return req.body;
-  if (typeof req.body === "string") return JSON.parse(req.body || "{}");
+function requestBodyTooLargeError(maxBytes) {
+  const error = new Error(`Request body exceeds the ${maxBytes}-byte limit`);
+  error.code = "REQUEST_BODY_TOO_LARGE";
+  return error;
+}
+
+export async function readRequestBody(req, { maxBytes = Number.POSITIVE_INFINITY } = {}) {
+  const bounded = Number.isSafeInteger(maxBytes) && maxBytes > 0;
+  const assertWithinBound = (value) => {
+    if (bounded && Buffer.byteLength(value) > maxBytes) throw requestBodyTooLargeError(maxBytes);
+  };
+  if (req.body && typeof req.body === "object") {
+    assertWithinBound(JSON.stringify(req.body));
+    return req.body;
+  }
+  if (typeof req.body === "string") {
+    assertWithinBound(req.body);
+    return JSON.parse(req.body || "{}");
+  }
+  const contentLength = Number(req.headers?.["content-length"] || req.headers?.["Content-Length"] || 0);
+  if (bounded && Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw requestBodyTooLargeError(maxBytes);
+  }
   return await new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
+    let receivedBytes = 0;
+    let settled = false;
+    req.on("data", (chunk) => {
+      if (settled) return;
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      receivedBytes += bytes.length;
+      if (bounded && receivedBytes > maxBytes) {
+        settled = true;
+        chunks.length = 0;
+        reject(requestBodyTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(bytes);
+    });
     req.on("end", () => {
+      if (settled) return;
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString("utf-8") || "{}"));
       } catch (error) {
         reject(error);
       }
     });
-    req.on("error", reject);
+    req.on("error", (error) => {
+      if (!settled) reject(error);
+    });
   });
+}
+
+function getRequestHeader(req, name) {
+  const normalized = String(name || "").toLowerCase();
+  const direct = req?.headers?.[normalized];
+  if (direct !== undefined) return direct;
+  return Object.entries(req?.headers || {}).find(([key]) => String(key).toLowerCase() === normalized)?.[1];
+}
+
+function hasSameOriginRequestContext(req) {
+  if (String(getRequestHeader(req, "sec-fetch-site") || "").toLowerCase() !== "same-origin") return false;
+  const requestOrigin = String(getRequestHeader(req, "origin") || "").trim();
+  const requestHost = String(getRequestHeader(req, "host") || "").trim().toLowerCase();
+  if (!requestOrigin || !requestHost) return false;
+  try { return new URL(requestOrigin).host.toLowerCase() === requestHost; }
+  catch { return false; }
 }
 
 export async function handleDomainApiRequest(req, res, url, {
@@ -1351,20 +1623,29 @@ export async function handleDomainApiRequest(req, res, url, {
   // Injection keeps the parity guard independently testable without needing
   // a live PostgreSQL connection in HTTP-level QA.
   workOrdersRepositoryFactory = createWorkOrdersRepository,
+  specifications2AuthorizationResolver = resolveSpecifications2CommandAuthorization,
+  specifications2PublishCommandRepositoryFactory = createSpecifications2PublishCommandRepository,
+  specifications2WorkOrderCommandRepositoryFactory = createSpecifications2WorkOrderCommandRepository,
+  specifications2AttachmentRepositoryFactory = createSpecifications2AttachmentRepository,
   // The additive dispatch endpoint has its own focused HTTP contract. Keeping
   // its factory injectable lets that contract run without a live PostgreSQL
   // database and does not alter the existing global shift-execution route.
   shiftExecutionReadRepositoryFactory = createShiftExecutionReadRepository,
   shiftExecutionCommandRepositoryFactory = createShiftExecutionCommandRepository,
+  shiftExecutionSessionResolver = inspectShiftExecutionCommandSession,
+  shiftExecutionAuthorizationResolver = getCurrentShiftExecutionAuthorization,
+  planningAuthorizationResolver = resolvePlanningCommandAuthorization,
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const isPlanningWorkbenchBootstrap = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`;
+  const isPlanningCommandCapabilities = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/capabilities`;
   const isPlanningRuntimeProjectionRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/projection`;
   const isPlanningGanttWindowRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/gantt-window`;
   const planningBootstrapTiming = isPlanningWorkbenchBootstrap
     ? { startedAt: getRequestTimingNow(), planningSafetyMs: 0 }
     : null;
   const orderMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)$/);
+  const startDateMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)\/start-date$/);
   const slotMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)\/operations\/([^/]+)\/slot$/);
   const specifications2RevisionMatch = url.pathname.match(/^\/api\/v1\/specifications2\/revisions\/(?!summary$)([^/]+)$/);
   const specifications2SourceMatch = url.pathname.match(/^\/api\/v1\/specifications2\/revisions\/by-source\/([^/]+)$/);
@@ -1387,12 +1668,97 @@ export async function handleDomainApiRequest(req, res, url, {
   const isShiftExecutionFactCommand = req.method === "POST" && Boolean(shiftFactMatch);
   const isShiftExecutionDispatchRead = req.method === "GET" && url.pathname === `${API_PREFIX}/workshop/shift-execution/dispatch`;
   const isOrderPatch = req.method === "PATCH" && Boolean(orderMatch);
+  const isStartDatePatch = req.method === "PATCH" && Boolean(startDateMatch);
   const isSlotPatch = req.method === "PATCH" && Boolean(slotMatch);
+  const isPlanningMutation = isOrderPatch || isStartDatePatch || isSlotPatch;
   const isPlanningPeriodRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/period`;
   const isSpecifications2WorkOrderCommand = req.method === "POST" && Boolean(specifications2WorkOrderCommandMatch);
-  if (req.method !== "GET" && !isOrderPatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionCarryoverCommand && !isShiftExecutionCarryoverCancel) {
+  if (req.method !== "GET" && !isOrderPatch && !isStartDatePatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionCarryoverCommand && !isShiftExecutionCarryoverCancel) {
     sendJson(res, headers, 405, { ok: false, error: "Method is not allowed" });
     return true;
+  }
+  const isShiftExecutionMutation = isShiftExecutionAssignmentCommand || isShiftExecutionAssignmentUpdate
+    || isShiftExecutionFactCommand || isShiftExecutionCarryoverCommand || isShiftExecutionCarryoverCancel;
+  if (isSpecifications2WorkOrderCommand || isSpecifications2PublishCommand || isSpecifications2AttachmentCommand || isShiftExecutionMutation || isPlanningMutation) {
+    const contentType = String(getRequestHeader(req, "content-type") || "").trim().toLowerCase();
+    if (!/^application\/json(?:\s*;|$)/u.test(contentType)) {
+      const commandLabel = isPlanningMutation ? "Planning" : isShiftExecutionMutation ? "Shift Execution" : "Specifications 2.0";
+      sendJson(res, headers, 415, {
+        ok: false,
+        apiVersion: "v1",
+        code: "json-content-type-required",
+        error: `${commandLabel} commands require application/json`,
+      });
+      return true;
+    }
+    if (!hasSameOriginRequestContext(req)) {
+      const commandLabel = isPlanningMutation ? "Planning" : isShiftExecutionMutation ? "Shift Execution" : "Specifications 2.0";
+      sendJson(res, headers, 403, {
+        ok: false,
+        apiVersion: "v1",
+        code: "same-origin-required",
+        error: `${commandLabel} commands require a same-origin browser request`,
+      });
+      return true;
+    }
+  }
+
+  // This is the server-side owner switch, not a client capability hint.  It
+  // must fail closed before signed-session/RBAC resolution and before the
+  // Planning repository is constructed, so deactivation leaves legacy as the
+  // only writer even while an old browser still holds valid cookies.
+  if ((isOrderPatch || isSlotPatch) && String(env.MES_ENABLE_PLANNING_SERVER_COMMANDS || "").trim() !== "1") {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "planning-command-owner-disabled",
+      error: "Planning command owner is disabled",
+    });
+    return true;
+  }
+  if (isStartDatePatch && String(env.MES_ENABLE_PLANNING_START_DATE_COMMANDS || "").trim() !== "1") {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "planning-start-date-owner-disabled",
+      error: "Planning start-date owner is disabled",
+    });
+    return true;
+  }
+
+  // Planning authorization is deliberately resolved before constructing or
+  // health-checking the work-order repository. An anonymous, expired, revoked
+  // or unauthorized caller must not touch Planning storage or learn its health
+  // merely by targeting a write endpoint.
+  let planningAuthorization = null;
+  if (isPlanningMutation || isPlanningCommandCapabilities) {
+    try {
+      const resolved = typeof planningAuthorizationResolver === "function"
+        ? await planningAuthorizationResolver(req, { env })
+        : { allowed: false, reason: "planning-authorization-unavailable", infrastructureUnavailable: true };
+      planningAuthorization = inspectPlanningCommandAuthorizationResult(resolved);
+    } catch {
+      planningAuthorization = inspectPlanningCommandAuthorizationResult({
+        allowed: false,
+        reason: "planning-authorization-unavailable",
+        infrastructureUnavailable: true,
+      });
+    }
+    if (!planningAuthorization.allowed) {
+      sendPlanningAuthorizationFailure(
+        res,
+        headers,
+        planningAuthorization,
+        isPlanningCommandCapabilities
+          ? "Planning command capability evaluation"
+          : isSlotPatch
+          ? "rescheduling a Planning slot"
+          : isStartDatePatch
+            ? "changing a Planning work-order start date"
+            : "changing a Planning work-order quantity",
+      );
+      return true;
+    }
   }
 
   const planningPeriod = (isPlanningPeriodRead || isPlanningGanttWindowRead) ? readPlanningPeriod(url) : null;
@@ -1557,18 +1923,93 @@ export async function handleDomainApiRequest(req, res, url, {
     return planningSafetyPromise;
   };
 
+  if (isPlanningCommandCapabilities) {
+    let startDateReadiness = { schemaReady: false, error: "Planning start-date readiness is unavailable" };
+    try {
+      if (typeof workOrders.startDateCommandReadiness === "function") {
+        startDateReadiness = await workOrders.startDateCommandReadiness();
+      }
+    } catch (error) {
+      startDateReadiness = { schemaReady: false, error: error?.message || "Planning start-date readiness is unavailable" };
+    }
+    const ownerConfigured = String(env.MES_ENABLE_PLANNING_START_DATE_COMMANDS || "").trim() === "1"
+      && health.storageBackend === "postgresql";
+    const planningSafety = ownerConfigured && startDateReadiness.schemaReady === true
+      ? await getPlanningSafety()
+      : null;
+    sendJson(res, headers, 200, {
+      ok: true,
+      apiVersion: "v1",
+      authenticated: true,
+      actor: {
+        id: planningAuthorization.actor.id,
+        employeeId: planningAuthorization.actor.employeeId,
+        displayName: planningAuthorization.actor.displayName,
+        personnelNumber: planningAuthorization.actor.personnelNumber,
+      },
+      rbacRevision: planningAuthorization.revision,
+      capabilities: {
+        canEditPlanning: true,
+        startDateOwnerConfigured: ownerConfigured,
+        startDateSchemaReady: startDateReadiness.schemaReady === true,
+        startDateEnabled: ownerConfigured
+          && startDateReadiness.schemaReady === true
+          && !planningSafety?.fallbackReason,
+        quantityEnabled: String(env.MES_ENABLE_PLANNING_SERVER_COMMANDS || "").trim() === "1"
+          && health.storageBackend === "postgresql"
+          && !planningSafety?.fallbackReason,
+        slotScheduleEnabled: String(env.MES_ENABLE_PLANNING_SERVER_COMMANDS || "").trim() === "1"
+          && health.storageBackend === "postgresql"
+          && !planningSafety?.fallbackReason,
+        storageBackend: String(health.storageBackend || ""),
+        ...(planningSafety?.fallbackReason ? { fallbackReason: planningSafety.fallbackReason } : {}),
+        ...(startDateReadiness.error ? { startDateReadinessError: String(startDateReadiness.error) } : {}),
+      },
+    });
+    return true;
+  }
+  let specifications2AuthorizationPromise = null;
+  const getSpecifications2Authorization = () => {
+    if (!specifications2AuthorizationPromise) {
+      specifications2AuthorizationPromise = Promise.resolve()
+        .then(() => {
+          if (typeof specifications2AuthorizationResolver !== "function") {
+            return { allowed: false, reason: "specifications2-authorization-unavailable", infrastructureUnavailable: true };
+          }
+          return specifications2AuthorizationResolver(req, { env });
+        })
+        .then(inspectSpecifications2CommandAuthorizationResult)
+        .catch(() => inspectSpecifications2CommandAuthorizationResult({
+          allowed: false,
+          reason: "specifications2-authorization-unavailable",
+          infrastructureUnavailable: true,
+        }));
+    }
+    return specifications2AuthorizationPromise;
+  };
+
   if (url.pathname === `${API_PREFIX}/specifications2/capabilities`) {
     let attachmentUploadEnabled = false;
     let revisionPublicationSchemaReady = false;
+    let workOrderCommandSchemaReady = false;
     const revisionPublicationPrimaryConfigured = isSpecifications2RevisionPublicationPrimaryConfigured(env);
+    const workOrderCommandConfigured = String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1";
+    const attachmentCommandConfigured = String(env.MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS || "") === "1";
     const workOrderCommandRequested = String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
       && health.storageBackend === "postgresql"
       && typeof workOrders.listPendingSnapshotSyncs === "function";
-    const planningSafety = workOrderCommandRequested ? await getPlanningSafety() : null;
-    if (String(env.MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS || "") === "1" && health.storageBackend === "postgresql") {
+    const authorization = revisionPublicationPrimaryConfigured || workOrderCommandConfigured || attachmentCommandConfigured
+      ? await getSpecifications2Authorization()
+      : inspectSpecifications2CommandAuthorizationResult({ allowed: false, reason: "server-commands-not-configured" });
+    if (authorization.infrastructureUnavailable) {
+      sendSpecifications2AuthorizationFailure(res, headers, authorization, "command capability evaluation");
+      return true;
+    }
+    const planningSafety = workOrderCommandRequested && authorization.allowed ? await getPlanningSafety() : null;
+    if (attachmentCommandConfigured && health.storageBackend === "postgresql" && authorization.allowed) {
       let attachments;
       try {
-        attachments = createSpecifications2AttachmentRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+        attachments = specifications2AttachmentRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
         attachmentUploadEnabled = (await attachments.commandReadiness()).schemaReady === true;
       } catch {
         attachmentUploadEnabled = false;
@@ -1579,30 +2020,53 @@ export async function handleDomainApiRequest(req, res, url, {
     // browser command surface.
     if (health.storageBackend === "postgresql") {
       let publications;
+      let workOrderCommands;
       try {
-        publications = createSpecifications2PublishCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+        publications = specifications2PublishCommandRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
         revisionPublicationSchemaReady = (await publications.commandReadiness()).schemaReady === true;
       } catch {
         revisionPublicationSchemaReady = false;
       } finally { await publications?.close?.(); }
+      try {
+        workOrderCommands = specifications2WorkOrderCommandRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+        workOrderCommandSchemaReady = (await workOrderCommands.commandReadiness()).schemaReady === true;
+      } catch {
+        workOrderCommandSchemaReady = false;
+      } finally { await workOrderCommands?.close?.(); }
     }
     const revisionPublicationEnabled = revisionPublicationPrimaryConfigured
       && health.storageBackend === "postgresql"
-      && revisionPublicationSchemaReady;
-    sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
-      workOrderCreationEnabled: workOrderCommandRequested && !planningSafety?.fallbackReason,
-      revisionPublicationEnabled,
-      // When enabled the command is the durable first write.  Clients must
-      // wait for its acknowledgement before producing the legacy-compatible
-      // browser projection, otherwise a failed PostgreSQL command would look
-      // like a successful production publication.
-      revisionPublicationServerPrimary: revisionPublicationEnabled,
-      revisionPublicationPrimaryConfigured,
-      revisionPublicationSchemaReady,
-      attachmentUploadEnabled,
-      workOrderPrimaryPostgres: health.storageBackend === "postgresql",
-      ...(planningSafety?.fallbackReason ? { workOrderFallbackReason: planningSafety.fallbackReason } : {}),
-    } });
+      && revisionPublicationSchemaReady
+      && authorization.allowed;
+    sendJson(res, headers, 200, {
+      ok: true,
+      apiVersion: "v1",
+      authenticated: authorization.authenticated,
+      actor: authorization.actor ? {
+        id: authorization.actor.id,
+        employeeId: authorization.actor.employeeId,
+        displayName: authorization.actor.displayName,
+        personnelNumber: authorization.actor.personnelNumber,
+      } : null,
+      rbacRevision: authorization.revision,
+      authorizationReason: authorization.reason,
+      capabilities: {
+        canEditSpecifications2: authorization.allowed,
+        workOrderCreationEnabled: workOrderCommandRequested && workOrderCommandSchemaReady && !planningSafety?.fallbackReason && authorization.allowed,
+        workOrderCreationSchemaReady: workOrderCommandSchemaReady,
+        revisionPublicationEnabled,
+        // When enabled the command is the durable first write.  Clients must
+        // wait for its acknowledgement before producing the legacy-compatible
+        // browser projection, otherwise a failed PostgreSQL command would look
+        // like a successful production publication.
+        revisionPublicationServerPrimary: revisionPublicationPrimaryConfigured,
+        revisionPublicationPrimaryConfigured,
+        revisionPublicationSchemaReady,
+        attachmentUploadEnabled,
+        workOrderPrimaryPostgres: health.storageBackend === "postgresql",
+        ...(planningSafety?.fallbackReason ? { workOrderFallbackReason: planningSafety.fallbackReason } : {}),
+      },
+    });
     return true;
   }
 
@@ -1674,14 +2138,12 @@ export async function handleDomainApiRequest(req, res, url, {
       shiftExecution: { ready: false, storageBackend: "unavailable", sourceSynchronized: false, summary: null, migrationState: "unavailable", error: "" },
       commands: {
         specifications2WorkOrderCreation: {
-          enabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
-            && health.storageBackend === "postgresql"
-            && typeof workOrders.listPendingSnapshotSyncs === "function"
-            && !planningSafety.fallbackReason,
+          enabled: false,
+          schemaReady: false,
           reason: planningSafety.fallbackReason || commandReadinessReason({
             featureEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1",
             primaryReady: health.storageBackend === "postgresql",
-            schemaReady: typeof workOrders.listPendingSnapshotSyncs === "function",
+            schemaReady: false,
             featureName: "Specifications 2.0 work-order creation",
           }),
         },
@@ -1704,6 +2166,7 @@ export async function handleDomainApiRequest(req, res, url, {
     let specifications;
     let shifts;
     let publications;
+    let workOrderCommands;
     let attachments;
     try {
       domains = createSystemDomainsRepository({ databaseUrl });
@@ -1744,7 +2207,32 @@ export async function handleDomainApiRequest(req, res, url, {
       readiness.specifications2.error = error?.message || "Specifications 2.0 readiness is unavailable";
     } finally { await specifications?.close?.(); }
     try {
-      publications = createSpecifications2PublishCommandRepository({ databaseUrl });
+      workOrderCommands = specifications2WorkOrderCommandRepositoryFactory({ databaseUrl });
+      const commandReadiness = await workOrderCommands.commandReadiness();
+      const workOrderPrimaryReady = health.storageBackend === "postgresql"
+        && typeof workOrders.listPendingSnapshotSyncs === "function";
+      readiness.commands.specifications2WorkOrderCreation = {
+        enabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
+          && workOrderPrimaryReady
+          && commandReadiness.schemaReady === true
+          && !planningSafety.fallbackReason,
+        schemaReady: commandReadiness.schemaReady === true,
+        reason: planningSafety.fallbackReason || commandReadinessReason({
+          featureEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1",
+          primaryReady: workOrderPrimaryReady,
+          schemaReady: commandReadiness.schemaReady === true,
+          featureName: "Specifications 2.0 work-order creation",
+        }),
+      };
+    } catch (error) {
+      readiness.commands.specifications2WorkOrderCreation = {
+        enabled: false,
+        schemaReady: false,
+        reason: error?.message || "Specifications 2.0 work-order command storage is unavailable",
+      };
+    } finally { await workOrderCommands?.close?.(); }
+    try {
+      publications = specifications2PublishCommandRepositoryFactory({ databaseUrl });
       const commandReadiness = await publications.commandReadiness();
       readiness.commands.specifications2RevisionPublication = {
         enabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1"
@@ -1851,49 +2339,200 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
 
-  if (isShiftExecutionAssignmentCommand || isShiftExecutionAssignmentUpdate || isShiftExecutionFactCommand || isShiftExecutionCarryoverCommand || isShiftExecutionCarryoverCancel) {
+  if (isShiftExecutionMutation) {
     if (String(env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") !== "1" || health.storageBackend !== "postgresql") {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Shift execution server commands are not enabled during snapshot migration" });
       return true;
     }
-    let commandReadiness;
+
+    let session;
     try {
-      const readRepository = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      session = typeof shiftExecutionSessionResolver === "function"
+        ? await shiftExecutionSessionResolver(req, { env })
+        : { principal: null, reason: "shift-execution-authorization-unavailable", infrastructureUnavailable: true };
+    } catch {
+      session = { principal: null, reason: "shift-execution-authorization-unavailable", infrastructureUnavailable: true };
+    }
+    const actor = normalizeShiftExecutionEmployeeActor(session?.principal);
+    if (!actor) {
+      sendShiftExecutionAuthorizationFailure(res, headers, {
+        actor: null,
+        infrastructureUnavailable: session?.infrastructureUnavailable === true
+          || isShiftExecutionAuthorizationInfrastructureReason(session?.reason),
+      }, "modifying Shift Execution");
+      return true;
+    }
+
+    let payload;
+    try { payload = await readRequestBody(req, { maxBytes: SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES }); }
+    catch (error) {
+      const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+      sendJson(res, headers, tooLarge ? 413 : 400, {
+        ok: false,
+        apiVersion: "v1",
+        error: tooLarge ? "Shift Execution command request is too large" : "Request body must be valid JSON",
+      });
+      return true;
+    }
+
+    let assignmentId = "";
+    let carryoverId = "";
+    let workOrderId = "";
+    let operationId = "";
+    try {
+      assignmentId = isShiftExecutionAssignmentUpdate
+        ? decodeURIComponent(shiftAssignmentMatch[1])
+        : isShiftExecutionFactCommand
+          ? decodeURIComponent(shiftFactMatch[1])
+          : isShiftExecutionCarryoverCommand
+            ? String(payload?.sourceAssignmentId || "").trim()
+            : "";
+      carryoverId = isShiftExecutionCarryoverCancel ? decodeURIComponent(shiftCarryoverMatch[1]) : "";
+      workOrderId = isShiftExecutionAssignmentCommand ? String(payload?.workOrderId || "").trim() : "";
+      operationId = isShiftExecutionAssignmentCommand ? String(payload?.operationId || "").trim() : "";
+    } catch {
+      sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Shift Execution command target id is invalid" });
+      return true;
+    }
+    if (isShiftExecutionAssignmentCommand && (!workOrderId || !operationId)) {
+      sendJson(res, headers, 422, {
+        ok: false,
+        apiVersion: "v1",
+        code: "shift-execution-command-invalid",
+        error: "Shift assignment workOrderId and operationId are required",
+      });
+      return true;
+    }
+
+    let commandReadiness;
+    let targetContext = null;
+    let readRepository;
+    try {
+      readRepository = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       commandReadiness = await readRepository.commandReadiness();
-      await readRepository.close();
+      const hasCanonicalTarget = Boolean(assignmentId || carryoverId || (workOrderId && operationId));
+      if (commandReadiness.schemaReady === true && hasCanonicalTarget) {
+        if (typeof readRepository.getCommandTargetContext !== "function") {
+          throw new Error("Shift Execution canonical command target reader is unavailable");
+        }
+        targetContext = (await readRepository.getCommandTargetContext({ assignmentId, carryoverId, workOrderId, operationId })).item || null;
+      }
     } catch (error) {
       sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" });
       return true;
+    } finally {
+      await readRepository?.close?.();
     }
     if (commandReadiness.schemaReady !== true) {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Shift execution server commands are not enabled during snapshot migration" });
       return true;
     }
-    const actor = getPublicAuthPrincipal(req, env);
-    if (!actor) { sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to modify shift execution" }); return true; }
-    let payload;
-    try { payload = await readRequestBody(req); }
-    catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
-    const idempotencyKey = String(req.headers?.["idempotency-key"] || req.headers?.["Idempotency-Key"] || payload?.idempotencyKey || "").trim();
+    if ((assignmentId || carryoverId || (workOrderId && operationId)) && !targetContext) {
+      sendJson(res, headers, 404, { ok: false, apiVersion: "v1", error: "Shift Execution command target was not found" });
+      return true;
+    }
+
+    const submittedWorkCenterId = String(payload?.workCenterId || "").trim();
+    const canonicalWorkCenterId = String(targetContext?.workCenterId || "").trim();
+    const workCenterId = targetContext ? canonicalWorkCenterId : submittedWorkCenterId;
+    if (!workCenterId) {
+      sendJson(res, headers, targetContext ? 503 : 400, {
+        ok: false,
+        apiVersion: "v1",
+        error: targetContext
+          ? "Shift Execution canonical command target is incomplete"
+          : "Shift Execution work center is required",
+      });
+      return true;
+    }
+    if (targetContext && submittedWorkCenterId && submittedWorkCenterId !== workCenterId) {
+      sendJson(res, headers, 409, {
+        ok: false,
+        apiVersion: "v1",
+        code: "shift-execution-target-context-mismatch",
+        error: "Shift Execution command work center does not match the canonical PostgreSQL target",
+      });
+      return true;
+    }
+
+    const canonicalPayload = { ...payload, workCenterId };
+    const canonicalReferenceKeys = isShiftExecutionAssignmentUpdate
+      ? ["sourceRowId", "sourceSlotId", "workOrderId", "operationId"]
+      : isShiftExecutionCarryoverCommand
+        ? ["sourceSlotId", "workOrderId", "operationId"]
+        : [];
+    const missingCanonicalReference = canonicalReferenceKeys.find((key) => !String(targetContext?.[key] || "").trim());
+    if (missingCanonicalReference) {
+      sendJson(res, headers, 503, {
+        ok: false,
+        apiVersion: "v1",
+        error: "Shift Execution canonical command target is incomplete",
+      });
+      return true;
+    }
+    const mismatchedCanonicalReference = canonicalReferenceKeys.find((key) => {
+      const submitted = String(payload?.[key] || "").trim();
+      return Boolean(submitted) && submitted !== String(targetContext?.[key] || "").trim();
+    });
+    if (mismatchedCanonicalReference) {
+      sendJson(res, headers, 409, {
+        ok: false,
+        apiVersion: "v1",
+        code: "shift-execution-target-context-mismatch",
+        error: "Shift Execution command references do not match the canonical PostgreSQL target",
+      });
+      return true;
+    }
+    canonicalReferenceKeys.forEach((key) => { canonicalPayload[key] = String(targetContext[key] || "").trim(); });
+
+    const commandKind = isShiftExecutionAssignmentCommand || isShiftExecutionAssignmentUpdate
+      ? "assignment"
+      : isShiftExecutionFactCommand
+        ? "fact"
+        : "carryover";
+    const actionLabel = commandKind === "assignment"
+      ? "assigning Shift Execution work"
+      : commandKind === "fact"
+        ? "recording a Shift Execution fact"
+        : "maintaining a Shift Execution carryover";
+    let authorization;
+    try {
+      authorization = typeof shiftExecutionAuthorizationResolver === "function"
+        ? await shiftExecutionAuthorizationResolver(actor, { env, commandKind, workCenterId })
+        : { allowed: false, principal: actor, reason: "shift-execution-authorization-unavailable", infrastructureUnavailable: true };
+    } catch {
+      authorization = { allowed: false, principal: actor, reason: "shift-execution-authorization-unavailable", infrastructureUnavailable: true };
+    }
+    const authorizationResult = inspectShiftExecutionAuthorizationResult(authorization);
+    if (!authorizationResult.allowed) {
+      sendShiftExecutionAuthorizationFailure(res, headers, authorizationResult, actionLabel);
+      return true;
+    }
+
+    const idempotencyKey = String(req.headers?.["idempotency-key"] || req.headers?.["Idempotency-Key"] || canonicalPayload?.idempotencyKey || "").trim();
     if (!idempotencyKey || idempotencyKey.length > 160) { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Idempotency key is required" }); return true; }
     let shifts;
     try {
       shifts = shiftExecutionCommandRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       const result = isShiftExecutionCarryoverCancel
-        ? await shifts.cancelCarryover({ ...payload, carryoverId: decodeURIComponent(shiftCarryoverMatch[1]), idempotencyKey, actorId: actor.id })
+        ? await shifts.cancelCarryover({ ...canonicalPayload, carryoverId, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
         : isShiftExecutionCarryoverCommand
-        ? await shifts.createCarryover({ ...payload, idempotencyKey, actorId: actor.id })
+        ? await shifts.createCarryover({ ...canonicalPayload, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
         : isShiftExecutionFactCommand
-        ? await shifts.recordFact({ ...payload, assignmentId: decodeURIComponent(shiftFactMatch[1]), idempotencyKey, actorId: actor.id })
+        ? await shifts.recordFact({ ...canonicalPayload, assignmentId, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
         : isShiftExecutionAssignmentUpdate
-        ? await shifts.updateAssignment({ ...payload, assignmentId: decodeURIComponent(shiftAssignmentMatch[1]), idempotencyKey, actorId: actor.id })
-        : await shifts.createAssignment({ ...payload, idempotencyKey, actorId: actor.id });
+        ? await shifts.updateAssignment({ ...canonicalPayload, assignmentId, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
+        : await shifts.createAssignment({ ...canonicalPayload, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId });
       if (result.conflict) sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...result, error: result.error || "Shift execution command conflicts with the current server state" });
       else if (!result.item) sendJson(res, headers, 422, { ok: false, apiVersion: "v1", error: result.error || "Shift assignment cannot be saved" });
       else sendJson(res, headers, result.created && !isShiftExecutionCarryoverCancel ? 201 : 200, { ok: true, apiVersion: "v1", ...result });
     } catch (error) {
       if (error?.code === "SHIFT_EXECUTION_AUTHORITY_TRANSITION_PENDING") {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", retryable: true, error: error.message });
+      } else if (error?.code === "SHIFT_EXECUTION_AUTHORIZATION_CONTEXT_CHANGED") {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", retryable: true, code: "shift-execution-target-context-changed", error: error.message });
+      } else if (error?.code === "SHIFT_EXECUTION_COMMAND_INVALID") {
+        sendJson(res, headers, 422, { ok: false, apiVersion: "v1", code: "shift-execution-command-invalid", error: error.message });
       } else sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" });
     }
     finally { await shifts?.close?.(); }
@@ -2105,14 +2744,23 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server publication is not enabled during snapshot migration" });
       return true;
     }
-    const actor = getPublicAuthPrincipal(req, env);
-    if (!actor) {
-      sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to publish a Specifications 2.0 revision" });
+    const authorization = await getSpecifications2Authorization();
+    if (!authorization.allowed) {
+      sendSpecifications2AuthorizationFailure(res, headers, authorization, "publishing a Specifications 2.0 revision");
       return true;
     }
+    const actor = authorization.actor;
     let payload;
-    try { payload = await readRequestBody(req); }
-    catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
+    try { payload = await readRequestBody(req, { maxBytes: SPECIFICATIONS2_PUBLISH_BODY_MAX_BYTES }); }
+    catch (error) {
+      const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+      sendJson(res, headers, tooLarge ? 413 : 400, {
+        ok: false,
+        apiVersion: "v1",
+        error: tooLarge ? "Specifications 2.0 publication request is too large" : "Request body must be valid JSON",
+      });
+      return true;
+    }
     const idempotencyKey = String(req.headers?.["idempotency-key"] || req.headers?.["Idempotency-Key"] || payload?.idempotencyKey || "").trim();
     const expectedPreviousRevision = Number(payload?.expectedPreviousRevision);
     if (!payload?.entry || !idempotencyKey || idempotencyKey.length > 160
@@ -2122,7 +2770,7 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     let command;
     try {
-      command = createSpecifications2PublishCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      command = specifications2PublishCommandRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       const readiness = await command.commandReadiness();
       if (!readiness.schemaReady) {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server publication schema is not ready" });
@@ -2165,9 +2813,15 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 attachment upload is not enabled during snapshot migration" });
       return true;
     }
+    const authorization = await getSpecifications2Authorization();
+    if (!authorization.allowed) {
+      sendSpecifications2AuthorizationFailure(res, headers, authorization, "uploading a Specifications 2.0 attachment");
+      return true;
+    }
+    const actor = authorization.actor;
     let attachments;
     try {
-      attachments = createSpecifications2AttachmentRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      attachments = specifications2AttachmentRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       if (!(await attachments.commandReadiness()).schemaReady) {
         await attachments.close();
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 attachment storage schema is not ready" });
@@ -2178,15 +2832,18 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Specifications 2.0 attachment storage is unavailable" });
       return true;
     }
-    const actor = getPublicAuthPrincipal(req, env);
-    if (!actor) {
+    let payload;
+    try { payload = await readRequestBody(req, { maxBytes: SPECIFICATIONS2_ATTACHMENT_BODY_MAX_BYTES }); }
+    catch (error) {
       await attachments.close();
-      sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to upload a Specifications 2.0 attachment" });
+      const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+      sendJson(res, headers, tooLarge ? 413 : 400, {
+        ok: false,
+        apiVersion: "v1",
+        error: tooLarge ? "Specifications 2.0 attachment request is too large" : "Request body must be valid JSON",
+      });
       return true;
     }
-    let payload;
-    try { payload = await readRequestBody(req); }
-    catch { await attachments.close(); sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
     try {
       const result = await attachments.put(payload || {}, { actorId: actor.id });
       sendJson(res, headers, result.created ? 201 : 200, { ok: true, apiVersion: "v1", ...result });
@@ -2201,14 +2858,14 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 attachment download is not enabled during snapshot migration" });
       return true;
     }
-    const actor = getPublicAuthPrincipal(req, env);
-    if (!actor) {
-      sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to download a Specifications 2.0 attachment" });
+    const authorization = await getSpecifications2Authorization();
+    if (!authorization.allowed) {
+      sendSpecifications2AuthorizationFailure(res, headers, authorization, "downloading a Specifications 2.0 attachment");
       return true;
     }
     let attachments;
     try {
-      attachments = createSpecifications2AttachmentRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      attachments = specifications2AttachmentRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       if (!(await attachments.commandReadiness()).schemaReady) {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 attachment storage schema is not ready" });
         return true;
@@ -2225,7 +2882,7 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
 
-  if (specifications2WorkOrderCommandMatch) {
+  if (isSpecifications2WorkOrderCommand) {
     // The schema and command code can be deployed safely before the legacy
     // snapshot has a create-order outbox consumer. Do not allow a browser to
     // create an invisible-to-legacy order until that consumer has passed
@@ -2241,22 +2898,31 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server command requires PostgreSQL as the primary work-order authority" });
       return true;
     }
+    // Creation is a protected write: the actor comes from the signed employee
+    // session and current System Domains RBAC, never from the shared perimeter
+    // login or browser-supplied identity fields.
+    const authorization = await getSpecifications2Authorization();
+    if (!authorization.allowed) {
+      sendSpecifications2AuthorizationFailure(res, headers, authorization, "creating a Work Order from Specifications 2.0");
+      return true;
+    }
+    const actor = authorization.actor;
     let planningSafety = await getPlanningSafety();
     if (planningSafety.fallbackReason) {
       sendPlanningWriteParityConflict(res, headers, planningSafety);
       return true;
     }
-    // Creation is a protected write: the actor is derived only from the
-    // signed HttpOnly session.  Internal or anonymous requests must not gain
-    // write access merely because the migration feature flag is enabled.
-    const actor = getPublicAuthPrincipal(req, env);
-    if (!actor) {
-      sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to create a work order" });
+    let payload;
+    try { payload = await readRequestBody(req, { maxBytes: SPECIFICATIONS2_WORK_ORDER_BODY_MAX_BYTES }); }
+    catch (error) {
+      const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+      sendJson(res, headers, tooLarge ? 413 : 400, {
+        ok: false,
+        apiVersion: "v1",
+        error: tooLarge ? "Specifications 2.0 Work Order request is too large" : "Request body must be valid JSON",
+      });
       return true;
     }
-    let payload;
-    try { payload = await readRequestBody(req); }
-    catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
     const routeSourceDraftId = String(payload.routeSourceDraftId || "").trim();
     const idempotencyKey = String(req.headers?.["idempotency-key"] || req.headers?.["Idempotency-Key"] || payload.idempotencyKey || "").trim();
     const quantity = Number(payload.quantity);
@@ -2271,9 +2937,23 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     let command;
     try {
-      command = createSpecifications2WorkOrderCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      command = specifications2WorkOrderCommandRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      const commandReadiness = await command.commandReadiness();
+      if (!commandReadiness.schemaReady) {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: commandReadiness.error || "Specifications 2.0 work-order command schema is not ready" });
+        return true;
+      }
       const result = await command.create({ revisionId: decodeURIComponent(specifications2WorkOrderCommandMatch[1]), routeSourceDraftId, quantity, idempotencyKey, actorId: actor.id });
-      if (!result.item) {
+      const responseStatus = getSpecifications2WorkOrderCommandHttpStatus(result);
+      if (responseStatus === 409) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          apiVersion: "v1",
+          conflict: true,
+          idempotencyConflict: true,
+          error: result.error || "Idempotency key was already used for a different Work Order request",
+        });
+      } else if (responseStatus === 422) {
         sendJson(res, headers, 422, { ok: false, apiVersion: "v1", error: result.error || "Published revision cannot create a work order" });
       } else {
         // The create command changes the same runtime projection as quantity
@@ -2287,7 +2967,7 @@ export async function handleDomainApiRequest(req, res, url, {
         } catch (error) {
           snapshotSync = { applied: 0, conflicts: 0, failed: 1, error: error?.message || "Snapshot creation sync deferred" };
         }
-        sendJson(res, headers, result.created ? 201 : 200, { ok: true, apiVersion: "v1", ...result, snapshotSync });
+        sendJson(res, headers, responseStatus, { ok: true, apiVersion: "v1", ...result, snapshotSync });
       }
     } catch (error) {
       sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Specifications 2.0 command storage is unavailable" });
@@ -2310,15 +2990,25 @@ export async function handleDomainApiRequest(req, res, url, {
     // safety fallback: it must continue comparing the configured primary
     // against the snapshot rather than accidentally comparing the snapshot
     // with itself.
+    let refreshedSafety = null;
+    if (url.searchParams.get("refresh-marker") === "1") {
+      refreshedSafety = await getPlanningSafety({ forceFullParity: true });
+    }
     const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
     const { primary, snapshot, parity } = await inspectWorkOrderProjectionParity({ primary: workOrders, snapshot: snapshotRepository });
+    const marker = typeof workOrders.getPlanningProjectionParityState === "function"
+      ? await workOrders.getPlanningProjectionParityState()
+      : null;
     sendJson(res, headers, 200, {
-      ok: parity.matches,
+      ok: parity.matches && !refreshedSafety?.fallbackReason,
       apiVersion: "v1",
       primary: { storageMode: primary.storageMode, count: primary.items.length },
       snapshot: { storageMode: snapshot.storageMode, count: snapshot.items.length },
       parity,
+      marker,
+      ...(refreshedSafety?.fallbackReason ? { fallbackReason: refreshedSafety.fallbackReason } : {}),
     });
+    await snapshotRepository.close?.();
     return true;
   }
 
@@ -2617,6 +3307,155 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
 
+  if (startDateMatch && isStartDatePatch) {
+    let planningSafety = await getPlanningSafety();
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
+    let commandReadiness = { schemaReady: false, error: "Planning start-date owner is unavailable" };
+    try {
+      if (typeof workOrders.startDateCommandReadiness === "function") {
+        commandReadiness = await workOrders.startDateCommandReadiness();
+      }
+    } catch (error) {
+      sendJson(res, headers, 503, { ok: false, ...meta, code: "planning-start-date-readiness-unavailable", error: error?.message || "Planning start-date readiness is unavailable" });
+      return true;
+    }
+    if (commandReadiness.schemaReady !== true) {
+      sendJson(res, headers, 409, { ok: false, ...meta, code: "planning-start-date-schema-not-ready", error: commandReadiness.error || "Planning start-date owner is unavailable" });
+      return true;
+    }
+    const id = decodeURIComponent(startDateMatch[1]);
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: (repository) => repository.get(id),
+    });
+    planningSafety = guardedRead.planningSafety;
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
+    if (!guardedRead.result.item) {
+      sendJson(res, headers, 404, { ok: false, ...meta, error: "Work order was not found" });
+      return true;
+    }
+    let payload;
+    try {
+      payload = await readRequestBody(req, { maxBytes: PLANNING_COMMAND_BODY_MAX_BYTES });
+    } catch (error) {
+      const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+      sendJson(res, headers, tooLarge ? 413 : 400, { ok: false, ...meta, error: tooLarge ? "Planning command request is too large" : "Request body must be valid JSON" });
+      return true;
+    }
+    const expected = readExpectedRevision(req, payload);
+    const hasPlanningStartDate = Object.prototype.hasOwnProperty.call(payload || {}, "planningStartDate");
+    const planningStartDate = payload?.planningStartDate === null
+      ? null
+      : typeof payload?.planningStartDate === "string" ? payload.planningStartDate.trim() : undefined;
+    const idempotencyKey = String(getRequestHeader(req, "idempotency-key") || "").trim();
+    if (expected.error) {
+      sendJson(res, headers, 400, { ok: false, ...meta, error: expected.error });
+      return true;
+    }
+    if (!hasPlanningStartDate
+      || (planningStartDate !== null && !isExactIsoCalendarDate(planningStartDate))
+      || !Number.isInteger(expected.value)
+      || !idempotencyKey || idempotencyKey.length > 160) {
+      sendJson(res, headers, 400, { ok: false, ...meta, error: "planningStartDate must be an exact ISO date or explicit null; expectedRevision and Idempotency-Key are required" });
+      return true;
+    }
+    planningSafety = await verifyPlanningProjectionBeforeWrite({ planningSafety, getPlanningSafety });
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
+    try {
+      const updated = await workOrders.changeStartDate(id, {
+        planningStartDate,
+        expectedRevision: expected.value,
+        actorId: planningAuthorization.actor.id,
+        idempotencyKey,
+      });
+      if (updated.idempotencyConflict) {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...updated, conflict: true, error: "Idempotency key was already used for a different Planning command" }, updated.item ? { ETag: getRevisionEtag(updated.item.concurrencyRevision) } : {});
+        return true;
+      }
+      if (updated.conflict) {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...updated, error: "Work order was changed by another client" }, updated.item ? { ETag: getRevisionEtag(updated.item.concurrencyRevision) } : {});
+        return true;
+      }
+      if (!updated.item) {
+        sendJson(res, headers, 404, { ok: false, ...meta, error: "Work order was not found" });
+        return true;
+      }
+      invalidatePlanningRuntimeProjectionCache({ filePath, env });
+      let snapshotSync = null;
+      if ((updated.storageMode === "postgres" || updated.storageBackend === "postgresql") && workOrders.listPendingSnapshotSyncs) {
+        try {
+          const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+          snapshotSync = await syncPendingSnapshotChanges({ primary: workOrders, snapshot: snapshotRepository });
+        } catch (error) {
+          snapshotSync = { applied: 0, conflicts: 0, failed: 1, error: error?.message || "Snapshot sync deferred" };
+        }
+      }
+      let compatibilityReceipt = {
+        found: false,
+        exact: false,
+        ready: false,
+        state: "unavailable",
+        unresolvedCount: 0,
+        error: "Planning start-date compatibility receipt is unavailable",
+      };
+      if (updated.storageMode === "postgres" || updated.storageBackend === "postgresql") {
+        try {
+          if (typeof workOrders.getStartDateSnapshotReceipt !== "function") {
+            throw new Error("Planning start-date compatibility receipt is unsupported");
+          }
+          compatibilityReceipt = await workOrders.getStartDateSnapshotReceipt({
+            actorId: planningAuthorization.actor.id,
+            idempotencyKey,
+            aggregateId: updated.commandAggregateId,
+            aggregateRevision: updated.commandAggregateRevision,
+            expectedRevision: expected.value,
+            planningStartDate,
+          });
+        } catch (error) {
+          compatibilityReceipt = {
+            ...compatibilityReceipt,
+            error: error?.message || compatibilityReceipt.error,
+          };
+        }
+      }
+      if (updated.superseded === true) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          apiVersion: "v1",
+          ...updated,
+          conflict: true,
+          superseded: true,
+          code: "superseded-idempotent-replay",
+          error: "The original start-date command was applied but has since been superseded",
+          ...(snapshotSync ? { snapshotSync } : {}),
+          compatibilityReceipt,
+        }, { ETag: getRevisionEtag(updated.item.concurrencyRevision) });
+        return true;
+      }
+      sendJson(res, headers, 200, {
+        ok: true,
+        apiVersion: "v1",
+        ...updated,
+        ...(snapshotSync ? { snapshotSync } : {}),
+        compatibilityReceipt,
+      }, { ETag: getRevisionEtag(updated.item.concurrencyRevision) });
+      return true;
+    } catch (error) {
+      sendJson(res, headers, 422, { ok: false, ...meta, error: error?.message || "Planning start date cannot be changed" });
+      return true;
+    }
+  }
+
   if (slotMatch && isSlotPatch) {
     let planningSafety = await getPlanningSafety();
     if (planningSafety.fallbackReason) {
@@ -2642,9 +3481,10 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     let payload;
     try {
-      payload = await readRequestBody(req);
-    } catch {
-      sendJson(res, headers, 400, { ok: false, ...meta, error: "Request body must be valid JSON" });
+      payload = await readRequestBody(req, { maxBytes: PLANNING_COMMAND_BODY_MAX_BYTES });
+    } catch (error) {
+      const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+      sendJson(res, headers, tooLarge ? 413 : 400, { ok: false, ...meta, error: tooLarge ? "Planning command request is too large" : "Request body must be valid JSON" });
       return true;
     }
     const expected = readExpectedRevision(req, payload);
@@ -2663,7 +3503,11 @@ export async function handleDomainApiRequest(req, res, url, {
       return true;
     }
     try {
-      const updated = await workOrders.changeSlotSchedule(id, operationId, { plannedStart, expectedRevision: expected.value });
+      const updated = await workOrders.changeSlotSchedule(id, operationId, {
+        plannedStart,
+        expectedRevision: expected.value,
+        actorId: planningAuthorization.actor.id,
+      });
       if (updated.conflict) {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...updated, error: "Work order was changed by another client" }, updated.item ? { ETag: getRevisionEtag(updated.item.concurrencyRevision) } : {});
         return true;
@@ -2677,7 +3521,7 @@ export async function handleDomainApiRequest(req, res, url, {
       // same-process runtime graph while that delivery is still in flight.
       invalidatePlanningRuntimeProjectionCache({ filePath, env });
       let snapshotSync = null;
-      if (updated.storageBackend === "postgres" && workOrders.listPendingSnapshotSyncs) {
+      if ((updated.storageMode === "postgres" || updated.storageBackend === "postgresql") && workOrders.listPendingSnapshotSyncs) {
         try {
           const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
           snapshotSync = await syncPendingSnapshotChanges({ primary: workOrders, snapshot: snapshotRepository });
@@ -2718,9 +3562,10 @@ export async function handleDomainApiRequest(req, res, url, {
     if (isOrderPatch) {
       let payload;
       try {
-        payload = await readRequestBody(req);
-      } catch {
-        sendJson(res, headers, 400, { ok: false, ...meta, error: "Request body must be valid JSON" });
+        payload = await readRequestBody(req, { maxBytes: PLANNING_COMMAND_BODY_MAX_BYTES });
+      } catch (error) {
+        const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
+        sendJson(res, headers, tooLarge ? 413 : 400, { ok: false, ...meta, error: tooLarge ? "Planning command request is too large" : "Request body must be valid JSON" });
         return true;
       }
       const quantity = Number(payload.quantity);
@@ -2738,7 +3583,11 @@ export async function handleDomainApiRequest(req, res, url, {
         sendPlanningWriteParityConflict(res, headers, planningSafety);
         return true;
       }
-      const updated = await workOrders.changeQuantity(id, { quantity, expectedRevision: expected.value });
+      const updated = await workOrders.changeQuantity(id, {
+        quantity,
+        expectedRevision: expected.value,
+        actorId: planningAuthorization.actor.id,
+      });
       if (updated.conflict) {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...updated, error: "Work order was changed by another client" }, updated.item ? { ETag: getRevisionEtag(updated.item.concurrencyRevision) } : {});
         return true;
@@ -2751,7 +3600,7 @@ export async function handleDomainApiRequest(req, res, url, {
       // a pending outbox record is retained on a transient failure and retried
       // by the next write/worker invocation.
       let snapshotSync = null;
-      if (updated.storageBackend === "postgres" && workOrders.listPendingSnapshotSyncs) {
+      if ((updated.storageMode === "postgres" || updated.storageBackend === "postgresql") && workOrders.listPendingSnapshotSyncs) {
         try {
           const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
           snapshotSync = await syncPendingSnapshotChanges({ primary: workOrders, snapshot: snapshotRepository });

@@ -13,7 +13,9 @@ import {
 } from "./browser-cdp-qa-utils.mjs";
 import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
 import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { executeNomenclatureCommand } from "./domain-nomenclature-command.mjs";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
+import { NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY } from "./shared-state-endpoint.mjs";
 
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
@@ -22,6 +24,59 @@ const AUTHENTICATED_EMPLOYEE_ID = "ROLE-D-TECH-RUKOVODITEL-TEHNOLOGICHESKOGO-NAP
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 const responseBody = (value) => Buffer.from(JSON.stringify(value)).toString("base64");
+const employeeActor = Object.freeze({
+  id: `employee:${AUTHENTICATED_EMPLOYEE_ID}`,
+  employeeId: AUTHENTICATED_EMPLOYEE_ID,
+  displayName: "Сотрудник Nomenclature permanent QA",
+  personnelNumber: "QA-PERM-001",
+});
+
+function employeeSessionPayload(actor = null) {
+  return actor
+    ? { ok: true, authenticated: true, actor }
+    : { ok: true, authenticated: false, actor: null, reason: "employee-session-required" };
+}
+
+function nomenclatureCapabilityPayload(actor = null) {
+  const authenticated = Boolean(actor);
+  return {
+    ok: true,
+    authenticated,
+    actor,
+    rbacRevision: 42,
+    authorizationReason: authenticated ? "allowed-by-role" : "employee-session-required",
+    capabilities: {
+      canViewNomenclature: authenticated,
+      canEditNomenclature: authenticated,
+      canCreateNomenclature: authenticated,
+      canDeleteNomenclature: authenticated,
+      serverCommandsConfigured: true,
+      serverCommandsEnabled: authenticated,
+    },
+  };
+}
+
+function nomenclatureTypesCapabilityPayload(actor = null, directoryRevision = 0) {
+  const authenticated = Boolean(actor);
+  return {
+    ok: true,
+    apiVersion: "v1",
+    surface: "nomenclature-types",
+    authenticated,
+    actor,
+    rbacRevision: 42,
+    directoryRevision,
+    authorizationReason: authenticated ? "server-commands-not-configured" : "employee-session-required",
+    capabilities: {
+      canViewNomenclatureTypes: authenticated,
+      canEditNomenclatureTypes: authenticated,
+      canCreateNomenclatureTypes: authenticated,
+      canDeleteNomenclatureTypes: authenticated,
+      serverCommandsConfigured: false,
+      serverCommandsEnabled: false,
+    },
+  };
+}
 
 function createDirectoryFixture() {
   return {
@@ -57,8 +112,11 @@ function createSystemDomainsFixture() {
         id: "admin",
         label: "Администратор",
         scope: "factory",
-        defaultModule: "gantt",
-        modulePermissions: { directories: { edit: true } },
+        defaultModule: "nomenclature",
+        modulePermissions: {
+          directories: { view: true, edit: true },
+          nomenclature: { view: true, edit: true },
+        },
       }],
     },
     migratedAt: "2026-07-21T00:00:00.000Z",
@@ -109,23 +167,49 @@ async function waitForPersistedDirectory(sharedStateFile, predicate, message, ti
   throw new Error(`${message}: ${JSON.stringify(latest?.directory?.nomenclature || [])}`);
 }
 
-async function postExternalDirectory(origin, snapshot, directory, action) {
-  const response = await fetch(`${origin}/api/shared-state`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      baseVersion: snapshot.version,
-      clientId: "nomenclature-external-writer-qa",
-      actor: "Nomenclature external writer QA",
-      action,
-      responseMode: "ack",
-      values: { [DIRECTORY_STORAGE_KEY]: JSON.stringify(directory) },
-      sharedUiPatch: { maps: {}, replace: {} },
-    }),
+async function executeExternalNomenclatureCommand({
+  sharedStateFile,
+  backupDir,
+  auditLogPath,
+  kind,
+  row = null,
+  expectedRow = null,
+  expectedRevision,
+  action,
+}) {
+  const itemId = String(row?.id || expectedRow?.id || "");
+  const result = await executeNomenclatureCommand({
+    kind,
+    itemId,
+    row,
+    expectedRow,
+    expectedRevision,
+    idempotencyKey: `external:${action}`,
+  }, {
+    env: {
+      APP_ENV: "local",
+      MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "1",
+      MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS: "0",
+    },
+    filePath: sharedStateFile,
+    backupDir,
+    auditLogPath,
+    authorization: {
+      allowed: true,
+      revision: 43,
+      decision: { reason: "current-rbac-grant", roleId: "external-technologist", source: "system-domains" },
+      principal: {
+        id: "employee:nomenclature-external-writer-qa",
+        employeeId: "nomenclature-external-writer-qa",
+        displayName: "Nomenclature external writer QA",
+        personnelNumber: "QA-EXT-001",
+        publicPrincipalId: "public:nomenclature-permanent-qa",
+        scope: "employee",
+      },
+    },
   });
-  const payload = await response.json();
-  assert(response.ok && payload.ok === true, `External directory writer failed: ${JSON.stringify(payload)}`);
-  return payload;
+  assert(result.ok === true, `External Nomenclature command failed: ${JSON.stringify(result)}`);
+  return result;
 }
 
 async function fillEditor(client, values) {
@@ -155,6 +239,8 @@ async function submitEditor(client) {
 async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-nomenclature-permanent-"));
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
+  const commandBackupDir = join(temporaryRoot, "command-backups");
+  const commandAuditLog = join(temporaryRoot, "command-audit.jsonl");
   const policyFile = join(temporaryRoot, "nomenclature-permanent-policy.json");
   const fixture = createDirectoryFixture();
   const systemDomainsFixture = createSystemDomainsFixture();
@@ -192,6 +278,12 @@ async function main() {
       MES_ADMIN_HOSTS: "admin.mes-line.ru",
       MES_SHARED_STATE_FILE: sharedStateFile,
       MES_REACT_RUNTIME_POLICY_PATH: policyFile,
+      MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "1",
+      MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS: "0",
+      MES_ENABLE_EMPLOYEE_AUTH: "1",
+      MES_EMPLOYEE_AUTH_SESSION_SECRET: "nomenclature-permanent-browser-qa-session-secret",
+      MES_EMPLOYEE_AUTH_HOSTS: "127.0.0.1",
+      MES_REQUIRE_EMPLOYEE_AUTH_GATE: "0",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -207,23 +299,42 @@ async function main() {
   let directoryReads = 0;
   let metadataReads = 0;
   let sharedStateWrites = 0;
+  let employeeSessionReads = 0;
+  let nomenclatureCapabilityReads = 0;
+  let nomenclatureTypesCapabilityReads = 0;
+  let serverCommandAttempts = 0;
+  let serverCommandFailures = 0;
+  let signedSessionActor = null;
   const sharedStateReadSummaries = [];
   const sharedStateWriteSummaries = [];
+  const serverCommandSummaries = [];
 
   try {
     await waitForPreview(origin);
     chrome = await launchChrome("mes-nomenclature-permanent-qa-");
     const { client } = chrome;
-    const fulfill = (requestId, payload, responseCode = 200) => client.send("Fetch.fulfillRequest", {
+    const fulfill = (requestId, payload, responseCode = 200, extraHeaders = []) => client.send("Fetch.fulfillRequest", {
       requestId,
       responseCode,
       responseHeaders: [
         { name: "Content-Type", value: "application/json; charset=utf-8" },
         { name: "Cache-Control", value: "no-store" },
+        ...extraHeaders,
       ],
       body: responseBody(payload),
     }).catch((error) => consoleProblems.push(error.message));
     const continueRequest = (requestId) => client.send("Fetch.continueRequest", { requestId }).catch((error) => consoleProblems.push(error.message));
+    const serverCommandEnv = {
+      APP_ENV: "local",
+      MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "1",
+      MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS: "0",
+    };
+    const commandAuthorization = {
+      allowed: true,
+      revision: 42,
+      decision: { reason: "current-rbac-grant", roleId: "admin", source: "system-domains" },
+      principal: { ...employeeActor, publicPrincipalId: "public:nomenclature-permanent-qa", scope: "employee" },
+    };
 
     client.socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
@@ -234,52 +345,141 @@ async function main() {
         else consoleProblems.push(text);
       }
       if (message.method !== "Fetch.requestPaused") return;
-      const request = message.params.request;
-      const requestUrl = new URL(request.url);
-      if (requestUrl.pathname !== "/api/shared-state") {
-        void continueRequest(message.params.requestId);
-        return;
-      }
-      const method = String(request.method || "GET").toUpperCase();
-      const headers = Object.fromEntries(Object.entries(request.headers || {}).map(([name, value]) => [name.toLowerCase(), String(value)]));
-      const requestedKeys = headers["x-mes-shared-state-keys"] || "";
-      const isDirectoryRead = method === "GET" && requestedKeys.split(",").map((value) => value.trim()).includes(DIRECTORY_STORAGE_KEY);
-      if (method === "GET") {
-        if (requestedKeys === "__none__") metadataReads += 1;
-        sharedStateReadSummaries.push({
-          requestedKeys,
-          knownVersion: Number(headers["x-mes-shared-state-version"] || 0),
-        });
-      }
-      if (isDirectoryRead) {
-        directoryReads += 1;
-        if (readMode === "hold") {
-          pendingDirectoryReads.push(message.params.requestId);
+      void (async () => {
+        const { requestId, request } = message.params;
+        const requestUrl = new URL(request.url);
+        const method = String(request.method || "GET").toUpperCase();
+        const headers = Object.fromEntries(Object.entries(request.headers || {}).map(([name, value]) => [name.toLowerCase(), String(value)]));
+
+        if (requestUrl.pathname === "/api/v1/auth/employee-session") {
+          if (method === "GET") {
+            employeeSessionReads += 1;
+            await fulfill(requestId, employeeSessionPayload(signedSessionActor));
+            return;
+          }
+          if (method === "DELETE") {
+            signedSessionActor = null;
+            await fulfill(requestId, employeeSessionPayload());
+            return;
+          }
+        }
+
+        if (requestUrl.pathname === "/api/v1/nomenclature/capabilities" && method === "GET") {
+          nomenclatureCapabilityReads += 1;
+          await fulfill(requestId, nomenclatureCapabilityPayload(signedSessionActor));
           return;
         }
-        if (readMode === "error") {
-          void fulfill(message.params.requestId, { ok: false, error: "qa-nomenclature-read-unavailable" }, 503);
+
+        if (requestUrl.pathname === "/api/v1/directory/nomenclature-types/capabilities" && method === "GET") {
+          nomenclatureTypesCapabilityReads += 1;
+          const persisted = await readPersistedDirectory(sharedStateFile);
+          await fulfill(requestId, nomenclatureTypesCapabilityPayload(signedSessionActor, Number(persisted.persisted.version || 0)));
           return;
         }
-      }
-      if (method !== "GET") {
-        sharedStateWrites += 1;
-        try {
-          const payload = JSON.parse(request.postData || "{}");
-          sharedStateWriteSummaries.push({
-            action: String(payload.action || ""),
-            baseVersion: Number(payload.baseVersion || 0),
-            valueKeys: Object.keys(payload.values || {}),
+
+        const commandBase = requestUrl.pathname === "/api/v1/nomenclature";
+        const commandItemPath = requestUrl.pathname.startsWith("/api/v1/nomenclature/")
+          && requestUrl.pathname !== "/api/v1/nomenclature/capabilities";
+        const commandKind = commandBase && method === "POST"
+          ? "create"
+          : commandItemPath && method === "PATCH"
+            ? "update"
+            : commandItemPath && method === "DELETE"
+              ? "delete"
+              : "";
+        if (commandKind) {
+          serverCommandAttempts += 1;
+          const body = JSON.parse(request.postData || "{}");
+          const pathItemId = commandItemPath
+            ? decodeURIComponent(requestUrl.pathname.slice("/api/v1/nomenclature/".length))
+            : "";
+          const itemId = String(pathItemId || body.row?.id || "");
+          serverCommandSummaries.push({
+            kind: commandKind,
+            itemId,
+            expectedRevision: Number(body.expectedRevision || 0),
+            hasIfMatch: Boolean(headers["if-match"]),
+            hasIdempotencyKey: Boolean(headers["idempotency-key"]),
           });
-        } catch {
-          sharedStateWriteSummaries.push({ action: "unparseable", baseVersion: 0, valueKeys: [] });
-        }
-        if (writeMode === "error") {
-          void fulfill(message.params.requestId, { ok: false, error: "qa-nomenclature-write-unavailable" }, 503);
+          if (!signedSessionActor) {
+            serverCommandFailures += 1;
+            await fulfill(requestId, { ok: false, apiVersion: "v1", code: "employee-principal-required", error: "Signed employee session is required" }, 401);
+            return;
+          }
+          if (writeMode === "error") {
+            serverCommandFailures += 1;
+            await fulfill(requestId, { ok: false, apiVersion: "v1", code: "qa-nomenclature-command-unavailable", error: "qa-nomenclature-command-unavailable" }, 503);
+            return;
+          }
+          const result = await executeNomenclatureCommand({
+            kind: commandKind,
+            itemId,
+            expectedRevision: body.expectedRevision,
+            idempotencyKey: headers["idempotency-key"],
+            row: body.row,
+            expectedRow: body.expectedRow,
+          }, {
+            env: serverCommandEnv,
+            filePath: sharedStateFile,
+            backupDir: commandBackupDir,
+            auditLogPath: commandAuditLog,
+            authorization: commandAuthorization,
+          });
+          const statusCode = Number(result.statusCode || (result.ok === true ? 200 : 500));
+          const payload = { apiVersion: "v1", ...result };
+          delete payload.statusCode;
+          if (result.ok !== true) serverCommandFailures += 1;
+          const responseHeaders = Number.isSafeInteger(result.revision)
+            ? [{ name: "ETag", value: `"${result.revision}"` }]
+            : [];
+          await fulfill(requestId, payload, statusCode, responseHeaders);
           return;
         }
-      }
-      void continueRequest(message.params.requestId);
+
+        if (requestUrl.pathname !== "/api/shared-state") {
+          await continueRequest(requestId);
+          return;
+        }
+
+        const requestedKeys = headers["x-mes-shared-state-keys"] || "";
+        const isDirectoryRead = method === "GET" && requestedKeys.split(",").map((value) => value.trim()).includes(DIRECTORY_STORAGE_KEY);
+        if (method === "GET") {
+          if (requestedKeys === "__none__") metadataReads += 1;
+          sharedStateReadSummaries.push({
+            requestedKeys,
+            knownVersion: Number(headers["x-mes-shared-state-version"] || 0),
+            referer: String(headers.referer || ""),
+          });
+        }
+        if (isDirectoryRead) {
+          directoryReads += 1;
+          if (readMode === "hold") {
+            pendingDirectoryReads.push(requestId);
+            return;
+          }
+          if (readMode === "error") {
+            await fulfill(requestId, { ok: false, error: "qa-nomenclature-read-unavailable" }, 503);
+            return;
+          }
+        }
+        if (method !== "GET") {
+          sharedStateWrites += 1;
+          try {
+            const payload = JSON.parse(request.postData || "{}");
+            sharedStateWriteSummaries.push({
+              action: String(payload.action || ""),
+              baseVersion: Number(payload.baseVersion || 0),
+              valueKeys: Object.keys(payload.values || {}),
+            });
+          } catch {
+            sharedStateWriteSummaries.push({ action: "unparseable", baseVersion: 0, valueKeys: [] });
+          }
+        }
+        await continueRequest(requestId);
+      })().catch((error) => {
+        consoleProblems.push(error?.stack || error?.message || String(error));
+        void client.send("Fetch.failRequest", { requestId: message.params.requestId, errorReason: "Failed" }).catch(() => {});
+      });
     });
 
     await client.send("Page.enable");
@@ -308,7 +508,12 @@ async function main() {
         };
       `,
     });
-    await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/shared-state*", requestStage: "Request" }] });
+    await client.send("Fetch.enable", { patterns: [
+      { urlPattern: "*api/shared-state*", requestStage: "Request" },
+      { urlPattern: "*api/v1/auth/employee-session*", requestStage: "Request" },
+      { urlPattern: "*api/v1/nomenclature*", requestStage: "Request" },
+      { urlPattern: "*api/v1/directory/nomenclature-types/capabilities*", requestStage: "Request" },
+    ] });
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
 
     readMode = "hold";
@@ -346,7 +551,13 @@ async function main() {
         overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
     });
-    assert(initial.runtimeMode === "react" && initial.state === "ready" && initial.revision === "1", `permanent Nomenclature runtime marker failed: ${JSON.stringify(initial)}`);
+    assert(
+      initial.runtimeMode === "react"
+        && initial.state === "ready"
+        && Number.isSafeInteger(Number(initial.revision))
+        && Number(initial.revision) >= 1,
+      `permanent Nomenclature runtime marker failed: ${JSON.stringify(initial)}`,
+    );
     assert(Number.isFinite(initial.commitMs) && initial.commitMs < 2000 && initial.ariaBusy === "false", `permanent Nomenclature commit/accessibility gate failed: ${JSON.stringify(initial)}`);
     assert(JSON.stringify(initial.headers) === JSON.stringify(["Наименование", "Артикул", "Раздел", "Корпус", "Ед.", "Производитель", "Статус"]), `Nomenclature columns changed: ${JSON.stringify(initial.headers)}`);
     assert(initial.rows.length === 4 && initial.rows.every((row) => row.length === 7) && initial.rows[0][0] === "Резистор 10 кОм", "permanent Nomenclature lost the exact four-row fixture order");
@@ -357,30 +568,41 @@ async function main() {
 
     const externalRow = { id: "nom-external-refresh", article: "QA-EXTERNAL-REFRESH", name: "Внешнее обновление второго клиента", type: "Механика", unit: "шт.", status: "Активен" };
     const beforeExternal = await readPersistedDirectory(sharedStateFile);
-    await postExternalDirectory(origin, beforeExternal.persisted, {
-      ...beforeExternal.directory,
-      nomenclature: [...beforeExternal.directory.nomenclature, externalRow],
-    }, "nomenclature-external-writer-add");
+    await executeExternalNomenclatureCommand({
+      sharedStateFile,
+      backupDir: commandBackupDir,
+      auditLogPath: commandAuditLog,
+      kind: "create",
+      row: externalRow,
+      expectedRevision: beforeExternal.persisted.version,
+      action: "nomenclature-external-writer-add",
+    });
     await evaluate(client, () => window.dispatchEvent(new Event("focus")));
     await waitForCondition(client, () => (
       document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 5
       && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("QA-EXTERNAL-REFRESH"))
     ), { message: "active permanent Nomenclature did not refresh after a second client advanced the shared-state version", timeoutMs: 20_000 });
     const afterExternal = await readPersistedDirectory(sharedStateFile);
-    await postExternalDirectory(origin, afterExternal.persisted, {
-      ...afterExternal.directory,
-      nomenclature: afterExternal.directory.nomenclature.filter((item) => item.id !== externalRow.id),
-    }, "nomenclature-external-writer-cleanup");
+    await executeExternalNomenclatureCommand({
+      sharedStateFile,
+      backupDir: commandBackupDir,
+      auditLogPath: commandAuditLog,
+      kind: "delete",
+      expectedRow: afterExternal.directory.nomenclature.find((item) => item.id === externalRow.id),
+      expectedRevision: afterExternal.persisted.version,
+      action: "nomenclature-external-writer-cleanup",
+    });
     await evaluate(client, () => window.dispatchEvent(new Event("focus")));
     await waitForCondition(client, () => (
       document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
       && !document.body.textContent.includes("QA-EXTERNAL-REFRESH")
     ), { message: "active permanent Nomenclature did not remove the external row after the next version watermark", timeoutMs: 20_000 });
 
-    // Install the real employee session before each following document starts.
+    // Install the local half of the employee identity before each following
+    // document starts. The harness exposes the matching signed HttpOnly
+    // session separately through the intercepted server-session contract.
     // Writing localStorage in the old page immediately before navigation is
-    // insufficient: its beforeunload handler correctly persists the old,
-    // logged-out in-memory state and would remove that fresh session.
+    // insufficient: its beforeunload handler persists the old logged-out state.
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `
         (() => {
@@ -401,16 +623,24 @@ async function main() {
       `,
     });
 
+    const employeeSessionReadsBeforeSignedReload = employeeSessionReads;
+    const capabilityReadsBeforeSignedReload = nomenclatureCapabilityReads;
+    signedSessionActor = employeeActor;
     await client.send("Page.navigate", {
       url: `${origin}/?module=nomenclature&qa-auth-bypass=1&react-nomenclature-evaluation=0&react-nomenclature=0&react-nomenclature-readonly=0&react-nomenclature-write=0&react-nomenclature-mode=legacy`,
     });
-    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-nomenclature-island][data-react-island-runtime-mode="react"][data-react-island-state="ready"]')) && document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4, {
-      message: "query parameters downgraded permanent Nomenclature",
+    await waitForCondition(client, () => (
+      Boolean(document.querySelector('[data-react-nomenclature-island][data-react-island-runtime-mode="react"][data-react-island-state="ready"]'))
+      && document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
+      && [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .some((button) => button.textContent.includes("Добавить позицию") && button.disabled === false)
+    ), {
+      message: "signed employee session plus command-owner capability did not enable permanent Nomenclature",
       timeoutMs: 20_000,
     });
     assert(await evaluate(client, () => !document.querySelector("[data-nomenclature-row-open]")), "query isolation exposed normal legacy Nomenclature");
-    assert(await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
-      .some((button) => button.textContent.includes("Добавить позицию") && button.disabled === false)), "authenticated employee plus admin RBAC did not enable permanent Nomenclature writes");
+    assert(employeeSessionReads > employeeSessionReadsBeforeSignedReload, "permanent reload did not reconcile the mocked signed employee session");
+    assert(nomenclatureCapabilityReads > capabilityReadsBeforeSignedReload, "permanent reload did not obtain command-owner capabilities for the signed employee");
 
     await evaluate(client, (storageKey) => {
       const persisted = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -481,29 +711,44 @@ async function main() {
       name: "Изменена вторым клиентом при открытом редакторе",
       updatedAt: "2026-07-21T02:00:00.000Z",
     };
-    await postExternalDirectory(origin, conflictBaseline.persisted, {
-      ...conflictBaseline.directory,
-      nomenclature: conflictBaseline.directory.nomenclature.map((item, index) => index === 0 ? remotelyChangedRow : item),
-    }, "nomenclature-external-same-row-update");
+    await executeExternalNomenclatureCommand({
+      sharedStateFile,
+      backupDir: commandBackupDir,
+      auditLogPath: commandAuditLog,
+      kind: "update",
+      row: remotelyChangedRow,
+      expectedRow: conflictBaseline.directory.nomenclature[0],
+      expectedRevision: conflictBaseline.persisted.version,
+      action: "nomenclature-external-same-row-update",
+    });
     await evaluate(client, () => window.dispatchEvent(new Event("focus")));
     await waitForCondition(client, () => (
       Boolean(document.querySelector(".react-nomenclature-editor"))
       && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("Изменена вторым клиентом"))
     ), { message: "open editor did not receive the external same-row projection refresh", timeoutMs: 20_000 });
     await fillEditor(client, { name: "Локальная устаревшая правка не должна победить" });
-    const writesBeforeSameRowConflict = sharedStateWrites;
+    const commandsBeforeSameRowConflict = serverCommandAttempts;
+    const failuresBeforeSameRowConflict = serverCommandFailures;
     await submitEditor(client);
-    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-command-error")?.textContent.includes("изменена другим пользователем")), {
-      message: "stale open-editor baseline did not fail closed against an external same-row update",
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-command-error")?.textContent.trim()), {
+      message: "server owner did not reject the stale open-editor baseline after an external same-row update",
       timeoutMs: 20_000,
     });
-    assert(sharedStateWrites === writesBeforeSameRowConflict, "same-row conflict must be detected before CAS POST");
+    const sameRowConflictMessage = await evaluate(client, () => document.querySelector(".react-nomenclature-command-error")?.textContent.trim() || "");
+    assert(/измен/u.test(sameRowConflictMessage), `same-row conflict did not retain a user-facing stale-write explanation: ${sameRowConflictMessage}`);
+    assert(serverCommandAttempts === commandsBeforeSameRowConflict + 1 && serverCommandFailures === failuresBeforeSameRowConflict + 1, "same-row conflict was not rejected by exactly one server command");
     const sameRowPreserved = await readPersistedDirectory(sharedStateFile);
     assert(sameRowPreserved.directory.nomenclature[0].name === remotelyChangedRow.name, "stale editor overwrote the external same-row update");
-    await postExternalDirectory(origin, sameRowPreserved.persisted, {
-      ...sameRowPreserved.directory,
-      nomenclature: sameRowPreserved.directory.nomenclature.map((item, index) => index === 0 ? fixture.nomenclature[0] : item),
-    }, "nomenclature-external-same-row-cleanup");
+    await executeExternalNomenclatureCommand({
+      sharedStateFile,
+      backupDir: commandBackupDir,
+      auditLogPath: commandAuditLog,
+      kind: "update",
+      row: fixture.nomenclature[0],
+      expectedRow: sameRowPreserved.directory.nomenclature[0],
+      expectedRevision: sameRowPreserved.persisted.version,
+      action: "nomenclature-external-same-row-cleanup",
+    });
     await evaluate(client, () => window.dispatchEvent(new Event("focus")));
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
       .find((button) => button.textContent.trim() === "Отмена")?.click());
@@ -612,10 +857,15 @@ async function main() {
     const cleaned = await waitForPersistedDirectory(sharedStateFile, (directory, persisted) => (
       (directory.nomenclature || []).length === 4
       && !(directory.nomenclature || []).some((item) => item.id === createdId)
-      && !JSON.stringify(persisted.values || {}).includes(runToken)
+      && !String(persisted.values?.[DIRECTORY_STORAGE_KEY] || "").includes(runToken)
     ), "fresh disposable lifecycle left authoritative residue");
     assert(JSON.stringify((cleaned.directory.nomenclature || []).map((item) => item.id)) === JSON.stringify(fixture.nomenclature.map((item) => item.id)), "cleanup changed original Nomenclature row identity or order");
     assert(cleaned.persisted.values?.[STATE_STORAGE_KEY] === snapshot.values[STATE_STORAGE_KEY], "Nomenclature lifecycle modified Planning state");
+    const receiptLedger = JSON.parse(cleaned.persisted.values?.[NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY] || "{}");
+    const lifecycleReceipts = Object.values(receiptLedger.entries || {}).filter((receipt) => receipt.itemId === createdId);
+    assert(JSON.stringify(lifecycleReceipts.map((receipt) => receipt.kind).sort()) === JSON.stringify(["create", "delete", "update"]), "server-command lifecycle did not retain its required idempotency receipts");
+    const deleteReceipt = lifecycleReceipts.find((receipt) => receipt.kind === "delete");
+    assert(deleteReceipt?.recoveryArtifact?.kind === "file-backup" && deleteReceipt.recoveryArtifact.artifactName, "destructive cleanup did not retain its required recovery artifact evidence");
 
     await client.send("Page.navigate", { url: `${origin}/?module=nomenclature&qa-auth-bypass=1&qa-reload=${encodeURIComponent(runToken)}-cleanup-readback` });
     await waitForCondition(client, (token) => (
@@ -626,7 +876,16 @@ async function main() {
 
     const fileAfterCleanup = await readFile(sharedStateFile, "utf8");
     readMode = "error";
-    await client.send("Page.navigate", { url: `${origin}/?module=nomenclature&qa-auth-bypass=1&qa-read-error=1` });
+    const errorReadSummaryStart = sharedStateReadSummaries.length;
+    const errorNavigationUrl = `${origin}/?module=nomenclature&qa-auth-bypass=1&qa-read-error=1`;
+    const countErrorRouteDirectoryReads = () => sharedStateReadSummaries
+      .slice(errorReadSummaryStart)
+      .filter((entry) => {
+        if (!String(entry.requestedKeys || "").split(",").map((value) => value.trim()).includes(DIRECTORY_STORAGE_KEY)) return false;
+        try { return new URL(entry.referer).searchParams.get("qa-read-error") === "1"; }
+        catch { return false; }
+      }).length;
+    await client.send("Page.navigate", { url: errorNavigationUrl });
     await waitForCondition(client, () => Boolean(
       document.querySelector('[data-react-nomenclature-island][data-react-island-runtime-mode="react"][data-react-island-state="error"] [role="alert"]'),
     ) && !document.querySelector("[data-nomenclature-row-open]"), {
@@ -641,18 +900,23 @@ async function main() {
     assert(errorState.text.includes("read-unavailable") && errorState.legacyRows === 0, `permanent read error shell is incomplete: ${JSON.stringify(errorState)}`);
     assert(errorState.telemetry.filter((item) => item.surfaceId === "nomenclature" && item.runtimeMode === "react" && item.state === "error" && item.stage === "read" && item.reason === "read-unavailable").length === 1, `permanent read-error telemetry must be bounded: ${JSON.stringify(errorState.telemetry)}`);
     assert(!errorState.telemetry.some((item) => item.surfaceId === "nomenclature" && item.state === "legacy-fallback"), "permanent read error requested normal legacy fallback");
-    const readsAtError = directoryReads;
+    const readsAtError = countErrorRouteDirectoryReads();
+    assert(readsAtError === 1, `permanent read error did not issue one bounded document read: ${readsAtError}`);
     await delay(500);
-    assert(directoryReads === readsAtError, `permanent read error started an immediate hydration/render loop: ${readsAtError} -> ${directoryReads}`);
+    const readsAfterErrorDelay = countErrorRouteDirectoryReads();
+    assert(readsAfterErrorDelay === readsAtError, `permanent read error started an immediate hydration/render loop: ${readsAtError} -> ${readsAfterErrorDelay}`);
     assert(await readFile(sharedStateFile, "utf8") === fileAfterCleanup, "read-error verification changed authoritative state after cleanup");
-    assert(sharedStateWrites >= 4, `fresh failure/create/edit/delete lifecycle did not exercise durable transport: ${sharedStateWrites} writes`);
-    assert(expectedFailureConsole.length >= 1, "intentional durable/read failure did not exercise its observable failure path");
+    assert(serverCommandAttempts === 5 && serverCommandFailures === 2, `conflict/failure/create/edit/delete lifecycle did not exercise the exact command transport: ${serverCommandAttempts} attempts, ${serverCommandFailures} failures`);
+    assert(serverCommandSummaries.every((entry) => entry.hasIfMatch && entry.hasIdempotencyKey), `server commands lost concurrency/idempotency headers: ${JSON.stringify(serverCommandSummaries)}`);
+    assert(sharedStateWrites === 0, `command-primary runtime leaked ${sharedStateWrites} generic browser shared-state writes`);
+    assert(employeeSessionReads > 0 && nomenclatureCapabilityReads > 0 && nomenclatureTypesCapabilityReads > 0, "signed session reconciliation did not cover every active capability consumer");
+    assert(expectedFailureConsole.length >= 1, "intentional read failure did not exercise its observable failure path");
     assert(consoleProblems.length === 0, `unexpected browser console problems:\n${consoleProblems.join("\n")}`);
 
     console.log("Nomenclature permanent React production-shell QA: OK");
     console.log(`- normal policy route, query isolation and bounded loading/error ownership: pass (${directoryReads} targeted reads)`);
     console.log("- Boards is a separate canonical navigation surface, not a Nomenclature legacy fallback: pass");
-    console.log(`- RBAC + owner-ready writes, rejected unconfirmed write, fresh create/edit/reload/delete/cleanup: pass (${sharedStateWrites} durable writes)`);
+    console.log(`- signed employee session + RBAC command owner, rejected write, fresh create/edit/reload/delete/cleanup: pass (${serverCommandAttempts} command attempts)`);
   } catch (error) {
     if (chrome) {
       const debug = await evaluate(chrome.client, () => ({
@@ -668,8 +932,14 @@ async function main() {
         directoryReads,
         metadataReads,
         sharedStateWrites,
+        employeeSessionReads,
+        nomenclatureCapabilityReads,
+        nomenclatureTypesCapabilityReads,
+        serverCommandAttempts,
+        serverCommandFailures,
         readMode,
         writeMode,
+        serverCommandSummaries,
         sharedStateWriteSummaries,
         sharedStateReadSummaries,
       }));

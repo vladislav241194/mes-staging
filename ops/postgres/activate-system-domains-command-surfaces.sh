@@ -39,6 +39,11 @@ if [[ "$THROUGH" != "production-structure" && "$CONFIRM_STAGED_ROLLOUT" != "1" ]
 fi
 
 APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
+  exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
+fi
+ACTIVE_APP_DIR="${MES_PILOT_ACTIVE_APP_DIR:-/srv/mes/pilot/app}"
+RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
 SYNC_SERVICE="mes-pilot-domain-snapshot-sync.service"
 SYNC_TIMER="mes-pilot-domain-snapshot-sync.timer"
@@ -54,6 +59,30 @@ ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
 # staged rollout through lexical systemd override order.
 DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
 INTERNAL_ORIGIN="http://127.0.0.1:4175"
+
+verify_active_release_contract() {
+  local active_target source_target release_path release_id manifest
+  [[ -L "$ACTIVE_APP_DIR" ]] || {
+    echo "System Domains command activation requires an immutable active release pointer." >&2
+    return 1
+  }
+  active_target="$(readlink -f "$ACTIVE_APP_DIR" 2>/dev/null || true)"
+  source_target="$(readlink -f "$APP_DIR" 2>/dev/null || true)"
+  release_path="$(dirname "$active_target")"
+  release_id="$(basename "$release_path")"
+  manifest="${release_path}/release-manifest.json"
+  [[ "$release_id" =~ ^[A-Za-z0-9._-]{1,96}$ ]] || return 1
+  [[ "$active_target" == "${RELEASES_DIR}/${release_id}/app" ]] || return 1
+  [[ "$source_target" == "$active_target" && -f "$manifest" ]] || return 1
+  /usr/bin/node "${active_target}/scripts/release-server-command-contract-verify.mjs" \
+    --app="$active_target" \
+    --manifest="$manifest" \
+    --expected-release-id="$release_id" \
+    --contract=system-domains >/dev/null
+}
+
+verify_active_release_contract \
+  || { echo "Active release provenance or manifest-bound System Domains command-surface contract is invalid." >&2; exit 1; }
 
 # systemctl reports the unit active before its Node listener has necessarily
 # bound the loopback port. A one-shot curl here used to convert that normal

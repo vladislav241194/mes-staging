@@ -41,7 +41,12 @@ for (const [entrypoint, source] of [["source server", serverSource], ["productio
 assert.match(authorizationSource, /export async function getCurrentDirectoryAuthorization/);
 assert.match(authorizationSource, /moduleId = "directories"/);
 assert.match(authorizationSource, /resourceId = "nomenclature"/);
-assert.match(authorizationSource, /explainCan\(subject, normalizedModuleId, "edit", resource\)/);
+assert.match(authorizationSource, /action = "edit"/,
+  "generic Directory authorization must preserve edit as its compatibility default");
+assert.match(authorizationSource, /const normalizedAction = String\(action \|\| ""\)\.trim\(\)\.slice\(0, 160\)/,
+  "the selected action must be normalized and bounded before RBAC evaluation");
+assert.match(authorizationSource, /explainCan\(subject, normalizedModuleId, normalizedAction, resource\)/,
+  "RBAC must evaluate exactly the normalized action rather than a hard-coded or request-body value");
 assert.match(authorizationSource, /moduleId: "nomenclature"/);
 assert.match(commandSource, /MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS/);
 assert.match(commandSource, /\/api\/v1\/directory\/nomenclature-types\/capabilities/);
@@ -49,7 +54,10 @@ assert.match(commandSource, /\/api\/v1\/directory\/boards\/capabilities/);
 assert.match(commandSource, /hasSameOriginRequestContext/);
 assert.match(commandSource, /parseIfMatch/);
 assert.match(commandSource, /receiptKey/);
-assert.match(commandSource, /updateSharedStateSnapshot/);
+assert.match(commandSource, /updateDirectoryClusterCommandSharedStateSnapshot/,
+  "Directory commands must persist through their explicit shared-state owner port");
+assert.doesNotMatch(commandSource, /\bupdateSharedStateSnapshot\b/,
+  "Directory commands must not retain the generic shared-state writer");
 assert.match(commandSource, /backupSharedStateFile/);
 assert.match(commandSource, /appendSharedStateAudit/);
 assert.match(commandSource, /superseded-idempotent-replay/);

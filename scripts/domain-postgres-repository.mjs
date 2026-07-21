@@ -3,6 +3,7 @@ import { calculateOperationDurationMs } from "../src/domain/operation_duration.j
 import { addCalendarWorkingDuration, createWorkingCalendar } from "../src/domain/working_calendar.js";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
+import { isExactIsoCalendarDate, toExactIsoCalendarDate } from "../src/domain/calendar_date.js";
 
 const CLIENTS_BY_URL = new Map();
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -10,6 +11,7 @@ const PLANNING_LIST_METADATA_FIELDS = [
   "projectId", "rootRouteId", "routeTaskId", "parentRouteId", "routeTaskName",
   "routeTaskSourceItemId", "planningStatus", "lifecycleStatus", "specificationId",
   "planningQuantity", "routeDocumentKind", "specificationName",
+  "planningStartDate",
   "sourceSpecifications2EntryId", "sourceSpecifications2RouteDraftId",
 ];
 
@@ -36,6 +38,10 @@ function mapOrder(row) {
     unit: String(row.unit),
     lifecycleStatus: String(row.lifecycle_status),
     planningStatus: String(row.planning_status),
+    // The DATE column is the sole canonical owner after migration 032. In
+    // particular, an explicit clear must not be resurrected by stale legacy
+    // metadata while the compatibility snapshot is converging.
+    planningStartDate: row.planning_start_date == null ? null : toIsoDateOnly(row.planning_start_date),
     revision: Number(row.source_revision),
     concurrencyRevision: Number(row.aggregate_revision),
     source: String(row.source_kind),
@@ -44,6 +50,14 @@ function mapOrder(row) {
     operationCount: Number(row.operation_count || 0),
     scheduledOperationCount: Number(row.scheduled_operation_count || 0),
   };
+}
+
+function toIsoDateOnly(value) {
+  return toExactIsoCalendarDate(value);
+}
+
+function isExactIsoDateOnly(value) {
+  return isExactIsoCalendarDate(value);
 }
 
 function mapOrderList(row) {
@@ -393,6 +407,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         wo.unit,
         wo.lifecycle_status,
         wo.planning_status,
+        wo.planning_start_date,
         wo.source_revision,
         wo.aggregate_revision,
         wo.source_kind,
@@ -403,7 +418,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
             'id', 'name', 'revision', 'createdAt', 'updatedAt', 'canceledAt', 'isDefault',
             'projectId', 'rootRouteId', 'routeTaskId', 'parentRouteId', 'routeTaskName',
             'routeTaskSourceItemId', 'planningStatus', 'lifecycleStatus', 'specificationId',
-            'planningQuantity', 'routeDocumentKind', 'specificationName',
+            'planningQuantity', 'routeDocumentKind', 'specificationName', 'planningStartDate',
             'sourceSpecifications2EntryId', 'sourceSpecifications2RouteDraftId'
           ]::text[]) AS list_metadata_field(name)
           WHERE jsonb_typeof(COALESCE(wo.metadata, '{}'::jsonb)) = 'object'
@@ -440,7 +455,11 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
   async function readWorkbenchBootstrapRows(query = sql, activeId = "") {
     const requestedId = String(activeId || "").trim();
     const orderRows = await listWorkbenchRows(query);
-    const selectedOrder = orderRows.find((row) => String(row.id) === requestedId || String(row.number) === requestedId)
+    // Keep every Planning read path on the same canonical aggregate as the
+    // command owner: an exact aggregate id always wins over a colliding
+    // human-facing work-order number.
+    const selectedOrder = orderRows.find((row) => String(row.id) === requestedId)
+      || orderRows.find((row) => String(row.number) === requestedId)
       || orderRows[0]
       || null;
     if (!selectedOrder) return { orders: orderRows, selected: null, operations: [], slots: [] };
@@ -818,7 +837,10 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         SELECT wo.*,
           (SELECT count(*) FROM work_order_operations op WHERE op.work_order_id = wo.id) AS operation_count,
           (SELECT count(*) FROM planning_slots ps JOIN work_order_operations op ON op.id = ps.work_order_operation_id WHERE op.work_order_id = wo.id) AS scheduled_operation_count
-        FROM work_orders wo WHERE wo.id = ${id} OR wo.number = ${id} LIMIT 1
+        FROM work_orders wo
+        WHERE wo.id = ${id} OR wo.number = ${id}
+        ORDER BY CASE WHEN wo.id = ${id} THEN 0 ELSE 1 END, wo.id
+        LIMIT 1
       `;
       const order = orders[0];
       if (!order) return { ...metadata, revision: 0, updatedAt: "", item: null };
@@ -1000,13 +1022,15 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       };
     },
 
-    async changeQuantity(id, { quantity, expectedRevision }) {
+    async changeQuantity(id, { quantity, expectedRevision, actorId = "" }) {
       const result = await sql.begin(async (tx) => {
         const updated = await tx`
           WITH current AS (
             SELECT id, aggregate_revision
             FROM work_orders
             WHERE id = ${id} OR number = ${id}
+            ORDER BY CASE WHEN id = ${id} THEN 0 ELSE 1 END, id
+            LIMIT 1
             FOR UPDATE
           )
           UPDATE work_orders AS work_order
@@ -1047,12 +1071,18 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
             `;
           }
           await tx`
-            INSERT INTO domain_change_log (aggregate_type, aggregate_id, aggregate_revision, command_type, payload, snapshot_sync_state)
-            VALUES ('work_order', ${row.id}, ${row.aggregate_revision}, 'change_quantity', ${tx.json({ quantity, expectedRevision })}, 'pending')
+            INSERT INTO domain_change_log (aggregate_type, aggregate_id, aggregate_revision, command_type, payload, actor_id, snapshot_sync_state)
+            VALUES ('work_order', ${row.id}, ${row.aggregate_revision}, 'change_quantity', ${tx.json({ quantity, expectedRevision, actorId: String(actorId || "") })}, ${String(actorId || "")}, 'pending')
           `;
           return { row, conflict: false };
         }
-        const exists = await tx`SELECT aggregate_revision FROM work_orders WHERE id = ${id} OR number = ${id} LIMIT 1`;
+        const exists = await tx`
+          SELECT aggregate_revision
+          FROM work_orders
+          WHERE id = ${id} OR number = ${id}
+          ORDER BY CASE WHEN id = ${id} THEN 0 ELSE 1 END, id
+          LIMIT 1
+        `;
         return { row: null, conflict: Boolean(exists[0]), exists: Boolean(exists[0]) };
       });
       if (!result.row) return { ...metadata, revision: 0, updatedAt: "", conflict: result.conflict, item: null };
@@ -1060,23 +1090,321 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       return { ...metadata, revision: item.concurrencyRevision, updatedAt: item.updatedAt, conflict: false, item };
     },
 
-    async changeSlotSchedule(id, operationId, { plannedStart, expectedRevision }) {
+    async startDateCommandReadiness() {
+      const rows = await sql`
+        SELECT
+          (
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'work_orders' AND column_name = 'planning_start_date'
+          ) AS start_date_column_type,
+          (
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'domain_change_log' AND column_name = 'idempotency_key'
+          ) AS idempotency_column_type,
+          COALESCE((
+            SELECT index_row.indisunique
+            FROM pg_catalog.pg_class AS index_class
+            JOIN pg_catalog.pg_namespace AS index_namespace ON index_namespace.oid = index_class.relnamespace
+            JOIN pg_catalog.pg_index AS index_row ON index_row.indexrelid = index_class.oid
+            JOIN pg_catalog.pg_class AS table_class ON table_class.oid = index_row.indrelid
+            JOIN pg_catalog.pg_namespace AS table_namespace ON table_namespace.oid = table_class.relnamespace
+            WHERE index_namespace.nspname = 'public'
+              AND index_class.relname = 'domain_change_log_actor_idempotency_uidx'
+              AND table_namespace.nspname = 'public'
+              AND table_class.relname = 'domain_change_log'
+          ), FALSE) AS idempotency_index_unique,
+          COALESCE((
+            SELECT index_row.indisvalid AND index_row.indisready
+            FROM pg_catalog.pg_class AS index_class
+            JOIN pg_catalog.pg_namespace AS index_namespace ON index_namespace.oid = index_class.relnamespace
+            JOIN pg_catalog.pg_index AS index_row ON index_row.indexrelid = index_class.oid
+            JOIN pg_catalog.pg_class AS table_class ON table_class.oid = index_row.indrelid
+            JOIN pg_catalog.pg_namespace AS table_namespace ON table_namespace.oid = table_class.relnamespace
+            WHERE index_namespace.nspname = 'public'
+              AND index_class.relname = 'domain_change_log_actor_idempotency_uidx'
+              AND table_namespace.nspname = 'public'
+              AND table_class.relname = 'domain_change_log'
+          ), FALSE) AS idempotency_index_operational,
+          COALESCE((
+            SELECT ARRAY(
+              SELECT attribute.attname
+              FROM unnest(index_row.indkey::smallint[]) WITH ORDINALITY AS key_column(attnum, position)
+              JOIN pg_catalog.pg_attribute AS attribute
+                ON attribute.attrelid = index_row.indrelid AND attribute.attnum = key_column.attnum
+              ORDER BY key_column.position
+            ) = ARRAY['actor_id', 'idempotency_key']::name[]
+              AND index_row.indnkeyatts = 2
+            FROM pg_catalog.pg_class AS index_class
+            JOIN pg_catalog.pg_namespace AS index_namespace ON index_namespace.oid = index_class.relnamespace
+            JOIN pg_catalog.pg_index AS index_row ON index_row.indexrelid = index_class.oid
+            JOIN pg_catalog.pg_class AS table_class ON table_class.oid = index_row.indrelid
+            JOIN pg_catalog.pg_namespace AS table_namespace ON table_namespace.oid = table_class.relnamespace
+            WHERE index_namespace.nspname = 'public'
+              AND index_class.relname = 'domain_change_log_actor_idempotency_uidx'
+              AND table_namespace.nspname = 'public'
+              AND table_class.relname = 'domain_change_log'
+          ), FALSE) AS idempotency_index_columns_exact,
+          (
+            SELECT pg_get_expr(index_row.indpred, index_row.indrelid)
+            FROM pg_catalog.pg_class AS index_class
+            JOIN pg_catalog.pg_namespace AS index_namespace ON index_namespace.oid = index_class.relnamespace
+            JOIN pg_catalog.pg_index AS index_row ON index_row.indexrelid = index_class.oid
+            WHERE index_namespace.nspname = 'public'
+              AND index_class.relname = 'domain_change_log_actor_idempotency_uidx'
+          ) AS idempotency_index_predicate,
+          (
+            SELECT pg_get_indexdef(index_class.oid)
+            FROM pg_catalog.pg_class AS index_class
+            JOIN pg_catalog.pg_namespace AS index_namespace ON index_namespace.oid = index_class.relnamespace
+            WHERE index_namespace.nspname = 'public'
+              AND index_class.relname = 'domain_change_log_actor_idempotency_uidx'
+          ) AS idempotency_index_definition,
+          EXISTS (
+            SELECT 1 FROM mes_schema_migrations
+            WHERE version = '032_planning_work_order_start_date'
+          ) AS migration_applied
+      `;
+      const readiness = rows[0] || {};
+      const normalizedPredicate = String(readiness.idempotency_index_predicate || "")
+        .toLowerCase().replace(/[()\"]/g, "").replace(/\s+/g, " ").trim();
+      const normalizedIndexDefinition = String(readiness.idempotency_index_definition || "")
+        .toLowerCase().replace(/[\"]/g, "").replace(/\s+/g, " ").trim();
+      const schemaReady = readiness.start_date_column_type === "date"
+        && readiness.idempotency_column_type === "text"
+        && readiness.idempotency_index_unique === true
+        && readiness.idempotency_index_operational === true
+        && readiness.idempotency_index_columns_exact === true
+        && normalizedPredicate === "actor_id is not null and idempotency_key is not null"
+        && normalizedIndexDefinition.includes("create unique index domain_change_log_actor_idempotency_uidx on public.domain_change_log using btree (actor_id, idempotency_key)")
+        && readiness.migration_applied === true;
+      return {
+        schemaReady,
+        error: schemaReady ? "" : "Planning start-date migration 032 is not ready",
+      };
+    },
+
+    async changeStartDate(id, command = {}) {
+      const {
+        planningStartDate,
+        expectedRevision,
+        actorId = "",
+        idempotencyKey = "",
+      } = command;
+      const hasPlanningStartDate = Object.prototype.hasOwnProperty.call(command, "planningStartDate");
+      const normalizedDate = planningStartDate === null
+        ? null
+        : typeof planningStartDate === "string" ? planningStartDate.trim() : undefined;
+      const normalizedActor = String(actorId || "").trim();
+      const normalizedKey = String(idempotencyKey || "").trim();
+      if (!hasPlanningStartDate || (normalizedDate !== null && !isExactIsoDateOnly(normalizedDate))) {
+        throw new Error("planningStartDate must be an ISO calendar date or explicit null");
+      }
+      if (!normalizedActor || !normalizedKey || normalizedKey.length > 160) {
+        throw new Error("Planning start-date actor and idempotency key are required");
+      }
+      const result = await sql.begin(async (tx) => {
+        // Same-actor retries serialize before inspecting the durable command
+        // log. This closes the gap between the replay read and unique insert.
+        await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${normalizedActor}:${normalizedKey}`}, 0))`;
+        const currentRows = await tx`
+          SELECT * FROM work_orders
+          WHERE id = ${id} OR number = ${id}
+          ORDER BY CASE WHEN id = ${id} THEN 0 ELSE 1 END, id
+          LIMIT 1
+          FOR UPDATE
+        `;
+        const current = currentRows[0] || null;
+        if (!current) return { row: null, conflict: false, exists: false };
+        const priorRows = await tx`
+          SELECT aggregate_id, aggregate_revision, command_type, payload
+          FROM domain_change_log
+          WHERE actor_id = ${normalizedActor} AND idempotency_key = ${normalizedKey}
+          LIMIT 1
+        `;
+        const prior = priorRows[0] || null;
+        if (prior) {
+          const priorOwnsStartDate = Object.prototype.hasOwnProperty.call(prior.payload || {}, "planningStartDate");
+          const sameRequest = String(prior.aggregate_id) === String(current.id)
+            && String(prior.command_type) === "change_start_date"
+            && priorOwnsStartDate
+            && prior.payload.planningStartDate === normalizedDate
+            && Number(prior.payload?.expectedRevision) === Number(expectedRevision);
+          const superseded = sameRequest
+            && (current.planning_start_date == null ? null : toIsoDateOnly(current.planning_start_date)) !== normalizedDate;
+          return {
+            row: current,
+            conflict: false,
+            idempotentReplay: sameRequest,
+            idempotencyConflict: !sameRequest,
+            superseded,
+            commandAggregateId: String(prior.aggregate_id || ""),
+            commandAggregateRevision: Number(prior.aggregate_revision || 0),
+          };
+        }
+        if (Number(current.aggregate_revision) !== Number(expectedRevision)) {
+          return { row: current, conflict: true, exists: true };
+        }
+        const updated = normalizedDate === null
+          ? await tx`
+            UPDATE work_orders
+            SET planning_start_date = NULL,
+                metadata = COALESCE(metadata, '{}'::jsonb) - 'planningStartDate',
+                aggregate_revision = aggregate_revision + 1,
+                updated_at = now()
+            WHERE id = ${current.id} AND aggregate_revision = ${expectedRevision}
+            RETURNING *
+          `
+          : await tx`
+            UPDATE work_orders
+            SET planning_start_date = ${normalizedDate},
+                metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{planningStartDate}', to_jsonb(${normalizedDate}::text), true),
+                aggregate_revision = aggregate_revision + 1,
+                updated_at = now()
+            WHERE id = ${current.id} AND aggregate_revision = ${expectedRevision}
+            RETURNING *
+          `;
+        if (!updated[0]) return { row: current, conflict: true, exists: true };
+        const row = updated[0];
+        await tx`
+          INSERT INTO domain_change_log (
+            aggregate_type, aggregate_id, aggregate_revision, command_type,
+            payload, actor_id, idempotency_key, snapshot_sync_state
+          )
+          VALUES (
+            'work_order', ${row.id}, ${row.aggregate_revision}, 'change_start_date',
+            ${tx.json({ planningStartDate: normalizedDate, expectedRevision, actorId: normalizedActor })},
+            ${normalizedActor}, ${normalizedKey}, 'pending'
+          )
+        `;
+        return {
+          row,
+          conflict: false,
+          idempotentReplay: false,
+          commandAggregateId: String(row.id || ""),
+          commandAggregateRevision: Number(row.aggregate_revision || 0),
+        };
+      });
+      if (!result.row) return { ...metadata, revision: 0, updatedAt: "", conflict: result.conflict, idempotencyConflict: Boolean(result.idempotencyConflict), item: null };
+      const item = mapOrder({ ...result.row, operation_count: 0, scheduled_operation_count: 0 });
+      return {
+        ...metadata,
+        revision: item.concurrencyRevision,
+        updatedAt: item.updatedAt,
+        conflict: Boolean(result.conflict),
+        idempotentReplay: Boolean(result.idempotentReplay),
+        idempotencyConflict: Boolean(result.idempotencyConflict),
+        superseded: Boolean(result.superseded),
+        commandAggregateId: String(result.commandAggregateId || ""),
+        commandAggregateRevision: Number(result.commandAggregateRevision || 0),
+        item,
+      };
+    },
+
+    async getStartDateSnapshotReceipt(receiptIdentity = {}) {
+      const {
+        actorId = "",
+        idempotencyKey = "",
+        aggregateId = "",
+        aggregateRevision = 0,
+        expectedRevision = 0,
+        planningStartDate,
+      } = receiptIdentity;
+      const normalizedActor = String(actorId || "").trim();
+      const normalizedKey = String(idempotencyKey || "").trim();
+      const normalizedAggregateId = String(aggregateId || "").trim();
+      const hasPlanningStartDate = Object.prototype.hasOwnProperty.call(receiptIdentity, "planningStartDate");
+      const normalizedDate = planningStartDate === null
+        ? null
+        : typeof planningStartDate === "string" ? planningStartDate.trim() : undefined;
+      const normalizedAggregateRevision = Number(aggregateRevision);
+      const normalizedExpectedRevision = Number(expectedRevision);
+      if (!normalizedActor || !normalizedKey || !normalizedAggregateId
+        || !Number.isInteger(normalizedAggregateRevision) || normalizedAggregateRevision < 1
+        || !Number.isInteger(normalizedExpectedRevision) || normalizedExpectedRevision < 1
+        || !hasPlanningStartDate
+        || (normalizedDate !== null && !isExactIsoDateOnly(normalizedDate))) {
+        throw new Error("Exact Planning start-date receipt identity is required");
+      }
+      const rows = await sql`
+        SELECT
+          receipt.id,
+          receipt.aggregate_id,
+          receipt.aggregate_revision,
+          receipt.command_type,
+          receipt.payload,
+          receipt.snapshot_sync_state,
+          receipt.snapshot_sync_error,
+          receipt.snapshot_synced_at,
+          COALESCE((
+            SELECT count(*)::int
+            FROM domain_change_log AS unresolved
+            WHERE unresolved.aggregate_type = 'work_order'
+              AND unresolved.aggregate_id = receipt.aggregate_id
+              AND unresolved.snapshot_sync_state IN ('pending', 'conflict')
+          ), 0)::int AS unresolved_count
+        FROM domain_change_log AS receipt
+        WHERE receipt.actor_id = ${normalizedActor}
+          AND receipt.idempotency_key = ${normalizedKey}
+        LIMIT 1
+      `;
+      const receipt = rows[0] || null;
+      if (!receipt) {
+        return { found: false, exact: false, ready: false, state: "missing", unresolvedCount: 0 };
+      }
+      const exact = String(receipt.aggregate_id) === normalizedAggregateId
+        && Number(receipt.aggregate_revision) === normalizedAggregateRevision
+        && String(receipt.command_type) === "change_start_date"
+        && Object.prototype.hasOwnProperty.call(receipt.payload || {}, "planningStartDate")
+        && receipt.payload.planningStartDate === normalizedDate
+        && Number(receipt.payload?.expectedRevision) === normalizedExpectedRevision;
+      const state = String(receipt.snapshot_sync_state || "pending");
+      const unresolvedCount = Math.max(0, Number(receipt.unresolved_count || 0));
+      return {
+        found: true,
+        exact,
+        ready: exact && state === "applied" && unresolvedCount === 0,
+        receiptId: Number(receipt.id),
+        aggregateId: String(receipt.aggregate_id || ""),
+        aggregateRevision: Number(receipt.aggregate_revision || 0),
+        state,
+        unresolvedCount,
+        error: String(receipt.snapshot_sync_error || ""),
+        syncedAt: receipt.snapshot_synced_at?.toISOString?.() || "",
+      };
+    },
+
+    async changeSlotSchedule(id, operationId, { plannedStart, expectedRevision, actorId = "" }) {
       const nextStart = new Date(plannedStart);
       if (Number.isNaN(nextStart.getTime())) throw new Error("plannedStart must be an ISO date-time");
       const result = await sql.begin(async (tx) => {
         const current = await tx`
+          WITH canonical_order AS MATERIALIZED (
+            SELECT id
+            FROM work_orders
+            WHERE id = ${id} OR number = ${id}
+            ORDER BY CASE WHEN id = ${id} THEN 0 ELSE 1 END, id
+            LIMIT 1
+          )
           SELECT wo.*, op.id AS operation_row_id, op.work_center_id, op.execution_context,
             ps.id AS slot_id, ps.quantity AS slot_quantity, ps.status AS slot_status, ps.is_locked
-          FROM work_orders AS wo
+          FROM canonical_order AS target
+          JOIN work_orders AS wo ON wo.id = target.id
           JOIN work_order_operations AS op ON op.work_order_id = wo.id
           JOIN planning_slots AS ps ON ps.work_order_operation_id = op.id
-          WHERE (wo.id = ${id} OR wo.number = ${id})
-            AND (op.id = ${operationId} OR op.operation_id = ${operationId})
-          FOR UPDATE
+          WHERE op.id = ${operationId} OR op.operation_id = ${operationId}
+          ORDER BY CASE WHEN op.id = ${operationId} THEN 0 ELSE 1 END, op.id, ps.id
+          LIMIT 1
+          FOR UPDATE OF wo, op, ps
         `;
         const slot = current[0];
         if (!slot) {
-          const order = await tx`SELECT aggregate_revision FROM work_orders WHERE id = ${id} OR number = ${id} LIMIT 1`;
+          const order = await tx`
+            SELECT aggregate_revision
+            FROM work_orders
+            WHERE id = ${id} OR number = ${id}
+            ORDER BY CASE WHEN id = ${id} THEN 0 ELSE 1 END, id
+            LIMIT 1
+          `;
           return { row: null, conflict: Boolean(order[0]), exists: Boolean(order[0]) };
         }
         if (Number(slot.aggregate_revision) !== Number(expectedRevision)) return { row: null, conflict: true, exists: true };
@@ -1105,8 +1433,8 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
           WHERE id = ${slot.slot_id}
         `;
         await tx`
-          INSERT INTO domain_change_log (aggregate_type, aggregate_id, aggregate_revision, command_type, payload, snapshot_sync_state)
-          VALUES ('work_order', ${updated[0].id}, ${updated[0].aggregate_revision}, 'change_slot_schedule', ${tx.json({ operationId, plannedStart: nextStart.toISOString(), expectedRevision })}, 'pending')
+          INSERT INTO domain_change_log (aggregate_type, aggregate_id, aggregate_revision, command_type, payload, actor_id, snapshot_sync_state)
+          VALUES ('work_order', ${updated[0].id}, ${updated[0].aggregate_revision}, 'change_slot_schedule', ${tx.json({ operationId, plannedStart: nextStart.toISOString(), expectedRevision, actorId: String(actorId || "") })}, ${String(actorId || "")}, 'pending')
         `;
         return { row: updated[0], conflict: false };
       });
@@ -1153,6 +1481,33 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       }));
     },
 
+    async listPendingSnapshotSyncsForAggregate(aggregateId, { limit = 10_000 } = {}) {
+      const normalizedId = String(aggregateId || "").trim();
+      const boundedLimit = Math.max(1, Math.min(10_000, Number(limit) || 10_000));
+      if (!normalizedId) throw new Error("Work-order aggregate id is required");
+      const rows = await sql`
+        SELECT id, aggregate_type, aggregate_id, aggregate_revision, command_type, payload, created_at
+        FROM domain_change_log
+        WHERE snapshot_sync_state = 'pending'
+          AND aggregate_type = 'work_order'
+          AND aggregate_id = ${normalizedId}
+        ORDER BY aggregate_revision ASC, id ASC
+        LIMIT ${boundedLimit + 1}
+      `;
+      if (rows.length > boundedLimit) {
+        throw new Error(`Planning snapshot chain exceeds the safe ${boundedLimit}-row recovery bound`);
+      }
+      return rows.map((row) => ({
+        id: Number(row.id),
+        aggregateType: String(row.aggregate_type),
+        aggregateId: String(row.aggregate_id),
+        aggregateRevision: Number(row.aggregate_revision),
+        commandType: String(row.command_type),
+        payload: row.payload || {},
+        createdAt: row.created_at?.toISOString?.() || "",
+      }));
+    },
+
     async markSnapshotSync(id, { state = "applied", error = "" } = {}) {
       if (!["applied", "pending", "conflict"].includes(state)) throw new Error("Unsupported snapshot sync state");
       await sql`
@@ -1161,6 +1516,22 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
           snapshot_synced_at = CASE WHEN ${state} = 'applied' THEN now() ELSE NULL END
         WHERE id = ${Number(id)}
       `;
+    },
+
+    async markSnapshotSyncs(ids = [], { state = "applied", error = "" } = {}) {
+      if (!["applied", "pending", "conflict"].includes(state)) throw new Error("Unsupported snapshot sync state");
+      const normalizedIds = [...new Set(ids.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))];
+      if (!normalizedIds.length || normalizedIds.length !== ids.length) throw new Error("Snapshot sync ids must be unique positive integers");
+      const rows = await sql`
+        UPDATE domain_change_log
+        SET snapshot_sync_state = ${state}, snapshot_sync_error = ${String(error || "").slice(0, 500)},
+          snapshot_synced_at = CASE WHEN ${state} = 'applied' THEN now() ELSE NULL END
+        WHERE id = ANY(${normalizedIds}::bigint[])
+        RETURNING id
+      `;
+      if (rows.length !== normalizedIds.length) {
+        throw new Error(`Snapshot sync bulk receipt mismatch: expected ${normalizedIds.length}, updated ${rows.length}`);
+      }
     },
 
     // The process-level pool is shared by HTTP requests. Shutdown code may

@@ -9,6 +9,7 @@ import {
   projectServerPlanningSteps,
   projectServerPlanningTasks,
 } from "./server_projection_adapter.js";
+import { isExactIsoCalendarDate } from "../../domain/calendar_date.js";
 
 export function createPlanningWorkbenchModule(dependencies = {}) {
   const {
@@ -91,6 +92,7 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
     resolveProductionResourceType = (value = "") => String(value || ""),
     routeStepRequiresManualPlanningLine,
     toDate,
+    toDateInput,
   } = dependencies;
   const planningState = new Proxy({}, {
     get(_target, property) {
@@ -102,6 +104,15 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       return true;
     },
   });
+
+  function getServerPlanningStartDate(routeSteps = [], { exact = false } = {}) {
+    if (!exact) return "";
+    const firstStart = (routeSteps || [])
+      .map((step) => toDate(step?.planningSlot?.plannedStart || ""))
+      .filter((date) => date && !Number.isNaN(date.getTime()))
+      .sort((left, right) => left.getTime() - right.getTime())[0] || null;
+    return firstStart ? toDateInput(firstStart) : "";
+  }
 
   function getPlanningWorkbenchModel({ includeOverview = true } = {}) {
     const serverRoutes = getDomainWorkOrderProjections();
@@ -133,6 +144,16 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
     const projectionSource = routeProjection.exact
       ? (activeRoute ? (detailProjection.exact ? "server" : "server-list") : "server")
       : "snapshot-fallback";
+    // The work-order start date is a pre-placement anchor. The separately
+    // projected first slot remains useful read-only context because changing
+    // the anchor deliberately does not reschedule existing Gantt slots.
+    const serverScheduledStartDate = getServerPlanningStartDate(routeSteps, {
+      exact: detailProjection.source === "server",
+    });
+    const planningStartDate = detailProjection.source === "server"
+      && isExactIsoCalendarDate(activeRoute?.planningStartDate)
+      ? String(activeRoute.planningStartDate)
+      : "";
     // When the detail response is complete, derive the small visible task tree
     // from that response too.  Calling the legacy task builder here would pull
     // the full shared planning snapshot back into the critical navigation path.
@@ -172,9 +193,16 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       routeSteps,
       selectedItem,
       activeQuantity,
+      concurrencyRevision: Number(activeRoute?.domainConcurrencyRevision || 0),
       headerDescription,
       detailLoading,
       projectionSource,
+      planningStartDate,
+      planningStartDateSource: detailProjection.source === "server" ? "server-owner" : "unavailable",
+      serverScheduledStartDate,
+      serverScheduledStartDateSource: detailProjection.source === "server"
+        ? (serverScheduledStartDate ? "server-slot" : "server-unplanned")
+        : "unavailable",
       overview,
     };
   }
@@ -1619,7 +1647,11 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
   }) {
     const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
     const decision = getPlanningWorkbenchDecisionModel({ route, supplySummary, chain, laborReadiness, scheduleExpected, scheduleMissing, routeSteps });
-    const startDateValue = getPlanningRouteStartDate(route);
+    // The input mirrors the owner value, including an explicit clear. The
+    // scheduler may still derive its internal fallback anchor separately.
+    const startDateValue = isExactIsoCalendarDate(route?.planningStartDate)
+      ? String(route.planningStartDate)
+      : "";
     const workOrderView = getWorkOrderViewModel(route, { summary: transferSummary, routeSteps });
     const planningTransition = workOrderView.transitionToPlanning || getMesFlowTransitionView("workOrderToGanttSlot");
     const hasRoute = Boolean(route?.id);

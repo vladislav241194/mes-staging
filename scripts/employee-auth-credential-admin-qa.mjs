@@ -7,6 +7,7 @@ import { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
 import { verifyEmployeePin } from "./employee-auth-crypto.mjs";
+import { deleteEmployeeCredential } from "./domain-employee-auth-repository.mjs";
 import { runEmployeeAuthCredentialAdmin } from "./employee-auth-credential-admin.mjs";
 
 const qaRoot = await mkdtemp(join(tmpdir(), "mes-employee-auth-admin-qa-"));
@@ -50,6 +51,24 @@ function repositoryFactory({ databaseUrl }) {
       if (!current) return { revoked: false, authVersion: 0 };
       current.authVersion += 1;
       return { revoked: true, authVersion: current.authVersion };
+    },
+    async deleteCredential(employeeId) {
+      if (!employees.has(employeeId)) {
+        return { employeeExists: false, deleted: false, alreadyAbsent: false, sessionsRevoked: false, authVersion: 0 };
+      }
+      const current = credentials.get(employeeId);
+      if (!current) {
+        return { employeeExists: true, deleted: false, alreadyAbsent: true, sessionsRevoked: true, authVersion: 0 };
+      }
+      current.authVersion += 1;
+      credentials.delete(employeeId);
+      return {
+        employeeExists: true,
+        deleted: true,
+        alreadyAbsent: false,
+        sessionsRevoked: true,
+        authVersion: current.authVersion,
+      };
     },
     async close() { closeCalls += 1; },
   };
@@ -114,12 +133,39 @@ try {
   assert.equal(await verifyEmployeePin("86420", credentials.get("employee-active").pinHash), true);
   assert.equal(await readFile(credentialFile, "utf-8"), "86420\n", "CLI must never rewrite plaintext credential input");
 
+  const deleted = await invoke([
+    "delete-credential",
+    "--employee-id=employee-active",
+    `--database-env-file=${databaseEnvFile}`,
+  ]);
+  assert.equal(deleted.result.deleted, true);
+  assert.equal(deleted.result.sessionsRevoked, true);
+  assert.equal(deleted.result.authVersion, 4);
+  assert.equal(credentials.has("employee-active"), false);
+  assert.match(deleted.output, /credential deleted and sessions revoked/i);
+
+  const repeatedDelete = await invoke([
+    "delete-credential",
+    "--employee-id=employee-active",
+    `--database-env-file=${databaseEnvFile}`,
+  ]);
+  assert.equal(repeatedDelete.result.deleted, false);
+  assert.equal(repeatedDelete.result.alreadyAbsent, true);
+  assert.equal(repeatedDelete.result.sessionsRevoked, true);
+  assert.match(repeatedDelete.output, /already absent/i);
+
   await assert.rejects(() => invoke([
     "set-pin",
     "--employee-id=missing",
     "--pin-stdin",
     `--database-env-file=${databaseEnvFile}`,
   ], "11111\n"), /Employee does not exist/);
+
+  await assert.rejects(() => invoke([
+    "delete-credential",
+    "--employee-id=missing",
+    `--database-env-file=${databaseEnvFile}`,
+  ]), /Employee does not exist/);
 
   await assert.rejects(() => invoke([
     "set-pin",
@@ -168,9 +214,79 @@ try {
     `--database-env-file=${databaseEnvFile}`,
   ]), /group\/other/);
 
-  assert.ok(closeCalls >= 5, "Every opened repository must close even after an operational error");
+  assert.ok(closeCalls >= 8, "Every opened repository must close even after an operational error");
 } finally {
   await rm(qaRoot, { recursive: true, force: true });
 }
 
-console.log("Employee credential admin QA passed: root gate, employee existence, stdin/private-file PIN, scrypt-only persistence and revocation.");
+function createDeleteSqlHarness({ employeeExists = true, credentialAuthVersion = 7 } = {}) {
+  const state = {
+    employeeExists,
+    credentialAuthVersion,
+    credentialPresent: credentialAuthVersion > 0,
+    queries: [],
+  };
+  const tx = async (strings, ...values) => {
+    const query = strings.join("?").replace(/\s+/g, " ").trim();
+    state.queries.push({ query, values });
+    if (query.startsWith("SELECT id FROM system_employees")) {
+      return state.employeeExists ? [{ id: values[0] }] : [];
+    }
+    if (query.startsWith("UPDATE system_employee_auth_credentials")) {
+      if (!state.credentialPresent) return [];
+      state.credentialAuthVersion += 1;
+      return [{ auth_version: state.credentialAuthVersion }];
+    }
+    if (query.startsWith("DELETE FROM system_employee_auth_credentials")) {
+      if (!state.credentialPresent || values[1] !== state.credentialAuthVersion) return [];
+      state.credentialPresent = false;
+      return [{ employee_id: values[0] }];
+    }
+    throw new Error(`Unexpected SQL: ${query}`);
+  };
+  const sql = Object.assign(() => {}, { begin: async (callback) => callback(tx) });
+  return { sql, state };
+}
+
+const deletionHarness = createDeleteSqlHarness();
+const repositoryDelete = await deleteEmployeeCredential(
+  deletionHarness.sql,
+  "employee-active",
+  new Date("2026-07-21T10:00:00.000Z"),
+);
+assert.deepEqual(repositoryDelete, {
+  employeeExists: true,
+  deleted: true,
+  alreadyAbsent: false,
+  sessionsRevoked: true,
+  authVersion: 8,
+});
+assert.equal(deletionHarness.state.credentialPresent, false);
+assert.deepEqual(
+  deletionHarness.state.queries.map(({ query }) => query.split(" ")[0]),
+  ["SELECT", "UPDATE", "DELETE"],
+  "credential cleanup must lock identity, revoke sessions and delete in one transaction",
+);
+assert.match(deletionHarness.state.queries[2].query, /employee_id = \? AND auth_version = \?/);
+
+const absentHarness = createDeleteSqlHarness({ credentialAuthVersion: 0 });
+assert.deepEqual(await deleteEmployeeCredential(absentHarness.sql, "employee-active"), {
+  employeeExists: true,
+  deleted: false,
+  alreadyAbsent: true,
+  sessionsRevoked: true,
+  authVersion: 0,
+});
+assert.equal(absentHarness.state.queries.length, 2, "idempotent cleanup must not issue a blind DELETE");
+
+const missingEmployeeHarness = createDeleteSqlHarness({ employeeExists: false, credentialAuthVersion: 0 });
+assert.deepEqual(await deleteEmployeeCredential(missingEmployeeHarness.sql, "missing"), {
+  employeeExists: false,
+  deleted: false,
+  alreadyAbsent: false,
+  sessionsRevoked: false,
+  authVersion: 0,
+});
+assert.equal(missingEmployeeHarness.state.queries.length, 1, "missing employee must stop before credential mutation");
+
+console.log("Employee credential admin QA passed: root gate, exact employee, private PIN, transactional revoke/delete and idempotent cleanup.");

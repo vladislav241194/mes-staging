@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "updatedAt": "2026-07-21",
   "baselineProgress": 46,
-  "currentProgress": 50,
+  "currentProgress": 48,
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.21-8fb92d9",
   "acceptedPilotPreviousRelease": "v.1.500.20-a4d8b2f",
@@ -109,7 +109,7 @@
     { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 18 },
     { "id": "pilot-acceptance", "label": "Real Pilot read and write acceptance", "maximum": 20, "earned": 9 },
     { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 2 },
-    { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 2 },
+    { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 0 },
     { "id": "quality-controls", "label": "Strict QA, release and rollback controls", "maximum": 5, "earned": 5 }
   ],
   "scenarioAcceptance": [
@@ -157,13 +157,32 @@
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["execute-ops"], "missing": ["deploy-request-owner-action"] } },
     { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["durable-report-persistence"] } },
-    { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["reschedule-start"], "missing": ["edit-dependency", "drag", "resize", "optimize"] } },
+    { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "nomenclatureTypes", "routeId": "directories", "entry": "experiments/react-migration/src/nomenclature-types-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "operations", "routeId": "directories", "entry": "experiments/react-migration/src/operations-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "delete-custom"], "missing": [] } },
-    { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["change-quantity"], "missing": ["change-start-date", "change-labor", "transfer-to-gantt", "cancel"] } },
-    { "id": "roles", "routeId": "roles", "entry": "experiments/react-migration/src/roles-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "deactivate", "reactivate"], "missing": ["multiple-assignments", "effective-window", "personal-scope", "assignment-scope", "read-only-lifecycle", "assigned-role-lifecycle"] } },
+    { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["change-start-date"], "missing": ["change-quantity", "change-slot", "change-labor", "transfer-to-gantt", "cancel"] } },
+    {
+      "id": "roles",
+      "routeId": "roles",
+      "entry": "experiments/react-migration/src/roles-island.tsx",
+      "disposition": "migration-required",
+      "normalActionFallback": false,
+      "commands": {
+        "implemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "deactivate", "reactivate"],
+        "supportedVariants": ["role-default-scope:self"],
+        "guarded": ["deactivate-assigned-role", "deactivate-current-role", "reset-access-control"],
+        "missing": ["multiple-assignment-owner", "effective-window-persistence", "subject-responsibility-scope-persistence", "assignment-responsibility-scope-persistence", "read-only-role-persistence"],
+        "blockedBy": {
+          "multiple-assignment-owner": ["owner-contract"],
+          "effective-window-persistence": ["owner-contract", "schema-migration"],
+          "subject-responsibility-scope-persistence": ["owner-contract", "system-domains-schema-version", "schema-migration"],
+          "assignment-responsibility-scope-persistence": ["owner-contract", "system-domains-schema-version", "schema-migration"],
+          "read-only-role-persistence": ["owner-contract", "schema-migration"]
+        }
+      }
+    },
     { "id": "shiftMasterBoard", "routeId": "shiftMasterBoard", "entry": "experiments/react-migration/src/shift-master-board-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "create-carryover", "cancel-carryover", "print"], "missing": ["manual-lane-move"] } },
     { "id": "shiftWorkOrders", "routeId": "shiftWorkOrders", "entry": "experiments/react-migration/src/shift-work-orders-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["open-workshop", "assign", "save-fact", "correct-fact", "print-szn", "print-package"], "missing": [] } },
     { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["edit-draft-row", "publish-revision", "create-work-order"], "missing": ["add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
@@ -186,6 +205,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "complete",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["Boards/BOM non-empty Pilot read", "Boards/BOM disposable Pilot write lifecycle", "permanent React runtime"]
@@ -197,6 +218,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["add/remove/reparent", "attachment binding", "route editing", "Pilot publication and work-order lifecycle"]
@@ -208,9 +231,11 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["start dates", "labor", "Gantt transfer", "cancel", "Pilot quantity lifecycle"]
+      "remainingScopes": ["quantity", "slot/Gantt writes", "labor", "Gantt transfer", "cancel", "Pilot start-date-only lifecycle"]
     },
     {
       "id": "gantt",
@@ -219,9 +244,11 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["dependency editing", "drag", "resize", "optimization", "Pilot write lifecycle"]
+      "remainingScopes": ["read-only slot edit fallback", "schedule-mutating refresh", "dependency editing", "drag", "resize", "optimization", "Pilot write lifecycle"]
     },
     {
       "id": "weeklyProductionControl",
@@ -230,9 +257,19 @@
       "reactSurface": "production-island",
       "functionalStatus": "read-only-complete",
       "runtimeMode": "react",
-      "normalLegacyPath": false,
-      "productionReady": true,
-      "remainingScopes": []
+      "visibleLegacyRendererPath": false,
+      "runtimeLegacyModelDependency": true,
+      "candidateRuntimeLegacyModelDependency": false,
+      "candidateEvidence": {
+        "status": "local-verified-pilot-pending",
+        "proof": ["strict-typecheck", "model-parity", "import-graph", "production-shell"],
+        "pilotPublication": "pending",
+        "freshRead": "pending",
+        "rollbackReactivationDrill": "pending"
+      },
+      "normalLegacyPath": true,
+      "productionReady": false,
+      "remainingScopes": ["publish typed read-model candidate to Pilot", "fresh authenticated Pilot read", "immutable previous-release rollback and candidate reactivation drill"]
     },
     {
       "id": "shiftMasterBoard",
@@ -241,6 +278,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["manual lane movement", "Pilot assignment/fact/carryover lifecycle", "permanent React runtime"]
@@ -252,6 +291,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "complete",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["Pilot assignment/fact lifecycle", "permanent React runtime"]
@@ -263,6 +304,8 @@
       "reactSurface": "missing",
       "functionalStatus": "placeholder",
       "runtimeMode": "legacy-placeholder",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["product scope decision", "approved specification or explicit scope exclusion"]
@@ -274,6 +317,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["non-empty Responsibility Policies Pilot read", "six writable registry Pilot lifecycles", "assignment and scheduling impact contracts", "permanent React runtime for six writable registries"]
@@ -285,6 +330,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "complete",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["Pilot attendance lifecycle", "Pilot schedule lifecycle", "permanent React runtime"]
@@ -296,9 +343,11 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["multiple assignments", "effective windows", "personal and assignment scopes", "readOnly lifecycle", "assigned-role lifecycle", "Pilot write lifecycle"]
+      "remainingScopes": ["multiple-assignment owner contract", "effective-window persistence", "subject and assignment responsibility-scope persistence", "readOnly role persistence", "Pilot write lifecycle"]
     },
     {
       "id": "contourAdmin",
@@ -307,6 +356,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["mapped-host Pilot read", "dry-run Ops lifecycle", "deploy request owner action", "permanent React runtime"]
@@ -318,6 +369,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "complete",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["four disposable Pilot write lifecycles", "single React shell across directory navigation", "permanent React runtime"]
@@ -329,6 +382,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "complete",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["Pilot PIN acceptance", "permanent React runtime"]
@@ -340,6 +395,8 @@
       "reactSurface": "production-island",
       "functionalStatus": "partial",
       "runtimeMode": "legacy-default",
+      "visibleLegacyRendererPath": true,
+      "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
       "remainingScopes": ["Report durable persistence", "Pilot task/fact/Report lifecycle", "permanent React runtime"]
@@ -351,6 +408,8 @@
       "reactSurface": "mock-island",
       "functionalStatus": "mock",
       "runtimeMode": "react-mock",
+      "visibleLegacyRendererPath": false,
+      "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
       "remainingScopes": ["production owner", "API and database persistence", "RBAC", "traceability lifecycle", "Pilot production acceptance"]

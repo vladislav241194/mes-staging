@@ -9,6 +9,11 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+readonly APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
+  exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
+fi
+
 readonly SERVICE="mes-pilot-domain-migrate.service"
 readonly IMPORT_SERVICE="mes-pilot-domain-import.service"
 readonly INTERNAL_ORIGIN="http://127.0.0.1:4175"
@@ -43,6 +48,21 @@ node -e '
     throw new Error("Specifications 2.0 attachment migration was not confirmed by the domain readiness endpoint");
   }
 ' "${readiness}"
+
+# Both command readiness values are derived by the active candidate from the
+# exact 028/029/030/031 migration markers, request-fingerprint columns, the
+# three repaired function body digests/exact trigger definitions and the fourth
+# request-fingerprint trigger binding. Never accept a marker-only migration.
+node "${APP_DIR}/scripts/specifications2-rollout-readiness-policy.mjs" \
+  work-orders-schema-ready "${readiness}" || {
+  echo "Specifications 2.0 migrations 028/029/030/031, Work Order fingerprint, or one of the exact rollback guards is not ready." >&2
+  exit 1
+}
+node "${APP_DIR}/scripts/specifications2-rollout-readiness-policy.mjs" \
+  publication-schema-ready "${readiness}" || {
+  echo "Specifications 2.0 publication migration/trigger readiness was not confirmed." >&2
+  exit 1
+}
 
 # Migration 023 is read by every System Domains readiness/command request.
 # Confirm it through the running application so a service that skipped the new

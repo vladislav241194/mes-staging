@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
 
 function parseArgs(argv) {
   const parsed = { apply: false, file: "" };
@@ -22,6 +23,12 @@ export function validateDomainExport(payload = {}) {
   const operationIds = new Set(payload.workOrderOperations.map((row) => String(row.id || "")));
   if (orderIds.size !== payload.workOrders.length || orderIds.has("")) throw new Error("Domain export contains duplicate or empty work-order IDs");
   if (operationIds.size !== payload.workOrderOperations.length || operationIds.has("")) throw new Error("Domain export contains duplicate or empty operation IDs");
+  payload.workOrders.forEach((row) => {
+    if (row.planning_start_date !== null && row.planning_start_date !== undefined && row.planning_start_date !== ""
+      && !isExactIsoCalendarDate(row.planning_start_date)) {
+      throw new Error(`Work order ${row.id} has an invalid planning start date`);
+    }
+  });
   payload.workOrderOperations.forEach((row) => {
     if (!orderIds.has(String(row.work_order_id || ""))) throw new Error(`Operation ${row.id} refers to an unknown work order`);
     if (!Number.isInteger(Number(row.quantity_multiplier)) || Number(row.quantity_multiplier) <= 0) throw new Error(`Operation ${row.id} must have a positive quantity multiplier`);
@@ -55,13 +62,14 @@ async function importExport(sql, payload) {
   await sql.begin(async (tx) => {
     for (const row of payload.workOrders) {
       await tx`
-        INSERT INTO work_orders (id, number, name, designation, unit, quantity, lifecycle_status, planning_status, source_kind, source_revision, aggregate_revision, metadata, created_at, updated_at)
-        VALUES (${row.id}, ${row.number}, ${row.name}, ${row.designation}, ${row.unit}, ${row.quantity}, ${row.lifecycle_status}, ${row.planning_status}, ${row.source_kind}, ${row.source_revision}, ${row.aggregate_revision}, ${tx.json(row.metadata || {})}, COALESCE(${row.created_at}, now()), COALESCE(${row.updated_at}, now()))
+        INSERT INTO work_orders (id, number, name, designation, unit, quantity, lifecycle_status, planning_status, source_kind, source_revision, aggregate_revision, planning_start_date, metadata, created_at, updated_at)
+        VALUES (${row.id}, ${row.number}, ${row.name}, ${row.designation}, ${row.unit}, ${row.quantity}, ${row.lifecycle_status}, ${row.planning_status}, ${row.source_kind}, ${row.source_revision}, ${row.aggregate_revision}, ${row.planning_start_date || null}, ${tx.json(row.metadata || {})}, COALESCE(${row.created_at}, now()), COALESCE(${row.updated_at}, now()))
         ON CONFLICT (id) DO UPDATE SET
           number = EXCLUDED.number, name = EXCLUDED.name, designation = EXCLUDED.designation, unit = EXCLUDED.unit,
           quantity = EXCLUDED.quantity, lifecycle_status = EXCLUDED.lifecycle_status, planning_status = EXCLUDED.planning_status,
           source_kind = EXCLUDED.source_kind, source_revision = EXCLUDED.source_revision,
-          aggregate_revision = GREATEST(work_orders.aggregate_revision, EXCLUDED.aggregate_revision), metadata = EXCLUDED.metadata, updated_at = EXCLUDED.updated_at
+          aggregate_revision = GREATEST(work_orders.aggregate_revision, EXCLUDED.aggregate_revision),
+          planning_start_date = EXCLUDED.planning_start_date, metadata = EXCLUDED.metadata, updated_at = EXCLUDED.updated_at
       `;
     }
     for (const row of payload.workOrderOperations) {

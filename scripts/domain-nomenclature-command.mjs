@@ -1,14 +1,21 @@
 import { createHash } from "node:crypto";
+import { basename } from "node:path";
 
 import {
   NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY,
   readSharedStateSnapshot,
-  updateSharedStateSnapshot,
+  updateNomenclatureCommandSharedStateSnapshot,
 } from "./shared-state-endpoint.mjs";
 import {
   appendSharedStateAudit,
   backupSharedStateFile,
 } from "./shared-state-storage.mjs";
+import {
+  applyNomenclatureCommandReducer,
+  buildNomenclatureCommandRequestFingerprint,
+  buildNomenclatureDirectoryOutcomeFingerprint,
+  validateNomenclatureDirectoryClusterBoundary,
+} from "./domain-nomenclature-reducer.mjs";
 
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const MAX_COMMAND_BODY_BYTES = 512 * 1024;
@@ -18,8 +25,6 @@ const MAX_RECEIPTS = 500;
 const MAX_PROJECTION_JSON_DEPTH = 64;
 const MAX_PROJECTION_JSON_NODES = 1_000_000;
 const MAX_PROJECTION_JSON_KEYS = 500_000;
-const REFERENCE_KEYS = new Set(["nomenclatureId", "outputNomenclatureId"]);
-const DIRECTORY_CLUSTER_SERVER_COMMANDS_FLAG = "MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS";
 
 export const NOMENCLATURE_COMMAND_JSON_LIMITS = Object.freeze({
   maxDepth: 64,
@@ -309,149 +314,8 @@ function normalizeCommand(input = {}) {
   return {
     ok: true,
     command,
-    requestFingerprint: createHash("sha256").update(stableJson({
-      kind,
-      itemId,
-      expectedRevision,
-      row: rawRow,
-      expectedRow: rawExpectedRow,
-    })).digest("hex"),
+    requestFingerprint: buildNomenclatureCommandRequestFingerprint(command),
   };
-}
-
-function findExistingType(directory, typeName) {
-  const normalized = text(typeName, 300).toLocaleLowerCase("ru-RU");
-  return normalized
-    ? directory.nomenclatureTypes.find((row) => text(row?.name, 300).toLocaleLowerCase("ru-RU") === normalized) || null
-    : null;
-}
-
-function validateAndBuildRow(directory, command, currentRow, now) {
-  const source = command.kind === "create"
-    ? command.row
-    : { ...currentRow, ...command.row, id: command.itemId };
-  const name = text(source?.name, 500);
-  const type = text(source?.type, 300);
-  if (!name) return resultError(422, "name-required", "Nomenclature name is required");
-  if (!type) return resultError(422, "type-required", "Nomenclature type is required");
-  const typeRow = findExistingType(directory, type);
-  if (!typeRow) {
-    return resultError(422, "nomenclature-type-not-found", "Nomenclature type must already exist in the Nomenclature Types directory");
-  }
-  return {
-    ok: true,
-    row: {
-      ...cloneJson(source),
-      id: command.itemId,
-      name,
-      type: text(typeRow.name, 300),
-      updatedAt: now,
-    },
-  };
-}
-
-function rewriteNomenclatureReferences(value, itemId, stats, area) {
-  if (Array.isArray(value)) return value.map((entry) => rewriteNomenclatureReferences(entry, itemId, stats, area));
-  if (!isRecord(value)) return value;
-  let changed = false;
-  const next = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (REFERENCE_KEYS.has(key) && rawIdentifier(entry) === itemId) {
-      next[key] = "";
-      stats[area] += 1;
-      changed = true;
-      continue;
-    }
-    const rewritten = rewriteNomenclatureReferences(entry, itemId, stats, area);
-    next[key] = rewritten;
-    if (rewritten !== entry) changed = true;
-  }
-  return changed ? next : value;
-}
-
-function collectDanglingReferences(value, validIds, path, result) {
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectDanglingReferences(entry, validIds, `${path}[${index}]`, result));
-    return;
-  }
-  if (!isRecord(value)) return;
-  Object.entries(value).forEach(([key, entry]) => {
-    const entryPath = `${path}.${key}`;
-    if (REFERENCE_KEYS.has(key)) {
-      const itemId = rawIdentifier(entry);
-      if (itemId && !validIds.has(itemId)) result.push({ path: entryPath, itemId });
-      return;
-    }
-    collectDanglingReferences(entry, validIds, entryPath, result);
-  });
-}
-
-function validateReferences(directory) {
-  const validIds = new Set(directory.nomenclature.map((row) => exactItemId(row?.id)).filter(Boolean));
-  const danglingReferences = [];
-  collectDanglingReferences(directory.bomLists, validIds, "bomLists", danglingReferences);
-  collectDanglingReferences(directory.specifications, validIds, "specifications", danglingReferences);
-  return danglingReferences.length
-    ? resultError(409, "dangling-nomenclature-reference", "Nomenclature command projection contains dangling BOM or Specifications references", { danglingReferences: danglingReferences.slice(0, 50) })
-    : { ok: true };
-}
-
-function applyCommand(directory, command, now) {
-  const index = directory.nomenclature.findIndex((row) => exactItemId(row?.id) === command.itemId);
-  if (command.kind === "create") {
-    if (index >= 0) return resultError(409, "same-row-conflict", "Nomenclature item already exists");
-    const built = validateAndBuildRow(directory, command, null, now);
-    if (!built.ok) return built;
-    const nextDirectory = { ...directory, nomenclature: [...directory.nomenclature, built.row] };
-    const references = validateReferences(nextDirectory);
-    return references.ok ? { ok: true, directory: nextDirectory, item: built.row, unlinkedReferences: { bom: 0, specifications: 0 } } : references;
-  }
-  if (index < 0 || !sameRow(directory.nomenclature[index], command.expectedRow)) {
-    return resultError(409, "same-row-conflict", "Nomenclature item changed after it was read");
-  }
-  if (command.kind === "update") {
-    const built = validateAndBuildRow(directory, command, directory.nomenclature[index], now);
-    if (!built.ok) return built;
-    const nextDirectory = {
-      ...directory,
-      nomenclature: directory.nomenclature.map((row, rowIndex) => rowIndex === index ? built.row : row),
-    };
-    const references = validateReferences(nextDirectory);
-    return references.ok ? { ok: true, directory: nextDirectory, item: built.row, unlinkedReferences: { bom: 0, specifications: 0 } } : references;
-  }
-  const stats = { bom: 0, specifications: 0 };
-  const nextDirectory = {
-    ...directory,
-    nomenclature: directory.nomenclature.filter((_, rowIndex) => rowIndex !== index),
-    bomLists: rewriteNomenclatureReferences(directory.bomLists, command.itemId, stats, "bom"),
-    specifications: rewriteNomenclatureReferences(directory.specifications, command.itemId, stats, "specifications"),
-  };
-  const references = validateReferences(nextDirectory);
-  return references.ok
-    ? { ok: true, directory: nextDirectory, item: directory.nomenclature[index], unlinkedReferences: stats }
-    : references;
-}
-
-function validateDirectoryClusterNomenclatureBoundary(directory, command, env) {
-  if (String(env?.[DIRECTORY_CLUSTER_SERVER_COMMANDS_FLAG] || "") !== "1") return { ok: true };
-  const current = directory.nomenclature.find((row) => exactItemId(row?.id) === command.itemId) || null;
-  const candidate = command.kind === "create"
-    ? command.row
-    : command.kind === "update" && current
-      ? { ...current, ...command.row, id: current.id }
-      : current;
-  const hasBoardOwner = Boolean(exactItemId(candidate?.sourceBomResultId))
-    || (Array.isArray(candidate?.sourceBomIds) && candidate.sourceBomIds.some((boardId) => Boolean(exactItemId(boardId))))
-    || Boolean(exactItemId(current?.sourceBomResultId))
-    || (Array.isArray(current?.sourceBomIds) && current.sourceBomIds.some((boardId) => Boolean(exactItemId(boardId))))
-    || directory.bomLists.some((board) => Array.isArray(board?.importRows)
-      && board.importRows.some((row) => exactItemId(row?.nomenclatureId) === command.itemId));
-  return hasBoardOwner
-    ? resultError(409, "directory-cluster-command-required", "Board/BOM-owned Nomenclature rows can only be changed through the Directory cluster command owner", {
-      conflict: true,
-      itemId: command.itemId,
-    })
-    : { ok: true };
 }
 
 function isValidReceiptEntry(key, receipt) {
@@ -504,6 +368,35 @@ export function appendReceipt(receipts, key, receipt) {
     String(right[1]?.createdAt || "").localeCompare(String(left[1]?.createdAt || ""))
   ));
   return { schemaVersion: 1, entries: Object.fromEntries(sorted.slice(0, MAX_RECEIPTS)) };
+}
+
+function finalizeNomenclatureReceiptRecovery(snapshot, key, receipt, backup) {
+  const recoveryArtifact = {
+    kind: "file-backup",
+    status: "created",
+    artifactName: basename(String(backup?.backupPath || "")),
+    metadataName: basename(String(backup?.metaPath || "")),
+  };
+  if (!recoveryArtifact.artifactName || !recoveryArtifact.metadataName) {
+    throw Object.assign(new Error("Nomenclature destructive recovery artifact is incomplete"), {
+      code: "NOMENCLATURE_COMMAND_RECEIPT_FAILED",
+    });
+  }
+  receipt.recoveryArtifact = recoveryArtifact;
+  let stored;
+  try { stored = JSON.parse(snapshot?.values?.[NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY] || ""); }
+  catch {
+    throw Object.assign(new Error("Nomenclature command receipts could not be finalized"), {
+      code: "NOMENCLATURE_COMMAND_RECEIPT_FAILED",
+    });
+  }
+  if (!isRecord(stored) || !isRecord(stored.entries) || !Object.prototype.hasOwnProperty.call(stored.entries, key)) {
+    throw Object.assign(new Error("Nomenclature command receipt disappeared before persistence"), {
+      code: "NOMENCLATURE_COMMAND_RECEIPT_FAILED",
+    });
+  }
+  stored.entries[key] = receipt;
+  snapshot.values[NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY] = JSON.stringify(stored);
 }
 
 function projectionFromSnapshot(snapshot) {
@@ -596,11 +489,15 @@ export async function executeNomenclatureCommand(input = {}, {
       });
     }
     const now = new Date().toISOString();
-    const clusterBoundary = validateDirectoryClusterNomenclatureBoundary(parsed.directory, command, env);
+    const clusterBoundary = validateNomenclatureDirectoryClusterBoundary(
+      parsed.directory,
+      command,
+      String(env?.MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS || "") === "1",
+    );
     if (!clusterBoundary.ok) {
       return { ...clusterBoundary, revision: Number(current.version || 0), projection: projectionFromSnapshot(current) };
     }
-    const mutation = applyCommand(parsed.directory, command, now);
+    const mutation = applyNomenclatureCommandReducer(parsed.directory, command, now);
     if (!mutation.ok) {
       return { ...mutation, revision: Number(current.version || 0), projection: projectionFromSnapshot(current) };
     }
@@ -611,12 +508,21 @@ export async function executeNomenclatureCommand(input = {}, {
     let deleteBackupFailure = null;
     let update;
     try {
-      update = await updateSharedStateSnapshot({
+      update = await updateNomenclatureCommandSharedStateSnapshot({
         env,
         filePath,
         expectedVersion: Number(current.version || 0),
+        authorityProof: {
+          actorId: actor.id,
+          entityId: command.itemId,
+          idempotencyKey: command.idempotencyKey,
+          command,
+          now,
+          expectedRevision: command.expectedRevision,
+          displayName: actor.displayName,
+        },
         planningObservationSource: `nomenclature-command:${command.kind}`,
-        beforeWrite: async ({ store }) => {
+        beforeWrite: async ({ store, snapshot }) => {
           if (command.kind !== "delete") return;
           if (store.kind !== "file") {
             deleteBackupFailure = Object.assign(new Error(`Nomenclature delete recovery artifact is not supported for ${store.kind || "unknown"} storage`), {
@@ -646,6 +552,7 @@ export async function executeNomenclatureCommand(input = {}, {
               env,
               allowMissing: false,
             });
+            finalizeNomenclatureReceiptRecovery(snapshot, key, receipt, deleteBackup);
           } catch (error) {
             deleteBackupFailure = error;
             await appendSharedStateAudit({
@@ -675,18 +582,29 @@ export async function executeNomenclatureCommand(input = {}, {
               : latestProjection;
             throw Object.assign(new Error(lockedFailure.error), { code: "NOMENCLATURE_COMMAND_REJECTED" });
           }
-          const latestClusterBoundary = validateDirectoryClusterNomenclatureBoundary(latestProjection.directory, command, env);
+          const latestClusterBoundary = validateNomenclatureDirectoryClusterBoundary(
+            latestProjection.directory,
+            command,
+            String(env?.MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS || "") === "1",
+          );
           if (!latestClusterBoundary.ok) {
             lockedFailure = latestClusterBoundary;
             throw Object.assign(new Error(latestClusterBoundary.error), { code: "NOMENCLATURE_COMMAND_REJECTED" });
           }
-          const latestMutation = applyCommand(latestProjection.directory, command, now);
+          const latestMutation = applyNomenclatureCommandReducer(latestProjection.directory, command, now);
           if (!latestMutation.ok) {
             lockedFailure = latestMutation;
             throw Object.assign(new Error(latestMutation.error), { code: "NOMENCLATURE_COMMAND_REJECTED" });
           }
+          const outcomeFingerprint = buildNomenclatureDirectoryOutcomeFingerprint(latestMutation.directory);
+          if (!/^[a-f0-9]{64}$/u.test(outcomeFingerprint)) {
+            lockedFailure = resultError(503, "nomenclature-command-fingerprint-failed", "Nomenclature command outcome could not be fingerprinted safely");
+            throw Object.assign(new Error(lockedFailure.error), { code: "NOMENCLATURE_COMMAND_REJECTED" });
+          }
           receipt = {
             requestFingerprint,
+            outcomeFingerprint,
+            idempotencyKey: command.idempotencyKey,
             kind: command.kind,
             itemId: command.itemId,
             item: latestMutation.item,
@@ -698,6 +616,9 @@ export async function executeNomenclatureCommand(input = {}, {
             authorizationDecision: authorized.authorizationDecision,
             baseRevision: command.expectedRevision,
             rebased: command.expectedRevision < Number(latest.version || 0),
+            statusCode: command.kind === "create" ? 201 : 200,
+            destructiveAction: command.kind === "delete",
+            recoveryArtifact: null,
             createdAt: now,
           };
           const nextReceipts = appendReceipt(latestReceipts, key, receipt);
@@ -756,7 +677,9 @@ export async function executeNomenclatureCommand(input = {}, {
       return successFromReceipt(update.snapshot, receipt, false);
     }
     if (!update.conflict) {
-      return resultError(update.forbidden ? 403 : 503, "nomenclature-command-persistence-failed", update.error || "Nomenclature command was not durably persisted", {
+      const statusCode = Number(update.statusCode || 0) || (update.forbidden ? 403 : 503);
+      return resultError(statusCode, update.code || "nomenclature-command-persistence-failed", update.error || "Nomenclature command was not durably persisted", {
+        conflict: statusCode === 409,
         retryable: update.retryable === true,
       });
     }

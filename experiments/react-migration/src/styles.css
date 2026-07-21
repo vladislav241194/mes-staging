@@ -219,9 +219,21 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .specifications2-react-editor input, .specifications2-react-editor select { min-width: 0; border: 1px solid #cbd8e6; border-radius: 8px; padding: 9px 10px; color: #1f3347; background: #fff; font: inherit; font-size: 11px; }
 .specifications2-react-editor-actions { display: flex; justify-content: flex-end; }
 .specifications2-react-command-error { margin: 0; color: #a33a32; font-size: 11px; }
-.gantt-react-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) 120px auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
+.gantt-react-toolbar { display:grid; grid-template-columns:minmax(170px,1fr) auto auto auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
 .gantt-react-toolbar > div { display:grid; gap:3px; }
 .gantt-react-toolbar span,.gantt-react-label small { color:#718296; font-size:9px; }
+.gantt-react-period { display:grid; grid-template-columns:minmax(128px,170px) auto; align-items:end; gap:3px 8px; color:#718296; font-size:9px; }
+.gantt-react-period span { grid-column:1/-1; }
+.gantt-react-period small { align-self:center; color:#718296; white-space:nowrap; }
+.gantt-react-period input { min-width:0; min-height:34px; padding:6px 9px; border:1px solid #cbd8e6; border-radius:9px; color:#18314d; background:#fff; font:inherit; font-size:11px; }
+:is(.gantt-react-scale,.gantt-react-zoom) { display:flex; gap:0; }
+:is(.gantt-react-scale,.gantt-react-zoom) button { min-height:34px; padding:6px 10px; border:1px solid #cbd8e6; border-right-width:0; color:#52667a; background:#fff; cursor:pointer; }
+:is(.gantt-react-scale,.gantt-react-zoom) button:first-child { border-radius:9px 0 0 9px; }
+:is(.gantt-react-scale,.gantt-react-zoom) button:last-child { border-right-width:1px; border-radius:0 9px 9px 0; }
+:is(.gantt-react-scale,.gantt-react-zoom) button.is-active,:is(.gantt-react-scale,.gantt-react-zoom) button[aria-pressed="true"] { border-color:#2f6fe4; color:#245db7; background:#eef4ff; }
+:is(.gantt-react-scale,.gantt-react-zoom) button:disabled,.gantt-react-period input:disabled { opacity:.5; cursor:default; }
+.gantt-react-zoom button:nth-child(2) { min-width:62px; }
+.gantt-react-navigation-error { margin:8px 2px 0; }
 .gantt-react-grid { display:grid; grid-template-columns:minmax(0,1fr) 270px; align-items:start; gap:14px; }
 .gantt-react-scroll { max-height:680px; overflow:auto; background:#fff; }
 .gantt-react-canvas { position:relative; width:calc(var(--gantt-left) + var(--gantt-width)); min-height:calc(var(--gantt-timeline-height) + var(--gantt-height)); }

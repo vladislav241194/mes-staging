@@ -33,6 +33,9 @@ const assignmentRows = [
 const sql = (strings, ...values) => {
   const query = strings.join("?");
   calls.push({ query, values });
+  if (/FROM work_order_operations\b/.test(query)) {
+    return Promise.resolve([{ id: "OP-A", work_order_id: "WO-A", work_center_id: "D1" }]);
+  }
   if (/FROM shift_assignments\b/.test(query)) return Promise.resolve(assignmentRows);
   if (/FROM shift_assignment_executors\b/.test(query)) {
     return Promise.resolve([
@@ -85,6 +88,19 @@ assert(result.items[1]?.facts?.length === 1 && result.items[1]?.facts?.[0]?.id =
 assert(result.items.every((item) => !("sourcePayload" in item) && !("carryovers" in item)), "compact items must omit replay payloads and date-scoped carryovers");
 assert(result.carryovers.length === 1 && result.carryovers[0]?.sourceAssignmentId === "assignment-history" && result.carryovers[0]?.sourceRowId === "row-history", "date-scoped carryovers must remain top-level and keep source-row identity even when their assignment is outside the current board rows");
 assert(!("sourcePayload" in result.carryovers[0]), "compact carryovers must omit replay payloads");
+
+const assignmentContext = await repository.getCommandTargetContext({ assignmentId: "assignment-a" });
+assert(assignmentContext.item?.kind === "assignment" && assignmentContext.item?.id === "assignment-a" && assignmentContext.item?.workCenterId === "D1", "command target reader must return the canonical PostgreSQL assignment work center");
+assert(/WHERE id =/.test(calls.at(-1)?.query || "") && /LIMIT 1/.test(calls.at(-1)?.query || ""), "assignment command target lookup must be one exact bounded read");
+const operationContext = await repository.getCommandTargetContext({ workOrderId: "WO-A", operationId: "OP-A" });
+assert(operationContext.item?.kind === "work-order-operation" && operationContext.item?.operationId === "OP-A" && operationContext.item?.workOrderId === "WO-A" && operationContext.item?.workCenterId === "D1", "assignment create target reader must return the canonical PostgreSQL operation work center");
+assert(/FROM work_order_operations/.test(calls.at(-1)?.query || "") && /work_order_id =/.test(calls.at(-1)?.query || "") && /LIMIT 1/.test(calls.at(-1)?.query || ""), "assignment create target lookup must bind the exact Work Order and operation");
+const carryoverContext = await repository.getCommandTargetContext({ carryoverId: "carryover-earlier-assignment" });
+assert(carryoverContext.item?.kind === "carryover" && carryoverContext.item?.assignmentId === "assignment-history" && carryoverContext.item?.workCenterId === "D1", "cancellation target reader must return the canonical PostgreSQL carryover work center");
+assert(/FROM shift_carryovers AS carryover/.test(calls.at(-1)?.query || "") && /WHERE carryover.id =/.test(calls.at(-1)?.query || ""), "carryover command target lookup must be one exact bounded read");
+await assertRejects(() => repository.getCommandTargetContext({}), "command target lookup must fail closed without an id");
+await assertRejects(() => repository.getCommandTargetContext({ assignmentId: "assignment-a", carryoverId: "carryover-a" }), "command target lookup must fail closed with ambiguous ids");
+await assertRejects(() => repository.getCommandTargetContext({ workOrderId: "WO-A" }), "operation target lookup must fail closed without both Work Order and operation ids");
 
 await assertRejects(() => repository.listDispatch({ sourceRowIds: [], dateKey: "2026-07-18" }), "dispatch reader must reject an empty source row scope");
 await assertRejects(() => repository.listDispatch({ sourceRowIds: ["row-a"], workCenterIds: [], dateKey: "2026-07-18" }), "dispatch reader must reject an empty work-center scope");

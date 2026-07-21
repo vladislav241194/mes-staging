@@ -42,7 +42,7 @@ async function stop(child) {
 const port = await getFreePort(); const origin = `http://127.0.0.1:${port}`;
 const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru" }, stdio: ["ignore", "pipe", "pipe"] });
 let previewOutput = ""; preview.stdout.on("data", (chunk) => { previewOutput += chunk; }); preview.stderr.on("data", (chunk) => { previewOutput += chunk; });
-let chrome = null; const consoleProblems = []; let projectionReads = 0; let planningWrites = 0; let schedulePatchAttempts = 0; let successfulScheduleWrites = 0; let forceScheduleConflict = false;
+let chrome = null; let mountFailureChrome = null; const consoleProblems = []; let projectionReads = 0; let planningWrites = 0; let schedulePatchAttempts = 0; let successfulScheduleWrites = 0; let forceScheduleConflict = false;
 try {
   await waitPreview(origin); chrome = await launchChrome("mes-gantt-react-island-qa-"); const { client } = chrome;
   client.socket.addEventListener("message", (event) => {
@@ -76,7 +76,7 @@ try {
     void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
   });
   await client.send("Page.enable"); await client.send("Runtime.enable");
-  await client.send("Page.addScriptToEvaluateOnNewDocument", { source: `localStorage.setItem("mes-planning-prototype-ui-v1", JSON.stringify({ activeModule: "gantt", scale: "hours", windowStart: ${JSON.stringify(now.toISOString().slice(0, 10))}, expandedProjects: ["qa-react-gantt-route"], ganttZoom: 1 }));` });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", { source: `if (!localStorage.getItem("mes-planning-prototype-ui-v1")) localStorage.setItem("mes-planning-prototype-ui-v1", JSON.stringify({ activeModule: "gantt", scale: "hours", windowStart: ${JSON.stringify(now.toISOString().slice(0, 10))}, expandedProjects: ["qa-react-gantt-route"], ganttZoom: 1 }));` });
   await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/planning/*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1` });
@@ -93,9 +93,53 @@ try {
   }
   const react = await evaluate(client, () => { const target = document.querySelector("[data-react-gantt-island]"); const canvas = document.querySelector('[data-ui-component="GanttCanvas"]'); const slots = [...document.querySelectorAll('[data-ui-component="GanttSlot"]')]; slots.find((slot) => !slot.classList.contains("is-aggregate"))?.click(); const toolbar = getComputedStyle(document.querySelector(".gantt-react-toolbar")); const grid = getComputedStyle(document.querySelector(".gantt-react-grid")); const action = getComputedStyle(document.querySelector(".gantt-react-detail .action")); const metric = getComputedStyle(document.querySelector(".metric-card")); const detailPanel = getComputedStyle(document.querySelector(".gantt-react-detail")); return { rows: document.querySelectorAll("[data-row-id]").length, slots: slots.length, metrics: document.querySelectorAll('[data-ui-component="MetricCard"]').length, dependencies: [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.includes("Зависимости (1)")), width: canvas?.getBoundingClientRect().width || 0, commitMs: Number(target?.getAttribute("data-react-island-commit-ms")), source: document.body.innerText.includes("PostgreSQL projection"), detail: document.querySelector(".gantt-react-detail h2")?.textContent?.trim(), toolbarDisplay: toolbar.display, toolbarRadius: parseFloat(toolbar.borderRadius), gridColumns: grid.gridTemplateColumns.split(" ").length, actionRadius: parseFloat(action.borderRadius), metricDisplay: metric.display, metricRadius: parseFloat(metric.borderRadius), metricBackground: metric.backgroundColor, detailRadius: parseFloat(detailPanel.borderRadius), detailBackground: detailPanel.backgroundColor, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }; });
   assert(react.rows >= 2 && react.slots >= 2 && react.metrics === 4 && react.width > 0 && react.source, `Gantt React projection/geometry failed: ${JSON.stringify(react)}`);
-  assert(react.dependencies && react.commitMs < 2000 && react.detail && react.toolbarDisplay === "grid" && react.toolbarRadius >= 16 && react.gridColumns === 2 && react.actionRadius >= 8 && react.metricDisplay === "grid" && react.metricRadius >= 8 && react.metricBackground !== "rgba(0, 0, 0, 0)" && react.detailRadius >= 16 && react.detailBackground !== "rgba(0, 0, 0, 0)" && !react.overflow, `Gantt React dependency/style/telemetry failed: ${JSON.stringify(react)}`);
+  assert(react.dependencies && react.commitMs < 2000 && react.detail && react.toolbarDisplay === "grid" && react.toolbarRadius >= 16 && react.gridColumns === 2 && react.actionRadius >= 8 && react.metricDisplay === "grid" && react.metricRadius >= 5 && react.metricBackground !== "rgba(0, 0, 0, 0)" && react.detailRadius >= 16 && react.detailBackground !== "rgba(0, 0, 0, 0)" && !react.overflow, `Gantt React dependency/style/telemetry failed: ${JSON.stringify(react)}`);
   const toolbarCenterSpread = await evaluate(client, () => { const centers = [...document.querySelectorAll(".gantt-react-toolbar > *")].map((element) => { const rect = element.getBoundingClientRect(); return rect.top + rect.height / 2; }); return Math.max(...centers) - Math.min(...centers); });
   assert(toolbarCenterSpread < 2, `Gantt toolbar controls must stay on one row; center spread ${toolbarCenterSpread}`);
+  const persistedWindowStart = new Date(now); persistedWindowStart.setDate(persistedWindowStart.getDate() + 2); const persistedWindowStartValue = persistedWindowStart.toISOString().slice(0, 10);
+  await evaluate(client, () => document.querySelector('[data-gantt-react-scale="weeks"]')?.click());
+  await waitForCondition(client, () => document.querySelector('[data-gantt-react-scale="weeks"]')?.getAttribute("aria-pressed") === "true" && Boolean(document.querySelector('[data-react-gantt-island][data-react-island-state="ready"]')) && !document.querySelector("[data-gantt-shell]"), { message: "React Gantt scale navigation returned to legacy or did not select weeks", timeoutMs: 15_000 });
+  await evaluate(client, () => document.querySelector('[data-gantt-react-zoom="in"]')?.click());
+  await waitForCondition(client, () => document.querySelector('[data-gantt-react-zoom="reset"]')?.textContent?.trim() === "150%" && !document.querySelector("[data-gantt-shell]"), { message: "React Gantt zoom did not advance inside React", timeoutMs: 15_000 });
+  await evaluate(client, (value) => { const input = document.querySelector("[data-gantt-react-period] input"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); }, persistedWindowStartValue);
+  try {
+    await waitForCondition(client, (value) => document.querySelector("[data-gantt-react-period] input")?.value === value && !document.querySelector("[data-gantt-shell]"), { arg: persistedWindowStartValue, message: "React Gantt period filter did not stay in React", timeoutMs: 15_000 });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({ input: document.querySelector("[data-gantt-react-period] input")?.value, state: localStorage.getItem("mes-planning-prototype-ui-v1"), react: document.querySelector("[data-react-gantt-island]")?.getAttribute("data-react-island-state"), legacy: Boolean(document.querySelector("[data-gantt-shell]")), alert: document.querySelector('[role="alert"]')?.textContent }));
+    throw new Error(`${error.message}: ${JSON.stringify(diagnostic)}`);
+  }
+  assert(planningWrites === 0, "React Gantt toolbar navigation must not call planning writes");
+
+  await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&react-gantt=1&react-gantt-readonly=1&qa-reload=gantt-toolbar-deep-link` });
+  await waitForCondition(client, (value) => Boolean(document.querySelector('[data-react-gantt-island][data-react-island-state="ready"]')) && document.querySelector("[data-gantt-react-period] input")?.value === value && document.querySelector('[data-gantt-react-scale="weeks"]')?.getAttribute("aria-pressed") === "true" && document.querySelector('[data-gantt-react-zoom="reset"]')?.textContent?.trim() === "150%" && !document.querySelector("[data-gantt-shell]"), { arg: persistedWindowStartValue, message: "React Gantt toolbar state did not survive reload/deep-link", timeoutMs: 20_000 });
+  const persistedToolbarState = await evaluate(client, () => { const state = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"); return { activeModule: state.activeModule, scale: state.scale, windowStart: state.windowStart, zoom: state.ganttZoom, href: location.href }; });
+  assert(persistedToolbarState.activeModule === "gantt" && persistedToolbarState.scale === "weeks" && persistedToolbarState.windowStart === persistedWindowStartValue && persistedToolbarState.zoom === 1.5 && persistedToolbarState.href.includes("module=gantt") && persistedToolbarState.href.includes("qa-reload=gantt-toolbar-deep-link"), `Gantt toolbar owner-state/deep-link persistence failed: ${JSON.stringify(persistedToolbarState)}`);
+
+  await evaluate(client, () => document.querySelector("[data-gantt-react-toggle-quantity]")?.click());
+  await waitForCondition(client, () => document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed") === "false" && !document.querySelector("[data-gantt-react-slot-quantity]") && !document.querySelector("[data-gantt-shell]"), { message: "React Gantt quantity toggle returned to legacy or left quantity visible", timeoutMs: 15_000 });
+  await evaluate(client, () => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.click());
+  await waitForCondition(client, (expandedRowCount) => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "false" && document.querySelectorAll("[data-row-id]").length < expandedRowCount && !document.querySelector("[data-gantt-shell]"), { arg: react.rows, message: "React Gantt collapse-all returned to legacy or kept all resource rows", timeoutMs: 15_000 });
+  await evaluate(client, () => document.querySelector("[data-gantt-react-jump-today]")?.click());
+  await waitForCondition(client, (value) => document.querySelector("[data-gantt-react-period] input")?.value === value && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "React Gantt jump-to-today did not stay in React", timeoutMs: 15_000 });
+  assert(!await evaluate(client, () => Boolean(document.querySelector("[data-gantt-react-refresh]"))), "schedule-mutating refresh must not appear in the local React toolbar slice");
+  assert(planningWrites === 0, "safe React Gantt display actions must not call planning writes");
+
+  await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&react-gantt=1&react-gantt-readonly=1&qa-reload=gantt-safe-toolbar-deep-link` });
+  await waitForCondition(client, (value) => Boolean(document.querySelector('[data-react-gantt-island][data-react-island-state="ready"]')) && document.querySelector("[data-gantt-react-period] input")?.value === value && document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "false" && document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed") === "false" && !document.querySelector("[data-gantt-react-slot-quantity]") && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "safe React Gantt display state did not survive reload/deep-link", timeoutMs: 20_000 });
+  const safeToolbarState = await evaluate(client, () => { const state = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"); return { expandedProjects: state.expandedProjects, showQuantity: state.ganttShowQuantity, windowStart: state.windowStart, href: location.href }; });
+  assert(Array.isArray(safeToolbarState.expandedProjects) && !safeToolbarState.expandedProjects.includes("qa-react-gantt-route") && safeToolbarState.showQuantity === false && safeToolbarState.windowStart === now.toISOString().slice(0, 10) && safeToolbarState.href.includes("qa-reload=gantt-safe-toolbar-deep-link"), `safe Gantt toolbar owner-state persistence failed: ${JSON.stringify(safeToolbarState)}`);
+
+  await evaluate(client, () => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.click());
+  await waitForCondition(client, (expandedRowCount) => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "true" && document.querySelectorAll("[data-row-id]").length >= expandedRowCount, { arg: react.rows, message: "React Gantt did not restore expanded routes before command QA", timeoutMs: 15_000 });
+  await evaluate(client, () => document.querySelector("[data-gantt-react-toggle-quantity]")?.click());
+  await waitForCondition(client, () => document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed") === "true" && Boolean(document.querySelector("[data-gantt-react-slot-quantity]")), { message: "React Gantt did not restore quantity visibility before command QA", timeoutMs: 15_000 });
+
+  await evaluate(client, () => document.querySelector('[data-gantt-react-scale="hours"]')?.click());
+  await waitForCondition(client, () => document.querySelector('[data-gantt-react-scale="hours"]')?.getAttribute("aria-pressed") === "true", { message: "React Gantt did not restore hourly scale before command QA", timeoutMs: 15_000 });
+  await evaluate(client, () => document.querySelector('[data-gantt-react-zoom="reset"]')?.click());
+  await waitForCondition(client, () => document.querySelector('[data-gantt-react-zoom="reset"]')?.textContent?.trim() === "100%", { message: "React Gantt did not reset zoom before command QA", timeoutMs: 15_000 });
+  await evaluate(client, (value) => { const input = document.querySelector("[data-gantt-react-period] input"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); }, now.toISOString().slice(0, 10));
+  await waitForCondition(client, (value) => document.querySelector("[data-gantt-react-period] input")?.value === value, { arg: now.toISOString().slice(0, 10), message: "React Gantt did not restore period before command QA", timeoutMs: 15_000 });
   await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.includes("Зависимости (1)"))?.click()); await waitForCondition(client, () => Boolean(document.querySelector("[data-gantt-dependency-detail]")), { message: "Gantt dependency inspector did not open" });
   await evaluate(client, () => { const select = document.querySelector("[data-gantt-dependency-list]"); if (select) select.dispatchEvent(new Event("change", { bubbles: true })); }); await waitForCondition(client, () => document.querySelector('[data-ui-component="GanttSlot"][aria-pressed="true"]')?.getAttribute("data-slot-id") === "qa-react-gantt-slot-2", { message: "Gantt dependency did not select its target slot" });
   const dependency = await evaluate(client, () => { const detail = document.querySelector("[data-gantt-dependency-detail]"); return { title: document.querySelector(".gantt-react-detail h2")?.textContent?.trim(), text: detail?.textContent?.replace(/\s+/g, " ").trim(), count: document.querySelectorAll("[data-gantt-dependency-list] option").length, selectedSlot: document.querySelector('[data-ui-component="GanttSlot"][aria-pressed="true"]')?.getAttribute("data-slot-id") }; });
@@ -136,11 +180,31 @@ try {
   assert(updatedLegacySlotLeft && updatedLegacySlotLeft !== initialLegacySlotLeft, `legacy Gantt did not read back React schedule geometry (${initialLegacySlotLeft} -> ${updatedLegacySlotLeft})`);
   assert(projectionReads >= 1, "Gantt must read the PostgreSQL projection");
   assert(planningWrites === 2, "Gantt command QA must perform only the conflict and successful schedule PATCH attempts");
+
+  mountFailureChrome = await launchChrome("mes-gantt-react-mount-failure-qa-");
+  const failureClient = mountFailureChrome.client; let bundleFailureCount = 0; const expectedMountErrors = [];
+  failureClient.socket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    if (message.method === "Runtime.consoleAPICalled" && message.params?.type === "error") expectedMountErrors.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
+    if (message.method !== "Fetch.requestPaused") return;
+    const requestUrl = new URL(message.params.request.url);
+    if (requestUrl.pathname.endsWith("/react-islands/gantt.js")) { bundleFailureCount += 1; void failureClient.send("Fetch.failRequest", { requestId: message.params.requestId, errorReason: "Failed" }); return; }
+    if (requestUrl.pathname === "/api/v1/planning/work-orders/projection") { void failureClient.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }], body: Buffer.from(JSON.stringify({ ok: true, projection })).toString("base64") }); return; }
+    void failureClient.send("Fetch.continueRequest", { requestId: message.params.requestId });
+  });
+  await failureClient.send("Page.enable"); await failureClient.send("Runtime.enable"); await failureClient.send("Network.enable"); await failureClient.send("Network.setCacheDisabled", { cacheDisabled: true });
+  await failureClient.send("Page.addScriptToEvaluateOnNewDocument", { source: `localStorage.setItem("mes-planning-prototype-ui-v1", JSON.stringify({ activeModule: "gantt", scale: "days", windowStart: ${JSON.stringify(now.toISOString().slice(0, 10))}, expandedProjects: ["qa-react-gantt-route"], ganttZoom: 1 }));` });
+  await failureClient.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/planning/work-orders/projection*", requestStage: "Request" }, { urlPattern: "*react-islands/gantt.js*", requestStage: "Request" }] });
+  await failureClient.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&react-gantt=1&react-gantt-readonly=1&qa-mount-failure=1` });
+  for (let index = 0; index < 100 && bundleFailureCount === 0; index += 1) await delay(120);
+  assert(bundleFailureCount === 1, `Gantt mount-failure QA expected one failed bundle request, got ${bundleFailureCount}`);
+  await waitForCondition(failureClient, () => Boolean(document.querySelector('[data-gantt-shell][data-ui-component="GanttRuntime"]')) && !document.querySelector("[data-react-gantt-island]"), { message: "Gantt mount failure did not restore legacy rollback", timeoutMs: 20_000 });
+  assert(expectedMountErrors.some((entry) => entry.includes("Gantt React island failed")), `Gantt mount failure must be reported once: ${JSON.stringify(expectedMountErrors)}`);
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Gantt React production-shell functional QA: OK");
   console.log(`- ${react.rows} rows, ${react.slots} slots, exact legacy geometry; first commit ${react.commitMs.toFixed(2)} ms`);
-  console.log("- dependency inspection, read-only edit fallback, locked/invalid rejection, schedule conflict/retry and legacy read-back: pass");
+  console.log("- period/scale/zoom, expand/quantity/today persistence, no toolbar fallback, dependency inspection, mount rollback, schedule conflict/retry and legacy read-back: pass");
 } catch (error) {
   if (previewOutput.trim()) console.error(previewOutput.trim());
   throw error;
-} finally { if (chrome) await cleanupChrome(chrome); await stop(preview); }
+} finally { if (mountFailureChrome) await cleanupChrome(mountFailureChrome); if (chrome) await cleanupChrome(chrome); await stop(preview); }

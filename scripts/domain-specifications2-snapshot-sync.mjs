@@ -1,3 +1,13 @@
+import {
+  buildSpecifications2CompatibilityPayloadDigest,
+  buildSpecifications2RelationalReleaseFingerprint,
+} from "./domain-specifications2-export.mjs";
+import {
+  SPECIFICATIONS2_RELEASE_FINGERPRINT_MAX_BYTES,
+  matchesSpecifications2ReleaseFingerprint,
+  specifications2ReleaseFingerprintByteLength,
+} from "../src/modules/specifications2/publication.js";
+
 const AGGREGATE_TYPE = "specifications2_revision";
 const COMMAND_TYPE = "publish_revision";
 
@@ -18,11 +28,15 @@ export async function syncPendingSpecifications2PublicationChanges({
     aggregateType: AGGREGATE_TYPE,
     aggregateId: String(aggregateId || ""),
   });
-  const candidates = jobs.filter((job) => job?.aggregateType === undefined || (
-    String(job.aggregateType || "") === AGGREGATE_TYPE && String(job.commandType || "") === COMMAND_TYPE
-  ));
-  const result = { total: candidates.length, applied: 0, conflicts: 0, failed: 0, jobs: [] };
-  for (const job of candidates) {
+  const result = { total: jobs.length, applied: 0, conflicts: 0, failed: 0, jobs: [] };
+  for (const job of jobs) {
+    if (String(job?.aggregateType || "") !== AGGREGATE_TYPE
+      || String(job?.commandType || "") !== COMMAND_TYPE) {
+      await primary.markSnapshotSync(job?.id, { state: "conflict", error: "Specifications 2.0 outbox command is not supported by this immutable projection worker" });
+      result.conflicts += 1;
+      result.jobs.push({ id: job?.id, state: "conflict" });
+      continue;
+    }
     const entry = job?.payload?.compatibilityEntry;
     if (!entry || typeof entry !== "object") {
       await primary.markSnapshotSync(job.id, { state: "conflict", error: "Specifications 2.0 outbox entry is missing its immutable compatibility payload" });
@@ -30,8 +44,46 @@ export async function syncPendingSpecifications2PublicationChanges({
       result.jobs.push({ id: job.id, state: "conflict" });
       continue;
     }
+    const payloadDigest = buildSpecifications2CompatibilityPayloadDigest(entry);
+    const hasPersistedPayloadDigest = Object.prototype.hasOwnProperty.call(job?.payload || {}, "compatibilityPayloadDigest");
+    const persistedPayloadDigest = String(job?.payload?.compatibilityPayloadDigest || "");
+    const releaseFingerprint = String(entry?.publication?.fingerprint || "");
+    const relationalFingerprint = buildSpecifications2RelationalReleaseFingerprint(releaseFingerprint);
+    if (!String(job.id || "").trim()
+      || !String(job.aggregateId || "").trim()
+      || !Number.isSafeInteger(Number(job.aggregateRevision))
+      || Number(job.aggregateRevision) <= 0
+      || Number(job.aggregateRevision) !== Number(entry?.publication?.revision || 0)
+      || releaseFingerprint === ""
+      || specifications2ReleaseFingerprintByteLength(releaseFingerprint) > SPECIFICATIONS2_RELEASE_FINGERPRINT_MAX_BYTES
+      || String(job?.payload?.sourceEntryId || "") !== String(entry?.id || "")
+      || String(job?.payload?.fingerprint || "") !== relationalFingerprint
+      // A digestless v4 row cannot attest title, route/operation source ids,
+      // labels and other projection-driving fields that its old fingerprint
+      // never contained. It must be quarantined instead of being reconstructed
+      // from self-asserted payload data. All newer rows always persist a digest.
+      || !hasPersistedPayloadDigest
+      || persistedPayloadDigest !== payloadDigest
+      || !matchesSpecifications2ReleaseFingerprint(entry, releaseFingerprint, {
+        allowTransportStrippedLegacyV4: true,
+      })) {
+      await primary.markSnapshotSync(job.id, { state: "conflict", error: "Specifications 2.0 outbox proof does not match its immutable compatibility payload" });
+      result.conflicts += 1;
+      result.jobs.push({ id: job.id, state: "conflict" });
+      continue;
+    }
     try {
-      const mirrored = await snapshot.applyServerPublicationProjection(entry);
+      const mirrored = await snapshot.applyServerPublicationProjection(entry, {
+        jobId: String(job.id || ""),
+        aggregateType: String(job.aggregateType || ""),
+        aggregateId: String(job.aggregateId || ""),
+        aggregateRevision: Number(job.aggregateRevision || 0),
+        commandType: String(job.commandType || ""),
+        payloadFingerprint: String(entry?.publication?.fingerprint || ""),
+        relationalFingerprint,
+        payloadDigest,
+        payloadDigestPersisted: true,
+      });
       if (mirrored?.applied) {
         await primary.markSnapshotSync(job.id, { state: "applied" });
         result.applied += 1;

@@ -150,8 +150,8 @@ function currentSystemDomains() {
         isActive: true,
       }],
       grants: [
-        { id: "grant-view", roleId: "nomenclature-editor", resourceId: "directories", actionId: "view", effect: "allow" },
-        { id: "grant-edit", roleId: "nomenclature-editor", resourceId: "directories", actionId: "edit", effect: "allow" },
+        { id: "grant-view", roleId: "nomenclature-editor", resourceId: "nomenclature", actionId: "view", effect: "allow" },
+        { id: "grant-edit", roleId: "nomenclature-editor", resourceId: "nomenclature", actionId: "edit", effect: "allow" },
       ],
       roleAssignments,
     },

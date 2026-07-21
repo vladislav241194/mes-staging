@@ -6,7 +6,7 @@ function assert(value, message) {
   if (!value) throw new Error(message);
 }
 
-assert(app.includes("async function hydratePlanningRuntimeProjection({ force = false } = {})"),
+assert(/async function hydratePlanningRuntimeProjection\(\{ force = false, renderOnChange = true \} = \{\}\)/.test(app),
   "Planning projection hydration must support a forced post-command refresh.");
 assert(app.includes("hydratePlanningRuntimeProjection({ force: true })"),
   "Successful planning commands must request a fresh server projection.");

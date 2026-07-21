@@ -53,7 +53,7 @@ function makeMarker(revision, {
     verifiedPrimaryRevision: revision,
     verifiedSnapshotFingerprint: snapshotFingerprint,
     verifiedSnapshotGeneration: snapshotGeneration,
-    verifiedContractVersion: 5,
+    verifiedContractVersion: 7,
     snapshotGeneration,
     snapshotObservationState: "observed",
     observedSnapshotFingerprint: snapshotFingerprint,
@@ -76,6 +76,7 @@ function makeItem({
     unit: "шт.",
     lifecycleStatus: "released",
     planningStatus: "scheduled",
+    planningStartDate: "2026-07-18",
     revision: 3,
     concurrencyRevision,
     updatedAt: "2026-07-18T09:00:00.000Z",
@@ -83,6 +84,7 @@ function makeItem({
       id,
       source,
       planningQuantity: quantity,
+      planningStartDate: "1999-01-01",
       workOrderSnapshot: { id: number, quantity },
       // Ensure the cached response crosses the shared JSON gzip threshold.
       largeRouteMetadata: "cache-compression-check-".repeat(90),
@@ -185,18 +187,34 @@ const snapshot = {
   },
 };
 
-const env = { MES_DOMAIN_STORAGE: "postgres", DATABASE_URL: "postgresql://cache-qa" };
+const env = { MES_DOMAIN_STORAGE: "postgres", DATABASE_URL: "postgresql://cache-qa", MES_ENABLE_PLANNING_SERVER_COMMANDS: "1" };
 const factory = async ({ env: requestedEnv }) => (
   String(requestedEnv?.MES_DOMAIN_STORAGE || "").toLowerCase() === "snapshot" ? snapshot : primary
 );
 
 async function request(pathname, { method = "GET", body = null, headers = {} } = {}) {
-  const response = makeResponse(headers["accept-encoding"] || headers["Accept-Encoding"] || "");
+  const commandHeaders = method === "PATCH"
+    ? { host: "mes.cache-qa", origin: "http://mes.cache-qa", "sec-fetch-site": "same-origin", "content-type": "application/json" }
+    : {};
+  const requestHeaders = { ...commandHeaders, ...headers };
+  const response = makeResponse(requestHeaders["accept-encoding"] || requestHeaders["Accept-Encoding"] || "");
   const handled = await handleDomainApiRequest(
-    { method, body, headers },
+    { method, body, headers: requestHeaders },
     response,
     new URL(`http://mes.cache-qa${pathname}`),
-    { filePath: "planning-runtime-projection-cache-qa", env, workOrdersRepositoryFactory: factory },
+    {
+      filePath: "planning-runtime-projection-cache-qa",
+      env,
+      workOrdersRepositoryFactory: factory,
+      // The cache suite isolates marker/ETag invalidation. Signed-session and
+      // System Domains denial cases are exercised by the focused Planning QA.
+      planningAuthorizationResolver: async () => ({
+        allowed: true,
+        reason: "allowed",
+        principal: { id: "employee:planning-cache-qa", employeeId: "planning-cache-qa", scope: "employee" },
+        revision: 1,
+      }),
+    },
   );
   return {
     handled,
@@ -211,6 +229,8 @@ resetPlanningRuntimeProjectionCache();
 
 const cold = await request("/api/v1/planning/work-orders/projection");
 assert(cold.handled && cold.statusCode === 200 && cold.json.projection?.routes?.[0]?.source === "primary", "cold safe-primary projection must return the PostgreSQL graph");
+assert(cold.json.projection?.routes?.[0]?.planningStartDate === "2026-07-18",
+  "runtime projection must override stale metadata with the top-level canonical DATE owner");
 assert(state.primaryRuntimeReads === 1, "cold projection must read PostgreSQL exactly once");
 assert(!getHeader(cold.headers, "content-encoding") && !getHeader(cold.headers, "vary"), "uncompressed cold projection must retain the normal response headers");
 assert(String(getHeader(cold.headers, "cache-control") || "").includes("no-store"), "cold projection must retain the established no-store response policy");

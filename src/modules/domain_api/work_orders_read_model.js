@@ -1,7 +1,42 @@
+import { isExactIsoCalendarDate } from "../../domain/calendar_date.js";
+
 const DEFAULT_MAX_AGE_MS = 30_000;
+
+function makePlanningIdempotencyKey(prefix = "planning") {
+  const random = globalThis.crypto?.randomUUID?.()
+    || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}:${random}`;
+}
 
 function normalizeItems(value) {
   return Array.isArray(value) ? value.filter((item) => item && typeof item === "object" && item.id) : [];
+}
+
+export function inspectPlanningCompatibilityResult(payload = {}) {
+  const snapshotSync = payload?.snapshotSync && typeof payload.snapshotSync === "object" && !Array.isArray(payload.snapshotSync)
+    ? payload.snapshotSync
+    : null;
+  const total = Number(snapshotSync?.total || 0);
+  const applied = Number(snapshotSync?.applied || 0);
+  const failed = Number(snapshotSync?.failed || 0);
+  const conflicts = Number(snapshotSync?.conflicts || 0);
+  const skipped = Number(snapshotSync?.skipped || 0);
+  const compatibilityReceipt = payload?.compatibilityReceipt
+    && typeof payload.compatibilityReceipt === "object"
+    && !Array.isArray(payload.compatibilityReceipt)
+    ? payload.compatibilityReceipt
+    : null;
+  // Aggregate counters can omit this command because the worker is bounded,
+  // or report total=0 after its row became a terminal conflict. Rollback is
+  // ready only when the server returns the durable receipt for this exact
+  // actor/idempotency/aggregate revision and no unresolved row remains for
+  // the aggregate.
+  const compatibilityReady = compatibilityReceipt?.found === true
+    && compatibilityReceipt?.exact === true
+    && compatibilityReceipt?.ready === true
+    && String(compatibilityReceipt?.state || "") === "applied"
+    && Number(compatibilityReceipt?.unresolvedCount) === 0;
+  return Object.freeze({ snapshotSync, compatibilityReceipt, compatibilityReady });
 }
 
 // Projection cache: a failed request never mutates snapshot-backed planning data.
@@ -14,7 +49,9 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
 
   function findItemByIdOrNumber(id) {
     const key = String(id || "");
-    return state.items.find((item) => String(item?.id || "") === key || String(item?.number || "") === key) || null;
+    return state.items.find((item) => String(item?.id || "") === key)
+      || state.items.find((item) => String(item?.number || "") === key)
+      || null;
   }
 
   function invalidateWorkbenchBootstrap() {
@@ -213,6 +250,28 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     })();
     return state.summaryLoading;
   }
+  async function getCommandCapabilities() {
+    try {
+      const response = await fetchImpl(`${url}/capabilities`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok !== true) {
+        return {
+          ok: false,
+          status: Number(response.status || 0),
+          authenticated: response.status !== 401,
+          authorizationDenied: response.status === 403,
+          unavailable: response.status >= 500 || response.status === 0,
+          error: String(payload?.error || `Planning command capabilities returned ${response.status}`),
+        };
+      }
+      return { ...payload, ok: true, status: response.status };
+    } catch (error) {
+      return { ok: false, status: 0, unavailable: true, error: error?.message || "Planning command capabilities are unavailable" };
+    }
+  }
   async function changeQuantity(id, quantity, expectedRevision) {
     const key = String(id || "");
     const revision = Number(expectedRevision);
@@ -226,7 +285,22 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         credentials: "same-origin",
       });
       const payload = await response.json().catch(() => ({}));
-      if (response.status === 409) return { ok: false, kind: "conflict", item: payload.item || null, error: payload.error || "Work order changed by another client" };
+      if (response.status === 409) {
+        const item = payload.item || null;
+        if (item) {
+          state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
+          state.etag = response.headers?.get?.("ETag") || state.etag;
+          state.fetchedAt = now();
+          invalidateWorkbenchBootstrap();
+          const cached = state.details.get(key);
+          if (cached?.item) {
+            cached.item = { ...cached.item, ...item, operations: cached.item.operations };
+            cached.etag = "";
+            cached.fetchedAt = 0;
+          }
+        }
+        return { ok: false, kind: "conflict", item, error: payload.error || "Work order changed by another client" };
+      }
       if (!response.ok || !payload?.ok || !payload.item) return { ok: false, kind: "unavailable", error: payload?.error || `Work-order write API returned ${response.status}` };
       const item = payload.item;
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
@@ -242,9 +316,111 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         cached.etag = "";
         cached.fetchedAt = 0;
       }
-      return { ok: true, item };
+      return { ok: true, item, ...inspectPlanningCompatibilityResult(payload) };
     } catch (error) {
       return { ok: false, kind: "unavailable", error: error?.message || "Work-order write API is unavailable" };
+    }
+  }
+  async function changeStartDate(id, planningStartDate, expectedRevision, { idempotencyKey = makePlanningIdempotencyKey("planning-start-date") } = {}) {
+    const key = String(id || "");
+    const date = planningStartDate === null
+      ? null
+      : typeof planningStartDate === "string" ? planningStartDate.trim() : undefined;
+    const revision = Number(expectedRevision);
+    const requestKey = String(idempotencyKey || "").trim();
+    if (!key || (date !== null && !isExactIsoCalendarDate(date))
+      || !Number.isInteger(revision) || !requestKey || requestKey.length > 160) {
+      return { ok: false, kind: "invalid", error: "Invalid work-order start-date command" };
+    }
+    try {
+      const response = await fetchImpl(`${url}/${encodeURIComponent(key)}/start-date`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "If-Match": `"${revision}"`,
+          "Idempotency-Key": requestKey,
+        },
+        body: JSON.stringify({ planningStartDate: date, expectedRevision: revision }),
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 409
+        && (payload?.code === "superseded-idempotent-replay" || payload?.superseded === true)) {
+        const item = payload.item || null;
+        if (item) {
+          state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
+          state.etag = response.headers?.get?.("ETag") || state.etag;
+          state.fetchedAt = now();
+          invalidateWorkbenchBootstrap();
+          const cached = state.details.get(key);
+          if (cached?.item) {
+            cached.item = { ...cached.item, ...item, operations: cached.item.operations };
+            cached.etag = "";
+            cached.fetchedAt = 0;
+          }
+        }
+        return {
+          ok: false,
+          kind: "superseded",
+          code: "superseded-idempotent-replay",
+          superseded: true,
+          item,
+          error: payload?.error || "The original start-date command has been superseded",
+          ...inspectPlanningCompatibilityResult(payload),
+        };
+      }
+      if (response.status === 409) {
+        const item = payload.item || null;
+        const definitiveConflict = payload?.conflict === true && Boolean(item);
+        if (!definitiveConflict) {
+          // Parity/schema readiness responses are emitted before the owner can
+          // inspect its idempotency receipt. They do not prove that the
+          // retained command lost an aggregate race and must never discard its
+          // exact retry key.
+          return {
+            ok: false,
+            kind: "unavailable",
+            code: String(payload?.code || (payload?.fallbackReason ? "planning-parity-not-ready" : "planning-start-date-not-ready")),
+            reconciliationPending: true,
+            error: payload?.error || "Planning start-date owner is temporarily unavailable",
+          };
+        }
+        if (item) {
+          state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
+          state.etag = response.headers?.get?.("ETag") || state.etag;
+          state.fetchedAt = now();
+          invalidateWorkbenchBootstrap();
+          const cached = state.details.get(key);
+          if (cached?.item) {
+            cached.item = { ...cached.item, ...item, operations: cached.item.operations };
+            cached.etag = "";
+            cached.fetchedAt = 0;
+          }
+        }
+        return { ok: false, kind: "conflict", item, error: payload.error || "Work order changed by another client" };
+      }
+      if (!response.ok || !payload?.ok || !payload.item) return { ok: false, kind: "unavailable", error: payload?.error || `Work-order start-date API returned ${response.status}` };
+      const item = payload.item;
+      state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
+      state.etag = response.headers?.get?.("ETag") || state.etag;
+      state.fetchedAt = now();
+      invalidateWorkbenchBootstrap();
+      const cached = state.details.get(key);
+      if (cached?.item) {
+        cached.item = { ...cached.item, ...item, operations: cached.item.operations };
+        cached.etag = "";
+        cached.fetchedAt = 0;
+      }
+      return {
+        ok: true,
+        item,
+        idempotentReplay: payload.idempotentReplay === true,
+        superseded: payload.superseded === true,
+        ...inspectPlanningCompatibilityResult(payload),
+      };
+    } catch (error) {
+      return { ok: false, kind: "unavailable", error: error?.message || "Work-order start-date API is unavailable" };
     }
   }
   async function changeSlotSchedule(id, operationId, plannedStart, expectedRevision) {
@@ -273,10 +449,10 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
       invalidateWorkbenchBootstrap();
       const cached = state.details.get(key);
       if (cached) { cached.etag = ""; cached.fetchedAt = 0; }
-      return { ok: true, item };
+      return { ok: true, item, ...inspectPlanningCompatibilityResult(payload) };
     } catch (error) {
       return { ok: false, kind: "unavailable", error: error?.message || "Work-order schedule API is unavailable" };
     }
   }
-  return { refresh, refreshWorkbenchBootstrap, refreshSummary, refreshDetail, changeQuantity, changeSlotSchedule, getItems: () => state.items.map((item) => ({ ...item })), getSummary: () => state.summary ? { ...state.summary } : null, getDetail: (id) => state.details.get(String(id || ""))?.item || null, getStatus: () => ({ available: Boolean(state.items.length), loading: Boolean(state.loading), error: state.error, fetchedAt: state.fetchedAt, bootstrapAvailable: state.bootstrapEntries.size > 0, bootstrapLoading: state.bootstrapLoading.size > 0, bootstrapError: state.bootstrapError, bootstrapCapability: state.bootstrapCapability, summaryAvailable: Boolean(state.summary), summaryLoading: Boolean(state.summaryLoading), summaryError: state.summaryError, summaryFetchedAt: state.summaryFetchedAt }) };
+  return { refresh, refreshWorkbenchBootstrap, refreshSummary, refreshDetail, getCommandCapabilities, changeQuantity, changeStartDate, changeSlotSchedule, getItems: () => state.items.map((item) => ({ ...item })), getSummary: () => state.summary ? { ...state.summary } : null, getDetail: (id) => state.details.get(String(id || ""))?.item || null, getStatus: () => ({ available: Boolean(state.items.length), loading: Boolean(state.loading), error: state.error, fetchedAt: state.fetchedAt, bootstrapAvailable: state.bootstrapEntries.size > 0, bootstrapLoading: state.bootstrapLoading.size > 0, bootstrapError: state.bootstrapError, bootstrapCapability: state.bootstrapCapability, summaryAvailable: Boolean(state.summary), summaryLoading: Boolean(state.summaryLoading), summaryError: state.summaryError, summaryFetchedAt: state.summaryFetchedAt }) };
 }

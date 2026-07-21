@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import {
   DIRECTORY_CLUSTER_COMMAND_RECEIPTS_STORAGE_KEY,
   readSharedStateSnapshot,
-  updateSharedStateSnapshot,
+  updateDirectoryClusterCommandSharedStateSnapshot,
 } from "./shared-state-endpoint.mjs";
 import {
   appendSharedStateAudit,
@@ -12,7 +12,7 @@ import {
 } from "./shared-state-storage.mjs";
 import {
   applyNomenclatureTypeCommand,
-  normalizeNomenclatureTypeName,
+  validateNomenclatureTypeBoardOwnerBoundary,
 } from "./directory-cluster-type-reducer.mjs";
 import { applyBoardCommand } from "./directory-cluster-board-reducer.mjs";
 import {
@@ -43,7 +43,6 @@ const MAX_PROJECTION_NODES = 1_000_000;
 const MAX_PROJECTION_KEYS = 500_000;
 const MAX_COMMAND_NODES = 300_000;
 const MAX_COMMAND_KEYS = 300_000;
-const REQUIRED_BOARD_TYPE_NAMES = new Set(["печатные платы", "рэа компоненты"]);
 
 const SURFACES = Object.freeze({
   "nomenclature-types": Object.freeze({
@@ -244,19 +243,9 @@ function applyCommand(surface, directory, command, now) {
 }
 
 function validateCrossOwnerCommand(surface, directory, command) {
-  if (surface !== "nomenclature-types" || !["update", "delete"].includes(command.kind)) return { ok: true };
-  const current = directory.nomenclatureTypes.find((row) => row?.id === command.itemId) || null;
-  if (!current) return { ok: true };
-  const currentName = normalizeNomenclatureTypeName(current.name).toLocaleLowerCase("ru-RU");
-  if (!REQUIRED_BOARD_TYPE_NAMES.has(currentName)) return { ok: true };
-  if (command.kind === "delete") {
-    return resultError(409, "board-required-type-delete-forbidden", "A Nomenclature type required by the Boards/BOM owner cannot be deleted");
-  }
-  const nextName = normalizeNomenclatureTypeName(command.row?.name === undefined ? current.name : command.row.name)
-    .toLocaleLowerCase("ru-RU");
-  return nextName === currentName
-    ? { ok: true }
-    : resultError(409, "board-required-type-rename-forbidden", "A Nomenclature type required by the Boards/BOM owner cannot be renamed");
+  return surface === "nomenclature-types"
+    ? validateNomenclatureTypeBoardOwnerBoundary(directory, command)
+    : { ok: true };
 }
 
 function directoryFingerprint(directory) {
@@ -560,10 +549,20 @@ export async function executeDirectoryClusterCommand(surface, input = {}, {
     let backupFailure = null;
     let update;
     try {
-      update = await updateSharedStateSnapshot({
+      update = await updateDirectoryClusterCommandSharedStateSnapshot({
         env,
         filePath,
         expectedVersion: currentRevision,
+        authorityProof: {
+          actorId: actor.id,
+          entityId: normalized.entityId,
+          idempotencyKey: normalizedIdempotencyKey,
+          surface,
+          command: normalized.command,
+          now,
+          expectedRevision: normalized.expectedRevision,
+          displayName: actor.displayName,
+        },
         planningObservationSource: `directory-cluster-command:${surface}:${normalized.kind}`,
         beforeWrite: async ({ store, snapshot }) => {
           if (!normalized.destructive) return;
@@ -737,7 +736,9 @@ export async function executeDirectoryClusterCommand(surface, input = {}, {
       return responseFromReceipt(update.snapshot, receipt, false);
     }
     if (!update.conflict) {
-      return resultError(update.forbidden ? 403 : 503, "directory-command-persistence-failed", update.error || "Directory command was not durably persisted", {
+      const statusCode = Number(update.statusCode || 0) || (update.forbidden ? 403 : 503);
+      return resultError(statusCode, update.code || "directory-command-persistence-failed", update.error || "Directory command was not durably persisted", {
+        conflict: statusCode === 409,
         retryable: update.retryable === true,
       });
     }

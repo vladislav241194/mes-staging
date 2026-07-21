@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
-import { readSharedStateSnapshot, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
-import { backupSharedStateFile, getSharedStateServerPaths } from "./shared-state-storage.mjs";
+import { readSharedStateSnapshot } from "./shared-state-endpoint.mjs";
+import { getSharedStateServerPaths } from "./shared-state-storage.mjs";
 import { inspectSpecifications2Publication, publishSpecifications2Entry } from "../src/modules/specifications2/publication.js";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
@@ -65,26 +65,8 @@ async function main() {
   console.log(`- next revision: ${publication.revision}`);
   console.log(`- specification: ${publication.specificationId}`);
   console.log(`- route documents: ${publication.routeIds.length}`);
-  if (!options.apply) { console.log("DRY RUN: no shared-state changes made. Pass --apply to publish this new revision."); return; }
-  const backup = await backupSharedStateFile({ filePath: paths.filePath, backupDir: paths.backupDir, reason: `before-specifications2-publish-r${publication.revision}`, actor: "specifications2-publish-revision", env: process.env, allowMissing: false });
-  const updated = await updateSharedStateSnapshot({
-    filePath: paths.filePath,
-    expectedVersion: current.snapshot.version,
-    update: (snapshot) => ({
-      ...snapshot,
-      updatedBy: { clientId: "domain-migration", actor: "specifications2-publish-revision" },
-      values: {
-        ...snapshot.values,
-        [specificationsKey]: JSON.stringify(prepared.nextRegistry),
-        [directoryKey]: JSON.stringify(prepared.result.directoryState),
-        [planningKey]: JSON.stringify(prepared.result.planningState),
-      },
-      events: [{ version: Number(snapshot.version || 0) + 1, createdAt: new Date().toISOString(), action: "specifications2-publish-revision", clientId: "domain-migration", actor: "specifications2-publish-revision" }, ...(snapshot.events || [])].slice(0, 50),
-    }),
-  });
-  if (!updated.ok) throw new Error(updated.conflict ? "Specifications 2.0 publication: shared-state version conflict; retry the dry-run" : "Specifications 2.0 publication: shared-state update failed");
-  console.log(`Specifications 2.0 publication: OK (snapshot version ${updated.snapshot.version})`);
-  console.log(`- backup: ${backup?.backupPath || "not created"}`);
+  if (!options.apply) { console.log("DRY RUN: no shared-state changes made. Production publication uses the authenticated PostgreSQL command and durable outbox."); return; }
+  throw new Error("Specifications 2.0 publication --apply is retired. Publish through the authenticated PostgreSQL command and durable outbox; the immutable legacy release remains the rollback path.");
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) await main();

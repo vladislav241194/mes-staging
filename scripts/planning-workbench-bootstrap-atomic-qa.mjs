@@ -110,7 +110,7 @@ const observedMarker = {
   verifiedPrimaryRevision: 9,
   verifiedSnapshotFingerprint: "sha256:fixture",
   verifiedSnapshotGeneration: 12,
-  verifiedContractVersion: 5,
+  verifiedContractVersion: 7,
   observationAvailable: true,
   snapshotGeneration: 12,
   snapshotObservationState: "observed",
@@ -175,7 +175,7 @@ const primary = {
   async readObservedWorkbenchBootstrap(activeId, { contractVersion } = {}) {
     counters.atomic += 1;
     assert(activeId === "WO-001", "atomic route must pass the selected work-order identity unchanged");
-    assert(contractVersion === 5, "atomic route must pass the current parity contract version");
+    assert(contractVersion === 7, "atomic route must pass the current parity contract version");
     return {
       admitted: true,
       markerState: { ...observedMarker },

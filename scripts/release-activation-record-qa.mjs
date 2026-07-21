@@ -6,8 +6,8 @@ function assert(value, message) {
 }
 
 const source = await readFile(resolve(process.cwd(), "scripts/release-activate.mjs"), "utf8");
-const newlineWritePattern = /writeFile\(activePath, JSON\.stringify\(record, null, 2\) \+ "\\n"\);[\s\S]*?writeFile\(activationPath, JSON\.stringify\(record, null, 2\) \+ "\\n"\);/;
-assert(newlineWritePattern.test(source), "activation records must end with a real JSON whitespace newline");
+const durableRecordWritePattern = /for \(const \[path, value\] of \[\[activePath, record\], \[activationPath, record\]\]\) \{[\s\S]*?open\(path, "wx", 0o644\)[\s\S]*?writeFile\(JSON\.stringify\(value, null, 2\) \+ "\\n", "utf8"\)[\s\S]*?handle\.sync\(\)[\s\S]*?handle\.close\(\)/;
+assert(durableRecordWritePattern.test(source), "both activation records must be durably written and end with a real JSON whitespace newline");
 assert(!source.includes('JSON.stringify(record, null, 2) + "\\\\n"'), "activation records must not append literal backslash-n text after JSON");
 assert(source.includes("schemaVersion: 2"), "new activation records must use schema 2");
 assert(source.includes("legacyBaseline"), "activation records must pin and carry a legacy baseline");

@@ -92,59 +92,32 @@ html[data-visual-theme="base-industrial"]{
   --visual-live-active-shadow: inset 3px 0 0 #2563eb, 0 0 0 1px rgba(37, 99, 235, 0.28);
 }
 
-html[data-visual-theme="base-blueprint"]{
-  --visual-live-sidebar-bg: var(--mes-ui-sidebar-bg-gradient), var(--mes-ui-sidebar-bg);
-  --visual-live-page-bg:
-    linear-gradient(rgba(35, 84, 132, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(35, 84, 132, 0.07) 1px, transparent 1px),
-    linear-gradient(rgba(35, 84, 132, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(35, 84, 132, 0.035) 1px, transparent 1px),
-    linear-gradient(145deg, #f8fbff 0%, #eef6ff 100%);
-  --visual-live-page-bg-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px, auto;
-  --visual-live-topbar-bg: rgba(248, 251, 255, 0.88);
-  --visual-live-panel-bg: rgba(255, 255, 255, 0.84);
-  --visual-live-panel-border: rgba(35, 84, 132, 0.28);
-  --visual-live-control-bg: rgba(255, 255, 255, 0.76);
-  --visual-live-control-border: rgba(35, 84, 132, 0.28);
-  --visual-live-table-head-bg: linear-gradient(90deg, #10233c 0%, #173a61 100%);
-  --visual-live-table-row-border: rgba(35, 84, 132, 0.18);
-  --visual-live-panel-shadow: 0 0 0 1px rgba(35, 84, 132, 0.04), 0 16px 42px rgba(35, 84, 132, 0.1);
-  --visual-live-radius: 10px;
-  --visual-live-backdrop: blur(10px);
-  --visual-live-active-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2), 0 0 0 5px rgba(37, 99, 235, 0.08);
-}
-
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"],
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"],
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"]{
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"]{
   background: var(--visual-live-page-bg) !important;
   background-size: var(--visual-live-page-bg-size, auto) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] > .module-menu,
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] > .module-menu,
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] > .module-menu{
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] > .module-menu{
   background: var(--visual-live-sidebar-bg) !important;
   border-right-color: rgba(255, 255, 255, 0.1) !important;
   box-shadow: 18px 0 44px rgba(15, 35, 60, 0.18) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] .app-topbar,
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] .app-topbar,
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] .app-topbar{
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] .app-topbar{
   background: var(--visual-live-topbar-bg) !important;
   backdrop-filter: var(--visual-live-backdrop) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(.module-data-page, .module-data-workspace, .module-data-content),
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.module-data-page, .module-data-workspace, .module-data-content),
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.module-data-page, .module-data-workspace, .module-data-content){
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.module-data-page, .module-data-workspace, .module-data-content){
   background: transparent !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls),
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls),
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls){
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls){
   background: var(--visual-live-panel-bg) !important;
   border-color: var(--visual-live-panel-border) !important;
   box-shadow: var(--visual-live-panel-shadow) !important;
@@ -157,43 +130,33 @@ html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] .sh
   border-radius: var(--visual-live-radius) !important;
 }
 
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls),
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls){
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls){
   border-radius: var(--visual-live-radius) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(input, select, textarea, .ui-action-button, .primary-button, .secondary-button, .ui-sidebar-item),
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(input, select, textarea, .ui-action-button, .primary-button, .secondary-button, .ui-sidebar-item),
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(input, select, textarea, .ui-action-button, .primary-button, .secondary-button, .ui-sidebar-item){
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(input, select, textarea, .ui-action-button, .primary-button, .secondary-button, .ui-sidebar-item){
   background-color: var(--visual-live-control-bg) !important;
   border-color: var(--visual-live-control-border) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(.ui-sidebar-item.is-active, .app-topbar-action.is-active),
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.ui-sidebar-item.is-active, .app-topbar-action.is-active),
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.ui-sidebar-item.is-active, .app-topbar-action.is-active){
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.ui-sidebar-item.is-active, .app-topbar-action.is-active){
   box-shadow: var(--visual-live-active-shadow) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) thead th,
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) thead th,
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) thead th{
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) thead th{
   background: var(--visual-live-table-head-bg) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) :is(th, td),
-html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) :is(th, td),
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) :is(th, td){
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-table, .speki-structure-table, .shift-work-orders-table) :is(th, td){
   border-color: var(--visual-live-table-row-border) !important;
 }
 
 html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .directory-sidebar, .directory-header, .shift-master-board-top-controls){
   outline: 1px solid rgba(51, 65, 85, 0.1);
-}
-
-html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .directory-sidebar, .directory-header, .shift-master-board-top-controls){
-  outline: 1px dashed rgba(35, 84, 132, 0.18);
-  outline-offset: -6px;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"]{
@@ -7281,4 +7244,47 @@ html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page
 
 html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="timesheet"] :is(.timesheet-hero-panel, .timesheet-board-panel) > .ui-panel-body{
   padding: var(--mes-ui-panel-body-padding) !important;
+}
+
+/* Bounded Planning start-date evaluation. This is a runtime safety state,
+   not a replacement visual theme: keep the existing MES materials and add
+   one explicit, reversible all-module status strip outside React roots. */
+#app[data-legacy-domain-writes-quiesced="true"] .legacy-domain-write-pause{
+  position: fixed;
+  z-index: 80;
+  top: 72px;
+  right: 12px;
+  left: calc(var(--mes-ui-app-sidebar-width, 220px) + 12px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--mes-ui-warning, #c48208) 40%, transparent);
+  border-radius: var(--mes-ui-radius-md, 10px);
+  background: color-mix(in srgb, var(--mes-ui-warning, #c48208) 10%, var(--mes-ui-surface, #fff));
+  color: var(--mes-ui-text, #20242a);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#app[data-legacy-domain-writes-quiesced="true"] .legacy-domain-write-pause strong{
+  font-weight: 700;
+}
+
+#app[data-legacy-domain-writes-quiesced="true"] .legacy-domain-write-pause span{
+  color: var(--mes-ui-text-muted, #626a73);
+}
+
+#app[data-legacy-domain-writes-quiesced="true"] .is-planning-write-quiesced{
+  cursor: not-allowed !important;
+}
+
+@media (max-width: 768px){
+  #app[data-legacy-domain-writes-quiesced="true"] .legacy-domain-write-pause{
+    top: 8px;
+    right: 8px;
+    left: 8px;
+  }
 }

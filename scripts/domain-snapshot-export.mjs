@@ -3,6 +3,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PLANNING_STATE_KEY } from "./domain-work-orders-repository.mjs";
 import { getProductionStructureResources } from "../src/production_structure_service.js";
+import { toExactIsoCalendarDate } from "../src/domain/calendar_date.js";
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
@@ -133,6 +134,7 @@ export function exportPlanningSnapshot(snapshot = {}, { exportedAt = new Date().
     source_kind: route.sourceSpecifications2EntryId ? "specifications2" : "legacy-route",
     source_revision: Math.max(1, Number(route.documentRevisionSnapshot?.routeRevision || route.revision || 1)),
     aggregate_revision: Math.max(1, Number(route.documentRevisionSnapshot?.routeRevision || route.revision || 1)),
+    planning_start_date: toExactIsoCalendarDate(route.planningStartDate) || null,
     metadata: { ...route },
     created_at: toIsoOrNull(route.createdAt),
     updated_at: toIsoOrNull(route.updatedAt),

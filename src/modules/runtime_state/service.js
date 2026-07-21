@@ -57,6 +57,7 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     isShiftExecutionServerAuthoritative = () => false,
     isSystemDomainsServerAuthoritative = () => false,
     isNomenclatureServerCommandsPrimary = () => false,
+    isPlanningLegacyWritesQuiesced = () => false,
     loadUiState,
     measureBootStep,
     mergeMesWorkCenters,
@@ -106,10 +107,13 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
   let directoryEntityRemovalAllowed = dependencies.getDirectoryEntityRemovalAllowed?.() ?? false;
   let planningEntityRemovalAllowed = dependencies.getPlanningEntityRemovalAllowed?.() ?? false;
   let planningSnapshotFallbackPromise = null;
+  let legacyDomainRestoreRequiresRefresh = false;
   let sharedStateValueProjectionEpoch = 0;
   let nomenclatureDurableMutationInFlight = false;
   const nomenclatureCommandAttemptRevisions = new Map();
   const LEGACY_DIRECTORY_WRITE_BLOCK_MESSAGE = "Изменение не сохранено: для этого раздела ещё не подключена серверная команда. Локальные данные восстановлены.";
+  const LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE = "На время проверки даты старта изменения данных в legacy-разделах приостановлены. Доступны просмотр и навигация; единственная запись — дата старта в React-блоке.";
+  const LEGACY_DOMAIN_RELOAD_REQUIRED_MESSAGE = `${LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE} Не удалось восстановить серверные данные — обновите страницу перед дальнейшей работой.`;
 
   function syncRuntimeState() {
     ui = dependencies.getUi?.() ?? ui ?? {};
@@ -736,12 +740,19 @@ function getSharedStateValuesForReason(reason = "snapshot") {
 
 function scheduleSharedStatePush(reason = "snapshot") {
   if (sharedStateApplyingRemote) return;
+  if (legacyDomainRestoreRequiresRefresh) return false;
   // Initial module renders may emit persistence events before the first GET
   // completes. Queuing that bootstrap-local payload would overwrite the newer
   // server snapshot immediately after it is applied. Real user interaction is
   // available only after boot, while the initial GET completes first.
   if (!sharedStateStatus.configured && !sharedStateStatus.enabled) return;
   const requestedReason = String(reason || "").trim() || sharedStateStatus.pendingReason || "snapshot";
+  if (isPlanningLegacyWritesQuiesced() && !isCompactSharedUiReason(requestedReason)) {
+    discardBlockedLegacyDomainWriteIntent();
+    void restoreAuthoritativeLegacyDomainSnapshot();
+    notifySaveSuccess(LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
+    return false;
+  }
   if (nomenclatureDurableMutationInFlight) {
     sharedStateStatus.pendingReason = requestedReason;
     return;
@@ -873,8 +884,42 @@ function mergeSharedStateConflictValues(remoteValues = {}, localValues = {}) {
   return merged;
 }
 
+function discardBlockedLegacyDomainWriteIntent() {
+  sharedStateStatus.pendingReason = "";
+  sharedStateStatus.pendingWriteMode = "";
+  sharedStateStatus.pendingValues = null;
+  sharedStateStatus.pendingSharedUi = null;
+  sharedStateStatus.pendingSharedUiFull = null;
+  window.clearTimeout(sharedStateStatus.saveTimer);
+  sharedStateStatus.saveTimer = null;
+  // This is an authority discard, not the normal signature-aware
+  // acknowledgement. Remove even if the UI changed while the denied request
+  // was in flight, otherwise that newer signature can replay after OFF.
+  window.localStorage?.removeItem(SHARED_UI_LOCAL_DIRTY_KEY);
+}
+
+function disableSharedStateAfterLegacyDomainRestoreFailure(reason = "legacy-domain-restore-failed") {
+  discardBlockedLegacyDomainWriteIntent();
+  legacyDomainRestoreRequiresRefresh = true;
+  sharedStateStatus.enabled = false;
+  sharedStateStatus.configured = false;
+  rememberSharedStateDisabled();
+  window.__MES_SHARED_STATE_DEBUG__ = {
+    phase: "disabled",
+    reason,
+    at: new Date().toISOString(),
+  };
+}
+
 async function pushSharedState(reason = "snapshot", options = {}) {
+  if (legacyDomainRestoreRequiresRefresh) return false;
   if (!sharedStateStatus.enabled || sharedStateApplyingRemote) return false;
+  if (isPlanningLegacyWritesQuiesced() && !isCompactSharedUiReason(reason)) {
+    discardBlockedLegacyDomainWriteIntent();
+    void restoreAuthoritativeLegacyDomainSnapshot();
+    if (!options.silent) notifySaveSuccess(LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
+    return false;
+  }
   if (nomenclatureDurableMutationInFlight) {
     sharedStateStatus.pendingReason = String(reason || "snapshot");
     return false;
@@ -976,6 +1021,35 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       return false;
     }
 
+    if (response.legacyDomainWritesQuiesced === true
+      || response.planningLegacyWritesQuiesced === true) {
+      // This distinct authority response must win over the generic conflict
+      // retry. Restore the complete authoritative snapshot immediately so a
+      // current tab cannot keep any optimistic legacy domain mutation in
+      // memory. Older bundles still retry once, receive the same guarded 409,
+      // and restore `current` through their terminal conflict branch.
+      discardBlockedLegacyDomainWriteIntent();
+      let restored = false;
+      if (response.current) {
+        restored = applySharedStateSnapshot(response.current, {
+          silent: true,
+          allowSharedUiOnly: false,
+          preserveLocalSharedUi: false,
+        });
+      } else {
+        restored = await restoreAuthoritativeLegacyDomainSnapshot();
+      }
+      if (!restored) disableSharedStateAfterLegacyDomainRestoreFailure();
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        Number(response.current?.version || response.currentVersion || 0),
+      );
+      if (!options.silent) notifySaveSuccess(restored
+        ? LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE
+        : LEGACY_DOMAIN_RELOAD_REQUIRED_MESSAGE);
+      return false;
+    }
+
     if (response.conflict && response.current) {
       // The local payload was captured before debounce and is still the user's
       // intended mutation. Retry once against the server's current version
@@ -1041,6 +1115,33 @@ async function pushSharedState(reason = "snapshot", options = {}) {
           values: pendingValues,
           sharedUi: pendingSharedUi,
         });
+      }
+      if (response.legacyDomainWritesQuiesced === true
+        || response.planningLegacyWritesQuiesced === true) {
+        // The evaluation may have been activated between our first stale CAS
+        // and its retry. Treat the marker exactly like a first-response guard:
+        // restore the authoritative aggregate and do not enter the generic
+        // terminal-conflict path with a misleading success notification.
+        discardBlockedLegacyDomainWriteIntent();
+        let restored = false;
+        if (response.current) {
+          restored = applySharedStateSnapshot(response.current, {
+            silent: true,
+            allowSharedUiOnly: false,
+            preserveLocalSharedUi: false,
+          });
+        } else {
+          restored = await restoreAuthoritativeLegacyDomainSnapshot();
+        }
+        if (!restored) disableSharedStateAfterLegacyDomainRestoreFailure();
+        sharedStateStatus.version = Math.max(
+          Number(sharedStateStatus.version || 0),
+          Number(response.current?.version || response.currentVersion || 0),
+        );
+        if (!options.silent) notifySaveSuccess(restored
+          ? LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE
+          : LEGACY_DOMAIN_RELOAD_REQUIRED_MESSAGE);
+        return false;
       }
       if (response.conflict && response.current) {
         // A second conflict means another writer changed the snapshot between
@@ -1631,7 +1732,53 @@ function loadState() {
   }
 }
 
+let legacyDomainSnapshotRecoveryPromise = null;
+
+function restoreAuthoritativeLegacyDomainSnapshot() {
+  if (legacyDomainSnapshotRecoveryPromise) return legacyDomainSnapshotRecoveryPromise;
+  legacyDomainSnapshotRecoveryPromise = (async () => {
+    try {
+      const snapshot = await requestSharedState("GET");
+      if (snapshot.configured === false || !snapshot.values) {
+        disableSharedStateAfterLegacyDomainRestoreFailure();
+        return false;
+      }
+      const restored = applySharedStateSnapshot(snapshot, {
+        silent: true,
+        allowSharedUiOnly: false,
+        preserveLocalSharedUi: false,
+      });
+      if (restored && appBootstrapped) render({ skipRememberScroll: true });
+      return restored;
+    } catch (error) {
+      console.warn("[MES] Cannot restore the authoritative legacy domain snapshot", error);
+      disableSharedStateAfterLegacyDomainRestoreFailure();
+      return false;
+    } finally {
+      legacyDomainSnapshotRecoveryPromise = null;
+    }
+  })();
+  return legacyDomainSnapshotRecoveryPromise;
+}
+
 function persistState() {
+  if (isPlanningLegacyWritesQuiesced() && !sharedStateApplyingRemote) {
+    discardBlockedLegacyDomainWriteIntent();
+    const cachedPlanning = parsePlanningStateSnapshot(localStorage.getItem(STORAGE_KEY));
+    if (cachedPlanning) {
+      planningState = normalizePlanningState(cachedPlanning);
+      commitRuntimeState();
+    }
+    // The cache can itself belong to an old tab. Use it only for an immediate
+    // rollback of the just-mutated in-memory object, then restore every domain
+    // value and domain-backed sharedUi field from one canonical snapshot. This
+    // keeps coupled Directory + Planning changes atomic even before the server
+    // CAS guard observes an old bundle.
+    void restoreAuthoritativeLegacyDomainSnapshot();
+    notifySaveSuccess(LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
+    if (appBootstrapped) window.setTimeout(() => render({ skipRememberScroll: true }), 0);
+    return { changed: false, blocked: true };
+  }
   const previousRaw = localStorage.getItem(STORAGE_KEY);
   const previousState = parsePlanningStateSnapshot(previousRaw);
   if (previousRaw) backupRawPlanningState("before-planning-persist", previousRaw);
@@ -2258,6 +2405,10 @@ async function persistNomenclatureDirectoryMutationDurably(intent = {}) {
 }
 
 async function persistDirectoryStateDurably(reason = "directory-state") {
+  if (isPlanningLegacyWritesQuiesced() && !sharedStateApplyingRemote) {
+    persistDirectoryState();
+    return LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE;
+  }
   if (persistDirectoryState() === false) return LEGACY_DIRECTORY_WRITE_BLOCK_MESSAGE;
   // A compact UI acknowledgement or a poll may already be using the shared
   // state transport. Wait for that read/write to settle, then push the exact
@@ -2384,6 +2535,16 @@ function isSameNumericValue(left, right, precision = 0.000001) {
 function persistDirectoryState() {
   const previousRaw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
   const previousState = parseDirectoryStateSnapshot(previousRaw);
+  if (isPlanningLegacyWritesQuiesced() && !sharedStateApplyingRemote) {
+    discardBlockedLegacyDomainWriteIntent();
+    if (previousState) {
+      directoryState = previousState;
+      commitRuntimeState();
+    }
+    void restoreAuthoritativeLegacyDomainSnapshot();
+    notifySaveSuccess(LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
+    return false;
+  }
   if (isNomenclatureServerCommandsPrimary()) {
     // Directory is still a monolithic compatibility blob. Once Nomenclature
     // commands are primary, a generic save cannot prove that its local copy

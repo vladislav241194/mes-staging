@@ -17,6 +17,7 @@ function usage() {
     "  node scripts/employee-auth-credential-admin.mjs set-pin --employee-id=<id> --pin-stdin [--database-env-file=/etc/mes/mes-pilot-domain.env]",
     "  node scripts/employee-auth-credential-admin.mjs set-pin --employee-id=<id> --credential-file=/run/credentials/mes_employee_pin [--database-env-file=...]",
     "  node scripts/employee-auth-credential-admin.mjs revoke-sessions --employee-id=<id> [--database-env-file=...]",
+    "  node scripts/employee-auth-credential-admin.mjs delete-credential --employee-id=<id> [--database-env-file=...]",
     "",
     "PIN values are never accepted in argv or environment variables.",
   ].join("\n");
@@ -40,13 +41,15 @@ function parseArgs(argv = []) {
     else if (arg.startsWith("--database-env-file=")) parsed.databaseEnvFile = arg.slice("--database-env-file=".length).trim();
     else throw new Error(`Unknown or unsafe argument: ${arg.split("=")[0]}`);
   }
-  if (!["set-pin", "revoke-sessions"].includes(parsed.action)) throw new Error("Action must be set-pin or revoke-sessions");
+  if (!["set-pin", "revoke-sessions", "delete-credential"].includes(parsed.action)) {
+    throw new Error("Action must be set-pin, revoke-sessions or delete-credential");
+  }
   if (!parsed.employeeId || parsed.employeeId.length > 256) throw new Error("A bounded --employee-id is required");
   if (parsed.action === "set-pin" && Number(parsed.pinStdin) + Number(Boolean(parsed.credentialFile)) !== 1) {
     throw new Error("set-pin requires exactly one of --pin-stdin or --credential-file");
   }
-  if (parsed.action === "revoke-sessions" && (parsed.pinStdin || parsed.credentialFile)) {
-    throw new Error("revoke-sessions does not accept PIN input");
+  if (["revoke-sessions", "delete-credential"].includes(parsed.action) && (parsed.pinStdin || parsed.credentialFile)) {
+    throw new Error(`${parsed.action} does not accept PIN input`);
   }
   return parsed;
 }
@@ -158,6 +161,30 @@ export async function runEmployeeAuthCredentialAdmin({
       if (!result?.revoked) throw new Error("Employee credential does not exist; there are no sessions to revoke");
       stdout.write(`Employee sessions revoked: ${parsed.employeeId}; auth version ${result.authVersion}.\n`);
       return { ok: true, action: parsed.action, employeeId: parsed.employeeId, authVersion: result.authVersion };
+    }
+
+    if (parsed.action === "delete-credential") {
+      if (typeof repository.deleteCredential !== "function") {
+        throw new Error("Employee credential deletion is unavailable");
+      }
+      const result = await repository.deleteCredential(parsed.employeeId);
+      if (result?.employeeExists !== true) throw new Error(`Employee does not exist: ${parsed.employeeId}`);
+      if (result.deleted === true) {
+        stdout.write(`Employee credential deleted and sessions revoked: ${parsed.employeeId}; terminal auth version ${result.authVersion}.\n`);
+      } else if (result.alreadyAbsent === true) {
+        stdout.write(`Employee credential already absent: ${parsed.employeeId}; sessions are invalid.\n`);
+      } else {
+        throw new Error("Employee credential deletion did not reach a terminal state");
+      }
+      return {
+        ok: true,
+        action: parsed.action,
+        employeeId: parsed.employeeId,
+        deleted: result.deleted === true,
+        alreadyAbsent: result.alreadyAbsent === true,
+        sessionsRevoked: result.sessionsRevoked === true,
+        authVersion: Number(result.authVersion || 0),
+      };
     }
 
     if (employee.active !== true) throw new Error(`Employee is inactive: ${parsed.employeeId}`);

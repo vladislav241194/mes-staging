@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "contract": "system-domains-server-commands",
+  "commandSurfaceVersion": 1,
+  "actorPolicyVersion": 1,
+  "authorizationSnapshotVersion": 1,
+  "authorityTransitionVersion": 1,
+  "supportedSurfaces": [
+    "production-structure",
+    "timesheet",
+    "access-control"
+  ],
+  "controlledRootExclusivity": {
+    "required": true,
+    "lockName": "mes-authority-rollout.lock",
+    "incompatibleTargetRequiresDisabledFlags": [
+      "MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS"
+    ],
+    "incompatibleTargetRequiresEmptyValues": [
+      "MES_SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES"
+    ]
+  },
+  "requiredMigrations": [
+    "011_system_domains_core",
+    "012_system_domains_metadata_parity",
+    "013_system_domains_command_idempotency",
+    "023_system_domains_postgres_primary_authority",
+    "026_system_responsibility_policy_lifecycle"
+  ]
+}

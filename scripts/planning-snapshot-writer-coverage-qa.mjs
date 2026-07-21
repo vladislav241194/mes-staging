@@ -56,18 +56,16 @@ const sync = await source("sync-shared-state-contours.mjs");
 assert(sync.includes("withSharedStateFileLock(targetConfig.filePath"), "Stage-to-pilot sync must serialize with normal shared-state writers");
 assertOrdered(sync, "Stage-to-pilot sync", [
   "const observation = await beginPlanningSnapshotObservation({",
-  "await writeJsonAtomic(targetConfig.filePath, targetSnapshot);",
+  "await writeSharedStateFileAtomic(targetConfig.filePath, targetSnapshot);",
   "const recorded = await recordPlanningSnapshotObservation({",
 ]);
 assert(sync.includes("resolvePlanningSnapshotObservationEnvironment"), "Stage-to-pilot sync must resolve a target-pilot guard environment");
 
 const seed = await source("specifications2-pilot-chain-seed.mjs");
-assert(seed.includes("withSharedStateFileLock(statePath"), "Specifications 2.0 pilot-chain seed must serialize with normal shared-state writers");
-assertOrdered(seed, "Specifications 2.0 pilot-chain seed", [
-  "const observation = await beginPlanningSnapshotObservation({",
-  "await rename(temporaryPath, statePath);",
-  "planningObservation = await recordPlanningSnapshotObservation({",
-]);
+assert(seed.includes("updateSharedStateSnapshot({"), "Specifications 2.0 pilot-chain seed must use the common CAS and authority bridge");
+assert(seed.includes('planningObservationSource: "specifications2-pilot-chain-seed"'), "Specifications 2.0 pilot-chain seed must name its durable Planning observation");
+assert(seed.includes("backupSharedStateFile({"), "Specifications 2.0 pilot-chain seed must create its disposable-write recovery artifact");
+assert(!/\b(?:copyFile|rename|writeFile)\b/u.test(seed), "Specifications 2.0 pilot-chain seed must not retain a raw shared-state write bypass");
 assert(seed.includes("resolvePlanningSnapshotObservationEnvironment"), "Specifications 2.0 pilot-chain seed must resolve the target-pilot guard environment");
 
 console.log("Planning snapshot managed-writer coverage QA: OK");

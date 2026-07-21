@@ -78,6 +78,8 @@ export function createPlanningRoutesServiceModule(dependencies = {}) {
     isGanttSlotCompleted,
     isManufacturingOutputReceiptRouteStep,
     isLegacyDirectoryWriteBlocked = () => false,
+    isPlanningLegacyWritesQuiesced = () => false,
+    isPlanningStartDateServerCommandsPrimary = () => false,
     isPlanningWorkCenter,
     isSmtOperationWorkCenter,
     isWarehouseIssueRouteStep,
@@ -2195,6 +2197,7 @@ function getPlanningRouteAnchorStart(route, routeSteps = null) {
 }
 
 function syncPlanningRouteQuantity(routeId, value, options = {}) {
+  if (isPlanningLegacyWritesQuiesced() && options.persist !== false) return false;
   const quantity = normalizeOptionalPositiveInteger(value);
   const route = (planningState.routes || []).find((item) => item.id === routeId);
   const production = getRoutePlanningContext(route);
@@ -2246,18 +2249,26 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
 }
 
 function syncPlanningRouteStartDate(routeId, value, options = {}) {
+  if (isPlanningStartDateServerCommandsPrimary() && options.persist !== false) return false;
   const route = (planningState.routes || []).find((item) => item.id === routeId);
   if (!route) return false;
-  const date = toDate(value ? fromDateInput(value) : getPlanningScheduleAnchorStart());
-  if (Number.isNaN(date.getTime())) return false;
+  const clearStartDate = value === null;
+  const date = clearStartDate ? null : toDate(value ? fromDateInput(value) : getPlanningScheduleAnchorStart());
+  if (date && Number.isNaN(date.getTime())) return false;
 
   const stamp = new Date().toISOString();
-  const planningStartDate = toDateInput(date);
-  planningState.routes = planningState.routes.map((item) => item.id === route.id ? {
-    ...item,
-    planningStartDate,
-    updatedAt: stamp,
-  } : item);
+  const planningStartDate = clearStartDate ? null : toDateInput(date);
+  planningState.routes = planningState.routes.map((item) => {
+    if (item.id !== route.id) return item;
+    const next = {
+      ...item,
+      ...(Number.isInteger(Number(options.domainConcurrencyRevision)) ? { domainConcurrencyRevision: Number(options.domainConcurrencyRevision) } : {}),
+      updatedAt: stamp,
+    };
+    if (clearStartDate) delete next.planningStartDate;
+    else next.planningStartDate = planningStartDate;
+    return next;
+  });
 
   if (options.persist !== false) {
     persistState();

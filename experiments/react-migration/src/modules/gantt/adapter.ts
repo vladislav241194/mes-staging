@@ -2,10 +2,20 @@ const record = (value: unknown): Record<string, any> => value && typeof value ==
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const text = (value: unknown, fallback = ""): string => String(value ?? fallback).trim();
 const number = (value: unknown): number => Number.isFinite(Number(value)) ? Number(value) : 0;
+const GANTT_SCALES = ["hours", "days", "weeks"] as const;
+
+export type GanttScale = typeof GANTT_SCALES[number];
+export interface GanttScaleOptionModel { id: GanttScale; label: string; }
 
 export interface GanttSlotModel { id: string; rowId: string; routeId: string; operationId: string; title: string; meta: string; status: string; statusLabel: string; quantity: number; plannedStart: string; plannedEnd: string; x: number; width: number; top: number; height: number; aggregate: boolean; locked: boolean; canReschedule: boolean; }
 export interface GanttRowModel { id: string; type: string; label: string; meta: string; top: number; height: number; slots: GanttSlotModel[]; }
 export interface GanttDependencyModel { id: string; fromSlotId: string; toSlotId: string; fromTitle: string; toTitle: string; fromRowLabel: string; toRowLabel: string; fromEnd: string; toStart: string; gapMinutes: number; kind: "finish-start" | "transfer"; }
+
+const ganttScale = (value: unknown): GanttScale => GANTT_SCALES.includes(value as GanttScale) ? value as GanttScale : "days";
+const dateInput = (value: unknown, fallback = ""): string => {
+  const candidate = text(value, fallback).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : "";
+};
 
 export function adaptGanttPayload(payload: unknown) {
   const root = record(payload);
@@ -29,9 +39,20 @@ export function adaptGanttPayload(payload: unknown) {
     };
   });
   const dependencies = list(source.dependencies).flatMap((raw, index): GanttDependencyModel[] => { const dependency = record(raw); const fromSlotId = text(dependency.fromSlotId); const toSlotId = text(dependency.toSlotId); if (!fromSlotId || !toSlotId) return []; return [{ id: text(dependency.id, `${fromSlotId}__${toSlotId}__${index}`), fromSlotId, toSlotId, fromTitle: text(dependency.fromTitle, fromSlotId), toTitle: text(dependency.toTitle, toSlotId), fromRowLabel: text(dependency.fromRowLabel, "Ресурс не указан"), toRowLabel: text(dependency.toRowLabel, "Ресурс не указан"), fromEnd: text(dependency.fromEnd), toStart: text(dependency.toStart), gapMinutes: number(dependency.gapMinutes), kind: dependency.kind === "transfer" ? "transfer" : "finish-start" }]; });
+  const scale = ganttScale(source.scale);
+  const scaleOptions = list(source.scaleOptions).flatMap((raw): GanttScaleOptionModel[] => {
+    const option = record(raw); const id = ganttScale(option.id);
+    if (!GANTT_SCALES.includes(option.id as GanttScale)) return [];
+    return [{ id, label: text(option.label, id) }];
+  });
   return {
     canEditSchedule: capabilities.scheduleEdit === true,
-    projectionSource: text(source.projectionSource, "server"), scale: text(source.scale, "days"), windowStart: text(source.windowStart), windowEnd: text(source.windowEnd), leftWidth: number(source.leftWidth), timelineHeight: number(source.timelineHeight), timelineWidth: Math.max(1, number(source.timelineWidth)), totalHeight: Math.max(1, number(source.totalHeight)), dependencyCount: dependencies.length,
+    projectionSource: text(source.projectionSource, "server"), scale,
+    scaleOptions: scaleOptions.length === GANTT_SCALES.length ? scaleOptions : GANTT_SCALES.map((id) => ({ id, label: id === "hours" ? "Часы" : id === "days" ? "Дни" : "Недели" })),
+    zoom: Math.max(0.75, number(source.zoom) || 1), zoomLabel: text(source.zoomLabel, `${Math.round((number(source.zoom) || 1) * 100)}%`),
+    windowStart: text(source.windowStart), windowEnd: text(source.windowEnd), windowStartDate: dateInput(source.windowStartDate, source.windowStart), windowEndDate: dateInput(source.windowEndDate, source.windowEnd),
+    allRoutesExpanded: Boolean(source.allRoutesExpanded), showQuantity: source.showQuantity !== false,
+    leftWidth: number(source.leftWidth), timelineHeight: number(source.timelineHeight), timelineWidth: Math.max(1, number(source.timelineWidth)), totalHeight: Math.max(1, number(source.totalHeight)), dependencyCount: dependencies.length,
     ticks: list(source.ticks).map((raw, index) => { const tick = record(raw); return { id: text(tick.id, `tick-${index}`), label: text(tick.label), sublabel: text(tick.sublabel), left: number(tick.left), width: Math.max(1, number(tick.width)), weekend: Boolean(tick.weekend) }; }), rows,
     dependencies, slotCount: rows.reduce((total, row) => total + row.slots.length, 0), routeCount: rows.filter((row) => row.type === "route").length,
   };

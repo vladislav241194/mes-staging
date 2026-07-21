@@ -253,11 +253,17 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
       return { ...storage, ...result };
     },
     async get() {
-      const [set] = await sql`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;
-      if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };
-      const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([
-        sql`SELECT * FROM system_org_units ORDER BY id`, sql`SELECT * FROM system_work_centers ORDER BY id`, sql`SELECT * FROM system_schedule_templates ORDER BY id`, sql`SELECT * FROM system_positions ORDER BY id`, sql`SELECT * FROM system_employees ORDER BY id`, sql`SELECT * FROM system_employment_assignments ORDER BY id`, sql`SELECT * FROM system_equipment ORDER BY id`, sql`SELECT * FROM system_schedule_assignments ORDER BY id`, sql`SELECT * FROM system_attendance_events ORDER BY id`, sql`SELECT * FROM system_access_roles ORDER BY id`, sql`SELECT * FROM system_access_grants ORDER BY id`, sql`SELECT * FROM system_role_assignments ORDER BY id`, sql`SELECT * FROM system_responsibility_policies ORDER BY id`, sql`SELECT * FROM system_responsibility_targets ORDER BY policy_id, employee_id`,
-      ]);
+      // RBAC decisions must never combine a revision row from one projection
+      // with grants or assignments from another. replace() swaps all 14
+      // registries transactionally, while PostgreSQL READ COMMITTED gives
+      // each statement a fresh snapshot. Hold one repeatable-read snapshot
+      // for the complete aggregate instead of borrowing parallel pool clients.
+      return sql.begin("isolation level repeatable read read only", async (tx) => {
+        const [set] = await tx`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;
+        if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };
+        const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([
+          tx`SELECT * FROM system_org_units ORDER BY id`, tx`SELECT * FROM system_work_centers ORDER BY id`, tx`SELECT * FROM system_schedule_templates ORDER BY id`, tx`SELECT * FROM system_positions ORDER BY id`, tx`SELECT * FROM system_employees ORDER BY id`, tx`SELECT * FROM system_employment_assignments ORDER BY id`, tx`SELECT * FROM system_equipment ORDER BY id`, tx`SELECT * FROM system_schedule_assignments ORDER BY id`, tx`SELECT * FROM system_attendance_events ORDER BY id`, tx`SELECT * FROM system_access_roles ORDER BY id`, tx`SELECT * FROM system_access_grants ORDER BY id`, tx`SELECT * FROM system_role_assignments ORDER BY id`, tx`SELECT * FROM system_responsibility_policies ORDER BY id`, tx`SELECT * FROM system_responsibility_targets ORDER BY policy_id, employee_id`,
+        ]);
       const targetIds = new Map(); targets.forEach((row) => targetIds.set(row.policy_id, [...(targetIds.get(row.policy_id) || []), row.employee_id]));
       const item = {
         schemaId: set.schema_id, schemaVersion: Number(set.schema_version), metadata: set.metadata || {},
@@ -281,21 +287,23 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
           responsibilityPolicies: policies.map((r) => ({ id:r.id, subjectEmployeeId:r.subject_employee_id, mode:r.mode, targetEmployeeIds:targetIds.get(r.id) || [], updatedAt:r.updated_at_source, isActive:r.is_active, archivedAt:iso(r.archived_at), sourceRef:r.source_ref || {} })),
         },
       };
-      return {
-        ...storage,
-        item: normalizeInput(item),
-        revision: Number(set.revision),
-        fingerprint: text(set.source_fingerprint),
-        updatedAt: iso(set.updated_at),
-      };
+        return {
+          ...storage,
+          item: normalizeInput(item),
+          revision: Number(set.revision),
+          fingerprint: text(set.source_fingerprint),
+          updatedAt: iso(set.updated_at),
+        };
+      });
     },
     async summary() {
       // The readiness and navigation surfaces need counts, not all 1,000+
       // domain rows.  Keep the full projection in get(), but make its summary
       // a single compact SQL roundtrip.
-      const [set, countRow] = await Promise.all([
-        sql`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),
-        sql`
+      return sql.begin("isolation level repeatable read read only", async (tx) => {
+        const [set, countRow] = await Promise.all([
+          tx`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),
+          tx`
           SELECT
             (SELECT count(*) FROM system_org_units)::int AS org_units,
             (SELECT count(*) FROM system_work_centers)::int AS work_centers,
@@ -310,17 +318,18 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
             (SELECT count(*) FROM system_access_grants)::int AS grants,
             (SELECT count(*) FROM system_role_assignments)::int AS role_assignments,
             (SELECT count(*) FROM system_responsibility_policies)::int AS responsibility_policies
-        `.then((result) => result[0]),
-      ]);
-      if (!set) return { ...storage, revision: 0, updatedAt: "", configured: true, summary: { registryCounts: Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, 0])), totalRows: 0 } };
-      const aliases = {
-        orgUnits: "org_units", workCenters: "work_centers", scheduleTemplates: "schedule_templates", positions: "positions",
-        employees: "employees", employmentAssignments: "employment_assignments", equipment: "equipment",
-        scheduleAssignments: "schedule_assignments", attendanceEvents: "attendance_events", accessRoles: "access_roles",
-        grants: "grants", roleAssignments: "role_assignments", responsibilityPolicies: "responsibility_policies",
-      };
-      const counts = Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, Number(countRow?.[aliases[name]] || 0)]));
-      return { ...storage, revision: Number(set.revision), updatedAt: iso(set.updated_at), configured: true, summary: { registryCounts: counts, totalRows: Object.values(counts).reduce((sum, count) => sum + count, 0) } };
+          `.then((result) => result[0]),
+        ]);
+        if (!set) return { ...storage, revision: 0, updatedAt: "", configured: true, summary: { registryCounts: Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, 0])), totalRows: 0 } };
+        const aliases = {
+          orgUnits: "org_units", workCenters: "work_centers", scheduleTemplates: "schedule_templates", positions: "positions",
+          employees: "employees", employmentAssignments: "employment_assignments", equipment: "equipment",
+          scheduleAssignments: "schedule_assignments", attendanceEvents: "attendance_events", accessRoles: "access_roles",
+          grants: "grants", roleAssignments: "role_assignments", responsibilityPolicies: "responsibility_policies",
+        };
+        const counts = Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, Number(countRow?.[aliases[name]] || 0)]));
+        return { ...storage, revision: Number(set.revision), updatedAt: iso(set.updated_at), configured: true, summary: { registryCounts: counts, totalRows: Object.values(counts).reduce((sum, count) => sum + count, 0) } };
+      });
     },
     async getAuthority() {
       return readAuthorityState(sql);

@@ -39,6 +39,10 @@ assert.match(authorizationSource, /system-domains-storage-not-configured/);
 assert.match(authorizationSource, /system-domains-storage-unavailable/);
 assert.match(commandSource, /nomenclature-authorization-unavailable/);
 assert.match(commandSource, /sendJson\(res, 503,/, "authorization callback/storage failures must fail closed with HTTP 503");
+assert.match(commandSource, /updateNomenclatureCommandSharedStateSnapshot/,
+  "Nomenclature commands must persist through their explicit shared-state owner port");
+assert.doesNotMatch(commandSource, /\bupdateSharedStateSnapshot\b/,
+  "Nomenclature commands must not retain the generic shared-state writer");
 
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY, false);

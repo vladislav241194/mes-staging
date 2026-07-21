@@ -4,7 +4,7 @@ function assert(value, message) {
   if (!value) throw new Error(message);
 }
 
-const CONTRACT_VERSION = 5;
+const CONTRACT_VERSION = 7;
 const FINGERPRINT = "sha256:planning-observed";
 
 function makeItem({ quantity = 10 } = {}) {
@@ -65,6 +65,7 @@ function listItem(item) {
 
 function createFixture({
   state = "observed",
+  verifiedContractVersion = CONTRACT_VERSION,
   recordSucceeds = true,
   rejectParityProofAdmission = false,
   writerArrivesBeforeProofRecord = false,
@@ -92,7 +93,7 @@ function createFixture({
       verifiedPrimaryRevision: state === "observed" ? 31 : null,
       verifiedSnapshotFingerprint: state === "observed" ? FINGERPRINT : "",
       verifiedSnapshotGeneration: state === "observed" ? 17 : null,
-      verifiedContractVersion: state === "observed" ? CONTRACT_VERSION : 0,
+      verifiedContractVersion: state === "observed" ? verifiedContractVersion : 0,
       snapshotGeneration: 17,
       snapshotObservationState: state,
       observedSnapshotVersion: 44,
@@ -236,6 +237,21 @@ assert(healthyRead.result.item?.quantity === 10, "healthy observed marker must r
 assert(healthy.counters.bootstrap === 1 && healthy.counters.primaryList === 0 && healthy.counters.primaryGet === 0, "healthy observed marker must not run an aggregate parity proof");
 assert(healthy.counters.snapshotHealth === 0 && healthy.counters.snapshotList === 0 && healthy.counters.snapshotGet === 0, "post-read revalidation must stay snapshot-free");
 assert(healthy.counters.markerRead === 2, "healthy observed marker must read the durable marker once before and once after the target query");
+
+// v6 exposed planningStartDate but did not compare its canonical DATE in list
+// parity. It cannot authorize the corrected v7 projection and must be
+// re-proved against the compatibility snapshot first.
+const legacyV6 = createFixture({ verifiedContractVersion: 6 });
+const refreshedV7 = await legacyV6.inspect();
+assert(refreshedV7.repository === legacyV6.primary && refreshedV7.parity.matches,
+  "an older v6 marker must regain PostgreSQL only after a fresh parity proof");
+assert(refreshedV7.parity.skipped !== "verified-snapshot-observation-marker"
+  && legacyV6.counters.snapshotHealth >= 2
+  && legacyV6.counters.primaryList === 1
+  && legacyV6.counters.primaryGet === 1,
+"an older v6 marker must never take the snapshot-free v7 fast path");
+assert(legacyV6.marker.current.verifiedContractVersion === CONTRACT_VERSION,
+  "the fresh proof must durably upgrade the verified marker to v7");
 
 // A pending snapshot writer may begin after a proof reads its initial marker.
 // The proof must not supersede that generation: it would otherwise compare

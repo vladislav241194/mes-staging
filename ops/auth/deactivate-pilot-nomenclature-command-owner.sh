@@ -6,6 +6,9 @@ if [[ ${EUID} -ne 0 ]]; then echo "Run as root." >&2; exit 1; fi
 
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
 APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
+  exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
+fi
 PORT="${MES_PILOT_PORT:-4175}"
 DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 DROPIN_FILE="${DROPIN_DIR}/68-nomenclature-command-owner.conf"

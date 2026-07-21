@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { chmod, mkdtemp, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -100,6 +100,13 @@ async function main() {
     ]);
     assert((secureBackupStat.mode & 0o777) === 0o600, "Shared-state compatibility backups must be owner-readable only");
     assert((secureBackupMetaStat.mode & 0o777) === 0o600, "Shared-state backup metadata must be owner-readable only");
+    const storageSource = await readFile(new URL("./shared-state-storage.mjs", import.meta.url), "utf8");
+    assert(storageSource.includes("await syncPath(backupPath)")
+      && storageSource.includes("await metaHandle.sync()")
+      && storageSource.includes("await syncDirectory(targetDir)")
+      && storageSource.includes("await syncPath(tempPath)")
+      && storageSource.includes("await syncDirectory(directory)"),
+    "destructive recovery files and atomic rename directory entries must be crash-durable before acknowledgement");
 
     const unconfiguredCompatibility = await callSharedState("", "GET", null, {
       headers: { "x-mes-system-domains-compatibility": "status" },
@@ -152,6 +159,177 @@ async function main() {
       "forbidden-key": "must be dropped",
       "mes-planning-prototype-supply-control-v1": JSON.stringify({ rows: { removed: true } }),
     };
+
+    const quiesceFilePath = join(dir, "planning-start-date-quiesce.json");
+    const quiesceSharedUi = {
+      ganttDependencyRoutes: { "slot-seed": ["route-seed"] },
+      timesheetCellOverrides: { "employee-seed::2026-07-21": { value: "work" } },
+      shiftMasterBoardAssignments: { "slot-seed": { employees: ["employee-seed"], quantity: 1 } },
+      accessRoleProfiles: [{ id: "viewer", label: "Viewer", scope: "factory" }],
+    };
+    const quiesceSeed = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 0,
+      clientId: "planning-quiesce-seed",
+      actor: "QA",
+      action: "seed",
+      values,
+      sharedUi: quiesceSharedUi,
+    });
+    assert(quiesceSeed.statusCode === 200 && quiesceSeed.json.version === 1, "Planning quiesce fixture must seed a normal snapshot");
+    const quiesceEnv = {
+      ...process.env,
+      MES_DOMAIN_STORAGE: "postgres",
+      MES_ENABLE_PLANNING_START_DATE_COMMANDS: "1",
+      MES_ENABLE_PLANNING_SERVER_COMMANDS: "0",
+      MES_ENABLE_PLANNING_SNAPSHOT_OBSERVER: "off",
+    };
+    const staleDirectory = JSON.parse(quiesceSeed.json.values[SHARED_STATE_KEYS.directories]);
+    staleDirectory.statuses = [{ id: "directory-old-tab", label: "Must not persist" }];
+    const blockedDirectoryOnly = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 1,
+      clientId: "directory-old-tab",
+      actor: "QA",
+      action: "directory-state",
+      values: { [SHARED_STATE_KEYS.directories]: JSON.stringify(staleDirectory) },
+      sharedUi: quiesceSeed.json.sharedUi,
+    }, { env: quiesceEnv });
+    assert(blockedDirectoryOnly.statusCode === 409, "A Directory-only browser mutation must be paused during the start-date evaluation");
+    assert(blockedDirectoryOnly.json.legacyDomainWritesQuiesced === true
+      && blockedDirectoryOnly.json.code === "legacy-domain-writes-quiesced", "The blocked Directory tab must receive the all-domain authority marker");
+    assert(blockedDirectoryOnly.json.current?.version === 1
+      && blockedDirectoryOnly.json.current?.values?.[SHARED_STATE_KEYS.directories] === quiesceSeed.json.values[SHARED_STATE_KEYS.directories],
+    "a blocked Directory-only write must return the exact authoritative snapshot without persisting its intent");
+
+    const stalePlanning = JSON.parse(quiesceSeed.json.values[SHARED_STATE_KEYS.state]);
+    stalePlanning.routes = [{ id: "route-old-tab", planningStartDate: "2026-07-21" }];
+    const blockedCoupledDelete = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 1,
+      clientId: "coupled-directory-planning-old-tab",
+      actor: "QA",
+      action: "specification-delete",
+      values: {
+        ...quiesceSeed.json.values,
+        [SHARED_STATE_KEYS.state]: JSON.stringify(stalePlanning),
+        [SHARED_STATE_KEYS.directories]: JSON.stringify(staleDirectory),
+      },
+      sharedUi: quiesceSeed.json.sharedUi,
+    }, { env: quiesceEnv });
+    assert(blockedCoupledDelete.statusCode === 409, "A coupled Directory + Planning delete must be rejected atomically");
+    assert(blockedCoupledDelete.json.changedValueKeys?.includes(SHARED_STATE_KEYS.state)
+      && blockedCoupledDelete.json.changedValueKeys?.includes(SHARED_STATE_KEYS.directories), "the guard must identify both halves of the coupled mutation");
+    assert(blockedCoupledDelete.json.current?.values?.[SHARED_STATE_KEYS.state] === quiesceSeed.json.values[SHARED_STATE_KEYS.state]
+      && blockedCoupledDelete.json.current?.values?.[SHARED_STATE_KEYS.directories] === quiesceSeed.json.values[SHARED_STATE_KEYS.directories],
+    "neither half of a coupled delete may persist");
+
+    const blockedTimesheet = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 1,
+      clientId: "timesheet-old-tab",
+      actor: "QA",
+      action: "shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUiPatch: {
+        maps: { timesheetCellOverrides: { set: { "employee-old::2026-07-21": { value: "absence" } }, remove: [] } },
+        replace: {},
+      },
+    }, { env: quiesceEnv });
+    assert(blockedTimesheet.statusCode === 409
+      && blockedTimesheet.json.legacyDomainWritesQuiesced === true
+      && blockedTimesheet.json.configured === false, "a compact Timesheet domain write must terminate old transports during quiesce");
+    assert(!Object.prototype.hasOwnProperty.call(blockedTimesheet.json, "current")
+      && blockedTimesheet.json.changedSharedUiKeys?.includes("timesheetCellOverrides"), "domain-backed sharedUi denial must omit current and name the blocked field");
+    const modeledOldTab = {
+      enabled: true,
+      pendingReason: "local-shared-ui",
+      retries: 0,
+    };
+    if (blockedTimesheet.json.conflict && blockedTimesheet.json.current) modeledOldTab.retries += 1;
+    if (blockedTimesheet.json.configured === false) {
+      modeledOldTab.enabled = false;
+      modeledOldTab.pendingReason = "";
+    }
+    assert(modeledOldTab.enabled === false && modeledOldTab.retries === 0 && modeledOldTab.pendingReason === "",
+      "an old bundle must stop with no retry or deferred dirty intent that could flush after evaluation OFF");
+
+    const blockedShiftAndAccess = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 1,
+      clientId: "shift-access-old-tab",
+      actor: "QA",
+      action: "shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUiPatch: {
+        maps: { shiftMasterBoardAssignments: { set: { "slot-old": { employees: ["employee-old"], quantity: 2 } }, remove: [] } },
+        replace: { accessRoleProfiles: [{ id: "admin-old", label: "Must not persist", scope: "factory" }] },
+      },
+    }, { env: quiesceEnv });
+    assert(blockedShiftAndAccess.statusCode === 409
+      && blockedShiftAndAccess.json.changedSharedUiKeys?.includes("shiftMasterBoardAssignments")
+      && blockedShiftAndAccess.json.changedSharedUiKeys?.includes("accessRoleProfiles"),
+    "Shift and access domain projections in sharedUi must be paused together");
+
+    const unrelatedUiWrite = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 1,
+      clientId: "planning-unrelated-ui",
+      actor: "QA",
+      action: "shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUi: { ganttDependencyRoutes: { "slot-quiesce": ["route-visible"] } },
+      sharedUiPatch: {
+        maps: { ganttDependencyRoutes: { set: { "slot-quiesce": ["route-visible"] }, remove: [] } },
+        replace: {},
+      },
+    }, { env: quiesceEnv });
+    assert(unrelatedUiWrite.statusCode === 200 && unrelatedUiWrite.json.version === 2, "The explicitly UI-only Gantt dependency route may remain writable during quiesce");
+
+    const trustedStartDateMirror = await updateSharedStateSnapshot({
+      filePath: quiesceFilePath,
+      env: quiesceEnv,
+      expectedVersion: 2,
+      update: (snapshot) => {
+        const planning = JSON.parse(snapshot.values[SHARED_STATE_KEYS.state]);
+        planning.routes = [{ id: "route-server-command", planningStartDate: "2026-07-22" }];
+        return {
+          ...snapshot,
+          values: { ...snapshot.values, [SHARED_STATE_KEYS.state]: JSON.stringify(planning) },
+        };
+      },
+    });
+    assert(trustedStartDateMirror.ok && trustedStartDateMirror.snapshot?.version === 3, "The trusted API compatibility mirror must bypass only the browser CAS guard");
+
+    const restoredLegacyPlanning = JSON.parse(trustedStartDateMirror.snapshot.values[SHARED_STATE_KEYS.state]);
+    restoredLegacyPlanning.routes[0].planningStartDate = "2026-07-23";
+    const restoredLegacyDirectory = JSON.parse(trustedStartDateMirror.snapshot.values[SHARED_STATE_KEYS.directories]);
+    restoredLegacyDirectory.statuses = [{ id: "after-off", label: "Allowed after OFF" }];
+    const writeAfterDeactivation = await callSharedState(quiesceFilePath, "POST", {
+      baseVersion: 3,
+      clientId: "planning-after-deactivation",
+      actor: "QA",
+      action: "planning-state",
+      values: {
+        ...trustedStartDateMirror.snapshot.values,
+        [SHARED_STATE_KEYS.state]: JSON.stringify(restoredLegacyPlanning),
+        [SHARED_STATE_KEYS.directories]: JSON.stringify(restoredLegacyDirectory),
+      },
+      sharedUi: {
+        ...trustedStartDateMirror.snapshot.sharedUi,
+        timesheetCellOverrides: {
+          ...trustedStartDateMirror.snapshot.sharedUi.timesheetCellOverrides,
+          "employee-after-off::2026-07-21": { value: "work" },
+        },
+      },
+    }, {
+      env: {
+        ...quiesceEnv,
+        MES_ENABLE_PLANNING_START_DATE_COMMANDS: "0",
+      },
+    });
+    assert(writeAfterDeactivation.statusCode === 200 && writeAfterDeactivation.json.version === 4
+      && JSON.parse(writeAfterDeactivation.json.values[SHARED_STATE_KEYS.directories]).statuses?.[0]?.id === "after-off"
+      && writeAfterDeactivation.json.sharedUi.timesheetCellOverrides?.["employee-after-off::2026-07-21"]?.value === "work",
+    "turning the narrow owner OFF must restore both legacy values and domain-backed sharedUi writes after an explicit refresh/new request");
+
     const posted = await callSharedState(filePath, "POST", {
       baseVersion: 0,
       clientId: "shared-state-qa",
@@ -904,6 +1082,7 @@ async function main() {
     console.log("- unchanged-poll file cache and external invalidation: pass");
     console.log("- atomic cross-process file write lock: pass");
     console.log("- shared-state file mode preservation and stale-lock fail-closed: pass");
+    console.log("- recovery artifacts and atomic rename are fsync crash-durable: pass");
     console.log("- protected destructive action guard: pass");
     console.log("- System Domains transition proof survives event rollover: pass");
     console.log("OK: shared-state endpoint preserves whitelisted collaborative data.");

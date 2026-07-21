@@ -47,6 +47,8 @@ const planningSnapshotObservationMigrationPath = fileURLToPath(new URL("../db/mi
 const planningSnapshotObservationSql = await readFile(planningSnapshotObservationMigrationPath, "utf-8");
 const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/026_system_responsibility_policy_lifecycle.sql", import.meta.url));
 const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");
+const planningStartDateMigrationPath = fileURLToPath(new URL("../db/migrations/032_planning_work_order_start_date.sql", import.meta.url));
+const planningStartDateSql = await readFile(planningStartDateMigrationPath, "utf-8");
 const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
 const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
 const postgresPreflightPolicyPath = fileURLToPath(new URL("./domain-postgres-preflight-policy.mjs", import.meta.url));
@@ -218,6 +220,14 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningSnapshotObservationSql), 
   "VALUES ('026_system_responsibility_policy_lifecycle')",
 ].forEach((fragment) => assert(responsibilityPolicyLifecycleSql.includes(fragment), `Responsibility-policy lifecycle migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(responsibilityPolicyLifecycleSql), "Responsibility-policy lifecycle migration must not contain destructive statements");
+[
+  "ADD COLUMN IF NOT EXISTS planning_start_date DATE",
+  "ADD COLUMN IF NOT EXISTS idempotency_key TEXT",
+  "CREATE UNIQUE INDEX IF NOT EXISTS domain_change_log_actor_idempotency_uidx",
+  "WHERE actor_id IS NOT NULL AND idempotency_key IS NOT NULL",
+  "VALUES ('032_planning_work_order_start_date')",
+].forEach((fragment) => assert(planningStartDateSql.includes(fragment), `Planning start-date migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA|COLUMN)/i.test(planningStartDateSql), "Planning start-date migration must not contain destructive statements");
 assert(
   postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")
     && postgresPreflightPolicySql.includes('"026_system_responsibility_policy_lifecycle"'),

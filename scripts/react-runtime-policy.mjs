@@ -53,7 +53,7 @@ export const REACT_RUNTIME_EVALUATION_ENV = Object.freeze({
   roles: Object.freeze({ feature: "MES_REACT_ROLES", permissions: Object.freeze(["MES_REACT_ROLES_READ_ONLY_EVALUATION"]) }),
   weeklyProductionControl: Object.freeze({ feature: "MES_REACT_WEEKLY_PRODUCTION_CONTROL", permissions: Object.freeze(["MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION"]) }),
   timesheet: Object.freeze({ feature: "MES_REACT_TIMESHEET", permissions: Object.freeze(["MES_REACT_TIMESHEET_READ_ONLY_EVALUATION"]) }),
-  planningWorkbench: Object.freeze({ feature: "MES_REACT_PLANNING_WORKBENCH", permissions: Object.freeze(["MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION"]) }),
+  planningWorkbench: Object.freeze({ feature: "MES_REACT_PLANNING_WORKBENCH", permissions: Object.freeze(["MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION", "MES_REACT_PLANNING_WORKBENCH_WRITE_EVALUATION"]) }),
   shiftWorkOrders: Object.freeze({ feature: "MES_REACT_SHIFT_WORK_ORDERS", permissions: Object.freeze(["MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION"]) }),
   shiftMasterBoard: Object.freeze({ feature: "MES_REACT_SHIFT_MASTER_BOARD", permissions: Object.freeze(["MES_REACT_SHIFT_MASTER_BOARD_READ_ONLY_EVALUATION"]) }),
   employeeDesktop: Object.freeze({ feature: "MES_REACT_EMPLOYEE_DESKTOP", permissions: Object.freeze(["MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION"]) }),

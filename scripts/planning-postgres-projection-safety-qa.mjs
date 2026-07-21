@@ -215,16 +215,28 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
 
 async function request(pathname, { method = "GET", body = null, headers = {} } = {}) {
   const res = makeResponse();
+  const commandHeaders = method === "PATCH"
+    ? { host: "mes.local", origin: "http://mes.local", "sec-fetch-site": "same-origin", "content-type": "application/json" }
+    : {};
   const handled = await handleDomainApiRequest(
-    { method, body, headers },
+    { method, body, headers: { ...commandHeaders, ...headers } },
     res,
     new URL(`http://mes.local${pathname}`),
     {
       filePath: "planning-postgres-projection-safety-fixture",
-      env: { MES_DOMAIN_STORAGE: "postgres" },
+      env: { MES_DOMAIN_STORAGE: "postgres", MES_ENABLE_PLANNING_SERVER_COMMANDS: "1" },
       workOrdersRepositoryFactory: async ({ env }) => (
         String(env.MES_DOMAIN_STORAGE || "").toLowerCase() === "snapshot" ? snapshot : primary
       ),
+      // Authorization behavior has its own signed-session/RBAC contract QA.
+      // This fixture isolates marker/parity ordering with an explicit injected
+      // employee principal and never enables a live URL/query bypass.
+      planningAuthorizationResolver: async () => ({
+        allowed: true,
+        reason: "allowed",
+        principal: { id: "employee:planning-safety-qa", employeeId: "planning-safety-qa", scope: "employee" },
+        revision: 1,
+      }),
     },
   );
   return {

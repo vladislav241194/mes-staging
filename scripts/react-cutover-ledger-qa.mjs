@@ -13,6 +13,8 @@ const commandMatrix = JSON.parse(await readFile(join(migrationRoot, "command-par
 const runtimePolicyText = await readFile(join(repositoryRoot, "react-runtime-policy.json"), "utf8");
 const runtimePolicy = JSON.parse(runtimePolicyText);
 const runtimePolicySha256 = createHash("sha256").update(runtimePolicyText).digest("hex");
+const indexHtml = await readFile(join(repositoryRoot, "index.html"), "utf8");
+const liveVisualOverrides = await readFile(join(repositoryRoot, "styles", "visual-overrides.live.css"), "utf8");
 
 const unique = (values) => new Set(values).size === values.length;
 const sorted = (values) => [...values].sort();
@@ -48,7 +50,23 @@ assert(ledger.criteria.every((criterion) => Number.isInteger(criterion.earned) &
 assert.equal(ledger.criteria.reduce((sum, criterion) => sum + criterion.maximum, 0), 100, "cutover criteria must total 100 points");
 const computedProgress = ledger.criteria.reduce((sum, criterion) => sum + criterion.earned, 0);
 assert.equal(computedProgress, ledger.currentProgress, "reported progress must equal the evidence-weighted criterion total");
-assert.equal(computedProgress, 50, "the second permanent React surface raises audited cutover progress conservatively to 50%");
+const auditedWeeklyModule = ledger.modules.find((module) => module.id === "weeklyProductionControl");
+const expectedProgress = auditedWeeklyModule?.runtimeLegacyModelDependency ? 48 : 50;
+assert.equal(computedProgress, expectedProgress, "Weekly legacy-consolidation credit requires a runtime-independent production read-model");
+assert.equal(
+  ledger.criteria.find((criterion) => criterion.id === "legacy-consolidation")?.earned,
+  auditedWeeklyModule?.runtimeLegacyModelDependency ? 0 : 2,
+  "legacy-consolidation points must follow the explicit Weekly runtime dependency proof",
+);
+if (auditedWeeklyModule?.candidateRuntimeLegacyModelDependency === false
+  && auditedWeeklyModule.runtimeLegacyModelDependency === true) {
+  assert.equal(auditedWeeklyModule.candidateEvidence?.status, "local-verified-pilot-pending",
+    "a locally isolated Weekly candidate may not masquerade as accepted-live isolation");
+  assert.equal(auditedWeeklyModule.candidateEvidence?.pilotPublication, "pending");
+  assert.equal(auditedWeeklyModule.candidateEvidence?.freshRead, "pending");
+  assert.equal(auditedWeeklyModule.candidateEvidence?.rollbackReactivationDrill, "pending");
+  assert.equal(ledger.currentProgress, 48, "local candidate proof alone must not raise the Pilot/legacy score");
+}
 
 assert.equal(ledger.permanentPilotEvidence?.release, ledger.acceptedPilotRelease, "permanent Pilot evidence must bind the accepted immutable release");
 const acceptedSurfaceIds = sorted(ledger.scenarioAcceptance.filter((scenario) => scenario.defaultOn).map((scenario) => scenario.id));
@@ -143,6 +161,9 @@ const dependencyNames = Object.keys({
   ...(packageJson.optionalDependencies || {}),
 });
 assert.equal(dependencyNames.some((name) => name.startsWith("@blueprintjs/")), false, "the abandoned Blueprint UI library must not enter MES Line");
+assert.equal(indexHtml.includes("base-blueprint"), false, "the abandoned Blueprint visual theme must not be selectable");
+assert.equal(liveVisualOverrides.includes("base-blueprint"), false, "the abandoned Blueprint visual theme CSS must not remain in the live bundle");
+assert(indexHtml.includes('new Set(["base-glass", "base-industrial"])'), "live visual themes must use an explicit MES-owned allowlist");
 
 const registeredModuleIds = MES_MODULE_BLUEPRINT_REGISTRY.map((module) => module.id);
 const ledgerModuleIds = ledger.modules.map((module) => module.id);
@@ -159,7 +180,11 @@ for (const module of ledger.modules) {
   assert(allowedReactSurfaces.has(module.reactSurface), `${module.id}: unsupported React surface`);
   assert(allowedFunctionalStatuses.has(module.functionalStatus), `${module.id}: unsupported functional status`);
   assert(allowedRuntimeModes.has(module.runtimeMode), `${module.id}: unsupported runtime mode`);
+  assert.equal(typeof module.visibleLegacyRendererPath, "boolean", `${module.id}: visible legacy renderer path must be explicit`);
+  assert.equal(typeof module.runtimeLegacyModelDependency, "boolean", `${module.id}: runtime legacy-model dependency must be explicit`);
   assert.equal(typeof module.normalLegacyPath, "boolean", `${module.id}: normal legacy path must be explicit`);
+  assert.equal(module.normalLegacyPath, module.visibleLegacyRendererPath || module.runtimeLegacyModelDependency,
+    `${module.id}: aggregate legacy path must include both renderer and runtime-model dependencies`);
   assert.equal(typeof module.productionReady, "boolean", `${module.id}: production readiness must be explicit`);
   assert(Array.isArray(module.remainingScopes), `${module.id}: remaining scope must be explicit`);
   if (!module.productionReady) {
@@ -169,6 +194,8 @@ for (const module of ledger.modules) {
     assert.equal(module.reactSurface, "production-island", `${module.id}: production-ready route must have a production React surface`);
     assert(["complete", "read-only-complete"].includes(module.functionalStatus), `${module.id}: production-ready route must have complete functional parity`);
     assert.equal(module.runtimeMode, "react", `${module.id}: production-ready route must be permanently React`);
+    assert.equal(module.visibleLegacyRendererPath, false, `${module.id}: production-ready route may not expose a visible legacy renderer`);
+    assert.equal(module.runtimeLegacyModelDependency, false, `${module.id}: production-ready route may not execute a legacy model factory`);
     assert.equal(module.normalLegacyPath, false, `${module.id}: production-ready route may not use legacy in the normal path`);
   }
 }
@@ -220,8 +247,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   ledger.modules.filter((module) => module.productionReady).map((module) => module.id),
-  ["weeklyProductionControl"],
-  "Weekly Production Control is the only production-ready route on the accepted Pilot release",
+  auditedWeeklyModule?.runtimeLegacyModelDependency ? [] : ["weeklyProductionControl"],
+  "Weekly Production Control becomes production-ready only after its runtime model is independent of legacy",
 );
 const productionStructureModule = ledger.modules.find((module) => module.id === "productionStructureMatrix");
 assert.equal(productionStructureModule?.runtimeMode, "legacy-default", "the mixed Structure route must remain legacy-default while six writable registries are not permanent");
@@ -284,7 +311,7 @@ if (candidatePolicy) {
     "rollback-reactivation",
   ], "candidate may be accepted only after read, full disposable lifecycle, cleanup and rollback/reactivation evidence");
   assert.equal(Object.hasOwn(candidatePolicy, "pilotEvidence"), false, "awaiting candidate must not contain Pilot acceptance evidence");
-  assert.equal(computedProgress, 50, "awaiting candidate must not receive progress credit");
+  assert.equal(computedProgress, expectedProgress, "awaiting candidate must not receive progress credit");
   for (const surfaceId of candidateSurfaceIds) {
     const acceptance = ledger.scenarioAcceptance.find((scenario) => scenario.id === surfaceId);
     assert.equal(acceptance?.defaultOn, false, `${surfaceId}: candidate must remain outside accepted default-on IDs`);
