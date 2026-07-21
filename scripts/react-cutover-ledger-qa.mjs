@@ -345,7 +345,14 @@ assert.deepEqual(
 );
 if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate status must make pending acceptance explicit");
-  assert.deepEqual(candidateSurfaceIds, ["nomenclature"], "the current candidate must contain only Nomenclature");
+  assert.deepEqual(candidateSurfaceIds, [
+    "structureEmployees",
+    "structureEquipment",
+    "structureOrgUnits",
+    "structurePositions",
+    "structureResponsibilityPolicies",
+    "structureWorkCenters",
+  ], "the current candidate must contain the complete writable Production Structure registry set");
   assert(unique(candidateSurfaceIds) && candidateSurfaceIds.length > 0, "candidate surface IDs must be non-empty and unique");
   assert(candidateSurfaceIds.every((surfaceId) => acceptanceIds.includes(surfaceId)), "every candidate must map to an audited scenario");
   assert.equal(candidatePolicy.runtimePolicySha256, runtimePolicySha256, "candidate must bind the exact current runtime policy SHA-256");

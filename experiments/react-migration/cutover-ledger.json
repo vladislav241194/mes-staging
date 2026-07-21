@@ -7,6 +7,24 @@
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
   "legacyRollbackRelease": "v.1.500.18-93d02ed",
+  "candidatePolicy": {
+    "status": "awaiting-pilot-acceptance",
+    "surfaceIds": [
+      "structureEmployees",
+      "structurePositions",
+      "structureOrgUnits",
+      "structureWorkCenters",
+      "structureEquipment",
+      "structureResponsibilityPolicies"
+    ],
+    "runtimePolicySha256": "a58804cef4c435eab78f3f73a36f5f272c99df37dd6523f2669a58f36dabcf42",
+    "baseAcceptedRelease": "v.1.500.26-097d66c",
+    "requiredEvidence": [
+      "current-release-read",
+      "create-edit-readback-delete-cleanup",
+      "rollback-reactivation"
+    ]
+  },
   "permanentPilotEvidence": {
     "release": "v.1.500.26-097d66c",
     "gitCommit": "097d66c416ef61e091099c63b8bc272841c364f5",

@@ -35,10 +35,20 @@ assert.match(policy.sha256 || "", /^[a-f0-9]{64}$/);
 assert.equal(policy.source, "react-runtime-policy.json");
 assert.equal(Object.keys(policy.surfaces).length, 24);
 assert(REACT_RUNTIME_SURFACE_IDS.every((id) => ["legacy", "evaluation", "react"].includes(policy.surfaces[id])));
-assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, ["nomenclature", "structureMigrationDiagnostics", "weeklyProductionControl"], "permanent allowlist must stay explicit and minimal");
+assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
+  "nomenclature",
+  "structureEmployees",
+  "structurePositions",
+  "structureOrgUnits",
+  "structureWorkCenters",
+  "structureEquipment",
+  "structureResponsibilityPolicies",
+  "structureMigrationDiagnostics",
+  "weeklyProductionControl",
+], "permanent allowlist must stay explicit and limited to fully wired consumers");
 const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
 assert.deepEqual(
-  summarizeReactRuntimePolicy(policy).reactSurfaces,
+  [...summarizeReactRuntimePolicy(policy).reactSurfaces].sort(),
   expectedReactSurfaceIds,
   candidatePolicy
     ? "candidate release policy React IDs must equal accepted IDs plus the declared awaiting-acceptance candidate IDs"
@@ -51,7 +61,14 @@ assert(
 assert.deepEqual(summarizeReactRuntimePolicy(policy).activeEvaluationSurfaces, []);
 if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate policy must stay explicitly unaccepted");
-  assert.deepEqual(candidateSurfaceIds, ["nomenclature"], "this candidate policy must contain only Nomenclature");
+  assert.deepEqual(candidateSurfaceIds, [
+    "structureEmployees",
+    "structureEquipment",
+    "structureOrgUnits",
+    "structurePositions",
+    "structureResponsibilityPolicies",
+    "structureWorkCenters",
+  ], "this candidate policy must contain the complete writable Production Structure registry set");
   assert.equal(candidatePolicy.runtimePolicySha256, policy.sha256, "candidate evidence contract must bind the exact current policy bytes");
   assert.equal(candidatePolicy.baseAcceptedRelease, ledger.acceptedPilotRelease, "candidate must name the accepted release it extends");
   assert.deepEqual(candidatePolicy.requiredEvidence, [

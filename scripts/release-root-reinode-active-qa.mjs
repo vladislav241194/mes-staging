@@ -448,7 +448,16 @@ try {
   });
   assert.equal(trustedActiveRecord.releaseId, releaseId);
   assert.equal(trustedActiveRecord.manifest.sourceTreeSha256, source.anchors.expectedSourceSha256);
-  assert.deepEqual(trustedActiveRecord.runtimePolicy.reactSurfaces.sort(), ["structureMigrationDiagnostics", "weeklyProductionControl"]);
+  assert.deepEqual(trustedActiveRecord.runtimePolicy.reactSurfaces.sort(), [
+    "structureEmployees",
+    "structureEquipment",
+    "structureMigrationDiagnostics",
+    "structureOrgUnits",
+    "structurePositions",
+    "structureResponsibilityPolicies",
+    "structureWorkCenters",
+    "weeklyProductionControl",
+  ]);
 
   const anchoredRecordInput = {
     schemaVersion: 2,
