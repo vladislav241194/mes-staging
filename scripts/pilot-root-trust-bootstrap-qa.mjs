@@ -73,6 +73,19 @@ const hardenerSyntax = spawnSync("bash", ["-n", hardenerPath], { encoding: "utf8
 assert.equal(hardenerSyntax.status, 0, hardenerSyntax.stderr);
 assert.doesNotMatch(hardenerSource, /bash\s+-s/);
 assert.match(hardenerSource, /"\$#" -ne 7/);
+const atomicInstallFunction = hardenerSource.match(/atomic_install_config\(\) \{\n[\s\S]*?\n\}/)?.[0];
+assert(atomicInstallFunction, "hardener must define atomic_install_config");
+assert.match(atomicInstallFunction, /local target="\$1"\n\s+local source="\$2"\n\s+local next="\$\{target\}\.next\.\$\{bundle_id\}\.\$\$"/);
+const atomicInstallHarness = spawnSync("bash", ["-c", `
+set -euo pipefail
+bundle_id="qa-bundle"
+install() { :; }
+mv() { :; }
+sync_path() { :; }
+${atomicInstallFunction}
+atomic_install_config /tmp/mes-qa-target /tmp/mes-qa-source
+`], { encoding: "utf8" });
+assert.equal(atomicInstallHarness.status, 0, atomicInstallHarness.stderr || "atomic_install_config must be nounset-safe");
 for (const mapping of [
   "release-root-seal-verify.mjs",
   "release-root-reinode-active.mjs",

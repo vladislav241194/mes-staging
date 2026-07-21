@@ -283,7 +283,9 @@ if ! getent passwd mes-stage >/dev/null; then
 fi
 
 atomic_install_config() {
-  local target="$1" source="$2" next="${target}.next.${bundle_id}.$$"
+  local target="$1"
+  local source="$2"
+  local next="${target}.next.${bundle_id}.$$"
   install -d -o root -g root -m 0755 "$(dirname "$target")"
   install -o root -g root -m 0644 "$source" "$next"
   sync_path "$next"
