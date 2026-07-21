@@ -19,7 +19,7 @@
     "weeklyProductionControl": "react",
     "timesheet": "evaluation",
     "planningWorkbench": "evaluation",
-    "shiftWorkOrders": "evaluation",
+    "shiftWorkOrders": "react",
     "shiftMasterBoard": "evaluation",
     "employeeDesktop": "evaluation",
     "specifications2": "evaluation",

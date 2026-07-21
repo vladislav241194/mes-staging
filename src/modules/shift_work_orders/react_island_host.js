@@ -5,6 +5,27 @@ const SHIFT_WORK_ORDERS_REACT_BUNDLE_VERSION = "__MES_SHIFT_WORK_ORDERS_REACT_BU
 const SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION = "__MES_SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION__";
 const SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION = "__MES_SHIFT_WORK_ORDERS_FACT_BUNDLE_VERSION__";
 const SHIFT_WORK_ORDERS_NAVIGATION_INTENTS = new Set(["inspect", "assign", "fact"]);
+const SHIFT_WORK_ORDERS_FAILURE_REASONS = new Set([
+  "model-unavailable",
+  "mount-error",
+  "read-unavailable",
+  "render-error",
+]);
+
+function normalizeFailureReason(value) {
+  const reason = String(value || "");
+  return SHIFT_WORK_ORDERS_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
+}
+
+function renderShiftWorkOrdersTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+  const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "legacy";
+  const state = failureReason || shellState?.state === "error" ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+  const content = state === "error"
+    ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
+    : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем журнал СЗН</strong><p>Получаем актуальные сменные задания из PostgreSQL…</p></section>';
+  return `<div class="mes-react-shift-work-orders-island" data-react-shift-work-orders-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite"><section class="module-page module-data-page ui-module-page shift-work-orders-page" data-ui-runtime="hard-v1" data-layout="main-content" data-ui-component="ModulePage"><div class="directory-workspace module-data-workspace ui-module-workspace" data-layout="page-workspace" data-ui-component="ModuleWorkspace"><header class="module-header ui-module-header" data-ui-component="ModuleHeader"><div><p>Оперативное управление</p><h1>Журнал СЗН</h1></div></header><div class="module-data-content ui-module-content" data-ui-component="ModuleContent">${content}</div></div></section></div>`;
+}
 
 export function resolveShiftWorkOrdersWorkshopNavigation(navigation = {}, { rows = [], canOpenWorkshop = false } = {}) {
   const type = String(navigation.type || "");
@@ -28,10 +49,23 @@ export function isShiftWorkOrdersWorkshopTargetSelected(decision = {}, model = {
 export function createShiftWorkOrdersReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, loadAssignmentContext, loadPrintPackage, navigate, printDocument, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Work Orders React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
+    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    getShellState: (activation) => {
+      if (activation.accessMode !== "react") return null;
+      if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
+      if (!activation.serverReadReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
+      return null;
+    },
+    getTelemetryContext: (activation) => ({
+      surfaceId: "shiftWorkOrders",
+      runtimeMode: activation.runtimeMode,
+      policyId: activation.policyId,
+    }),
     targetSelector: SHIFT_WORK_ORDERS_REACT_TARGET,
-    renderTarget: '<div class="mes-react-shift-work-orders-island" data-react-shift-work-orders-island data-react-island-state="loading" aria-live="polite"></div>',
+    renderTarget: renderShiftWorkOrdersTarget,
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
+      if (activation.accessMode === "react") return "";
       if (!activation.serverReadReady) return "server-read-pending";
       if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";

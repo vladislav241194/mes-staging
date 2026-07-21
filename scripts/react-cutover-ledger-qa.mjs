@@ -348,6 +348,7 @@ if (candidatePolicy) {
   assert.deepEqual(candidateSurfaceIds, [
     "boards",
     "nomenclature",
+    "shiftWorkOrders",
     "structureEmployees",
     "structureEquipment",
     "structureOrgUnits",

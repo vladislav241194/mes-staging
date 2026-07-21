@@ -1860,12 +1860,14 @@ markShiftMasterBoardSheetPrinted = () => null;
 bindShiftMasterBoardEvents = () => {};
 let shiftMasterBoardModuleLoad = null;
 let shiftMasterBoardModuleError = null;
+let shiftMasterBoardModuleReady = false;
 
 function ensureShiftMasterBoardModule() {
   if (shiftMasterBoardModuleLoad || shiftMasterBoardModuleError) return shiftMasterBoardModuleLoad;
   shiftMasterBoardModuleLoad = import("./modules/shift_master_board/render.js")
     .then(({ createShiftMasterBoardModule }) => {
       initializeShiftMasterBoardModule(createShiftMasterBoardModule);
+      shiftMasterBoardModuleReady = true;
     if (["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule) || ui.activeModule === "shiftWorkOrders") {
       render({ skipRememberScroll: true });
     }
@@ -1873,7 +1875,7 @@ function ensureShiftMasterBoardModule() {
     .catch((error) => {
       shiftMasterBoardModuleError = error;
       console.error("[MES shift-master-board] module load failed", error);
-      if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });
+      if (["shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui.activeModule)) render({ skipRememberScroll: true });
     });
   return shiftMasterBoardModuleLoad;
 }
@@ -1890,6 +1892,7 @@ let renderShiftWorkOrderPrintPreviewModal = () => "";
 let renderShiftWorkOrdersPage = () => shiftWorkOrdersLoadingState();
 let shiftWorkOrdersModuleLoad = null;
 let shiftWorkOrdersModuleError = null;
+let shiftWorkOrdersModuleReady = false;
 function initializeShiftWorkOrdersModule(factory) {
   ({
     bindShiftWorkOrdersEvents,
@@ -1944,6 +1947,7 @@ function ensureShiftWorkOrdersModule() {
   shiftWorkOrdersModuleLoad = import("./modules/shift_work_orders/render.js")
     .then(({ createShiftWorkOrdersModule }) => {
       initializeShiftWorkOrdersModule(createShiftWorkOrdersModule);
+      shiftWorkOrdersModuleReady = true;
       if (ui.activeModule === "shiftWorkOrders") render();
     })
     .catch((error) => {
@@ -4958,22 +4962,60 @@ function isShiftWorkOrdersReactEvaluationRequested() {
   if (params.get("react-shift-work-orders-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function getShiftWorkOrdersReactActivation() {
+  const localQa = getShiftWorkOrdersReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "shiftWorkOrders",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_SHIFT_WORK_ORDERS === true && serverEvaluationAllowed,
+    evaluationRequested: isShiftWorkOrdersReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const modulesReady = shiftMasterBoardModuleReady && shiftWorkOrdersModuleReady;
+  const journalRows = modulesReady ? getShiftWorkOrderJournalViewModel()?.rows || [] : [];
+  const exactScopeUnavailable = modulesReady
+    && systemDomainsServerReadState.status === "server"
+    && shiftExecutionServerState.status === "idle"
+    && journalRows.length > 0
+    && !getShiftExecutionDispatchScope();
+  const moduleFailure = shiftMasterBoardModuleError || shiftWorkOrdersModuleError;
+  const serverReadFailure = moduleFailure
+    ? "model-unavailable"
+    : exactScopeUnavailable
+      ? "model-unavailable"
+      : systemDomainsServerReadState.status === "fallback" || shiftExecutionServerState.status === "fallback"
+        ? "read-unavailable"
+        : "";
+  const legacyOverlayClosed = !ui.shiftWorkOrderPrintPreviewId
+    && !ui.workOrderPrintPreviewId
+    && !normalizePlainRecord(ui.shiftWorkOrderIssuePhotoViewer).photoId;
+  const authoritativeProjectionReady = shiftExecutionServerState.status === "ready"
+    && shiftExecutionServerState.primaryPostgres === true
+    && shiftExecutionServerState.schemaReady === true
+    && shiftExecutionServerState.coverageComplete === true;
+  const emptyProjectionReady = shiftExecutionServerState.status === "idle" && journalRows.length === 0;
+  return {
+    ...runtimeActivation,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    serverReadFailure,
+    serverReadReady: modulesReady
+      && systemDomainsServerReadState.status === "server"
+      && (authoritativeProjectionReady || emptyProjectionReady)
+      && (runtimeActivation.runtimeMode === "react" || legacyOverlayClosed),
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
 const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
-  getActivation: () => {
-    const localQa = getShiftWorkOrdersReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION === true;
-    const overlayClosed = !ui.shiftWorkOrderPrintPreviewId && !ui.workOrderPrintPreviewId && !normalizePlainRecord(ui.shiftWorkOrderIssuePhotoViewer).photoId;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_SHIFT_WORK_ORDERS === true || localQa.featureFlagEnabled,
-      serverReadReady: systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isShiftWorkOrdersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
-    };
-  },
+  getActivation: getShiftWorkOrdersReactActivation,
   getPayload: () => {
-    const model = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const localQa = getShiftWorkOrdersReactLocalQaOverrides();
+    const model = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const localQa = getShiftWorkOrdersReactLocalQaOverrides(); const activation = getShiftWorkOrdersReactActivation();
     const roleCanRecordFact = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "edit");
     const roleCanAssign = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "assign");
-    const commandsReady = localQa.writeEvaluation && shiftExecutionServerState.commandsEnabled === true;
+    const commandsReady = (activation.accessMode === "react" || localQa.writeEvaluation) && shiftExecutionServerState.commandsEnabled === true;
     const factContexts = (board.allRows || []).map((row) => {
       const fact = normalizePlainRecord(row.boardFact);
       return { rowId: row.id, canEdit: commandsReady && roleCanRecordFact && Boolean(getShiftExecutionServerAssignment(row)?.id), hasFact: Boolean(fact.updatedAt), actualQuantity: Number(fact.actualQuantity || 0), laborMinutes: Number(fact.laborMinutes || 0), executorCount: Number(fact.executorCount || 0), comment: String(fact.comment || ""), deviationComment: String(fact.deviationComment || "") };
@@ -5045,7 +5087,8 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getShiftWorkOrdersReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Изменения Журнала СЗН в React недоступны." };
+    const activation = getShiftWorkOrdersReactActivation();
+    if ((activation.accessMode !== "react" && !localQa.writeEvaluation) || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Изменения Журнала СЗН в React недоступны." };
     if (command.type === "save-assignment") return executeShiftExecutionAssignmentCommand(command, { activeModule: "shiftWorkOrders" });
     if (command.type === "save-fact") return executeShiftExecutionFactCommand(command, { activeModule: "shiftWorkOrders" });
     return { ok: false, message: "Неизвестная команда Журнала СЗН." };
@@ -8407,7 +8450,7 @@ function hydrateShiftExecutionServerProjection() {
       if (coverageComplete && !wasAuthoritative) persistUiState();
       void flushShiftExecutionOutbox();
     }
-    if (ui?.activeModule === "shiftWorkOrders" && projection.ok) {
+    if (ui?.activeModule === "shiftWorkOrders") {
       window.setTimeout(() => {
         if (ui?.activeModule === "shiftWorkOrders") render({ skipRememberScroll: true });
       }, 0);
@@ -8422,6 +8465,9 @@ function hydrateShiftExecutionServerProjection() {
       coverageComplete: false,
       error: "Shift execution server projection is unavailable",
     };
+    if (["shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)) {
+      render({ skipRememberScroll: true });
+    }
   });
 }
 function ensureShiftExecutionDomainApiModule() {
@@ -10633,17 +10679,19 @@ function initializeModuleRuntime() {
         ensureShiftMasterBoardModule();
         ensureShiftWorkOrdersModule();
         if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
+        const reactDecision = shiftWorkOrdersReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return shiftWorkOrdersReactIslandHost.renderTarget();
         if (shiftWorkOrdersModuleError) {
           return renderMesModulePatternPage({
             moduleId: "shiftWorkOrders",
             content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
           });
         }
-        const reactDecision = shiftWorkOrdersReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return shiftWorkOrdersReactIslandHost.renderTarget();
         return renderShiftWorkOrdersPage();
       },
-      renderModals: () => `${renderShiftWorkOrderPrintPreviewModal()}${renderShiftWorkOrderIssuePhotoModal()}${renderWorkOrderPrintPackageModal()}`,
+      renderModals: () => shiftWorkOrdersReactIslandHost.isReactEligible()
+        ? ""
+        : `${renderShiftWorkOrderPrintPreviewModal()}${renderShiftWorkOrderIssuePhotoModal()}${renderWorkOrderPrintPackageModal()}`,
       bind: () => { if (!shiftWorkOrdersReactIslandHost.isReactEligible()) bindShiftWorkOrdersEvents(); },
       afterRender: () => { void shiftWorkOrdersReactIslandHost.mount(); },
     },

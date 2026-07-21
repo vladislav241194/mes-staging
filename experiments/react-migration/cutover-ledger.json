@@ -17,9 +17,10 @@
       "structureOrgUnits",
       "structureWorkCenters",
       "structureEquipment",
-      "structureResponsibilityPolicies"
+      "structureResponsibilityPolicies",
+      "shiftWorkOrders"
     ],
-    "runtimePolicySha256": "e95ad193874ea2d30e35f64e23352479ed0e621113fd01f41fae0066e0b14cd2",
+    "runtimePolicySha256": "250cdea08cc6bc221dec74fdf259d94cdeedbee896ea367cf91e44ecd56fa903",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -330,12 +331,12 @@
       "scenarios": ["shiftWorkOrders"],
       "reactSurface": "production-island",
       "functionalStatus": "complete",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["Pilot assignment/fact lifecycle", "permanent React runtime"]
+      "remainingScopes": ["Pilot assignment/fact lifecycle", "typed owner independence from legacy view-model adapters"]
     },
     {
       "id": "dispatch",
