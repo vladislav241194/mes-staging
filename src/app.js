@@ -74,6 +74,10 @@ import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createNomenclatureServerOwnerClient } from "./modules/nomenclature/server_owner_client.js";
+import {
+  createNomenclatureTypesServerOwnerClient,
+  prepareNomenclatureTypeDeleteContract,
+} from "./modules/nomenclature_types/server_owner_client.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
@@ -246,6 +250,7 @@ const sharedStateStatus = {
 };
 
 const nomenclatureServerOwnerClient = createNomenclatureServerOwnerClient();
+const nomenclatureTypesServerOwnerClient = createNomenclatureTypesServerOwnerClient();
 const NOMENCLATURE_CAPABILITIES_RECHECK_MS = 5_000;
 let employeeServerSessionState = { status: "idle", authenticated: false, actor: null, error: "" };
 let employeeServerSessionPromise = null;
@@ -253,6 +258,13 @@ let nomenclatureServerCapabilitiesState = { status: "idle", result: null, error:
 let nomenclatureServerCapabilitiesPromise = null;
 let nomenclatureServerCapabilitiesFetchedAt = 0;
 let nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+let nomenclatureTypesServerCapabilitiesState = { status: "idle", result: null, error: "" };
+let nomenclatureTypesServerCapabilitiesPromise = null;
+let nomenclatureTypesServerCapabilitiesFetchedAt = 0;
+let nomenclatureTypesServerCapabilitiesEpoch = 0;
+let nomenclatureTypesDeleteContractsState = { status: "idle", revision: 0, byId: {}, error: "" };
+let nomenclatureTypesDeleteContractsPromise = null;
+const nomenclatureTypesUncertainCommands = new Map();
 
 function isEmployeeServerAuthRequired() {
   return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_REQUIRED === true;
@@ -260,7 +272,8 @@ function isEmployeeServerAuthRequired() {
 
 function isEmployeeServerAuthAvailable() {
   return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_AVAILABLE === true
-    || isNomenclatureServerCommandsPrimary();
+    || isNomenclatureServerCommandsPrimary()
+    || isDirectoryClusterServerCommandsPrimary();
 }
 
 function isNomenclatureEmployeeElevationActive() {
@@ -271,13 +284,32 @@ function isNomenclatureServerCommandsPrimary() {
   return MES_RUNTIME_CONFIG.MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY === true;
 }
 
+function isDirectoryClusterServerCommandsPrimary() {
+  return MES_RUNTIME_CONFIG.MES_DIRECTORY_CLUSTER_SERVER_COMMANDS_PRIMARY === true;
+}
+
 function isLegacyDirectoryWriteBlocked() {
-  return isNomenclatureServerCommandsPrimary();
+  return isNomenclatureServerCommandsPrimary() || isDirectoryClusterServerCommandsPrimary();
 }
 
 function resetNomenclatureServerCapabilities() {
   nomenclatureServerCapabilitiesState = { status: "idle", result: null, error: "" };
   nomenclatureServerCapabilitiesFetchedAt = 0;
+}
+
+function resetNomenclatureTypesServerCapabilities() {
+  nomenclatureTypesServerCapabilitiesEpoch += 1;
+  nomenclatureTypesServerCapabilitiesState = { status: "idle", result: null, error: "" };
+  nomenclatureTypesServerCapabilitiesPromise = null;
+  nomenclatureTypesServerCapabilitiesFetchedAt = 0;
+  nomenclatureTypesDeleteContractsState = { status: "idle", revision: 0, byId: {}, error: "" };
+  nomenclatureTypesDeleteContractsPromise = null;
+  nomenclatureTypesUncertainCommands.clear();
+}
+
+function resetEmployeeServerCapabilities() {
+  resetNomenclatureServerCapabilities();
+  resetNomenclatureTypesServerCapabilities();
 }
 
 function getEmployeeServerActor() {
@@ -300,7 +332,7 @@ async function createEmployeeServerSession({ employeeId = "", pin = "" } = {}) {
     return { ok: false, code: "server-auth-disabled", message: "Серверная авторизация сотрудников отключена." };
   }
   employeeServerSessionState = { status: "loading", authenticated: false, actor: null, error: "" };
-  resetNomenclatureServerCapabilities();
+  resetEmployeeServerCapabilities();
   const result = await nomenclatureServerOwnerClient.createEmployeeSession({ employeeId, pin });
   const actor = result?.ok === true && result.authenticated === true ? result.actor : null;
   if (!actor || String(actor.employeeId || "") !== String(employeeId || "")) {
@@ -324,13 +356,14 @@ async function createEmployeeServerSession({ employeeId = "", pin = "" } = {}) {
   }
   employeeServerSessionState = { status: "authenticated", authenticated: true, actor, error: "" };
   void ensureNomenclatureServerCapabilities({ force: true });
+  void ensureNomenclatureTypesServerCapabilities({ force: true });
   return { ...result, ok: true, authenticated: true, actor };
 }
 
 function deleteEmployeeServerSession() {
   nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
   employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "" };
-  resetNomenclatureServerCapabilities();
+  resetEmployeeServerCapabilities();
   if (!isEmployeeServerAuthAvailable()) return Promise.resolve({ ok: true, authenticated: false });
   return nomenclatureServerOwnerClient.deleteEmployeeSession();
 }
@@ -350,7 +383,7 @@ function reconcileEmployeeServerSession({ force = false } = {}) {
         actor: null,
         error: result?.ok === true ? "" : getNomenclatureServerFailureMessage(result),
       };
-    resetNomenclatureServerCapabilities();
+    resetEmployeeServerCapabilities();
     if (ui && !isAuthGateQaBypassEnabled()) {
       const localEmployeeId = String(ui.authCurrentUserId || "");
       if (actor && (!localEmployeeId || localEmployeeId !== actor.employeeId)) {
@@ -371,7 +404,10 @@ function reconcileEmployeeServerSession({ force = false } = {}) {
       }
       if (appBootstrapped) render({ skipRememberScroll: true });
     }
-    if (actor) void ensureNomenclatureServerCapabilities({ force: true });
+    if (actor) {
+      void ensureNomenclatureServerCapabilities({ force: true });
+      void ensureNomenclatureTypesServerCapabilities({ force: true });
+    }
     return employeeServerSessionState;
   }).catch((error) => {
     employeeServerSessionState = {
@@ -413,6 +449,151 @@ function ensureNomenclatureServerCapabilities({ force = false } = {}) {
     return nomenclatureServerCapabilitiesState;
   }).finally(() => { nomenclatureServerCapabilitiesPromise = null; });
   return nomenclatureServerCapabilitiesPromise;
+}
+
+function getHydratedDirectoryRevision() {
+  const revision = Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0);
+  return Number.isSafeInteger(revision) && revision > 0 ? revision : 0;
+}
+
+function getNomenclatureTypesServerFailureMessage(result = null, fallback = "Сервер типов номенклатуры недоступен.") {
+  if (result?.authenticationRequired || result?.authenticated === false) return "Серверная сессия сотрудника не подтверждена.";
+  if (result?.authorizationDenied || result?.category === "authorization") return "У сотрудника нет права изменять типы номенклатуры.";
+  if (result?.conflict) return "Типы номенклатуры изменились в другом сеансе. Экран обновлён; повторите команду.";
+  if (result?.unavailable || Number(result?.status || 0) === 0) return "Сервер типов номенклатуры временно недоступен. Локальные данные не изменены.";
+  return String(result?.error || result?.message || fallback);
+}
+
+function updateNomenclatureTypesMountedIsland() {
+  if (!appBootstrapped || ui?.activeModule !== "directories" || normalizeDirectorySectionId(ui.activeDirectory) !== "nomenclatureTypes") return;
+  const updated = directoryNomenclatureTypesReactIslandHost?.update?.();
+  if (!updated) render({ skipRememberScroll: true });
+}
+
+function ensureNomenclatureTypesServerCapabilities({ force = false } = {}) {
+  const fresh = nomenclatureTypesServerCapabilitiesState.status === "ready"
+    && Date.now() - nomenclatureTypesServerCapabilitiesFetchedAt < NOMENCLATURE_CAPABILITIES_RECHECK_MS;
+  if (!force && fresh) return Promise.resolve(nomenclatureTypesServerCapabilitiesState);
+  if (nomenclatureTypesServerCapabilitiesPromise) return nomenclatureTypesServerCapabilitiesPromise;
+  const requestEpoch = nomenclatureTypesServerCapabilitiesEpoch;
+  nomenclatureTypesServerCapabilitiesState = { status: "loading", result: null, error: "" };
+  let requestPromise;
+  requestPromise = nomenclatureTypesServerOwnerClient.getCapabilities().then((result) => {
+    if (requestEpoch !== nomenclatureTypesServerCapabilitiesEpoch) return nomenclatureTypesServerCapabilitiesState;
+    const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
+    const serverEmployeeId = String(result?.actor?.employeeId || "");
+    const actorMismatch = result?.ok === true && result.authenticated === true
+      && (!localEmployeeId || !serverEmployeeId || localEmployeeId !== serverEmployeeId);
+    if (actorMismatch) {
+      void nomenclatureServerOwnerClient.deleteEmployeeSession().catch(() => {});
+      employeeServerSessionState = {
+        status: "error",
+        authenticated: false,
+        actor: null,
+        error: "Права типов номенклатуры подтвердил другой серверный сотрудник. Сессия закрыта.",
+      };
+      resetNomenclatureServerCapabilities();
+    } else if (result?.ok === true && result.authenticated === false && employeeServerSessionState.authenticated === true) {
+      employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "Серверная сессия сотрудника завершена." };
+      resetNomenclatureServerCapabilities();
+    }
+    nomenclatureTypesServerCapabilitiesState = {
+      status: "ready",
+      result: result?.ok === true && !actorMismatch ? result : null,
+      error: result?.ok === true && !actorMismatch ? "" : actorMismatch
+        ? employeeServerSessionState.error
+        : getNomenclatureTypesServerFailureMessage(result),
+    };
+    nomenclatureTypesServerCapabilitiesFetchedAt = Date.now();
+    const directoryRevision = Number(nomenclatureTypesServerCapabilitiesState.result?.directoryRevision || 0);
+    if (directoryRevision && directoryRevision !== getHydratedDirectoryRevision()) {
+      hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY], { allowBeforeInitialSync: true, failClosed: true });
+    }
+    void ensureNomenclatureTypesDeleteContracts();
+    updateNomenclatureTypesMountedIsland();
+    return nomenclatureTypesServerCapabilitiesState;
+  }).catch((error) => {
+    if (requestEpoch !== nomenclatureTypesServerCapabilitiesEpoch) return nomenclatureTypesServerCapabilitiesState;
+    nomenclatureTypesServerCapabilitiesState = {
+      status: "ready",
+      result: null,
+      error: `Права типов номенклатуры недоступны: ${error?.message || String(error)}`,
+    };
+    nomenclatureTypesServerCapabilitiesFetchedAt = Date.now();
+    updateNomenclatureTypesMountedIsland();
+    return nomenclatureTypesServerCapabilitiesState;
+  }).finally(() => {
+    if (nomenclatureTypesServerCapabilitiesPromise === requestPromise) nomenclatureTypesServerCapabilitiesPromise = null;
+  });
+  nomenclatureTypesServerCapabilitiesPromise = requestPromise;
+  return requestPromise;
+}
+
+function ensureNomenclatureTypesDeleteContracts({ force = false } = {}) {
+  const capability = nomenclatureTypesServerCapabilitiesState.result;
+  const revision = Number(capability?.directoryRevision || 0);
+  const enabled = capability?.enabled === true
+    && revision > 0
+    && revision === getHydratedDirectoryRevision();
+  if (!enabled) {
+    nomenclatureTypesDeleteContractsState = { status: "idle", revision: 0, byId: {}, error: "" };
+    return Promise.resolve(nomenclatureTypesDeleteContractsState);
+  }
+  if (!force && nomenclatureTypesDeleteContractsState.status === "ready" && nomenclatureTypesDeleteContractsState.revision === revision) {
+    return Promise.resolve(nomenclatureTypesDeleteContractsState);
+  }
+  if (nomenclatureTypesDeleteContractsPromise) return nomenclatureTypesDeleteContractsPromise;
+  const requestEpoch = nomenclatureTypesServerCapabilitiesEpoch;
+  let directorySnapshot;
+  try { directorySnapshot = JSON.parse(JSON.stringify(directoryState)); }
+  catch {
+    nomenclatureTypesDeleteContractsState = { status: "error", revision, byId: {}, error: "Локальная Directory-проекция не сериализуется." };
+    return Promise.resolve(nomenclatureTypesDeleteContractsState);
+  }
+  nomenclatureTypesDeleteContractsState = { status: "loading", revision, byId: {}, error: "" };
+  let requestPromise;
+  requestPromise = Promise.all((directorySnapshot.nomenclatureTypes || []).map(async (row) => {
+    const itemId = String(row?.id || "").trim();
+    const fallbackName = getFallbackNomenclatureType(row?.name);
+    const fallback = (directorySnapshot.nomenclatureTypes || []).find((candidate) => (
+      String(candidate?.id || "") !== itemId
+      && normalizeLookupText(normalizeNomenclatureType(candidate?.name)) === normalizeLookupText(normalizeNomenclatureType(fallbackName))
+    )) || null;
+    if (!itemId || !fallback?.id) return [itemId, null];
+    const preview = await prepareNomenclatureTypeDeleteContract({
+      directory: directorySnapshot,
+      itemId,
+      fallbackTypeId: String(fallback.id),
+    });
+    return [itemId, preview?.ok === true ? preview : null];
+  })).then((entries) => {
+    if (requestEpoch !== nomenclatureTypesServerCapabilitiesEpoch
+      || revision !== Number(nomenclatureTypesServerCapabilitiesState.result?.directoryRevision || 0)
+      || revision !== getHydratedDirectoryRevision()) {
+      nomenclatureTypesDeleteContractsState = { status: "idle", revision: 0, byId: {}, error: "" };
+      return nomenclatureTypesDeleteContractsState;
+    }
+    const invalidItem = entries.find(([itemId, preview]) => itemId && !preview);
+    nomenclatureTypesDeleteContractsState = invalidItem
+      ? { status: "error", revision, byId: {}, error: "Не удалось получить точный серверный расчёт связей для удаления." }
+      : { status: "ready", revision, byId: Object.fromEntries(entries.filter(([, preview]) => preview)), error: "" };
+    updateNomenclatureTypesMountedIsland();
+    return nomenclatureTypesDeleteContractsState;
+  }).catch((error) => {
+    if (requestEpoch !== nomenclatureTypesServerCapabilitiesEpoch) return nomenclatureTypesDeleteContractsState;
+    nomenclatureTypesDeleteContractsState = {
+      status: "error",
+      revision,
+      byId: {},
+      error: `Расчёт связей типов номенклатуры недоступен: ${error?.message || String(error)}`,
+    };
+    updateNomenclatureTypesMountedIsland();
+    return nomenclatureTypesDeleteContractsState;
+  }).finally(() => {
+    if (nomenclatureTypesDeleteContractsPromise === requestPromise) nomenclatureTypesDeleteContractsPromise = null;
+  });
+  nomenclatureTypesDeleteContractsPromise = requestPromise;
+  return requestPromise;
 }
 
 function getNomenclatureElevationAuthModel() {
@@ -476,6 +657,7 @@ function finishNomenclatureEmployeeElevation(actor = null) {
   updateModuleUrlParam(returnModule);
   persistUiState();
   void ensureNomenclatureServerCapabilities({ force: true });
+  void ensureNomenclatureTypesServerCapabilities({ force: true });
   render({ skipRememberScroll: true });
   return { ok: true, authenticated: true, personId: localEmployeeId };
 }
@@ -528,7 +710,7 @@ async function executeNomenclatureServerCommand(intent = {}, expectedRevision = 
         : { ok: false, status: 0, code: "invalid-command", category: "validation", error: "Unsupported Nomenclature command" };
   if (result?.authenticationRequired) {
     employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "Серверная сессия сотрудника завершена." };
-    resetNomenclatureServerCapabilities();
+    resetEmployeeServerCapabilities();
   }
   if (result?.ok === true) {
     const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
@@ -540,7 +722,7 @@ async function executeNomenclatureServerCommand(intent = {}, expectedRevision = 
         actor: null,
         error: "Команду подтвердил другой серверный сотрудник. Сессия закрыта.",
       };
-      resetNomenclatureServerCapabilities();
+      resetEmployeeServerCapabilities();
       return {
         ok: false,
         failClosed: true,
@@ -4970,23 +5152,180 @@ function isDirectoryNomenclatureTypesReactEvaluationRequested() {
   if (params.get("react-directory-nomenclature-types-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+
+function getNomenclatureTypesServerCapabilityModel() {
+  const result = nomenclatureTypesServerCapabilitiesState.result;
+  const capabilities = result?.capabilities || {};
+  const directoryRevision = Number(result?.directoryRevision || 0);
+  const hydratedRevision = getHydratedDirectoryRevision();
+  const revisionReady = directoryRevision > 0 && directoryRevision === hydratedRevision;
+  return {
+    configured: isDirectoryClusterServerCommandsPrimary() || capabilities.serverCommandsConfigured === true,
+    enabled: result?.enabled === true && revisionReady,
+    revisionReady,
+    directoryRevision: revisionReady ? directoryRevision : null,
+    canCreate: result?.enabled === true && revisionReady && capabilities.canCreateNomenclatureTypes === true,
+    canEdit: result?.enabled === true && revisionReady && capabilities.canEditNomenclatureTypes === true,
+    canDelete: result?.enabled === true && revisionReady && capabilities.canDeleteNomenclatureTypes === true,
+  };
+}
+
+function getNomenclatureTypesCommandIdempotencyKey(command = {}) {
+  const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+  return String(input.idempotencyKey || "").trim();
+}
+
+async function executeNomenclatureTypesServerCommand(command = {}) {
+  const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+  const idempotencyKey = getNomenclatureTypesCommandIdempotencyKey(command);
+  const uncertainCommand = nomenclatureTypesUncertainCommands.get(idempotencyKey) || null;
+  const exactReplay = Boolean(uncertainCommand);
+  const capabilityState = exactReplay
+    ? nomenclatureTypesServerCapabilitiesState
+    : await ensureNomenclatureTypesServerCapabilities();
+  const model = getNomenclatureTypesServerCapabilityModel();
+  const action = command.type === "delete" ? "delete" : input.isNew === true ? "create" : "edit";
+  const permitted = action === "create" ? model.canCreate : action === "delete" ? model.canDelete : model.canEdit;
+  if (!exactReplay && (!model.configured || !model.enabled || !permitted)) {
+    return { ok: false, message: capabilityState.error || "Серверная запись типов номенклатуры недоступна для текущего сотрудника." };
+  }
+  const expectedRevision = Number(input.expectedRevision);
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+    return { ok: false, message: "Команда типов номенклатуры не содержит действующую Directory-ревизию." };
+  }
+  if (exactReplay && expectedRevision !== uncertainCommand.expectedRevision) {
+    nomenclatureTypesUncertainCommands.delete(idempotencyKey);
+    return { ok: false, message: "Повтор команды не совпадает с ранее отправленной Directory-ревизией." };
+  }
+  if (!exactReplay && (expectedRevision !== model.directoryRevision || expectedRevision !== getHydratedDirectoryRevision())) {
+    hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY], { allowBeforeInitialSync: true, failClosed: true });
+    return { ok: false, message: "Directory изменилась после открытия формы. Экран обновляется; повторите команду." };
+  }
+  const itemId = String(input.itemId || "").trim();
+  let result;
+  if (command.type === "delete") {
+    result = await nomenclatureTypesServerOwnerClient.deleteNomenclatureType({
+      itemId,
+      expectedRow: input.expectedRow,
+      expectedRevision,
+      fallbackTypeId: String(input.fallbackTypeId || ""),
+      fallbackExpectedRow: input.fallbackExpectedRow,
+      impactFingerprint: String(input.impactFingerprint || ""),
+      idempotencyKey,
+    });
+  } else if (command.type === "save") {
+    const isNew = input.isNew === true;
+    const row = {
+      ...(isNew ? {} : input.expectedRow || {}),
+      id: itemId,
+      name: String(input.name || "").trim(),
+      code: String(input.code || "").trim(),
+      description: String(input.description || "").trim(),
+      status: String(input.status || "").trim() || "Активен",
+    };
+    result = isNew
+      ? await nomenclatureTypesServerOwnerClient.createNomenclatureType({
+        itemId,
+        row,
+        expectedRevision,
+        idempotencyKey,
+      })
+      : await nomenclatureTypesServerOwnerClient.updateNomenclatureType({
+        itemId,
+        expectedRow: input.expectedRow,
+        row,
+        expectedRevision,
+        idempotencyKey,
+      });
+  } else {
+    return { ok: false, message: "Неподдерживаемая команда типов номенклатуры." };
+  }
+
+  const uncertainTransport = result?.ok !== true
+    && Number(result?.status || 0) === 0
+    && result?.retryable === true
+    && result?.unavailable === true;
+  if (uncertainTransport) {
+    if (idempotencyKey) nomenclatureTypesUncertainCommands.set(idempotencyKey, { expectedRevision });
+    return { ok: false, message: `${getNomenclatureTypesServerFailureMessage(result)} Безопасный повтор отправит ту же команду.` };
+  }
+  nomenclatureTypesUncertainCommands.delete(idempotencyKey);
+
+  let projectionFailure = "";
+  if (result?.projection && (result.ok === true || result.conflict === true)) {
+    const applied = applyAuthoritativeDirectoryProjection(result.projection, "Directory");
+    if (!applied?.ok) {
+      projectionFailure = applied?.message || "Серверная Directory-проекция не применена.";
+      hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY], { allowBeforeInitialSync: true, failClosed: true });
+    }
+  }
+  if (result?.authenticationRequired) {
+    employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "Серверная сессия сотрудника завершена." };
+    resetEmployeeServerCapabilities();
+  }
+  if (result?.ok === true) {
+    const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
+    if (!localEmployeeId || String(result.receipt?.actorId || "") !== `employee:${localEmployeeId}`) {
+      void nomenclatureServerOwnerClient.deleteEmployeeSession().catch(() => {});
+      employeeServerSessionState = { status: "error", authenticated: false, actor: null, error: "Команду типов номенклатуры подтвердил другой серверный сотрудник. Сессия закрыта." };
+      resetEmployeeServerCapabilities();
+      return { ok: false, message: employeeServerSessionState.error };
+    }
+  }
+  if (Number(result?.status || 0) > 0) resetNomenclatureTypesServerCapabilities();
+  if (projectionFailure) {
+    void ensureNomenclatureTypesServerCapabilities({ force: true });
+    updateNomenclatureTypesMountedIsland();
+    return { ok: false, message: projectionFailure };
+  }
+  if (result?.ok !== true) {
+    void ensureNomenclatureTypesServerCapabilities({ force: true });
+    updateNomenclatureTypesMountedIsland();
+    return { ok: false, message: getNomenclatureTypesServerFailureMessage(result) };
+  }
+  void ensureNomenclatureTypesServerCapabilities({ force: true });
+  updateNomenclatureTypesMountedIsland();
+  return { ok: true, id: itemId, isNew: command.type === "save" && input.isNew === true };
+}
+
 const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTypesReactIslandHost({
   getActivation: () => {
     const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION === true;
+    const evaluationRequested = serverEvaluationAllowed && isDirectoryNomenclatureTypesReactEvaluationRequested();
+    const localEvaluationEnabled = localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation);
+    const runtimeActivation = resolveReactRuntimeActivation({
+      surfaceId: "nomenclatureTypes",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true,
+      evaluationRequested,
+      localQaEnabled: localEvaluationEnabled,
+    });
+    if (nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
+    const serverCapability = getNomenclatureTypesServerCapabilityModel();
+    const serverWriteEvaluation = serverEvaluationAllowed
+      && evaluationRequested
+      && serverCapability.enabled;
     return {
-      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true || localQa.featureFlagEnabled),
+      ...runtimeActivation,
+      featureFlagEnabled: runtimeActivation.runtimeMode === "react"
+        || (!directoryReactLegacyOverride && runtimeActivation.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: localQa.writeEvaluation
+      accessMode: runtimeActivation.runtimeMode === "react"
+        ? "react"
+        : (localQa.writeEvaluation && !serverCapability.configured) || serverWriteEvaluation
         ? "write-evaluation"
-        : (serverEvaluationAllowed && isDirectoryNomenclatureTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        : evaluationRequested || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
-        : "editor",
+        : runtimeActivation.accessMode,
+      policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
     };
   },
   getPayload: () => {
     const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
-    const deleteUsageById = Object.fromEntries((directoryState.nomenclatureTypes || []).flatMap((row) => {
+    if (nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
+    const serverCapability = getNomenclatureTypesServerCapabilityModel();
+    if (serverCapability.enabled) void ensureNomenclatureTypesDeleteContracts();
+    const legacyDeleteUsageById = Object.fromEntries((directoryState.nomenclatureTypes || []).flatMap((row) => {
       const itemId = String(row?.id || "").trim();
       if (!itemId) return [];
       const typeKey = normalizeLookupText(normalizeNomenclatureType(row.name));
@@ -4994,11 +5333,30 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
       const specificationRowsCount = (directoryState.specifications || []).reduce((count, specification) => count + getSpecificationStructureItems(specification).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.nomenclatureType)) === typeKey).length, 0);
       return [[itemId, { nomenclatureCount, specificationRowsCount, fallbackType: getFallbackNomenclatureType(row.name) }]];
     }));
-    const canWrite = localQa.writeEvaluation && canEditDirectorySection("nomenclatureTypes");
+    const serverDeleteUsageById = nomenclatureTypesDeleteContractsState.status === "ready"
+      && nomenclatureTypesDeleteContractsState.revision === serverCapability.directoryRevision
+      ? nomenclatureTypesDeleteContractsState.byId
+      : {};
+    const canLegacyWrite = localQa.writeEvaluation
+      && !isDirectoryClusterServerCommandsPrimary()
+      && !serverCapability.configured
+      && canEditDirectorySection("nomenclatureTypes");
     return {
       ...directoryState,
-      deleteUsageById,
-      capabilities: { createEdit: canWrite, delete: canWrite },
+      directoryRevision: serverCapability.directoryRevision,
+      deleteUsageById: serverCapability.configured ? serverDeleteUsageById : legacyDeleteUsageById,
+      capabilities: serverCapability.configured ? {
+        serverCommandsConfigured: true,
+        serverCommandsEnabled: serverCapability.enabled,
+        canCreateNomenclatureTypes: serverCapability.canCreate,
+        canEditNomenclatureTypes: serverCapability.canEdit,
+        canDeleteNomenclatureTypes: serverCapability.canDelete,
+      } : {
+        serverCommandsConfigured: false,
+        serverCommandsEnabled: false,
+        createEdit: canLegacyWrite,
+        delete: canLegacyWrite,
+      },
     };
   },
   getTargetRoot: () => app,
@@ -5008,6 +5366,15 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
   },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
+    const exactReplay = nomenclatureTypesUncertainCommands.has(getNomenclatureTypesCommandIdempotencyKey(command));
+    const capabilityState = exactReplay
+      ? nomenclatureTypesServerCapabilitiesState
+      : await ensureNomenclatureTypesServerCapabilities({ force: true });
+    const serverCapability = getNomenclatureTypesServerCapabilityModel();
+    if (serverCapability.configured) return executeNomenclatureTypesServerCommand(command);
+    if (capabilityState.error && !localQa.writeEvaluation) {
+      return { ok: false, message: capabilityState.error };
+    }
     if (!localQa.writeEvaluation || !canEditDirectorySection("nomenclatureTypes")) {
       return { ok: false, message: "Запись типов номенклатуры недоступна для текущей роли." };
     }
@@ -8508,6 +8875,7 @@ function isSameNumericValue(...args) { return runtimeStateService.isSameNumericV
 function persistDirectoryState(...args) { return runtimeStateService.persistDirectoryState(...args); }
 function persistDirectoryStateDurably(...args) { return runtimeStateService.persistDirectoryStateDurably(...args); }
 function persistDirectoryStateWithRemoval(...args) { return runtimeStateService.persistDirectoryStateWithRemoval(...args); }
+function applyAuthoritativeDirectoryProjection(...args) { return runtimeStateService.applyAuthoritativeDirectoryProjection(...args); }
 function persistNomenclatureDirectoryMutationDurably(...args) { return runtimeStateService.persistNomenclatureDirectoryMutationDurably(...args); }
 function initializeRuntimeStateServiceModule() {
   runtimeStateService = createRuntimeStateServiceModule({

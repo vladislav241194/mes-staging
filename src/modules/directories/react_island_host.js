@@ -6,6 +6,7 @@ const NOMENCLATURE_TYPES_VERSION = "__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUN
 const STATUSES_VERSION = "__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__";
 
 function createDirectoryReadIslandHost({
+  allowPermanentReact = false,
   allowWriteEvaluation = false,
   bundleName,
   bundleVersion,
@@ -27,12 +28,15 @@ function createDirectoryReadIslandHost({
     getTargetRoot,
     requestLegacyRender,
     reportError,
+    canFallbackToLegacy: (activation) => !(allowPermanentReact && activation.accessMode === "react"),
     targetSelector,
     renderTarget: `<div class="${className}" ${targetAttribute} data-react-island-state="loading" aria-live="polite"></div>`,
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.activeSection !== scope) return "unsupported-scope";
-      if (activation.accessMode !== "read-only-evaluation" && !(allowWriteEvaluation && activation.accessMode === "write-evaluation")) return "write-parity-incomplete";
+      if (activation.accessMode !== "read-only-evaluation"
+        && !(allowWriteEvaluation && activation.accessMode === "write-evaluation")
+        && !(allowPermanentReact && activation.accessMode === "react")) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -45,7 +49,9 @@ function createDirectoryReadIslandHost({
       loadedIsland[mountExport](target, payload, {
         onError,
         onReady,
-        onRequestLegacy: () => onRequestLegacy("legacy-directory"),
+        onRequestLegacy: allowPermanentReact && getActivation?.().accessMode === "react"
+          ? undefined
+          : () => onRequestLegacy("legacy-directory"),
         onCommand: executeCommand ? (command) => executeCommand(command) : undefined,
       })
     ),
@@ -83,6 +89,7 @@ export function createDirectoryOperationsReactIslandHost(options = {}) {
 export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "nomenclature-types",
     bundleVersion: NOMENCLATURE_TYPES_VERSION,

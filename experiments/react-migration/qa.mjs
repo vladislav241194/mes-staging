@@ -760,10 +760,90 @@ try {
     ["type-old", "—", "—", "neutral"],
   ]);
   assert.deepEqual(adaptNomenclatureTypes({ nomenclatureTypes: {} }), [], "invalid nomenclature-types payload must fail closed");
-  const nomenclatureTypesCommandModel = adaptNomenclatureTypesModel({ nomenclatureTypes: [{ id: "type-qa", name: "QA" }], deleteUsageById: { "type-qa": { nomenclatureCount: 2, specificationRowsCount: 1, fallbackType: "РЭА" } }, capabilities: { createEdit: true, delete: true } });
+  const mutableNomenclatureType = { id: "type-deep", name: "Deep", hidden: { tags: ["original"] } };
+  const immutableNomenclatureType = adaptNomenclatureTypes({ nomenclatureTypes: [mutableNomenclatureType] })[0];
+  mutableNomenclatureType.hidden.tags[0] = "mutated";
+  assert.deepEqual(immutableNomenclatureType.baseline.hidden, { tags: ["original"] }, "Nomenclature Type baseline must be a detached deep JSON clone");
+  assert(Object.isFrozen(immutableNomenclatureType.baseline) && Object.isFrozen(immutableNomenclatureType.baseline.hidden), "Nomenclature Type baseline must remain deeply immutable");
+  const nomenclatureTypesImpactFingerprint = `sha256:${"a".repeat(64)}`;
+  const nomenclatureTypesTargetRow = { id: "type-qa", name: "QA", hidden: { preserve: "target" } };
+  const nomenclatureTypesFallbackRow = { id: "type-rea", name: "РЭА", hidden: { preserve: true } };
+  const nomenclatureTypesCommandModel = adaptNomenclatureTypesModel({
+    nomenclatureTypes: [nomenclatureTypesTargetRow, nomenclatureTypesFallbackRow],
+    nomenclature: [{ id: "nom-a", type: "QA" }, { id: "nom-b", type: "QA" }],
+    specifications: [{ id: "spec-a", structureItems: [{ id: "line-a", nomenclatureType: "QA" }] }],
+    deleteUsageById: { "type-qa": {
+      itemId: "type-qa",
+      expectedRow: nomenclatureTypesTargetRow,
+      nomenclatureCount: 2,
+      specificationRowsCount: 1,
+      fallbackType: "Подменённая подпись",
+      fallbackTypeId: "type-rea",
+      fallbackExpectedRow: nomenclatureTypesFallbackRow,
+      impactFingerprint: nomenclatureTypesImpactFingerprint,
+    } },
+    capabilities: { createEdit: true, delete: true },
+  });
   assert.equal(nomenclatureTypesCommandModel.canCreateEdit, true, "explicit Nomenclature Types write capability must cross the typed adapter");
   assert.equal(nomenclatureTypesCommandModel.canDelete, true, "explicit Nomenclature Types delete capability must cross the typed adapter");
-  assert.deepEqual(nomenclatureTypesCommandModel.deleteUsageById["type-qa"], { nomenclatureCount: 2, specificationRowsCount: 1, fallbackType: "РЭА" });
+  assert.deepEqual(nomenclatureTypesCommandModel.deleteUsageById["type-qa"], {
+    nomenclatureCount: 2,
+    specificationRowsCount: 1,
+    fallbackType: "РЭА",
+    fallbackTypeId: "type-rea",
+    expectedRow: nomenclatureTypesTargetRow,
+    fallbackExpectedRow: nomenclatureTypesFallbackRow,
+    impactFingerprint: nomenclatureTypesImpactFingerprint,
+    serverContractReady: true,
+  });
+  const mismatchedNomenclatureTypesPreview = adaptNomenclatureTypesModel({
+    nomenclatureTypes: [nomenclatureTypesTargetRow, nomenclatureTypesFallbackRow],
+    nomenclature: [{ id: "nom-a", type: "QA" }],
+    specifications: [{ id: "spec-a", structureItems: [] }],
+    directoryRevision: 17,
+    deleteUsageById: { "type-qa": {
+      itemId: "type-qa",
+      expectedRow: nomenclatureTypesTargetRow,
+      nomenclatureCount: 99,
+      specificationRowsCount: 0,
+      fallbackType: "Подменённая подпись",
+      fallbackTypeId: "type-rea",
+      fallbackExpectedRow: nomenclatureTypesFallbackRow,
+      impactFingerprint: nomenclatureTypesImpactFingerprint,
+    } },
+    capabilities: { serverCommandsEnabled: true, canEditNomenclatureTypes: true, canDeleteNomenclatureTypes: true },
+  }).deleteUsageById["type-qa"];
+  assert.equal(mismatchedNomenclatureTypesPreview.serverContractReady, false, "display counts must match the exact current Directory preview");
+  assert.equal(mismatchedNomenclatureTypesPreview.nomenclatureCount, 1, "display counts must be derived from Directory rather than loose payload counters");
+  assert.equal(mismatchedNomenclatureTypesPreview.fallbackType, "РЭА", "fallback label must come from the exact fallback baseline rather than loose display text");
+  const nomenclatureTypesServerCommandModel = adaptNomenclatureTypesModel({
+    nomenclatureTypes: [{ id: "type-qa", name: "QA" }, nomenclatureTypesFallbackRow],
+    directoryRevision: 17,
+    capabilities: {
+      serverCommandsEnabled: true,
+      canCreateNomenclatureTypes: true,
+      canEditNomenclatureTypes: true,
+      canDeleteNomenclatureTypes: true,
+    },
+  });
+  assert.equal(nomenclatureTypesServerCommandModel.canCreateEdit, true, "server owner rights require an exact Directory revision");
+  assert.equal(nomenclatureTypesServerCommandModel.canCreate, true);
+  assert.equal(nomenclatureTypesServerCommandModel.canEdit, true);
+  assert.equal(nomenclatureTypesServerCommandModel.canDelete, true, "server owner delete right must cross only with an exact Directory revision");
+  assert.equal(nomenclatureTypesServerCommandModel.directoryRevision, 17);
+  const nomenclatureTypesEditOnly = adaptNomenclatureTypesModel({
+    nomenclatureTypes: [],
+    directoryRevision: 17,
+    capabilities: { serverCommandsEnabled: true, canCreateNomenclatureTypes: false, canEditNomenclatureTypes: true, canDeleteNomenclatureTypes: false },
+  });
+  assert.equal(nomenclatureTypesEditOnly.canCreate, false, "server create right must not be inferred from edit");
+  assert.equal(nomenclatureTypesEditOnly.canEdit, true, "server edit right must remain independently usable");
+  const nomenclatureTypesMissingRevision = adaptNomenclatureTypesModel({
+    nomenclatureTypes: [],
+    capabilities: { serverCommandsEnabled: true, canCreateNomenclatureTypes: true, canEditNomenclatureTypes: true, canDeleteNomenclatureTypes: true },
+  });
+  assert.equal(nomenclatureTypesMissingRevision.canCreateEdit, false, "server writes must fail closed without the shared Directory revision");
+  assert.equal(nomenclatureTypesMissingRevision.canDelete, false, "server delete must fail closed without the shared Directory revision");
   const nomenclatureTypesFailClosed = adaptNomenclatureTypesModel({ nomenclatureTypes: [], capabilities: { createEdit: "true", delete: "true" } });
   assert.equal(nomenclatureTypesFailClosed.canCreateEdit, false, "non-boolean Nomenclature Types write capability must fail closed");
   assert.equal(nomenclatureTypesFailClosed.canDelete, false, "non-boolean Nomenclature Types delete capability must fail closed");
@@ -1749,6 +1829,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_DIRECTORY_CLUSTER_SERVER_COMMANDS_PRIMARY:.*MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS.*=== "1"/,
+    "Directory cluster ownership must reach the browser only as a non-secret fail-closed boolean");
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_STATUSES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_SPECIFICATIONS2:.*=== "1"/);
@@ -1809,6 +1891,34 @@ try {
     );
     await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-nomenclature-command-qa.mjs")], { cwd: repositoryRoot });
     await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/nomenclature-command-server-wiring-qa.mjs")], { cwd: repositoryRoot });
+  }
+  const directoryClusterCommandContractPaths = new Set([
+    "package.json",
+    "server.js",
+    "scripts/preview-dist.mjs",
+    "scripts/shared-state-endpoint.mjs",
+    "scripts/shared-state-storage.mjs",
+    "scripts/domain-nomenclature-command.mjs",
+    "scripts/nomenclature-command-authorization.mjs",
+    "scripts/directory-cluster-type-reducer.mjs",
+    "scripts/directory-cluster-type-reducer-qa.mjs",
+    "scripts/directory-cluster-board-reducer.mjs",
+    "scripts/directory-cluster-board-reducer-qa.mjs",
+    "scripts/domain-directory-cluster-command.mjs",
+    "scripts/domain-directory-cluster-command-qa.mjs",
+    "scripts/directory-cluster-authorization-qa.mjs",
+    "scripts/directory-cluster-command-server-wiring-qa.mjs",
+    "scripts/directory-cluster-nomenclature-types-e2e.mjs",
+    "src/modules/nomenclature_types/server_owner_client.js",
+    "scripts/nomenclature-types-server-owner-client-qa.mjs",
+  ]);
+  if ([...directoryClusterCommandContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...directoryClusterCommandContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...directoryClusterCommandContractPaths].sort(),
+      "Directory cluster owner must remain an atomic, separately executable backend/client contract",
+    );
+    await execFileAsync("npm", ["run", "qa:domain-directory-cluster-command"], { cwd: repositoryRoot });
   }
   if (changedPaths.includes(specificationsAuthorityQaPath)) {
     const { stdout: authorityQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", specificationsAuthorityQaPath], { cwd: repositoryRoot });
@@ -1893,8 +2003,12 @@ try {
     assert.deepEqual(serverPolicyChanges, [
       '+import { handleEmployeeAuthRequest } from "./scripts/employee-auth-endpoint.mjs";',
       '+import { inspectEmployeeAuthSession } from "./scripts/employee-auth-guard.mjs";',
-      '+import { getCurrentNomenclatureAuthorization } from "./scripts/nomenclature-command-authorization.mjs";',
+      '+import {',
+      '+  getCurrentDirectoryAuthorization,',
+      '+  getCurrentNomenclatureAuthorization,',
+      '+} from "./scripts/nomenclature-command-authorization.mjs";',
       '+import { handleNomenclatureCommandRequest } from "./scripts/domain-nomenclature-command.mjs";',
+      '+import { handleDirectoryClusterCommandRequest } from "./scripts/domain-directory-cluster-command.mjs";',
       '+import {',
       '+  assertSingleReactEvaluationPermission,',
       '+  getPublicReactRuntimePolicy,',
@@ -1913,6 +2027,38 @@ try {
       '+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState, reactRuntime: reactRuntimeSummary }));',
       '+  if (await handleEmployeeAuthRequest(req, res, url, {',
       '+    headers: noCacheHeaders,',
+      '+  })) {',
+      '+    return;',
+      '+  }',
+      '+',
+      '+  if (await handleDirectoryClusterCommandRequest(req, res, url, {',
+      '+    env: process.env,',
+      '+    filePath: sharedStatePaths.filePath,',
+      '+    backupDir: sharedStatePaths.backupDir,',
+      '+    auditLogPath: sharedStatePaths.auditLogPath,',
+      '+    headers: noCacheHeaders,',
+      '+    getAuthorization: async ({ resource, surface }) => {',
+      '+      const session = await inspectEmployeeAuthSession(req, process.env);',
+      '+      if (!session.principal) {',
+      '+        if ([',
+      '+          "employee-auth-not-configured",',
+      '+          "employee-auth-storage-not-configured",',
+      '+          "employee-auth-storage-unavailable",',
+      '+        ].includes(session.reason)) {',
+      '+          throw new Error("Employee authorization storage is unavailable");',
+      '+        }',
+      '+        return null;',
+      '+      }',
+      '+      const authorization = await getCurrentDirectoryAuthorization(session.principal, {',
+      '+        databaseUrl: process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",',
+      '+        moduleId: surface === "boards" ? "nomenclature" : "directories",',
+      '+        resourceId: resource,',
+      '+      });',
+      '+      if (!authorization.allowed && /(?:unavailable|not-configured)$/.test(String(authorization.reason || ""))) {',
+      '+        throw new Error("Current Directory RBAC projection is unavailable");',
+      '+      }',
+      '+      return authorization;',
+      '+    },',
       '+  })) {',
       '+    return;',
       '+  }',
@@ -1947,7 +2093,7 @@ try {
       '+    return;',
       '+  }',
       '+',
-    ], "server.js may contain only the reviewed runtime-policy delivery and separately QA-gated employee-auth/Nomenclature command route");
+    ], "server.js may contain only the reviewed runtime-policy delivery and separately QA-gated employee-auth/Nomenclature/Directory command routes");
   }
   const frozenBackendDiff = changedPaths
     .filter(isFrozenBackendPath)
@@ -1955,7 +2101,8 @@ try {
       && !responsibilityLifecyclePaths.has(path)
       && !reactRuntimePolicyDeliveryPaths.has(path)
       && !employeeAuthSchemaContractPaths.has(path)
-      && !nomenclatureCommandContractPaths.has(path));
+      && !nomenclatureCommandContractPaths.has(path)
+      && !directoryClusterCommandContractPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([

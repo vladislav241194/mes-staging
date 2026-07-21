@@ -22,8 +22,12 @@ import { writeContourFavicon } from "./contour-favicon.mjs";
 import { handlePublicAuthRequest } from "./public-auth-guard.mjs";
 import { handleEmployeeAuthRequest } from "./employee-auth-endpoint.mjs";
 import { inspectEmployeeAuthSession } from "./employee-auth-guard.mjs";
-import { getCurrentNomenclatureAuthorization } from "./nomenclature-command-authorization.mjs";
+import {
+  getCurrentDirectoryAuthorization,
+  getCurrentNomenclatureAuthorization,
+} from "./nomenclature-command-authorization.mjs";
 import { handleNomenclatureCommandRequest } from "./domain-nomenclature-command.mjs";
+import { handleDirectoryClusterCommandRequest } from "./domain-directory-cluster-command.mjs";
 import { handleInternalShiftExecutionE2eRequest } from "./internal-shift-execution-e2e-endpoint.mjs";
 import {
   assertSingleReactEvaluationPermission,
@@ -230,6 +234,38 @@ createServer(async (req, res) => {
 
   if (await handleEmployeeAuthRequest(req, res, url, {
     headers: noCacheHeaders,
+  })) {
+    return;
+  }
+
+  if (await handleDirectoryClusterCommandRequest(req, res, url, {
+    env: process.env,
+    filePath: sharedStatePaths.filePath,
+    backupDir: sharedStatePaths.backupDir,
+    auditLogPath: sharedStatePaths.auditLogPath,
+    headers: noCacheHeaders,
+    getAuthorization: async ({ resource, surface }) => {
+      const session = await inspectEmployeeAuthSession(req, process.env);
+      if (!session.principal) {
+        if ([
+          "employee-auth-not-configured",
+          "employee-auth-storage-not-configured",
+          "employee-auth-storage-unavailable",
+        ].includes(session.reason)) {
+          throw new Error("Employee authorization storage is unavailable");
+        }
+        return null;
+      }
+      const authorization = await getCurrentDirectoryAuthorization(session.principal, {
+        databaseUrl: process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
+        moduleId: surface === "boards" ? "nomenclature" : "directories",
+        resourceId: resource,
+      });
+      if (!authorization.allowed && /(?:unavailable|not-configured)$/.test(String(authorization.reason || ""))) {
+        throw new Error("Current Directory RBAC projection is unavailable");
+      }
+      return authorization;
+    },
   })) {
     return;
   }

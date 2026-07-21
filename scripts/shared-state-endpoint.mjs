@@ -23,6 +23,7 @@ const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 const SPECIFICATIONS2_STORAGE_KEY = "mes-specifications-2-registry-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 export const NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY = "mes-nomenclature-command-receipts-v1";
+export const DIRECTORY_CLUSTER_COMMAND_RECEIPTS_STORAGE_KEY = "mes-directory-cluster-command-receipts-v1";
 const DIRECTORY_VALUE_KEYS = new Set([
   DIRECTORY_STORAGE_KEY,
   "mes-planning-prototype-directories-defaults-restored-v1",
@@ -358,6 +359,10 @@ function sanitizeValues(values, currentValues = {}) {
   if (typeof nomenclatureReceipts === "string") {
     sanitized[NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY] = nomenclatureReceipts;
   }
+  const directoryClusterReceipts = currentValues?.[DIRECTORY_CLUSTER_COMMAND_RECEIPTS_STORAGE_KEY];
+  if (typeof directoryClusterReceipts === "string") {
+    sanitized[DIRECTORY_CLUSTER_COMMAND_RECEIPTS_STORAGE_KEY] = directoryClusterReceipts;
+  }
   return sanitized;
 }
 
@@ -422,6 +427,73 @@ export function validateNomenclatureServerAuthorityWrite(current, next, env = pr
       code: "dangling-nomenclature-reference",
       error: "BOM or Specifications contains a Nomenclature reference that does not exist",
       danglingReferences: danglingReferences.slice(0, 50),
+    };
+  }
+  return { ok: true };
+}
+
+function directoryClusterOwnedProjection(directory) {
+  const bomLinkedNomenclatureIds = new Set((directory.bomLists || []).flatMap((board) => (
+    Array.isArray(board?.importRows) ? board.importRows.flatMap((row) => {
+      const itemId = row && typeof row === "object" && !Array.isArray(row)
+        ? String(row.nomenclatureId || "").trim()
+        : "";
+      return itemId ? [itemId] : [];
+    }) : []
+  )));
+  const boardOwnedNomenclature = (directory.nomenclature || []).filter((row) => (
+    String(row?.sourceBomResultId || "").trim()
+    || (Array.isArray(row?.sourceBomIds) && row.sourceBomIds.length)
+    || bomLinkedNomenclatureIds.has(String(row?.id || "").trim())
+  ));
+  return {
+    nomenclatureTypes: directory.nomenclatureTypes,
+    bomLists: directory.bomLists,
+    nomenclatureTypeAssignments: (directory.nomenclature || []).map((row) => ({
+      id: row?.id,
+      type: row?.type,
+    })),
+    boardOwnedNomenclature,
+    specificationDirectoryReferences: (directory.specifications || []).map((row) => ({
+      id: row?.id,
+      bomListA: row?.bomListA,
+      bomListB: row?.bomListB,
+      structureItems: Array.isArray(row?.structureItems) ? row.structureItems.map((item) => ({
+        id: item?.id,
+        bomListId: item?.bomListId,
+        nomenclatureType: item?.nomenclatureType,
+      })) : row?.structureItems,
+    })),
+  };
+}
+
+export function validateDirectoryClusterServerAuthorityWrite(current, next, env = process.env) {
+  if (String(env.MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS || "") !== "1") return { ok: true };
+  const currentDirectory = parseJsonRecord(current?.values?.[DIRECTORY_STORAGE_KEY]);
+  const nextDirectory = parseJsonRecord(next?.values?.[DIRECTORY_STORAGE_KEY]);
+  if (!currentDirectory || !nextDirectory
+    || !Array.isArray(currentDirectory.nomenclatureTypes)
+    || !Array.isArray(currentDirectory.nomenclature)
+    || !Array.isArray(currentDirectory.bomLists)
+    || !Array.isArray(currentDirectory.specifications)
+    || !Array.isArray(nextDirectory.nomenclatureTypes)
+    || !Array.isArray(nextDirectory.nomenclature)
+    || !Array.isArray(nextDirectory.bomLists)
+    || !Array.isArray(nextDirectory.specifications)) {
+    return {
+      ok: false,
+      code: "invalid-directory-projection",
+      error: "Directory cluster server authority requires a complete Directory projection",
+    };
+  }
+  if (!sameJsonValue(
+    directoryClusterOwnedProjection(currentDirectory),
+    directoryClusterOwnedProjection(nextDirectory),
+  )) {
+    return {
+      ok: false,
+      code: "directory-cluster-command-required",
+      error: "Nomenclature Types, Boards/BOM and their cross-directory references can only be changed through the server command endpoints",
     };
   }
   return { ok: true };
@@ -1274,6 +1346,19 @@ export async function handleSharedStateRequest(req, res, {
           ...(nomenclatureAuthority.danglingReferences
             ? { danglingReferences: nomenclatureAuthority.danglingReferences }
             : {}),
+          current: compactDirectoryAcknowledgement ? projectSnapshotValues(current, []) : current,
+        });
+        return;
+      }
+      const directoryClusterAuthority = validateDirectoryClusterServerAuthorityWrite(current, snapshot, env);
+      if (!directoryClusterAuthority.ok) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          directoryClusterServerAuthority: true,
+          code: directoryClusterAuthority.code,
+          error: directoryClusterAuthority.error,
           current: compactDirectoryAcknowledgement ? projectSnapshotValues(current, []) : current,
         });
         return;

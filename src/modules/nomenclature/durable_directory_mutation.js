@@ -33,9 +33,9 @@ export function parseCompleteDirectoryProjection(rawValue, requiredSectionIds = 
   if (!required.length || required.some((sectionId) => !Object.prototype.hasOwnProperty.call(directory, sectionId))) {
     return fail("invalid-directory-projection", "В серверной проекции отсутствуют обязательные разделы справочников.");
   }
-  const invalidSection = Object.entries(directory).find(([, rows]) => !Array.isArray(rows));
-  if (invalidSection) {
-    return fail("invalid-directory-projection", `Раздел ${invalidSection[0]} не является полным массивом записей.`);
+  const invalidSectionId = required.find((sectionId) => !Array.isArray(directory[sectionId]));
+  if (invalidSectionId) {
+    return fail("invalid-directory-projection", `Раздел ${invalidSectionId} не является полным массивом записей.`);
   }
   const nomenclatureIds = new Set();
   for (const row of directory.nomenclature) {

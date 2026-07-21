@@ -2069,10 +2069,10 @@ function withPlanningEntityRemovalAllowed(callback) {
   }
 }
 
-function applyAuthoritativeNomenclatureProjection(projection = null) {
+function applyAuthoritativeDirectoryProjection(projection = null, subjectLabel = "Directory") {
   const revision = Number(projection?.revision);
   if (!Number.isSafeInteger(revision) || revision <= 0) {
-    return { ok: false, code: "invalid-directory-projection", message: "Серверная команда не вернула действующую ревизию Номенклатуры." };
+    return { ok: false, code: "invalid-directory-projection", message: `Серверная команда не вернула действующую ревизию ${subjectLabel}.` };
   }
   const currentHydrationRevision = Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0);
   if (revision < currentHydrationRevision) {
@@ -2080,7 +2080,7 @@ function applyAuthoritativeNomenclatureProjection(projection = null) {
   }
   let rawDirectory;
   try { rawDirectory = JSON.stringify(projection.directory); }
-  catch { return { ok: false, code: "invalid-directory-projection", message: "Серверная проекция Номенклатуры не сериализуется." }; }
+  catch { return { ok: false, code: "invalid-directory-projection", message: `Серверная проекция ${subjectLabel} не сериализуется.` }; }
   const parsed = parseCompleteDirectoryProjection(rawDirectory, Object.keys(createDefaultDirectoryState()));
   if (!parsed.ok) return parsed;
 
@@ -2096,6 +2096,10 @@ function applyAuthoritativeNomenclatureProjection(projection = null) {
   rememberSharedStateValueHydration([DIRECTORY_STORAGE_KEY], revision);
   commitRuntimeState();
   return { ok: true, version: revision, directoryState };
+}
+
+function applyAuthoritativeNomenclatureProjection(projection = null) {
+  return applyAuthoritativeDirectoryProjection(projection, "Номенклатуры");
 }
 
 function getNomenclatureCommandExpectedRevision(intent = {}) {
@@ -2469,6 +2473,7 @@ let planningCoreService = {};
     withPlanningEntityRemovalAllowed,
     persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
+    applyAuthoritativeDirectoryProjection,
     persistNomenclatureDirectoryMutationDurably,
     loadDirectoryState,
     ensureStatusDirectoryDefaults,

@@ -240,6 +240,7 @@ export function getPublicRuntimeConfig(env = process.env, { reactRuntimePolicy =
     // configuration. Clients use them to fail closed onto the authenticated
     // command path instead of attempting a legacy snapshot write.
     MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY: normalizeEnvValue(env.MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS) === "1",
+    MES_DIRECTORY_CLUSTER_SERVER_COMMANDS_PRIMARY: normalizeEnvValue(env.MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS) === "1",
     MES_EMPLOYEE_AUTH_AVAILABLE: [
       env.MES_ENABLE_EMPLOYEE_AUTH,
       env.MES_EMPLOYEE_AUTH_ENABLED,

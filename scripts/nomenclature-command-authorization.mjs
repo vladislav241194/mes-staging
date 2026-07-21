@@ -17,10 +17,12 @@ function denied(reason, principal = null, revision = 0) {
   });
 }
 
-export async function getCurrentNomenclatureAuthorization(employeePrincipal, {
+export async function getCurrentDirectoryAuthorization(employeePrincipal, {
   databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
   domainsRepositoryFactory = createSystemDomainsRepository,
   now = () => new Date(),
+  moduleId = "directories",
+  resourceId = "nomenclature",
 } = {}) {
   if (!employeePrincipal?.employeeId || employeePrincipal.scope !== "employee") {
     return denied("employee-session-required");
@@ -38,9 +40,13 @@ export async function getCurrentNomenclatureAuthorization(employeePrincipal, {
       subjectRoleAssignments: toAccessControlAssignments(current.item),
       now,
     });
-    const resource = { resourceId: "nomenclature" };
-    const viewDecision = service.explainCan(subject, "directories", "view", resource);
-    const decision = service.explainCan(subject, "directories", "edit", resource);
+    const normalizedModuleId = String(moduleId || "").trim().slice(0, 160);
+    const normalizedResourceId = String(resourceId || "").trim().slice(0, 160);
+    if (!normalizedModuleId) return denied("directory-module-required", employeePrincipal, current.revision);
+    if (!normalizedResourceId) return denied("directory-resource-required", employeePrincipal, current.revision);
+    const resource = { resourceId: normalizedResourceId };
+    const viewDecision = service.explainCan(subject, normalizedModuleId, "view", resource);
+    const decision = service.explainCan(subject, normalizedModuleId, "edit", resource);
     return Object.freeze({
       allowed: Boolean(decision.allowed),
       reason: decision.reason,
@@ -54,4 +60,12 @@ export async function getCurrentNomenclatureAuthorization(employeePrincipal, {
   } finally {
     await repository?.close?.();
   }
+}
+
+export async function getCurrentNomenclatureAuthorization(employeePrincipal, options = {}) {
+  return getCurrentDirectoryAuthorization(employeePrincipal, {
+    ...options,
+    moduleId: "nomenclature",
+    resourceId: "nomenclature",
+  });
 }

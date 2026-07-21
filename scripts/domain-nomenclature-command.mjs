@@ -19,6 +19,7 @@ const MAX_PROJECTION_JSON_DEPTH = 64;
 const MAX_PROJECTION_JSON_NODES = 1_000_000;
 const MAX_PROJECTION_JSON_KEYS = 500_000;
 const REFERENCE_KEYS = new Set(["nomenclatureId", "outputNomenclatureId"]);
+const DIRECTORY_CLUSTER_SERVER_COMMANDS_FLAG = "MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS";
 
 export const NOMENCLATURE_COMMAND_JSON_LIMITS = Object.freeze({
   maxDepth: 64,
@@ -41,7 +42,7 @@ export const NOMENCLATURE_SERVER_COMMAND_CONTRACT = Object.freeze({
   destructiveDelete: Object.freeze({ fileBackup: "required-before-write", auditActor: "authorization.principal" }),
 });
 
-function isRecord(value) {
+export function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -51,7 +52,7 @@ function stableValue(value) {
   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key])]));
 }
 
-function stableJson(value) {
+export function stableJson(value) {
   return JSON.stringify(stableValue(value));
 }
 
@@ -63,7 +64,7 @@ function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function text(value, maxLength = 200) {
+export function text(value, maxLength = 200) {
   return String(value || "").trim().slice(0, maxLength);
 }
 
@@ -76,15 +77,15 @@ function exactItemId(value) {
   return itemId && itemId.length <= 160 ? itemId : "";
 }
 
-function safeNonNegativeInteger(value) {
+export function safeNonNegativeInteger(value) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-function resultError(statusCode, code, error, details = {}) {
+export function resultError(statusCode, code, error, details = {}) {
   return { ok: false, statusCode, code, error, ...details };
 }
 
-function inspectJsonShape(value, {
+export function inspectJsonShape(value, {
   maxDepth,
   maxNodes,
   maxKeys,
@@ -191,7 +192,7 @@ function normalizeAuthorizationDecision(value) {
   return Object.keys(decision).length ? decision : null;
 }
 
-function normalizeOptionalRevision(value) {
+export function normalizeOptionalRevision(value) {
   if (value === undefined || value === null) return null;
   return safeNonNegativeInteger(value);
 }
@@ -228,7 +229,7 @@ function parseDirectory(snapshot) {
   return { ok: true, raw, directory, ids };
 }
 
-function normalizePrincipal(authorization) {
+export function normalizePrincipal(authorization) {
   if (!authorization) {
     return resultError(401, "employee-principal-required", "A server-derived employee principal is required to edit Nomenclature");
   }
@@ -431,6 +432,28 @@ function applyCommand(directory, command, now) {
     : references;
 }
 
+function validateDirectoryClusterNomenclatureBoundary(directory, command, env) {
+  if (String(env?.[DIRECTORY_CLUSTER_SERVER_COMMANDS_FLAG] || "") !== "1") return { ok: true };
+  const current = directory.nomenclature.find((row) => exactItemId(row?.id) === command.itemId) || null;
+  const candidate = command.kind === "create"
+    ? command.row
+    : command.kind === "update" && current
+      ? { ...current, ...command.row, id: current.id }
+      : current;
+  const hasBoardOwner = Boolean(exactItemId(candidate?.sourceBomResultId))
+    || (Array.isArray(candidate?.sourceBomIds) && candidate.sourceBomIds.some((boardId) => Boolean(exactItemId(boardId))))
+    || Boolean(exactItemId(current?.sourceBomResultId))
+    || (Array.isArray(current?.sourceBomIds) && current.sourceBomIds.some((boardId) => Boolean(exactItemId(boardId))))
+    || directory.bomLists.some((board) => Array.isArray(board?.importRows)
+      && board.importRows.some((row) => exactItemId(row?.nomenclatureId) === command.itemId));
+  return hasBoardOwner
+    ? resultError(409, "directory-cluster-command-required", "Board/BOM-owned Nomenclature rows can only be changed through the Directory cluster command owner", {
+      conflict: true,
+      itemId: command.itemId,
+    })
+    : { ok: true };
+}
+
 function isValidReceiptEntry(key, receipt) {
   const employeeId = text(receipt?.employeeId, 160);
   return /^[a-f0-9]{64}$/.test(key)
@@ -471,11 +494,11 @@ function parseReceipts(snapshot) {
   }
 }
 
-function receiptKey(actorId, idempotencyKey) {
+export function receiptKey(actorId, idempotencyKey) {
   return createHash("sha256").update(`${actorId}\0${idempotencyKey}`).digest("hex");
 }
 
-function appendReceipt(receipts, key, receipt) {
+export function appendReceipt(receipts, key, receipt) {
   const entries = { ...receipts.entries, [key]: receipt };
   const sorted = Object.entries(entries).sort((left, right) => (
     String(right[1]?.createdAt || "").localeCompare(String(left[1]?.createdAt || ""))
@@ -573,6 +596,10 @@ export async function executeNomenclatureCommand(input = {}, {
       });
     }
     const now = new Date().toISOString();
+    const clusterBoundary = validateDirectoryClusterNomenclatureBoundary(parsed.directory, command, env);
+    if (!clusterBoundary.ok) {
+      return { ...clusterBoundary, revision: Number(current.version || 0), projection: projectionFromSnapshot(current) };
+    }
     const mutation = applyCommand(parsed.directory, command, now);
     if (!mutation.ok) {
       return { ...mutation, revision: Number(current.version || 0), projection: projectionFromSnapshot(current) };
@@ -647,6 +674,11 @@ export async function executeNomenclatureCommand(input = {}, {
               ? resultError(503, "invalid-idempotency-projection", "Nomenclature idempotency projection is invalid and was not overwritten")
               : latestProjection;
             throw Object.assign(new Error(lockedFailure.error), { code: "NOMENCLATURE_COMMAND_REJECTED" });
+          }
+          const latestClusterBoundary = validateDirectoryClusterNomenclatureBoundary(latestProjection.directory, command, env);
+          if (!latestClusterBoundary.ok) {
+            lockedFailure = latestClusterBoundary;
+            throw Object.assign(new Error(latestClusterBoundary.error), { code: "NOMENCLATURE_COMMAND_REJECTED" });
           }
           const latestMutation = applyCommand(latestProjection.directory, command, now);
           if (!latestMutation.ok) {
@@ -761,9 +793,9 @@ export function isNomenclatureCommandRequest(req, url) {
   return Boolean(matchNomenclatureCommandRoute(req?.method, url?.pathname));
 }
 
-function readBody(req, limit = MAX_COMMAND_BODY_BYTES) {
+export function readBody(req, limit = MAX_COMMAND_BODY_BYTES, inspect = inspectCommandJson) {
   if (isRecord(req?.body)) {
-    const shape = inspectCommandJson(req.body);
+    const shape = inspect(req.body);
     if (!shape.ok) return Promise.reject(Object.assign(new Error(shape.error), { statusCode: shape.statusCode, code: shape.code }));
     let serializedBody;
     try { serializedBody = JSON.stringify(req.body); }
@@ -795,7 +827,7 @@ function readBody(req, limit = MAX_COMMAND_BODY_BYTES) {
   });
 }
 
-function parseIfMatch(value) {
+export function parseIfMatch(value) {
   const normalized = String(value || "").trim();
   const match = normalized.match(/^"(\d+)"$/);
   if (!match) return null;
@@ -803,7 +835,7 @@ function parseIfMatch(value) {
   return Number.isSafeInteger(revision) && revision >= 0 ? revision : null;
 }
 
-function getRequestHeader(req, name) {
+export function getRequestHeader(req, name) {
   const normalized = String(name || "").toLowerCase();
   const direct = req?.headers?.[normalized];
   if (direct !== undefined) return direct;
@@ -811,7 +843,7 @@ function getRequestHeader(req, name) {
   return entry?.[1];
 }
 
-function hasSameOriginRequestContext(req, url) {
+export function hasSameOriginRequestContext(req, url) {
   if (String(getRequestHeader(req, "sec-fetch-site") || "").toLowerCase() !== "same-origin") return false;
   const requestOrigin = String(getRequestHeader(req, "origin") || "").trim();
   const requestHost = String(getRequestHeader(req, "host") || "").trim().toLowerCase();
@@ -820,7 +852,7 @@ function hasSameOriginRequestContext(req, url) {
   catch { return false; }
 }
 
-function sendJson(res, statusCode, payload, revision = null, headers = null) {
+export function sendJson(res, statusCode, payload, revision = null, headers = null) {
   const responseHeaders = { ...(typeof headers === "function" ? headers("application/json; charset=utf-8") : {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",

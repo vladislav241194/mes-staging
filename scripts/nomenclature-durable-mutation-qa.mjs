@@ -28,6 +28,10 @@ assert.equal(parseCompleteDirectoryProjection(JSON.stringify(missingSection), RE
 const nonArraySection = fixture();
 nonArraySection.statuses = null;
 assert.equal(parseCompleteDirectoryProjection(JSON.stringify(nonArraySection), REQUIRED_SECTIONS).code, "invalid-directory-projection");
+const forwardCompatibleProjection = { ...fixture(), topLevelUnknown: { preserve: true } };
+const parsedForwardCompatible = parseCompleteDirectoryProjection(JSON.stringify(forwardCompatibleProjection), REQUIRED_SECTIONS);
+assert(parsedForwardCompatible.ok && parsedForwardCompatible.directory.topLevelUnknown.preserve === true,
+  "forward-compatible top-level Directory metadata must be preserved without being mistaken for a registry array");
 const duplicateRow = fixture();
 duplicateRow.nomenclature.push(clone(duplicateRow.nomenclature[0]));
 assert.equal(parseCompleteDirectoryProjection(JSON.stringify(duplicateRow), REQUIRED_SECTIONS).code, "invalid-directory-projection");
