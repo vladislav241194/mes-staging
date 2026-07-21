@@ -186,7 +186,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.24";
+const APP_VERSION_FALLBACK = "v.1.500.25";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -496,14 +496,19 @@ function cancelNomenclatureEmployeeElevation() {
   return true;
 }
 
-async function executeNomenclatureServerCommand(intent = {}, expectedRevision = 0) {
-  const kind = String(intent.kind || "");
-  const action = kind === "create" ? "create" : kind === "delete" ? "delete" : "edit";
+async function getNomenclatureReactWriteDecisionForCommand(action = "edit") {
   let decision = getNomenclatureReactWriteDecision(action);
   if (!decision.allowed && nomenclatureServerCapabilitiesState.status === "loading") {
     await (nomenclatureServerCapabilitiesPromise || ensureNomenclatureServerCapabilities({ force: true }));
     decision = getNomenclatureReactWriteDecision(action);
   }
+  return decision;
+}
+
+async function executeNomenclatureServerCommand(intent = {}, expectedRevision = 0) {
+  const kind = String(intent.kind || "");
+  const action = kind === "create" ? "create" : kind === "delete" ? "delete" : "edit";
+  const decision = await getNomenclatureReactWriteDecisionForCommand(action);
   if (!decision.allowed) {
     return { ok: false, failClosed: true, status: 0, code: "write-unavailable", category: "authorization", message: decision.reason };
   }
@@ -2855,7 +2860,7 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     if (command.type === "request-elevation") return beginNomenclatureEmployeeElevation();
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "delete") {
-      const decision = getNomenclatureReactWriteDecision("delete");
+      const decision = await getNomenclatureReactWriteDecisionForCommand("delete");
       if (!decision.allowed) return { ok: false, code: "write-unavailable", message: decision.reason };
       const result = await deleteNomenclatureCommand({
         requireDurable: true,
@@ -2873,7 +2878,7 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
       };
     }
     if (command.type !== "save") throw new Error("Unsupported Nomenclature React command");
-    const decision = getNomenclatureReactWriteDecision(input.isNew === true ? "create" : "edit");
+    const decision = await getNomenclatureReactWriteDecisionForCommand(input.isNew === true ? "create" : "edit");
     if (!decision.allowed) return { ok: false, code: "write-unavailable", message: decision.reason };
     const result = await saveNomenclatureCommand({
       requireDurable: true,
