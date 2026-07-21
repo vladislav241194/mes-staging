@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "updatedAt": "2026-07-21",
   "baselineProgress": 46,
-  "currentProgress": 50,
+  "currentProgress": 48,
   "designSystem": "mes-line",
   "activePilotRelease": "v.1.500.21-8fb92d9",
   "previousPilotRelease": "v.1.500.20-a4d8b2f",
@@ -70,7 +70,7 @@
     { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 18 },
     { "id": "pilot-acceptance", "label": "Real Pilot read and write acceptance", "maximum": 20, "earned": 9 },
     { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 2 },
-    { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 2 },
+    { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 0 },
     { "id": "quality-controls", "label": "Strict QA, release and rollback controls", "maximum": 5, "earned": 5 }
   ],
   "scenarioAcceptance": [
@@ -191,9 +191,19 @@
       "reactSurface": "production-island",
       "functionalStatus": "read-only-complete",
       "runtimeMode": "react",
-      "normalLegacyPath": false,
-      "productionReady": true,
-      "remainingScopes": []
+      "visibleLegacyRendererPath": false,
+      "runtimeLegacyModelDependency": true,
+      "candidateRuntimeLegacyModelDependency": false,
+      "candidateEvidence": {
+        "status": "local-verified-pilot-pending",
+        "proof": ["strict-typecheck", "model-parity", "import-graph", "production-shell"],
+        "pilotPublication": "pending",
+        "freshRead": "pending",
+        "rollbackReactivationDrill": "pending"
+      },
+      "normalLegacyPath": true,
+      "productionReady": false,
+      "remainingScopes": ["publish typed read-model candidate to Pilot", "fresh authenticated Pilot read", "immutable previous-release rollback and candidate reactivation drill"]
     },
     {
       "id": "shiftMasterBoard",

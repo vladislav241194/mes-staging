@@ -48,7 +48,23 @@ assert(ledger.criteria.every((criterion) => Number.isInteger(criterion.earned) &
 assert.equal(ledger.criteria.reduce((sum, criterion) => sum + criterion.maximum, 0), 100, "cutover criteria must total 100 points");
 const computedProgress = ledger.criteria.reduce((sum, criterion) => sum + criterion.earned, 0);
 assert.equal(computedProgress, ledger.currentProgress, "reported progress must equal the evidence-weighted criterion total");
-assert.equal(computedProgress, 50, "the second permanent React surface raises audited cutover progress conservatively to 50%");
+const auditedWeeklyModule = ledger.modules.find((module) => module.id === "weeklyProductionControl");
+const expectedProgress = auditedWeeklyModule?.runtimeLegacyModelDependency ? 48 : 50;
+assert.equal(computedProgress, expectedProgress, "Weekly legacy-consolidation credit requires a runtime-independent production read-model");
+assert.equal(
+  ledger.criteria.find((criterion) => criterion.id === "legacy-consolidation")?.earned,
+  auditedWeeklyModule?.runtimeLegacyModelDependency ? 0 : 2,
+  "legacy-consolidation points must follow the explicit Weekly runtime dependency proof",
+);
+if (auditedWeeklyModule?.candidateRuntimeLegacyModelDependency === false
+  && auditedWeeklyModule.runtimeLegacyModelDependency === true) {
+  assert.equal(auditedWeeklyModule.candidateEvidence?.status, "local-verified-pilot-pending",
+    "a locally isolated Weekly candidate may not masquerade as accepted-live isolation");
+  assert.equal(auditedWeeklyModule.candidateEvidence?.pilotPublication, "pending");
+  assert.equal(auditedWeeklyModule.candidateEvidence?.freshRead, "pending");
+  assert.equal(auditedWeeklyModule.candidateEvidence?.rollbackReactivationDrill, "pending");
+  assert.equal(ledger.currentProgress, 48, "local candidate proof alone must not raise the Pilot/legacy score");
+}
 
 assert.equal(ledger.permanentPilotEvidence?.release, ledger.activePilotRelease, "permanent Pilot evidence must bind the active immutable release");
 const acceptedSurfaceIds = sorted(ledger.scenarioAcceptance.filter((scenario) => scenario.defaultOn).map((scenario) => scenario.id));
@@ -188,8 +204,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   ledger.modules.filter((module) => module.productionReady).map((module) => module.id),
-  ["weeklyProductionControl"],
-  "Weekly Production Control is the only production-ready route on the accepted Pilot release",
+  auditedWeeklyModule?.runtimeLegacyModelDependency ? [] : ["weeklyProductionControl"],
+  "Weekly Production Control becomes production-ready only after its runtime model is independent of legacy",
 );
 const productionStructureModule = ledger.modules.find((module) => module.id === "productionStructureMatrix");
 assert.equal(productionStructureModule?.runtimeMode, "legacy-default", "the mixed Structure route must remain legacy-default while six writable registries are not permanent");
@@ -252,7 +268,7 @@ if (candidatePolicy) {
     "rollback-reactivation",
   ], "candidate may be accepted only after read, full disposable lifecycle, cleanup and rollback/reactivation evidence");
   assert.equal(Object.hasOwn(candidatePolicy, "pilotEvidence"), false, "awaiting candidate must not contain Pilot acceptance evidence");
-  assert.equal(computedProgress, 50, "awaiting candidate must not receive progress credit");
+  assert.equal(computedProgress, expectedProgress, "awaiting candidate must not receive progress credit");
   for (const surfaceId of candidateSurfaceIds) {
     const acceptance = ledger.scenarioAcceptance.find((scenario) => scenario.id === surfaceId);
     assert.equal(acceptance?.defaultOn, false, `${surfaceId}: candidate must remain outside accepted default-on IDs`);

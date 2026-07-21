@@ -1,5 +1,13 @@
 type UnknownRecord = Record<string, unknown>;
 
+import {
+  buildWeeklyProductionControlReadModel,
+  formatWeeklyControlPercent,
+  formatWeeklyControlQuantity,
+} from "./production-read-model";
+
+export { formatWeeklyControlPercent, formatWeeklyControlQuantity };
+
 const asRecord = (value: unknown): UnknownRecord => value && typeof value === "object" ? value as UnknownRecord : {};
 const asArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const asText = (value: unknown, fallback = ""): string => String(value ?? fallback).trim();
@@ -45,12 +53,6 @@ export interface WeeklyControlGroup {
   statusTone: "success" | "warning" | "neutral";
 }
 
-export const formatWeeklyControlQuantity = (value: number, unit = "шт."): string => `${Math.round(value).toLocaleString("ru-RU")} ${unit || "шт."}`;
-export const formatWeeklyControlPercent = (value: number): string => {
-  const rounded = Math.round(value);
-  return `${rounded > 0 ? "+" : ""}${rounded}%`;
-};
-
 function adaptDay(value: unknown, fallback: UnknownRecord = {}): WeeklyControlDay | null {
   const source = asRecord(value);
   const noteSource = asRecord(source.note);
@@ -83,7 +85,9 @@ function adaptDay(value: unknown, fallback: UnknownRecord = {}): WeeklyControlDa
 
 export function adaptWeeklyProductionControl(payload: unknown) {
   const root = asRecord(payload);
-  const source = asRecord(root.model || payload);
+  const source = Object.prototype.hasOwnProperty.call(root, "productionInput")
+    ? asRecord(buildWeeklyProductionControlReadModel(root.productionInput))
+    : asRecord(root.model || payload);
   const dayDefinitions = asArray(source.days).map(asRecord);
   const days = dayDefinitions.map((day) => adaptDay(day, day)).filter(Boolean) as WeeklyControlDay[];
   const groups = asArray(source.groups).map((value, index): WeeklyControlGroup | null => {

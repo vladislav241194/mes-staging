@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
 import { createWeeklyProductionControlModule } from "../src/modules/weekly_production_control/render.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
+import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 const startOfDay = (value) => { const date = new Date(value); date.setHours(0, 0, 0, 0); return date; };
@@ -53,6 +56,15 @@ function verifyOwnerPreparedNoteContract() {
 }
 
 verifyOwnerPreparedNoteContract();
+const baselineDomains = migrateLegacySystemDomains({ matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS }).domains;
+const weeklyEmployeeId = baselineDomains.registries.employees[0]?.id || "weekly-react-qa-employee";
+const weeklyRole = { id: "weekly-production-head", label: "Начальник производства QA", scope: "factory", defaultModule: "weeklyProductionControl", modulePermissions: { weeklyProductionControl: { view: true } } };
+const canonicalDomains = migrateLegacySystemDomains({
+  matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,
+  legacyUi: { accessRoleProfiles: [weeklyRole], accessRoleAssignments: { [weeklyEmployeeId]: weeklyRole.id } },
+  defaultAccessRoleProfiles: [weeklyRole],
+  migratedAt: "2026-07-19T00:00:00.000Z",
+}).domains;
 const compactRows = [{
   id: "weekly-react-slot-1",
   routeId: "weekly-react-route-1",
@@ -95,7 +107,7 @@ const normalizedTable = () => ({
 });
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-weekly-production-control-react-"));
 const sharedStateFile = join(temporaryRoot, "shared-state.json");
-const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy: { actor: "weekly-react-qa" }, values: {}, sharedUi: {}, events: [] };
+const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy: { actor: "weekly-react-qa" }, values: { [SYSTEM_DOMAINS_STORAGE_KEY]: serializeSystemDomains(canonicalDomains) }, sharedUi: {}, events: [] };
 await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
 assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state permissions changed");
 const original = await readFile(sharedStateFile, "utf8");
@@ -125,6 +137,7 @@ permanentPreview.stdout.on("data", (chunk) => { permanentOutput += chunk; }); pe
 let chrome = null;
 const consoleProblems = [];
 let interceptedReads = 0;
+let systemDomainReads = 0;
 let permanentReadMode = "success";
 let pendingPermanentReadRequestId = "";
 try {
@@ -136,7 +149,14 @@ try {
     if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url);
-    if (requestUrl.pathname === "/api/v1/planning/period") {
+    if (requestUrl.pathname === "/api/v1/system-domains/capabilities") {
+      const capabilityBody = Buffer.from(JSON.stringify({ ok: true, capabilities: { serverCommandsEnabled: false, serverCommandSurfaces: [], consistency: { details: { authority: { mode: "postgres-primary" } } } } })).toString("base64");
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }], body: capabilityBody }).catch((error) => consoleProblems.push(error.message));
+    } else if (requestUrl.pathname === "/api/v1/system-domains" && message.params.request.method === "GET") {
+      systemDomainReads += 1;
+      const domainsBody = Buffer.from(JSON.stringify({ ok: true, revision: 1, item: canonicalDomains })).toString("base64");
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "ETag", value: '"weekly-system-domains-1"' }], body: domainsBody }).catch((error) => consoleProblems.push(error.message));
+    } else if (requestUrl.pathname === "/api/v1/planning/period") {
       interceptedReads += 1;
       if (requestUrl.port === String(permanentPort) && permanentReadMode === "hold") {
         pendingPermanentReadRequestId = message.params.requestId;
@@ -151,8 +171,8 @@ try {
     } else void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
   });
   await client.send("Page.enable"); await client.send("Runtime.enable");
-  await client.send("Page.addScriptToEvaluateOnNewDocument", { source: 'window.__MES_QA_REACT_TELEMETRY__=[];window.addEventListener("mes:react-island-telemetry",(event)=>window.__MES_QA_REACT_TELEMETRY__.push(event.detail));' });
-  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/planning/period*", requestStage: "Request" }] });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", { source: 'sessionStorage.setItem("mes-planning-prototype-system-domains-primary-tombstone-v1","1");window.__MES_QA_REACT_TELEMETRY__=[];window.addEventListener("mes:react-island-telemetry",(event)=>window.__MES_QA_REACT_TELEMETRY__.push(event.detail));' });
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/planning/period*", requestStage: "Request" }, { urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
 
   await client.send("Page.navigate", { url: `${legacyOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1` });
@@ -164,7 +184,19 @@ try {
   assert(await evaluate(client, () => !document.querySelector("[data-react-weekly-production-control-island]")), "server permission without session request must retain legacy Weekly Control");
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1&react-weekly-production-control-evaluation=1` });
-  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-state="ready"]')), { message: "Weekly Control React island not ready", timeoutMs: 15_000 });
+  try {
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-state="ready"]')), { message: "Weekly Control React island not ready", timeoutMs: 15_000 });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({
+      islandState: document.querySelector("[data-react-weekly-production-control-island]")?.getAttribute("data-react-island-state") || "missing",
+      runtimeMode: document.querySelector("[data-react-weekly-production-control-island]")?.getAttribute("data-react-island-runtime-mode") || "",
+      legacyRows: document.querySelectorAll(".weekly-production-control-table tbody tr").length,
+      activation: window.__MES_WEEKLY_PRODUCTION_CONTROL_ACTIVATION__ || null,
+      text: document.body.innerText.replace(/\s+/g, " ").slice(0, 600),
+      telemetry: window.__MES_QA_REACT_TELEMETRY__ || [],
+    }));
+    throw new Error(`${error.message}: ${JSON.stringify(diagnostic)} systemDomainReads=${systemDomainReads} planningReads=${interceptedReads} console=${JSON.stringify(consoleProblems)}`);
+  }
   const react = await evaluate(client, normalizedTable);
   const state = await evaluate(client, () => { const target = document.querySelector("[data-react-weekly-production-control-island]"); const tableWrap = document.querySelector('[data-ui-component="TableWrap"]'); return { revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableOwnsOverflow: Boolean(tableWrap && tableWrap.scrollWidth > tableWrap.clientWidth), tableOverflowMode: tableWrap ? getComputedStyle(tableWrap).overflowX : "" }; });
   assert(JSON.stringify(react.headers) === JSON.stringify(legacy.headers), `Weekly header parity failed\nlegacy=${JSON.stringify(legacy.headers)}\nreact=${JSON.stringify(react.headers)}`);
@@ -186,6 +218,9 @@ try {
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="ready"]')), { message: "permanent Weekly React did not become ready after its PostgreSQL read", timeoutMs: 15_000 });
   const permanent = await evaluate(client, normalizedTable);
   assert(JSON.stringify(permanent.headers) === JSON.stringify(legacy.headers) && JSON.stringify(permanent.rows) === JSON.stringify(legacy.rows), "permanent Weekly lost exact legacy read parity");
+  const permanentResources = await evaluate(client, () => performance.getEntriesByType("resource").map((entry) => new URL(entry.name).pathname));
+  assert(!permanentResources.some((path) => path.endsWith("/modules/weekly_production_control/render.js")), `permanent Weekly fetched its legacy renderer: ${JSON.stringify(permanentResources)}`);
+  assert(!permanentResources.some((path) => path.endsWith("/modules/production_structure_matrix/render.js")), `permanent Weekly fetched the legacy Structure renderer: ${JSON.stringify(permanentResources)}`);
   const readyTelemetry = await evaluate(client, () => window.__MES_QA_REACT_TELEMETRY__ || []);
   assert(readyTelemetry.some((event) => event.surfaceId === "weeklyProductionControl" && event.runtimeMode === "react" && event.state === "ready" && event.stage === "commit" && Number.isFinite(event.durationMs)), `permanent Weekly ready telemetry missing: ${JSON.stringify(readyTelemetry)}`);
 
@@ -200,11 +235,12 @@ try {
   assert(errorTelemetry.filter((event) => event.surfaceId === "weeklyProductionControl" && event.runtimeMode === "react" && event.state === "error" && event.stage === "read" && event.reason === "read-unavailable").length === 1, `permanent Weekly read-error telemetry is not bounded: ${JSON.stringify(errorTelemetry)}`);
 
   assert(interceptedReads >= 3, "both legacy and React paths must consume the bounded planning period API");
+  assert(systemDomainReads >= 1, "permanent Weekly must consume the canonical System Domains owner projection");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   assert(await readFile(sharedStateFile, "utf8") === original, "Weekly read-only QA changed state");
   console.log("Weekly Production Control React production-shell functional QA: OK");
   console.log(`- exact parity: ${react.rows.length} groups, ${react.headers.length} columns; first commit ${state.commitMs.toFixed(2)} ms`);
-  console.log("- compact PostgreSQL read, evaluation rollback, permanent loading/error ownership, query isolation, bounded telemetry and clean console: pass");
+  console.log("- canonical System Domains + compact Planning read, isolated import graph, evaluation rollback, permanent loading/error ownership, query isolation, bounded telemetry and clean console: pass");
 } catch (error) {
   if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); if (permanentOutput.trim()) console.error(permanentOutput.trim()); throw error;
 } finally {

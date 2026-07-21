@@ -79,6 +79,8 @@ import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactI
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
+import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
+import { selectWeeklyProductionControlRuntime } from "./modules/weekly_production_control/runtime_selection.js";
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
@@ -186,7 +188,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.25";
+const APP_VERSION_FALLBACK = "v.1.500.26";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1499,9 +1501,9 @@ function ensureShiftWorkOrdersModule() {
   return shiftWorkOrdersModuleLoad;
 }
 
-let weeklyProductionControlRuntimeInstance = null;
-let weeklyProductionControlRuntimeLoad = null;
-let weeklyProductionControlRuntimeError = null;
+let weeklyProductionControlLegacyRuntimeInstance = null;
+let weeklyProductionControlLegacyRuntimeLoad = null;
+let weeklyProductionControlLegacyRuntimeError = null;
 let planningPeriodReadModel = null;
 let buildWeeklyPlanningPeriodRows = null;
 let buildWeeklyPlanningPeriodRowsFromCompact = null;
@@ -1523,33 +1525,43 @@ let weeklyPlanningPeriodState = {
 let weeklyPlanningPeriodRefreshTimer = null;
 
 const weeklyProductionControlLoadingInstance = Object.freeze({
-  formatWeeklyProductionControlPercent: (value = 0) => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.formatWeeklyProductionControlPercent(value)
+  formatWeeklyProductionControlPercent: (value = 0) => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.formatWeeklyProductionControlPercent(value)
     : `${Math.round(Number(value || 0))}%`,
-  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.formatWeeklyProductionControlQuantity(value, unit)
+  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.formatWeeklyProductionControlQuantity(value, unit)
     : `${Number(value || 0).toLocaleString("ru-RU")} ${unit}`,
-  getWeeklyProductionControlModel: () => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.getWeeklyProductionControlModel()
+  getWeeklyProductionControlModel: () => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.getWeeklyProductionControlModel()
     : ({ rows: [], totals: {} }),
-  renderWeeklyProductionControlPage: () => weeklyProductionControlRuntimeInstance
-    ? weeklyProductionControlRuntimeInstance.renderWeeklyProductionControlPage()
+  renderWeeklyProductionControlPage: () => weeklyProductionControlLegacyRuntimeInstance
+    ? weeklyProductionControlLegacyRuntimeInstance.renderWeeklyProductionControlPage()
     : renderMesModulePatternPage({
     moduleId: "weeklyProductionControl",
     header: {
       title: "Контроль недели",
-      description: weeklyProductionControlRuntimeError
+      description: weeklyProductionControlLegacyRuntimeError
         ? "Не удалось загрузить модуль контроля недели. Обновите страницу."
         : "Загружаем данные контроля недели…",
     },
     content: renderUiEmptyState({
-      title: weeklyProductionControlRuntimeError ? "Модуль недоступен" : "Загружаем модуль",
-      description: weeklyProductionControlRuntimeError
+      title: weeklyProductionControlLegacyRuntimeError ? "Модуль недоступен" : "Загружаем модуль",
+      description: weeklyProductionControlLegacyRuntimeError
         ? "Обновите страницу. Если ошибка повторится, передайте время её появления в поддержку."
         : "Экран откроется автоматически.",
     }),
     }),
-  bindWeeklyProductionControlEvents: () => weeklyProductionControlRuntimeInstance?.bindWeeklyProductionControlEvents(),
+  bindWeeklyProductionControlEvents: () => weeklyProductionControlLegacyRuntimeInstance?.bindWeeklyProductionControlEvents(),
+});
+
+const weeklyProductionControlProductionRuntimeInstance = Object.freeze({
+  formatWeeklyProductionControlPercent: (value = 0) => {
+    const rounded = Math.round(Number(value || 0));
+    return `${rounded > 0 ? "+" : ""}${rounded}%`;
+  },
+  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => (
+    `${Math.round(Number(value || 0)).toLocaleString("ru-RU")} ${unit || "шт."}`
+  ),
 });
 
 // Weekly control is intentionally usable before either Gantt or the workshop
@@ -1742,11 +1754,20 @@ function ensureWeeklyPlanningPeriodModule() {
   return weeklyPlanningPeriodModuleLoad;
 }
 
-function getWeeklyPlanningPeriodLookups() {
-  const overrides = getProductionStructureMatrixRuntimeOverrides();
-  const workCentersById = new Map(getProductionStructureWorkCenters(overrides)
+function getWeeklyPlanningPeriodLookups({ canonicalOnly = false } = {}) {
+  if (canonicalOnly && (systemDomainsServerReadState.status !== "server" || !systemDomainsState)) {
+    throw new Error("Canonical System Domains projection is unavailable");
+  }
+  const overrides = canonicalOnly ? null : getProductionStructureMatrixRuntimeOverrides();
+  const workCenters = canonicalOnly
+    ? projectSystemDomainWorkCenters(systemDomainsState, [])
+    : getProductionStructureWorkCenters(overrides);
+  const resources = canonicalOnly
+    ? projectSystemDomainResources(systemDomainsState, [], [])
+    : getProductionStructureResources(overrides);
+  const workCentersById = new Map(workCenters
     .map((item) => [String(item?.id || ""), item]));
-  const resourcesById = new Map(getProductionStructureResources(overrides)
+  const resourcesById = new Map(resources
     .map((item) => [String(item?.id || ""), item]));
   return {
     getWorkCenter: (id) => workCentersById.get(String(id || "")) || null,
@@ -1795,11 +1816,24 @@ function scheduleWeeklyPlanningPeriodRefresh(bounds) {
   }, delay);
 }
 
-function invalidateWeeklyPlanningPeriod() {
+function resolveWeeklyPlanningPeriodPreferLocal({
+  currentPreference = false,
+  localMutation = true,
+} = {}) {
+  return Boolean(currentPreference || localMutation);
+}
+
+function invalidateWeeklyPlanningPeriod({ localMutation = true } = {}) {
   weeklyPlanningPeriodState = {
     ...weeklyPlanningPeriodState,
     stale: true,
-    preferLocal: true,
+    // Every unannotated invalidation is a real local mutation, including one
+    // that happens before the first Weekly read. Bootstrap/owner hydration is
+    // explicitly non-local and may never clear an already pending mutation.
+    preferLocal: resolveWeeklyPlanningPeriodPreferLocal({
+      currentPreference: weeklyPlanningPeriodState.preferLocal,
+      localMutation,
+    }),
     epoch: Number(weeklyPlanningPeriodState.epoch || 0) + 1,
   };
   // Service facades publish their current state after a call, including
@@ -1832,7 +1866,7 @@ function getWeeklyPlanningLocalRows(bounds = {}) {
   });
 }
 
-function setPlanningStateAndInvalidate(nextState) {
+function setPlanningStateAndInvalidate(nextState, invalidationOptions = {}) {
   // The generic module facades publish their current state after every call,
   // including read-only helpers used during rendering. A matching root object
   // is not a planning change. Actual in-place writes are invalidated after a
@@ -1840,10 +1874,19 @@ function setPlanningStateAndInvalidate(nextState) {
   // invalidate immediately.
   if (nextState === planningState) return;
   planningState = nextState;
-  invalidateWeeklyPlanningPeriod();
+  invalidateWeeklyPlanningPeriod(invalidationOptions);
 }
 
 function hydrateWeeklyPlanningPeriod() {
+  const weeklyReactAccessMode = getWeeklyProductionControlReactActivation().accessMode;
+  const typedReactRead = weeklyReactAccessMode === "react" || weeklyReactAccessMode === "read-only-evaluation";
+  if (typedReactRead && (systemDomainsServerReadState.status !== "server" || !systemDomainsState)) {
+    if (systemDomainsServerReadState.status === "idle"
+      || (systemDomainsServerReadState.status === "fallback" && systemDomainsServerReadRetryTimer === null)) {
+      void hydrateSystemDomainsServerRead("weeklyProductionControl", { fallbackToLegacy: false });
+    }
+    return;
+  }
   const bounds = getWeeklyPlanningPeriodBounds();
   if (weeklyPlanningPeriodState.loading && weeklyPlanningPeriodState.key === bounds.key) return;
   // The read model owns TTL/ETag revalidation. Avoid a needless render cycle
@@ -1885,17 +1928,17 @@ function hydrateWeeklyPlanningPeriod() {
       if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
       return;
     }
-    const lookups = getWeeklyPlanningPeriodLookups();
+    const lookups = getWeeklyPlanningPeriodLookups({ canonicalOnly: typedReactRead });
     const rows = hasCompactRows
       ? buildWeeklyPlanningPeriodRowsFromCompact(result.rows, {
         toDate,
-        mapWorkCenterId: mapLegacyWorkCenterId,
+        mapWorkCenterId: typedReactRead ? (value) => String(value || "") : mapLegacyWorkCenterId,
         ...lookups,
-        resolveSlotPresentation: resolveWeeklyCompactSlotPresentation,
+        ...(typedReactRead ? {} : { resolveSlotPresentation: resolveWeeklyCompactSlotPresentation }),
       })
       : buildWeeklyPlanningPeriodRows(result.projection, {
         toDate,
-        mapWorkCenterId: mapLegacyWorkCenterId,
+        mapWorkCenterId: typedReactRead ? (value) => String(value || "") : mapLegacyWorkCenterId,
         ...lookups,
       });
     // A 304 only means the server answer did not change; it does not prove
@@ -1903,8 +1946,8 @@ function hydrateWeeklyPlanningPeriod() {
     // Accept the compact response again only after its visible weekly rows
     // match the in-memory compatibility projection.
     const preferLocal = preferLocalBeforeRefresh
-      && !(typeof weeklyPlanningRowsEquivalent === "function"
-        && weeklyPlanningRowsEquivalent(rows, getWeeklyPlanningLocalRows(bounds), { toDate }));
+      && (typedReactRead || !(typeof weeklyPlanningRowsEquivalent === "function"
+        && weeklyPlanningRowsEquivalent(rows, getWeeklyPlanningLocalRows(bounds), { toDate })));
     weeklyPlanningPeriodState = {
       key: bounds.key,
       rows,
@@ -1930,24 +1973,32 @@ function hydrateWeeklyPlanningPeriod() {
   });
 }
 
-function getWeeklyProductionControlRuntimeInstance() {
-  if (weeklyProductionControlRuntimeInstance) return weeklyProductionControlRuntimeInstance;
-  if (!weeklyProductionControlRuntimeLoad) {
-    weeklyProductionControlRuntimeLoad = import("./modules/weekly_production_control/render.js")
+function getWeeklyProductionControlLegacyRuntimeInstance() {
+  if (weeklyProductionControlLegacyRuntimeInstance) return weeklyProductionControlLegacyRuntimeInstance;
+  if (!weeklyProductionControlLegacyRuntimeLoad) {
+    weeklyProductionControlLegacyRuntimeLoad = import("./modules/weekly_production_control/render.js")
       .then(({ createWeeklyProductionControlModule }) => {
-        weeklyProductionControlRuntimeInstance = createWeeklyProductionControlRuntimeInstance(createWeeklyProductionControlModule);
+        weeklyProductionControlLegacyRuntimeInstance = createWeeklyProductionControlRuntimeInstance(createWeeklyProductionControlModule);
         hydrateWeeklyPlanningPeriod();
         if (ui.activeModule === "weeklyProductionControl") render();
-        return weeklyProductionControlRuntimeInstance;
+        return weeklyProductionControlLegacyRuntimeInstance;
       })
       .catch((error) => {
-        weeklyProductionControlRuntimeError = error;
+        weeklyProductionControlLegacyRuntimeError = error;
         console.error("Не удалось загрузить модуль контроля недели", error);
         if (ui.activeModule === "weeklyProductionControl") render();
         return weeklyProductionControlLoadingInstance;
       });
   }
   return weeklyProductionControlLoadingInstance;
+}
+
+function getWeeklyProductionControlRuntimeInstance() {
+  return selectWeeklyProductionControlRuntime({
+    accessMode: getWeeklyProductionControlReactActivation().accessMode,
+    productionInstance: weeklyProductionControlProductionRuntimeInstance,
+    loadLegacyRuntime: getWeeklyProductionControlLegacyRuntimeInstance,
+  });
 }
 
 const PRODUCTION_STRUCTURE_REGISTRY_IDS = new Set(["employees", "positions", "orgUnits", "workCenters", "equipment", "responsibilityPolicies", "migrationDiagnostics"]);
@@ -3734,38 +3785,87 @@ function isWeeklyProductionControlReactEvaluationRequested() {
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
 function getWeeklyProductionControlReactReadState() {
-  const serverReadFailure = weeklyProductionControlRuntimeError
-    ? "model-unavailable"
-    : weeklyPlanningPeriodState.fallbackReason
+  const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+    ? "read-unavailable"
+    : weeklyPlanningPeriodState.fallbackReason || weeklyPlanningPeriodState.preferLocal
       ? "compatibility-fallback"
       : weeklyPlanningPeriodState.error
         ? "read-unavailable"
         : "";
   return {
     serverReadFailure,
-    serverReadReady: Boolean(weeklyProductionControlRuntimeInstance)
+    serverReadReady: systemDomainsServerReadState.status === "server"
+      && Boolean(systemDomainsState)
       && Array.isArray(weeklyPlanningPeriodState.rows)
       && !weeklyPlanningPeriodState.loading
       && !serverReadFailure,
   };
 }
+
+function getWeeklyProductionControlReactActivation() {
+  const localQa = getWeeklyProductionControlReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "weeklyProductionControl",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true && serverEvaluationAllowed,
+    evaluationRequested: isWeeklyProductionControlReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && localQa.readOnlyEvaluation,
+  });
+  const activation = {
+    ...runtimeActivation,
+    ...getWeeklyProductionControlReactReadState(),
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+  if (new URLSearchParams(window.location.search).get("qa-auth-bypass") === "1"
+    && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)) {
+    window.__MES_WEEKLY_PRODUCTION_CONTROL_ACTIVATION__ = activation;
+  }
+  return activation;
+}
+
+function getWeeklyProductionControlReadModelInput() {
+  const bounds = getWeeklyPlanningPeriodBounds();
+  if (weeklyPlanningPeriodState.key !== bounds.key
+    || systemDomainsServerReadState.status !== "server"
+    || !systemDomainsState
+    || !Array.isArray(weeklyPlanningPeriodState.rows)
+    || weeklyPlanningPeriodState.loading
+    || weeklyPlanningPeriodState.preferLocal
+    || weeklyPlanningPeriodState.error
+    || weeklyPlanningPeriodState.fallbackReason) {
+    throw new Error("Weekly Production Control bounded owner projection is unavailable");
+  }
+  const weekStart = startOfWeek(new Date());
+  const workCenters = projectSystemDomainWorkCenters(systemDomainsState, []).map((center) => ({
+    ...center,
+    id: String(center?.id || ""),
+    parentWorkCenterId: String(center?.parentWorkCenterId || ""),
+  }));
+  const resources = projectSystemDomainResources(systemDomainsState, [], []).map((resource) => ({
+    ...resource,
+    workCenterId: String(resource?.workCenterId || resource?.id || ""),
+  }));
+  return buildWeeklyProductionControlReadInput({
+    generatedAt: new Date(),
+    weekStart,
+    weekAnchor: toDateInput(weekStart),
+    // `rows` is the bounded /api/v1/planning/period?view=weekly projection.
+    // Raw execution/report stores are runtime owners; no renderer view-model
+    // or Weekly legacy model is allowed across this DTO boundary.
+    periodRows: weeklyPlanningPeriodState.rows,
+    workCenters,
+    resources,
+    planningAssignments: planningState.shiftMasterAssignments,
+    boardAssignments: ui.shiftMasterBoardAssignments,
+    boardFacts: ui.shiftMasterBoardFacts,
+    authSessionFactDrafts: ui.authSessionFactDrafts,
+    issueReports: ui.shiftWorkOrderIssueReports,
+  });
+}
+
 const weeklyProductionControlReactIslandHost = createWeeklyProductionControlReactIslandHost({
-  getActivation: () => {
-    const localQa = getWeeklyProductionControlReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true;
-    const runtimeActivation = resolveReactRuntimeActivation({
-      surfaceId: "weeklyProductionControl",
-      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true && serverEvaluationAllowed,
-      evaluationRequested: isWeeklyProductionControlReactEvaluationRequested(),
-      localQaEnabled: localQa.featureFlagEnabled && localQa.readOnlyEvaluation,
-    });
-    return {
-      ...runtimeActivation,
-      ...getWeeklyProductionControlReactReadState(),
-      policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
-    };
-  },
-  getPayload: () => ({ model: getWeeklyProductionControlRuntimeInstance().getWeeklyProductionControlModel() }),
+  getActivation: getWeeklyProductionControlReactActivation,
+  getPayload: () => ({ productionInput: getWeeklyProductionControlReadModelInput() }),
   getTargetRoot: () => app,
   requestLegacyRender: () => {
     if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
@@ -6944,7 +7044,7 @@ async function hydratePlanningRuntimeProjection({ force = false } = {}) {
           routeSteps: result.projection.routeSteps,
           slots: result.projection.slots,
         };
-        invalidateWeeklyPlanningPeriod();
+        invalidateWeeklyPlanningPeriod({ localMutation: false });
         planningRuntimeProjectionState = { status: "server", error: "", revision: Number(result.projection.revision || 0) };
         ganttPlanningFallbackReady = false;
         ganttPlanningFallbackAttempted = false;
@@ -8602,7 +8702,7 @@ function initializeRuntimeStateServiceModule() {
   getUi: () => ui,
   setUi: (nextState) => { ui = nextState; },
   getPlanningState: () => planningState,
-  setPlanningState: setPlanningStateAndInvalidate,
+  setPlanningState: (nextState) => setPlanningStateAndInvalidate(nextState, { localMutation: false }),
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
   getAppBootstrapped: () => appBootstrapped,
@@ -9125,10 +9225,8 @@ function initializeModuleRuntime() {
       publicPorts: [
         "formatWeeklyProductionControlPercent",
         "formatWeeklyProductionControlQuantity",
-        "getWeeklyProductionControlModel",
       ],
       render: (instance) => {
-        ensureProductionStructureMatrixModule();
         const waitingForScheduledReadRetry = Boolean(
           (weeklyPlanningPeriodState.error || weeklyPlanningPeriodState.fallbackReason)
           && weeklyPlanningPeriodRefreshTimer !== null,
@@ -9136,6 +9234,7 @@ function initializeModuleRuntime() {
         if (!waitingForScheduledReadRetry) hydrateWeeklyPlanningPeriod();
         const reactDecision = weeklyProductionControlReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return weeklyProductionControlReactIslandHost.renderTarget();
+        ensureProductionStructureMatrixModule();
         return instance.renderWeeklyProductionControlPage();
       },
       bind: (instance) => {

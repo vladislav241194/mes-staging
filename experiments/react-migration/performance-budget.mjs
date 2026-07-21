@@ -54,9 +54,10 @@ const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { 
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
 // The aggregate lab intentionally contains every scenario; production islands keep their stricter per-entry budgets above.
 // Employee Desktop context plus the Shift Master assignment, fact, carryover navigation, lazy SZN trigger, the Statuses
-// lifecycle plus Specifications 2.0 publication, exact-revision work-order confirmations and executable MES UI contract markers add bounded UI over shared
-// contracts. Every separately loaded production island remains under the unchanged 225/68 KB gate; only the aggregate all-scenarios lab receives headroom.
-const lab = await measureEntry("main.tsx", { raw: 570_000, gzip: 130_000 });
+// lifecycle plus Specifications 2.0 publication, exact-revision work-order confirmations, executable MES UI contract markers and the
+// Weekly typed production read model add bounded UI over shared contracts. Every separately loaded production island remains under the
+// unchanged 225/68 KB gate; only the aggregate all-scenarios lab receives measured headroom.
+const lab = await measureEntry("main.tsx", { raw: 585_000, gzip: 135_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);

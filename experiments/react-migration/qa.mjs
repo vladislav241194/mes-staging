@@ -1560,7 +1560,9 @@ try {
   assert.match(productionAppSource, /waitingForScheduledReadRetry/, "Weekly read errors must wait for the bounded retry instead of re-entering render immediately");
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /ensureProductionStructureMatrixModule\(\);[\s\S]*?hydrateWeeklyPlanningPeriod\(\)/);
+  assert.match(productionAppSource, /if \(!waitingForScheduledReadRetry\) hydrateWeeklyPlanningPeriod\(\);[\s\S]*?weeklyProductionControlReactIslandHost\.prepareRender\(\)[\s\S]*?if \(reactDecision\.activateReact\) return weeklyProductionControlReactIslandHost\.renderTarget\(\);[\s\S]*?ensureProductionStructureMatrixModule\(\);/, "Permanent Weekly must hydrate bounded owners and return its React shell before loading the legacy Structure renderer used only by rollback");
+  assert.match(productionAppSource, /projectSystemDomainWorkCenters\(systemDomainsState, \[\]\)/, "Permanent Weekly must project canonical System Domains without a legacy fallback seed");
+  assert.match(productionAppSource, /getPayload: \(\) => \(\{ productionInput: getWeeklyProductionControlReadModelInput\(\) \}\)/, "Permanent Weekly must pass a strict raw DTO rather than the legacy model");
   assert.match(productionAppSource, /MES_REACT_ROLES === true/);
   assert.match(productionAppSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-roles"\) === "1"/);

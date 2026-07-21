@@ -1,0 +1,146 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { build } from "esbuild";
+
+const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const appSource = await readFile(join(repositoryRoot, "src", "app.js"), "utf8");
+const inputSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "production_read_input.js"), "utf8");
+const selectorPath = join(repositoryRoot, "src", "modules", "weekly_production_control", "runtime_selection.js");
+const selectorSource = await readFile(selectorPath, "utf8");
+const adapterPath = join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "adapter.ts");
+const adapterSource = await readFile(adapterPath, "utf8");
+const modelSource = await readFile(join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "production-read-model.ts"), "utf8");
+const ledger = JSON.parse(await readFile(join(repositoryRoot, "experiments", "react-migration", "cutover-ledger.json"), "utf8"));
+
+function between(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  assert(start >= 0, `missing source marker: ${startMarker}`);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert(end > start, `missing source marker: ${endMarker}`);
+  return source.slice(start, end);
+}
+
+const productionInputBoundary = between(
+  appSource,
+  "function getWeeklyProductionControlReadModelInput()",
+  "const weeklyProductionControlReactIslandHost",
+);
+const legacyLoaderBoundary = between(
+  appSource,
+  "function getWeeklyProductionControlLegacyRuntimeInstance()",
+  "function getWeeklyProductionControlRuntimeInstance()",
+);
+const runtimeSelectorBoundary = between(
+  appSource,
+  "function getWeeklyProductionControlRuntimeInstance()",
+  "const PRODUCTION_STRUCTURE_REGISTRY_IDS",
+);
+const weeklyHydrationBoundary = between(
+  appSource,
+  "function hydrateWeeklyPlanningPeriod()",
+  "function getWeeklyProductionControlLegacyRuntimeInstance()",
+);
+
+assert.match(productionInputBoundary, /periodRows:\s*weeklyPlanningPeriodState\.rows/,
+  "production DTO must consume the bounded Planning Period owner projection");
+assert.match(productionInputBoundary, /projectSystemDomainWorkCenters\(systemDomainsState, \[\]\)/,
+  "production DTO must project canonical work centers without a legacy fallback seed");
+assert.match(productionInputBoundary, /projectSystemDomainResources\(systemDomainsState, \[\], \[\]\)/,
+  "production DTO must project canonical resources without a legacy fallback seed");
+for (const forbidden of [
+  "getPlanningTableSlotRows",
+  "getWeeklyPlanningTableSlotRows",
+  "getProductionStructureWorkCenters",
+  "getProductionStructureResources",
+  "getLegacyProductionStructure",
+  "getWeeklyProductionControlLegacyRuntimeInstance",
+  "getWeeklyProductionControlModel",
+]) {
+  assert.equal(productionInputBoundary.includes(forbidden), false,
+    `production DTO boundary must not call ${forbidden}`);
+}
+
+assert.match(appSource, /getPayload:\s*\(\)\s*=>\s*\(\{\s*productionInput:\s*getWeeklyProductionControlReadModelInput\(\)\s*\}\)/,
+  "React host must receive the strict production DTO rather than a legacy model");
+assert.doesNotMatch(appSource, /getPayload:\s*\(\)\s*=>\s*\(\{\s*model:\s*getWeeklyProductionControlRuntimeInstance/,
+  "React host may not execute the legacy Weekly model factory");
+assert.match(runtimeSelectorBoundary, /accessMode:\s*getWeeklyProductionControlReactActivation\(\)\.accessMode/);
+assert.match(runtimeSelectorBoundary, /productionInstance:\s*weeklyProductionControlProductionRuntimeInstance/);
+assert.match(runtimeSelectorBoundary, /loadLegacyRuntime:\s*getWeeklyProductionControlLegacyRuntimeInstance/);
+assert.match(legacyLoaderBoundary, /import\("\.\/modules\/weekly_production_control\/render\.js"\)/,
+  "immutable legacy rollback must retain its isolated lazy loader");
+assert.equal((appSource.match(/import\("\.\/modules\/weekly_production_control\/render\.js"\)/g) || []).length, 1,
+  "Weekly legacy renderer must have exactly one isolated dynamic import");
+
+assert.match(weeklyHydrationBoundary, /const typedReactRead = weeklyReactAccessMode === "react" \|\| weeklyReactAccessMode === "read-only-evaluation"/);
+assert.match(weeklyHydrationBoundary, /getWeeklyPlanningPeriodLookups\(\{ canonicalOnly: typedReactRead \}\)/);
+assert.match(weeklyHydrationBoundary, /typedReactRead \? \{\} : \{ resolveSlotPresentation: resolveWeeklyCompactSlotPresentation \}/,
+  "canonical Weekly hydration must not invoke the compatibility slot presenter");
+assert.match(weeklyHydrationBoundary, /typedReactRead \|\| !\(typeof weeklyPlanningRowsEquivalent/,
+  "canonical Weekly hydration must short-circuit before the legacy local-row comparison");
+
+assert.doesNotMatch(inputSource, /^\s*import\s/m, "raw production DTO builder must have no renderer import graph");
+for (const forbidden of ["render.js", "getPlanningTableSlotRows", "getLegacyProductionStructure", "getWeeklyProductionControlModel"]) {
+  assert.equal(inputSource.includes(forbidden), false, `raw production DTO builder must not reference ${forbidden}`);
+}
+assert.match(adapterSource, /from "\.\/production-read-model"/);
+assert.match(adapterSource, /buildWeeklyProductionControlReadModel\(root\.productionInput\)/);
+assert.doesNotMatch(adapterSource, /render\.js|getWeeklyProductionControlModel/);
+assert.doesNotMatch(modelSource, /^\s*import\s/m, "strict Weekly model must be a self-contained pure transform");
+
+const buildResult = await build({
+  entryPoints: [adapterPath],
+  bundle: true,
+  write: false,
+  metafile: true,
+  format: "esm",
+  platform: "browser",
+  logLevel: "silent",
+});
+const adapterInputs = Object.keys(buildResult.metafile.inputs).map((path) => path.replaceAll("\\", "/"));
+assert(adapterInputs.some((path) => path.endsWith("/weekly-production-control/adapter.ts")));
+assert(adapterInputs.some((path) => path.endsWith("/weekly-production-control/production-read-model.ts")));
+assert.equal(adapterInputs.some((path) => path.endsWith("/src/modules/weekly_production_control/render.js")), false,
+  "bundled strict adapter import graph must exclude the legacy Weekly renderer");
+assert.equal(adapterInputs.some((path) => path.endsWith("/src/app.js")), false,
+  "bundled strict adapter import graph must exclude the mixed application shell");
+
+const { selectWeeklyProductionControlRuntime } = await import(`${pathToFileURL(selectorPath).href}?qa=${Date.now()}`);
+let legacyLoads = 0;
+const productionInstance = Object.freeze({ id: "weekly-typed-production" });
+assert.equal(selectWeeklyProductionControlRuntime({
+  accessMode: "react",
+  productionInstance,
+  loadLegacyRuntime: () => {
+    legacyLoads += 1;
+    throw new Error("permanent React selected legacy");
+  },
+}), productionInstance);
+assert.equal(legacyLoads, 0, "permanent React runtime selection must not touch the rollback loader");
+const legacyInstance = Object.freeze({ id: "weekly-legacy-rollback" });
+assert.equal(selectWeeklyProductionControlRuntime({
+  accessMode: "legacy",
+  productionInstance,
+  loadLegacyRuntime: () => {
+    legacyLoads += 1;
+    return legacyInstance;
+  },
+}), legacyInstance);
+assert.equal(legacyLoads, 1, "legacy rollback must remain executable outside permanent React mode");
+assert.match(selectorSource, /if \(accessMode === "react"\)/);
+
+const weekly = ledger.modules.find((module) => module.id === "weeklyProductionControl");
+assert(weekly);
+assert.equal(weekly.visibleLegacyRendererPath, false);
+assert.equal(weekly.candidateRuntimeLegacyModelDependency, false,
+  "local candidate must record the proven isolated import graph");
+assert.equal(weekly.runtimeLegacyModelDependency, true,
+  "accepted-live dependency must remain true until Pilot publication and rollback/reactivation proof");
+assert.equal(weekly.candidateEvidence?.status, "local-verified-pilot-pending");
+assert.equal(weekly.productionReady, false);
+assert.equal(ledger.currentProgress, 48, "local consolidation candidate must not increase global progress");
+
+console.log("Weekly Production Control runtime consolidation QA: OK (local candidate, Pilot pending; global 48%)");
