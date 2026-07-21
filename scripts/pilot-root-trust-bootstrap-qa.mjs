@@ -71,6 +71,18 @@ assert.match(orchestratorSource, /\["show", `\$\{gitCommit\}:\$\{descriptor\.sou
 assert.match(orchestratorSource, /Bootstrap source differs from the published Git object/);
 assert.doesNotMatch(orchestratorSource, /bash\s+-s/);
 
+const recoveryPath = join(projectRoot, "ops", "frontend", "recover-pilot-release-transitions.sh");
+const recoverySource = await readFile(recoveryPath, "utf8");
+const recoverySyntax = spawnSync("bash", ["-n", recoveryPath], { encoding: "utf8" });
+assert.equal(recoverySyntax.status, 0, recoverySyntax.stderr);
+assert.match(recoverySource, /export MES_RELEASE_RECOVERY_CONSUMER="\$consumer"\nexec \/usr\/bin\/node "\$SWITCH_HELPER" recover --contour=pilot --prestart=true\s*$/,
+  "release recovery must exec the final verifier so process.pid remains the exact fd9 flock owner");
+assert.doesNotMatch(recoverySource, /\/usr\/bin\/node "\$SWITCH_HELPER" recover[^\n]*\n(?:printf|echo)/,
+  "release recovery must not spawn the exact-owner verifier as a child and then continue in the shell");
+const switchJournalSource = await readFile(join(projectRoot, "scripts", "release-switch-journal.mjs"), "utf8");
+assert.match(switchJournalSource, /recoveryConsumer && !\["app", "writer"\]\.includes\(recoveryConsumer\)/);
+assert.match(switchJournalSource, /PILOT_RELEASE_RECOVERY_OK consumer=\$\{recoveryConsumer\}/);
+
 const hardenerPath = join(projectRoot, "ops", "frontend", "harden-pilot-release-root-trust.sh");
 const hardenerSource = await readFile(hardenerPath, "utf8");
 const hardenerSyntax = spawnSync("bash", ["-n", hardenerPath], { encoding: "utf8" });

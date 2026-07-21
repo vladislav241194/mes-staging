@@ -463,6 +463,10 @@ async function productionMain() {
   await assertProductionBoundary();
   const { command, options } = parseCli(process.argv.slice(2));
   const prestart = options.prestart === "true";
+  const recoveryConsumer = String(process.env.MES_RELEASE_RECOVERY_CONSUMER || "");
+  if (recoveryConsumer && !["app", "writer"].includes(recoveryConsumer)) {
+    throw new Error("Release recovery consumer must be app or writer");
+  }
   const controller = createReleaseSwitchJournalController({
     enforceRootOwnership: true,
     sealRelease: async (releasesPath, releaseId, appPath) => runSeal([
@@ -503,6 +507,9 @@ async function productionMain() {
     throw new Error("Usage: release-switch-journal.mjs prepare|mark|clear-committed|recover --contour=pilot|staging ...");
   }
   console.log(JSON.stringify(result));
+  if (command === "recover" && recoveryConsumer) {
+    console.log(`PILOT_RELEASE_RECOVERY_OK consumer=${recoveryConsumer}`);
+  }
 }
 
 function isProductionCliEntrypoint() {

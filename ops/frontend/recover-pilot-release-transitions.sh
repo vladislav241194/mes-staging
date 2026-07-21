@@ -102,5 +102,8 @@ for transaction_id in "${pending_transactions[@]}"; do
     --confirm=RECOVER_PILOT_REINODE_TRANSACTION
 done
 
-/usr/bin/node "$SWITCH_HELPER" recover --contour=pilot --prestart=true >/dev/null
-printf 'PILOT_RELEASE_RECOVERY_OK consumer=%s\n' "$consumer"
+# The kernel flock remains owned by this exact PID. Replace the shell with the
+# final journal verifier so its process.pid can prove the inherited fd9 lock;
+# spawning a child would retain the descriptor but fail the exact-owner check.
+export MES_RELEASE_RECOVERY_CONSUMER="$consumer"
+exec /usr/bin/node "$SWITCH_HELPER" recover --contour=pilot --prestart=true
