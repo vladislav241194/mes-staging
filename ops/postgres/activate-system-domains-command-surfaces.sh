@@ -13,12 +13,11 @@ fi
 
 usage() {
   cat >&2 <<'EOF'
-Usage: activate-system-domains-command-surfaces.sh --through=production-structure|timesheet|access-control [--confirm-staged-rollout]
+Usage: activate-system-domains-command-surfaces.sh --through=production-structure
 
-The only permitted order is disabled → production-structure → timesheet →
-access-control. Advancing to timesheet or access-control requires
---confirm-staged-rollout after the preceding live checks are accepted. This
-command never retires the compatibility snapshot.
+Timesheet and Access Control server writes remain intentionally unavailable
+until target-scoped employee RBAC and server delta invariants are implemented.
+This command never retires the compatibility snapshot.
 EOF
   exit 2
 }
@@ -33,11 +32,10 @@ for argument in "$@"; do
   esac
 done
 case "$THROUGH" in production-structure|timesheet|access-control) ;; *) usage ;; esac
-if [[ "$THROUGH" != "production-structure" && "$CONFIRM_STAGED_ROLLOUT" != "1" ]]; then
-  echo "Refusing to skip the staged command-surface acknowledgement. Re-run with --confirm-staged-rollout after accepting the prior live stage." >&2
+if [[ "$THROUGH" != "production-structure" ]]; then
+  echo "Timesheet and Access Control server writes remain disabled until their employee-session RBAC and server delta invariants are implemented." >&2
   exit 1
 fi
-
 APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
 if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
   exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
@@ -45,6 +43,7 @@ fi
 ACTIVE_APP_DIR="${MES_PILOT_ACTIVE_APP_DIR:-/srv/mes/pilot/app}"
 RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
+PORT="${MES_PILOT_PORT:-4175}"
 SYNC_SERVICE="mes-pilot-domain-snapshot-sync.service"
 SYNC_TIMER="mes-pilot-domain-snapshot-sync.timer"
 DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
@@ -58,7 +57,7 @@ ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
 # the backup and removal set so an old file cannot silently broaden a new
 # staged rollout through lexical systemd override order.
 DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
-INTERNAL_ORIGIN="http://127.0.0.1:4175"
+INTERNAL_ORIGIN="http://127.0.0.1:${PORT}"
 
 verify_active_release_contract() {
   local active_target source_target release_path release_id manifest
@@ -138,6 +137,7 @@ required_files=(
   "${APP_DIR}/ops/postgres/mes-pilot-system-domains-production-structure.conf"
   "${APP_DIR}/ops/postgres/mes-pilot-system-domains-timesheet.conf"
   "${APP_DIR}/ops/postgres/mes-pilot-system-domains-access-control.conf"
+  "${APP_DIR}/ops/auth/assert-pilot-employee-auth-readiness.sh"
 )
 for file in "${required_files[@]}"; do
   [[ -f "$file" ]] || { echo "Missing rollout artifact: $file" >&2; exit 1; }
@@ -161,22 +161,30 @@ validate_actor_policy() {
   ' "$ACTOR_POLICY_FILE"
 }
 
-assert_compatibility_parity() {
+assert_employee_auth_readiness() {
+  MES_PILOT_APP_DIR="$APP_DIR" MES_PILOT_SERVICE="$SERVICE" MES_PILOT_PORT="$PORT" \
+    "${APP_DIR}/ops/auth/assert-pilot-employee-auth-readiness.sh" >/dev/null
+}
+
+assert_system_domains_authority_readiness() {
   local consistency
   consistency="$(request_internal_api /api/v1/system-domains/consistency)"
   node -e '
     const value = JSON.parse(process.argv[1]);
     const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};
     const authority = value?.consistency?.details?.authority?.mode;
-    if (value?.consistency?.matches !== true || reconciliation?.readEligible !== true || authority !== "compatibility-snapshot") process.exit(1);
+    const compatibilityReady = authority === "compatibility-snapshot" && value?.consistency?.matches === true;
+    const primaryReady = authority === "postgres-primary" && reconciliation?.retirementEligible === true;
+    if (value?.consistency?.ok !== true || reconciliation?.readEligible !== true || (!compatibilityReady && !primaryReady)) process.exit(1);
   ' "$consistency" || {
-    echo "System Domains must have stable compatibility parity and compatibility-snapshot authority before advancing a command surface." >&2
+    echo "System Domains requires either stable compatibility parity or a durable PostgreSQL-primary tombstone before configuring command surfaces." >&2
     exit 1
   }
 }
 
 validate_actor_policy
-assert_compatibility_parity
+assert_employee_auth_readiness
+assert_system_domains_authority_readiness
 
 # The current stage is taken from the running service, not from files on disk.
 # A target may be re-run idempotently, but skipped stages are rejected.
@@ -186,6 +194,7 @@ node -e '
   const expected = process.argv[2].split(",").filter(Boolean);
   const predecessor = process.argv[3].split(",").filter(Boolean);
   const capability = value?.capabilities || {};
+  if (capability.primaryPostgres !== true || capability.schemaReady !== true) process.exit(1);
   const current = capability.serverCommandsConfigured === true ? (capability.configuredServerCommandSurfaces || []) : [];
   const same = (left, right) => left.length === right.length && left.every((entry, index) => entry === right[index]);
   if (!same(current, expected) && !same(current, predecessor)) process.exit(1);
@@ -228,6 +237,7 @@ systemctl daemon-reload
 systemctl enable --now "$SYNC_TIMER"
 systemctl restart "$SERVICE"
 systemctl is-active --quiet "$SERVICE"
+assert_employee_auth_readiness
 
 # A file-level check is insufficient: prove the actual service process received
 # the exact flags and an actor policy after systemd has reloaded it.
@@ -257,19 +267,22 @@ node -e '
   const expected = process.argv[2].split(",").filter(Boolean);
   const capability = value?.capabilities || {};
   const actual = capability.configuredServerCommandSurfaces || [];
+  const consistency = capability.consistency || {};
   if (capability.primaryPostgres !== true
+    || capability.schemaReady !== true
     || capability.serverCommandsConfigured !== true
     || capability.actorAuthorization?.policyConfigured !== true
-    || capability.consistency?.matches !== true
+    || consistency?.ok !== true
+    || consistency?.details?.reconciliation?.promotion?.readEligible !== true
     || actual.length !== expected.length
     || actual.some((surface, index) => surface !== expected[index])) process.exit(1);
 ' "$capabilities" "$EXPECTED_CSV" || {
   echo "System Domains command capability did not become ready with exactly the requested surfaces." >&2
   exit 1
 }
-assert_compatibility_parity
+assert_system_domains_authority_readiness
 
 APPLIED=0
 rm -rf "$BACKUP_DIR"
 trap - EXIT
-echo "System Domains command surfaces are enabled through ${THROUGH}; compatibility snapshot remains authoritative until the separate PostgreSQL-primary retirement procedure."
+echo "System Domains command surfaces are enabled through ${THROUGH}; the existing System Domains authority mode was preserved."

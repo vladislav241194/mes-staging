@@ -13,6 +13,7 @@ export const SPECIFICATIONS2_REVISION_IDENTITY_BACKFILL_MIGRATION = "029_specifi
 export const SPECIFICATIONS2_LEGACY_REVISION_IDENTITY_GUARD_MIGRATION = "030_specifications2_legacy_revision_identity_guard";
 export const SPECIFICATIONS2_GUARD_FUNCTION_REPAIR_MIGRATION = "031_specifications2_guard_function_repair";
 export const PLANNING_START_DATE_COMMAND_MIGRATION = "032_planning_work_order_start_date";
+export const SYSTEM_DOMAINS_LIFECYCLE_MIGRATION = "033_system_domains_lifecycle_archived_at";
 export const SHIFT_EXECUTION_SERVER_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   "008_shift_execution_read_model",
   "014_shift_execution_command_idempotency",
@@ -61,6 +62,10 @@ export function requiresPlanningStartDateCommandMigration(env = process.env) {
   return enabled(env.MES_ENABLE_PLANNING_START_DATE_COMMANDS);
 }
 
+export function requiresSystemDomainsLifecycleMigration(env = process.env) {
+  return enabled(env.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS);
+}
+
 export function requiresSpecifications2PublicationIdempotencyMigration(env = process.env) {
   return requiresSpecifications2ServerCommandMigrations(env);
 }
@@ -68,6 +73,7 @@ export function requiresSpecifications2PublicationIdempotencyMigration(env = pro
 export function getRequiredDomainMigrations(env = process.env) {
   const required = new Set(FOUNDATION_REQUIRED_DOMAIN_MIGRATIONS);
   if (requiresEmployeeAuthMigration(env)) required.add(EMPLOYEE_AUTH_MIGRATION);
+  if (requiresSystemDomainsLifecycleMigration(env)) required.add(SYSTEM_DOMAINS_LIFECYCLE_MIGRATION);
   if (requiresSpecifications2AttachmentMigration(env)) required.add(SPECIFICATIONS2_ATTACHMENT_MIGRATION);
   if (requiresSpecifications2ServerCommandMigrations(env)) {
     SPECIFICATIONS2_SERVER_COMMAND_REQUIRED_MIGRATIONS.forEach((migration) => required.add(migration));

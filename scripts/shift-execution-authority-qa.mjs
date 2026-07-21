@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inspectShiftExecutionAuthority, partitionResolvablePayload, writeShiftExecutionAuthorityExport } from "./domain-shift-execution-authority.mjs";
@@ -95,6 +95,13 @@ try {
   const partition = await partitionResolvablePayload(referenceTx, source);
   assert(partition.active.shiftAssignments.map((row) => row.id).join() === "active", "resolvable assignments must stay in the active import");
   assert(partition.archived.shiftAssignments.map((row) => row.id).join() === "legacy" && partition.archived.shiftFacts.length === 1, "orphan legacy aggregates must be archived without losing dependent facts");
+
+  const authoritySource = await readFile(new URL("./domain-shift-execution-authority.mjs", import.meta.url), "utf8");
+  const authorityLockIndex = authoritySource.indexOf("mes:shift-execution-postgres-authority");
+  const resourceLockIndex = authoritySource.indexOf("await acquireProductionResourceDependencySharedLock(tx)", authorityLockIndex);
+  const tableLockIndex = authoritySource.indexOf("LOCK TABLE shift_assignments", resourceLockIndex);
+  assert(authorityLockIndex >= 0 && resourceLockIndex > authorityLockIndex && tableLockIndex > resourceLockIndex,
+    "Shift authority cutover must take authority -> production-resource -> table locks in the deadlock-safe order");
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

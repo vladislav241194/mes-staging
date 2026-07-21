@@ -5,10 +5,16 @@
   "actorPolicyVersion": 1,
   "authorizationSnapshotVersion": 2,
   "authorityTransitionVersion": 1,
+  "employeeAuthReadinessVersion": 1,
+  "lifecycleGuardVersion": 1,
+  "resourceDependencyLockVersion": 1,
   "supportedSurfaces": [
     "production-structure",
     "timesheet",
     "access-control"
+  ],
+  "rolloutEligibleSurfaces": [
+    "production-structure"
   ],
   "controlledRootExclusivity": {
     "required": true,
@@ -26,6 +32,7 @@
     "013_system_domains_command_idempotency",
     "023_system_domains_postgres_primary_authority",
     "026_system_responsibility_policy_lifecycle",
-    "027_employee_auth_credentials"
+    "027_employee_auth_credentials",
+    "033_system_domains_lifecycle_archived_at"
   ]
 }

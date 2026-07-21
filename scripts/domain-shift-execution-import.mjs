@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { assertProductionResourceDependenciesWritable } from "./production-resource-dependency-lock.mjs";
 
 function parseArgs(argv) {
   const parsed = { apply: false, file: "" };
@@ -112,6 +113,7 @@ async function verifyWorkOrderReferences(tx, payload) {
 }
 
 export async function importShiftExecutionRows(tx, payload) {
+    await assertProductionResourceDependenciesWritable(tx, payload.shiftAssignments.map((row) => row.resource_id));
     await verifyWorkOrderReferences(tx, payload);
     for (const row of payload.shiftAssignments) {
       await tx`

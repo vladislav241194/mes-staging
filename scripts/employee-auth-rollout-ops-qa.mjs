@@ -11,6 +11,7 @@ const paths = {
   activateCommands: new URL("activate-pilot-nomenclature-command-owner.sh", opsRoot),
   deactivateCommands: new URL("deactivate-pilot-nomenclature-command-owner.sh", opsRoot),
   deactivateAuth: new URL("deactivate-pilot-employee-auth.sh", opsRoot),
+  assertReadiness: new URL("assert-pilot-employee-auth-readiness.sh", opsRoot),
   deactivateStack: new URL("deactivate-pilot-nomenclature-evaluation-stack.sh", opsRoot),
   scheduleAutoRollback: new URL("schedule-pilot-nomenclature-evaluation-auto-rollback.sh", opsRoot),
   prepareRollback: new URL("prepare-pilot-nomenclature-release-rollback.sh", opsRoot),
@@ -33,6 +34,7 @@ const shellNames = [
   "activateCommands",
   "deactivateCommands",
   "deactivateAuth",
+  "assertReadiness",
   "deactivateStack",
   "scheduleAutoRollback",
   "prepareRollback",
@@ -125,10 +127,24 @@ assert.doesNotMatch(source.deactivateCommands, /employeeAuthConfigured !== true/
 
 assert.match(source.deactivateAuth, /Deactivate Nomenclature command owner before employee-auth/);
 assert.match(source.deactivateAuth, /MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS=1/);
+assert.match(source.deactivateAuth, /Deactivate System Domains command surfaces before employee-auth/);
+assert.match(source.deactivateAuth, /MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS=1/);
+assert.match(source.deactivateAuth, /MES_SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES/);
+assert.match(source.deactivateAuth, /deactivate-system-domains-command-surfaces\.sh --to=disabled/);
+assert.match(source.deactivateAuth, /\/api\/v1\/system-domains\/capabilities/);
 assert.match(source.deactivateAuth, /restore_on_failure/);
 assert.match(source.deactivateAuth, /cp -a "\$backup_dir\/previous\.conf" "\$DROPIN_FILE"/);
 assert.match(source.deactivateAuth, /cmp -s "\$SOURCE_FILE" "\$DROPIN_FILE"/);
 assert.match(source.deactivateAuth, /operator-modified employee-auth drop-in/);
+
+assert.match(source.assertReadiness, /cmp -s "\$SOURCE_FILE" "\$DROPIN_FILE"/);
+assert.match(source.assertReadiness, /0:0:600/);
+assert.match(source.assertReadiness, /MES_ENABLE_EMPLOYEE_AUTH/);
+assert.match(source.assertReadiness, /MES_EMPLOYEE_AUTH_SESSION_SECRET/);
+assert.match(source.assertReadiness, /\/proc\/\$\{MAIN_PID\}\/environ/);
+assert.match(source.assertReadiness, /employeeAuthStorageConfigured/);
+assert.match(source.assertReadiness, /employeeAuthSchemaReady/);
+assert.doesNotMatch(source.assertReadiness, /Cookie:|mes_employee_session/);
 
 const rollbackEvaluationIndex = source.prepareRollback.indexOf("deactivate-react-nomenclature-write-evaluation.sh");
 const rollbackCommandsIndex = source.prepareRollback.indexOf("deactivate-pilot-nomenclature-command-owner.sh");

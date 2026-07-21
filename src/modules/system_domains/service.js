@@ -22,6 +22,8 @@ const LEGACY_UI_SOURCE = "legacy-shared-ui";
 const ORG_ROW_TYPES = new Set(["Отдел", "Участок"]);
 const POSITION_ROW_TYPES = new Set(["Роль", "Руководитель производства"]);
 const VALID_RESPONSIBILITY_MODES = new Set(["department", "workCenter", "manual", "all"]);
+const OPTIONAL_ARCHIVED_AT_REGISTRIES = new Set(["orgUnits", "workCenters", "positions", "employees", "equipment"]);
+const NO_UPDATED_AT_CONTRACT_REGISTRIES = new Set(["orgUnits", "workCenters", "positions", "employees", "employmentAssignments", "equipment"]);
 
 const LEGACY_ACCESS_ROLE_SEEDS = [
   ["admin", "Администратор", "factory", "gantt"],
@@ -121,7 +123,15 @@ function dedupeRegistry(value) {
 }
 
 function normalizeRegistry(name, value) {
-  const entities = dedupeRegistry(value);
+  const entities = dedupeRegistry(value).map((entity) => {
+    const canonical = { ...entity };
+    // These fields are not columns in the System Domains projection. Removing
+    // them before hashing makes browser candidates identical to replace->get
+    // hydration instead of creating nondurable fingerprints and revisions.
+    if (NO_UPDATED_AT_CONTRACT_REGISTRIES.has(name)) delete canonical.updatedAt;
+    if (OPTIONAL_ARCHIVED_AT_REGISTRIES.has(name) && !cleanText(canonical.archivedAt)) delete canonical.archivedAt;
+    return stableClone(canonical);
+  });
   // Older compatibility snapshots did not persist the template-level shift
   // offset. PostgreSQL has always stored it, so materializing the zero
   // default here makes an omitted legacy property semantically equivalent to

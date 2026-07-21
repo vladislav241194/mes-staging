@@ -49,6 +49,8 @@ const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/
 const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");
 const planningStartDateMigrationPath = fileURLToPath(new URL("../db/migrations/032_planning_work_order_start_date.sql", import.meta.url));
 const planningStartDateSql = await readFile(planningStartDateMigrationPath, "utf-8");
+const systemDomainsLifecycleArchivedAtMigrationPath = fileURLToPath(new URL("../db/migrations/033_system_domains_lifecycle_archived_at.sql", import.meta.url));
+const systemDomainsLifecycleArchivedAtSql = await readFile(systemDomainsLifecycleArchivedAtMigrationPath, "utf-8");
 const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
 const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
 const postgresPreflightPolicyPath = fileURLToPath(new URL("./domain-postgres-preflight-policy.mjs", import.meta.url));
@@ -228,9 +230,21 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(responsibilityPolicyLifecycleSql)
   "VALUES ('032_planning_work_order_start_date')",
 ].forEach((fragment) => assert(planningStartDateSql.includes(fragment), `Planning start-date migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA|COLUMN)/i.test(planningStartDateSql), "Planning start-date migration must not contain destructive statements");
+for (const table of ["system_org_units", "system_work_centers", "system_positions", "system_employees", "system_equipment"]) {
+  assert(systemDomainsLifecycleArchivedAtSql.includes(`ALTER TABLE ${table}`), `System Domains lifecycle migration must cover ${table}`);
+}
+assert(systemDomainsLifecycleArchivedAtSql.includes("ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ"));
+assert(systemDomainsLifecycleArchivedAtSql.includes("VALUES ('033_system_domains_lifecycle_archived_at')"));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA|COLUMN)/i.test(systemDomainsLifecycleArchivedAtSql), "System Domains lifecycle archived-at migration must not contain destructive statements");
 assert(
   postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")
     && postgresPreflightPolicySql.includes('"026_system_responsibility_policy_lifecycle"'),
   "PostgreSQL domain preflight must require the Responsibility Policy lifecycle migration",
+);
+assert(
+  postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")
+    && postgresPreflightPolicySql.includes('SYSTEM_DOMAINS_LIFECYCLE_MIGRATION = "033_system_domains_lifecycle_archived_at"')
+    && postgresPreflightPolicySql.includes("requiresSystemDomainsLifecycleMigration"),
+  "PostgreSQL domain preflight must require migration 033 only when System Domains command ownership is enabled",
 );
 console.log("Domain schema QA: OK");

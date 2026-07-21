@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
+import { assertProductionResourceDependenciesWritable } from "./production-resource-dependency-lock.mjs";
 
 function parseArgs(argv) {
   const parsed = { apply: false, file: "" };
@@ -60,6 +61,11 @@ export function validateDomainExport(payload = {}) {
 
 async function importExport(sql, payload) {
   await sql.begin(async (tx) => {
+    const referencedResourceIds = [
+      ...payload.workOrderOperations.flatMap((row) => [row?.metadata?.resourceId, row?.execution_context?.resourceId]),
+      ...payload.planningSlots.map((row) => row?.metadata?.resourceId),
+    ];
+    await assertProductionResourceDependenciesWritable(tx, referencedResourceIds);
     for (const row of payload.workOrders) {
       await tx`
         INSERT INTO work_orders (id, number, name, designation, unit, quantity, lifecycle_status, planning_status, source_kind, source_revision, aggregate_revision, planning_start_date, metadata, created_at, updated_at)

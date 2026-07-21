@@ -15,6 +15,7 @@ fi
 ACTIVE_APP_DIR="${MES_PILOT_ACTIVE_APP_DIR:-/srv/mes/pilot/app}"
 RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
+PORT="${MES_PILOT_PORT:-4175}"
 DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 ACTOR_POLICY_FILE="/etc/mes/mes-pilot-system-domains-command-actors.env"
 ACTOR_POLICY_DROPIN_FILE="${DROPIN_DIR}/49-system-domains-command-actors.conf"
@@ -25,8 +26,12 @@ ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
 # Remove the old pre-policy production drop-in too; its lexical name is later
 # than the reviewed 50-* file and otherwise can win an Environment override.
 DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
-EXPECTED_CSV="production-structure,timesheet,access-control"
-INTERNAL_ORIGIN="http://127.0.0.1:4175"
+# Timesheet and Access Control remain fail-closed: their generic aggregate PUT
+# does not yet have target-scoped employee RBAC and complete server delta
+# invariants. Primary recovery restores only the reviewed Production Structure
+# surface.
+EXPECTED_CSV="production-structure"
+INTERNAL_ORIGIN="http://127.0.0.1:${PORT}"
 
 verify_active_release_contract() {
   local active_target source_target release_path release_id manifest
@@ -79,9 +84,17 @@ request_internal_api() {
 
 for file in \
   "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" \
-  "${APP_DIR}/ops/postgres/mes-pilot-system-domains-access-control.conf"; do
+  "${APP_DIR}/ops/postgres/mes-pilot-system-domains-production-structure.conf" \
+  "${APP_DIR}/ops/auth/assert-pilot-employee-auth-readiness.sh"; do
   [[ -f "$file" ]] || { echo "Missing recovery artifact: $file" >&2; exit 1; }
 done
+
+assert_employee_auth_readiness() {
+  MES_PILOT_APP_DIR="$APP_DIR" MES_PILOT_SERVICE="$SERVICE" MES_PILOT_PORT="$PORT" \
+    "${APP_DIR}/ops/auth/assert-pilot-employee-auth-readiness.sh" >/dev/null
+}
+
+assert_employee_auth_readiness
 [[ -r "$ACTOR_POLICY_FILE" ]] || { echo "Missing protected System Domains actor policy: $ACTOR_POLICY_FILE" >&2; exit 1; }
 node -e '
   const fs = require("node:fs");
@@ -93,6 +106,16 @@ node -e '
   const value = entries.length === 1 ? entries[0].slice(prefix.length).trim() : "";
   if (!/^public:[^,\s]+(?:,public:[^,\s]+)*$/.test(value)) throw new Error("System Domains actor policy must contain one non-empty comma-separated public:* allowlist");
 ' "$ACTOR_POLICY_FILE"
+
+pre_capabilities="$(request_internal_api /api/v1/system-domains/capabilities)"
+node -e '
+  const value = JSON.parse(process.argv[1]);
+  const capability = value?.capabilities || {};
+  if (capability.primaryPostgres !== true || capability.schemaReady !== true) process.exit(1);
+' "$pre_capabilities" || {
+  echo "Run mes-pilot-domain-migrate.service and prove migration 033 before recovering PostgreSQL-primary command surfaces." >&2
+  exit 1
+}
 
 # This is deliberately the inverse authority check of the pre-cutover scripts:
 # recovery is permitted only when a durable PostgreSQL-primary tombstone proof
@@ -136,11 +159,12 @@ done
 install -d -m 0755 "$DROPIN_DIR"
 rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
 install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" "$ACTOR_POLICY_DROPIN_FILE"
-install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-access-control.conf" "$ACCESS_CONTROL_DROPIN_FILE"
+install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-production-structure.conf" "$PRODUCTION_DROPIN_FILE"
 APPLIED=1
 systemctl daemon-reload
 systemctl restart "$SERVICE"
 systemctl is-active --quiet "$SERVICE"
+assert_employee_auth_readiness
 
 MAIN_PID="$(systemctl show --property=MainPID --value "$SERVICE")"
 [[ "$MAIN_PID" =~ ^[1-9][0-9]*$ ]] || { echo "Could not determine the running ${SERVICE} MainPID." >&2; exit 1; }
@@ -169,6 +193,7 @@ node -e '
   const capability = value?.capabilities || {};
   const actual = capability.configuredServerCommandSurfaces || [];
   if (capability.primaryPostgres !== true
+    || capability.schemaReady !== true
     || capability.serverCommandsConfigured !== true
     || capability.actorAuthorization?.policyConfigured !== true
     || capability.consistency?.details?.authority?.mode !== "postgres-primary"

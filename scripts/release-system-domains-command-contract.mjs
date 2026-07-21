@@ -6,6 +6,9 @@ export const SYSTEM_DOMAINS_COMMAND_SURFACES = Object.freeze([
   "timesheet",
   "access-control",
 ]);
+export const SYSTEM_DOMAINS_COMMAND_ROLLOUT_ELIGIBLE_SURFACES = Object.freeze([
+  "production-structure",
+]);
 export const SYSTEM_DOMAINS_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   "011_system_domains_core",
   "012_system_domains_metadata_parity",
@@ -13,6 +16,7 @@ export const SYSTEM_DOMAINS_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   "023_system_domains_postgres_primary_authority",
   "026_system_responsibility_policy_lifecycle",
   "027_employee_auth_credentials",
+  "033_system_domains_lifecycle_archived_at",
 ]);
 export const SYSTEM_DOMAINS_INCOMPATIBLE_TARGET_FLAGS = Object.freeze([
   "MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS",
@@ -30,7 +34,11 @@ export function parseAndValidateSystemDomainsCommandMarker(source) {
     || marker?.actorPolicyVersion !== 1
     || marker?.authorizationSnapshotVersion !== 2
     || marker?.authorityTransitionVersion !== 1
+    || marker?.employeeAuthReadinessVersion !== 1
+    || marker?.lifecycleGuardVersion !== 1
+    || marker?.resourceDependencyLockVersion !== 1
     || JSON.stringify(marker?.supportedSurfaces) !== JSON.stringify(SYSTEM_DOMAINS_COMMAND_SURFACES)
+    || JSON.stringify(marker?.rolloutEligibleSurfaces) !== JSON.stringify(SYSTEM_DOMAINS_COMMAND_ROLLOUT_ELIGIBLE_SURFACES)
     || exclusivity?.required !== true
     || exclusivity?.lockName !== "mes-authority-rollout.lock"
     || JSON.stringify(exclusivity?.incompatibleTargetRequiresDisabledFlags) !== JSON.stringify(SYSTEM_DOMAINS_INCOMPATIBLE_TARGET_FLAGS)
@@ -49,6 +57,7 @@ export function buildSystemDomainsCommandManifestContract(markerSource) {
     sha256: createHash("sha256").update(markerSource).digest("hex"),
     contract: marker.contract,
     supportedSurfaces: marker.supportedSurfaces,
+    rolloutEligibleSurfaces: marker.rolloutEligibleSurfaces,
     controlledRootExclusivity: marker.controlledRootExclusivity,
   };
 }

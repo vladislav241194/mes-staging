@@ -225,7 +225,10 @@ for (const dropin of [
   "63-specifications2-work-orders.conf",
   "64-specifications2-publication.conf",
   "50-shift-execution-commands.conf",
+  "50-shift-execution-server-commands.conf",
   "50-directory-cluster-commands.conf",
 ]) assert(bridgeSource.includes(dropin), `the staged bridge must manage ${dropin}`);
+assert(bridgeSource.includes('[[ "$configured" == "$expected" ]]'), "the staged bridge must accept only exact managed drop-in paths");
+assert(!bridgeSource.includes('50-shift-execution-*.conf'), "the legacy Shift compatibility path must not broaden into a filename glob");
 
 console.log("Shift Execution release command contract and staged deactivation bridge QA: OK");

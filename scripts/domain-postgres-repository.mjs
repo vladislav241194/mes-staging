@@ -4,6 +4,7 @@ import { addCalendarWorkingDuration, createWorkingCalendar } from "../src/domain
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
 import { isExactIsoCalendarDate, toExactIsoCalendarDate } from "../src/domain/calendar_date.js";
+import { acquireProductionResourceDependencySharedLock } from "./production-resource-dependency-lock.mjs";
 
 const CLIENTS_BY_URL = new Map();
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -114,7 +115,7 @@ function normalizeExecutionContext(value = {}) {
 function normalizeResourceDependencyIds(value = []) {
   return [...new Set((Array.isArray(value) ? value : [])
     .map((item) => String(item || "").trim())
-    .filter(Boolean))].slice(0, 100);
+    .filter(Boolean))];
 }
 
 function mapOperation(row, slot = null) {
@@ -383,9 +384,11 @@ function resourcesByWorkCenter(rows = []) {
   return grouped;
 }
 
-export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverride } = {}) {
+export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverride, resourceDependencyLock = null } = {}) {
   if (!databaseUrl && !sqlOverride) throw new Error("DATABASE_URL is required for PostgreSQL domain storage");
   const sql = sqlOverride || getClient(databaseUrl);
+  const acquireResourceDependencyLock = resourceDependencyLock
+    || (sqlOverride ? async () => {} : acquireProductionResourceDependencySharedLock);
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   async function listRows(query = sql) {
     return query`
@@ -1085,6 +1088,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
 
     async changeQuantity(id, { quantity, expectedRevision, actorId = "" }) {
       const result = await sql.begin(async (tx) => {
+        await acquireResourceDependencyLock(tx);
         const updated = await tx`
           WITH current AS (
             SELECT id, aggregate_revision
@@ -1264,6 +1268,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         throw new Error("Planning start-date actor and idempotency key are required");
       }
       const result = await sql.begin(async (tx) => {
+        await acquireResourceDependencyLock(tx);
         // Same-actor retries serialize before inspecting the durable command
         // log. This closes the gap between the replay read and unique insert.
         await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${normalizedActor}:${normalizedKey}`}, 0))`;
@@ -1438,6 +1443,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       const nextStart = new Date(plannedStart);
       if (Number.isNaN(nextStart.getTime())) throw new Error("plannedStart must be an ISO date-time");
       const result = await sql.begin(async (tx) => {
+        await acquireResourceDependencyLock(tx);
         const current = await tx`
           WITH canonical_order AS MATERIALIZED (
             SELECT id

@@ -30,6 +30,7 @@ import {
   resolveSystemDomainsProductionStructureAuthorization,
 } from "./system-domains-command-authorization.mjs";
 import { validateSystemDomainsProductionStructureImpact } from "./system-domains-production-structure-impact.mjs";
+import { withProductionResourceDependencyExclusiveLock } from "./production-resource-dependency-lock.mjs";
 import { isPlanningSnapshotObservationEnabled } from "./planning-snapshot-observer.mjs";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
@@ -1669,6 +1670,7 @@ export async function handleDomainApiRequest(req, res, url, {
   planningAuthorizationResolver = resolvePlanningCommandAuthorization,
   systemDomainsProductionStructureAuthorizationResolver = resolveSystemDomainsProductionStructureAuthorization,
   systemDomainsProductionStructureImpactResolver = validateSystemDomainsProductionStructureImpact,
+  systemDomainsProductionStructureLockRunner = withProductionResourceDependencyExclusiveLock,
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const isPlanningWorkbenchBootstrap = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`;
@@ -2127,17 +2129,23 @@ export async function handleDomainApiRequest(req, res, url, {
       }
     }
     let consistency = null;
-    if (commandRequested) {
+    let commandReadiness = { schemaReady: false, error: "System Domains PostgreSQL command schema is unavailable" };
+    if (health.storageBackend === "postgresql") {
       let domains;
       try {
         domains = createSystemDomainsRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+        commandReadiness = await domains.commandReadiness();
+        if (commandRequested) {
         consistency = await inspectSystemDomainsSnapshotConsistency({ primary: domains, env, filePath });
+        }
       } catch (error) {
-        consistency = { ok: false, matches: false, error: error?.message || "System Domains consistency check is unavailable" };
+        commandReadiness = { schemaReady: false, error: error?.message || "System Domains command schema readiness is unavailable" };
+        if (commandRequested) consistency = { ok: false, matches: false, error: error?.message || "System Domains consistency check is unavailable" };
       } finally { await domains?.close?.(); }
     }
     const serverAuthoritative = hasSystemDomainsServerAuthority(consistency, enabledSurfaces);
-    const serverCommandsConfigured = commandRequested && serverAuthoritative && actorAuthorization.policyConfigured;
+    const serverCommandsConfigured = commandRequested && commandReadiness.schemaReady === true
+      && serverAuthoritative && actorAuthorization.policyConfigured;
     const productionStructureWriteEnabled = serverCommandsConfigured
       && actorAuthorization.authorized
       && enabledSurfaces.includes("production-structure")
@@ -2162,6 +2170,8 @@ export async function handleDomainApiRequest(req, res, url, {
       productionStructureWriteEnabled,
       productionStructureAuthorization,
       primaryPostgres: health.storageBackend === "postgresql",
+      schemaReady: commandReadiness.schemaReady === true,
+      commandReadiness,
       consistency,
     } });
     return true;
@@ -2595,6 +2605,8 @@ export async function handleDomainApiRequest(req, res, url, {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", retryable: true, code: "shift-execution-target-context-changed", error: error.message });
       } else if (error?.code === "SHIFT_EXECUTION_COMMAND_INVALID") {
         sendJson(res, headers, 422, { ok: false, apiVersion: "v1", code: "shift-execution-command-invalid", error: error.message });
+      } else if (error?.code === "PRODUCTION_RESOURCE_ARCHIVED") {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, code: "production-resource-archived", resourceId: error.resourceId || "", error: error.message });
       } else sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" });
     }
     finally { await shifts?.close?.(); }
@@ -2660,6 +2672,16 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "System Domains command surface is not enabled during snapshot migration", surface, enabledSurfaces });
       return true;
     }
+    if (surface !== "production-structure") {
+      sendJson(res, headers, 409, {
+        ok: false,
+        apiVersion: "v1",
+        code: "system-domains-surface-not-server-authorized",
+        error: "Timesheet and Access Control writes remain disabled until target-scoped employee RBAC and server delta invariants are implemented",
+        surface,
+      });
+      return true;
+    }
     let commandActor = actor;
     let productionStructureAuthorization = null;
     if (surface === "production-structure") {
@@ -2689,8 +2711,21 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     let domains;
     try {
-      domains = createSystemDomainsRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
-      const preflightConsistency = await inspectSystemDomainsSnapshotConsistency({ primary: domains, env, filePath });
+      const databaseUrl = env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "";
+      domains = createSystemDomainsRepository({ databaseUrl });
+      const executeCommand = async (commandDomains = domains) => {
+      const commandReadiness = await commandDomains.commandReadiness();
+      if (commandReadiness.schemaReady !== true) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          apiVersion: "v1",
+          code: "system-domains-command-schema-not-ready",
+          error: commandReadiness.error || "System Domains command schema is not ready",
+          commandReadiness,
+        });
+        return true;
+      }
+      const preflightConsistency = await inspectSystemDomainsSnapshotConsistency({ primary: commandDomains, env, filePath });
       if (!hasSystemDomainsServerAuthority(preflightConsistency, enabledSurfaces)) {
         sendJson(res, headers, 409, {
           ok: false,
@@ -2700,10 +2735,10 @@ export async function handleDomainApiRequest(req, res, url, {
         });
         return true;
       }
-      const currentProjection = await domains.get();
+      const currentProjection = await commandDomains.get();
       const currentRevisionMatches = Boolean(currentProjection.item) && Number(currentProjection.revision) === expected.value;
       if (!currentRevisionMatches) {
-        const replay = await domains.inspectCommandReplay(candidate, {
+        const replay = await commandDomains.inspectCommandReplay(candidate, {
           idempotencyKey,
           expectedRevision: expected.value,
           actorId: commandActor.id,
@@ -2741,41 +2776,67 @@ export async function handleDomainApiRequest(req, res, url, {
           });
           return true;
         }
-        if (surface === "production-structure") {
-          let impact;
-          try {
-            impact = typeof systemDomainsProductionStructureImpactResolver === "function"
-              ? await systemDomainsProductionStructureImpactResolver({
-                current: currentProjection.item,
-                candidate,
-                workOrdersRepository: workOrders,
-                shiftExecutionReadRepositoryFactory,
-                databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "",
-              })
-              : { ok: false, unavailable: true, code: "production-structure-impact-unavailable", error: "Production Structure impact validation is unavailable" };
-          } catch {
-            impact = { ok: false, unavailable: true, code: "production-structure-impact-unavailable", error: "Production Structure impact validation is unavailable" };
-          }
-          if (impact?.ok !== true) {
-            sendJson(res, headers, impact?.unavailable === true ? 503 : 409, {
-              ok: false,
-              apiVersion: "v1",
-              conflict: impact?.unavailable !== true,
-              retryable: impact?.unavailable === true,
-              code: String(impact?.code || "production-structure-impact-conflict"),
-              error: String(impact?.error || "Production Structure impact validation rejected the command"),
-              dependencies: Array.isArray(impact?.dependencies) ? impact.dependencies : [],
-            });
-            return true;
-          }
+        // Candidate-final parent/lifecycle invariants apply to the complete
+        // aggregate on every surface. Otherwise a Timesheet or Access Control
+        // PUT could create a schedule/role assignment under an inactive
+        // Employee even though Production Structure itself was unchanged.
+        // The resolver performs external Equipment checks only when Equipment
+        // actually transitions to archived, which surface validation permits
+        // solely for production-structure.
+        let impact;
+        try {
+          impact = typeof systemDomainsProductionStructureImpactResolver === "function"
+            ? await systemDomainsProductionStructureImpactResolver({
+              current: currentProjection.item,
+              candidate,
+              workOrdersRepository: workOrders,
+              shiftExecutionReadRepositoryFactory,
+              databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "",
+            })
+            : { ok: false, unavailable: true, code: "production-structure-impact-unavailable", error: "System Domains final-state validation is unavailable" };
+        } catch {
+          impact = { ok: false, unavailable: true, code: "production-structure-impact-unavailable", error: "System Domains final-state validation is unavailable" };
+        }
+        if (impact?.ok !== true) {
+          sendJson(res, headers, impact?.unavailable === true ? 503 : 409, {
+            ok: false,
+            apiVersion: "v1",
+            conflict: impact?.unavailable !== true,
+            retryable: impact?.unavailable === true,
+            code: String(impact?.code || "production-structure-impact-conflict"),
+            error: String(impact?.error || "System Domains final-state validation rejected the command"),
+            dependencies: Array.isArray(impact?.dependencies) ? impact.dependencies : [],
+          });
+          return true;
         }
       }
-      const result = await domains.replace(candidate, {
+      const result = await commandDomains.replace(candidate, {
         source: `api-command:${surface}`, expectedRevision: expected.value, actorId: commandActor.id, commandType: `replace_projection:${surface}`, idempotencyKey,
       });
       if (result.conflict) {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, error: "System Domains revision conflict", revision: result.revision });
+        return null;
+      }
+      return { result };
+      };
+      let commandCommit;
+      if (surface === "production-structure") {
+        if (typeof systemDomainsProductionStructureLockRunner !== "function") {
+          throw new Error("Production Structure dependency lock is unavailable");
+        }
+        commandCommit = await systemDomainsProductionStructureLockRunner({ databaseUrl }, async (transactionSql) => {
+          const transactionDomains = createSystemDomainsRepository({ databaseUrl, transactionSql });
+          return executeCommand(transactionDomains);
+        });
       } else {
+        commandCommit = await executeCommand();
+      }
+      if (commandCommit?.result) {
+        // Snapshot/file publication and the post-commit authority proof are
+        // deliberately outside the dependency transaction. The protected
+        // current-read/impact/replace unit has already committed atomically;
+        // slow compatibility I/O cannot expire its advisory lock mid-write.
+        const { result } = commandCommit;
         const projection = await domains.get();
         const snapshotSync = result.imported
           ? await syncPendingSystemDomainsSnapshotChanges({ primary: domains, env, filePath })

@@ -7,6 +7,7 @@ import { importShiftExecutionRows, validateShiftExecutionExport } from "./domain
 import { compareShiftExecutionProjection, readShiftExecutionProjection } from "./domain-shift-execution-parity.mjs";
 import { normalizeShiftExecutionRetirement, readSharedStateSnapshot, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
 import { appendSharedStateAudit, backupSharedStateFile, getSharedStateServerPaths, withSharedStateFileLock } from "./shared-state-storage.mjs";
+import { acquireProductionResourceDependencySharedLock } from "./production-resource-dependency-lock.mjs";
 
 export const SHIFT_EXECUTION_AUTHORITY_KEY = "shared-ui-shift-execution-v1";
 const SHIFT_EXECUTION_SHARED_UI_KEYS = [
@@ -226,6 +227,11 @@ function restoreSharedUiFromExport(payload, currentSharedUi = {}) {
 async function beginAuthorityTransition(sql, { transitionId, sourceVersion, digest, counts, exportPath, payload }) {
   await sql.begin("isolation level serializable", async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(hashtext('mes:shift-execution-postgres-authority'))`;
+    // Match normal Shift writers: authority lock first, then the production
+    // resource lock, before taking any Shift table lock. System Domains uses
+    // the inverse resource-exclusive -> Shift-read path, so taking the table
+    // lock first here would create a deterministic deadlock cycle.
+    await acquireProductionResourceDependencySharedLock(tx);
     const existing = await readAuthority(tx);
     if (existing) {
       if (existing.transitionId !== transitionId || existing.sourceDigest !== digest) {

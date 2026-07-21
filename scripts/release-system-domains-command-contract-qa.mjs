@@ -13,7 +13,12 @@ const markerSource = await readFile(new URL(`../${SYSTEM_DOMAINS_COMMAND_MARKER_
 const marker = JSON.parse(markerSource);
 const compatibility = buildSystemDomainsCommandManifestContract(markerSource);
 assert.equal(marker.authorizationSnapshotVersion, 2, "production-structure commands must bind the signed employee/RBAC authorization contract");
+assert.equal(marker.employeeAuthReadinessVersion, 1, "production-structure rollout must bind root employee-auth readiness");
+assert.equal(marker.lifecycleGuardVersion, 1, "production-structure commands must bind final-state lifecycle invariants");
+assert.equal(marker.resourceDependencyLockVersion, 1, "production-structure commands must bind the durable Planning/Shift dependency lock");
+assert.deepEqual(marker.rolloutEligibleSurfaces, ["production-structure"], "the release marker must not advertise Timesheet or Access Control as rollout eligible");
 assert(marker.requiredMigrations.includes("027_employee_auth_credentials"), "the System Domains command release must require durable employee-session storage");
+assert(marker.requiredMigrations.includes("033_system_domains_lifecycle_archived_at"), "the System Domains command release must require durable lifecycle archive timestamps");
 const manifest = {
   schemaVersion: 3,
   releaseId: "v.1.500.system-domains-qa",
@@ -39,7 +44,10 @@ assert.throws(
   /does not bind/,
   "the manifest must bind the exact System Domains marker bytes",
 );
-for (const field of ["commandSurfaceVersion", "actorPolicyVersion", "authorizationSnapshotVersion", "authorityTransitionVersion"]) {
+for (const field of [
+  "commandSurfaceVersion", "actorPolicyVersion", "authorizationSnapshotVersion", "authorityTransitionVersion",
+  "employeeAuthReadinessVersion", "lifecycleGuardVersion", "resourceDependencyLockVersion",
+]) {
   const incompatible = { ...marker };
   delete incompatible[field];
   assert.throws(
@@ -55,10 +63,11 @@ const [activateSource, rollbackSource, stageSource, verifierSource] = await Prom
   readFile(new URL("./release-stage.mjs", import.meta.url), "utf8"),
   readFile(new URL("./release-server-command-contract-verify.mjs", import.meta.url), "utf8"),
 ]);
-const [apiSource, authorizationSource, impactSource] = await Promise.all([
+const [apiSource, authorizationSource, impactSource, dependencyLockSource] = await Promise.all([
   readFile(new URL("./domain-api.mjs", import.meta.url), "utf8"),
   readFile(new URL("./system-domains-command-authorization.mjs", import.meta.url), "utf8"),
   readFile(new URL("./system-domains-production-structure-impact.mjs", import.meta.url), "utf8"),
+  readFile(new URL("./production-resource-dependency-lock.mjs", import.meta.url), "utf8"),
 ]);
 assert(apiSource.includes("resolveSystemDomainsProductionStructureAuthorization")
   && apiSource.includes("validateSystemDomainsProductionStructureImpact")
@@ -67,6 +76,11 @@ assert(apiSource.includes("resolveSystemDomainsProductionStructureAuthorization"
 "the versioned server surface must enforce employee RBAC, impact validation and revision binding");
 assert(authorizationSource.includes("inspectEmployeeAuthSession") && authorizationSource.includes('moduleId: "productionStructureMatrix"'), "authorization v2 must derive its actor from the signed employee session and current module grant");
 assert(impactSource.includes("position-active-assignment") && impactSource.includes("equipment-active-resource-dependency"), "authorization v2 must retain the server-owned Position and Equipment impact guards");
+assert(impactSource.includes("production-structure-hard-delete-forbidden")
+  && impactSource.includes("duplicate-active-responsibility-policy")
+  && impactSource.includes("candidateFinalStructureConflicts"),
+"the lifecycle contract must reject hard delete, duplicate active policy and inactive-parent candidates");
+assert(dependencyLockSource.includes("pg_advisory_xact_lock_shared") && dependencyLockSource.includes("pg_advisory_xact_lock(hashtext"), "the resource-dependency contract must bind shared Planning/Shift writers to exclusive Equipment impact+replace");
 assert(stageSource.includes("systemDomainsCommandCompatibility") && stageSource.includes("validateSystemDomainsCandidateManifest(manifest"), "release staging must bind and validate the System Domains contract");
 assert(verifierSource.includes('args.contract === "all" || args.contract === "system-domains"'), "the common immutable-release verifier must expose the System Domains contract");
 

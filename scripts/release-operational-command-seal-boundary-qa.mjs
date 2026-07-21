@@ -26,12 +26,12 @@ const activeCallsites = [
   "ops/postgres/deactivate-specifications2-attachments.sh",
   "ops/postgres/deactivate-specifications2-publication.sh",
   "ops/postgres/deactivate-specifications2-work-orders.sh",
-  "ops/postgres/deactivate-system-domains-command-surfaces.sh",
   "ops/postgres/recover-system-domains-primary-command-surfaces.sh",
   "ops/postgres/retire-system-domains-snapshot.sh",
   "ops/shared-state/activate-directory-cluster-commands.sh",
   "ops/shared-state/deactivate-directory-cluster-commands.sh",
 ];
+const stagedOperatorCallsite = "ops/postgres/deactivate-system-domains-command-surfaces.sh";
 const candidateCallsite = "ops/postgres/deactivate-staged-candidate-command-surfaces.sh";
 
 function ordered(source, needles, label) {
@@ -55,9 +55,38 @@ function shellQuote(value) {
 }
 
 const sources = new Map();
-for (const relativePath of [...activeCallsites, candidateCallsite]) {
+for (const relativePath of [...activeCallsites, stagedOperatorCallsite, candidateCallsite]) {
   sources.set(relativePath, await readFile(join(projectRoot, relativePath), "utf8"));
 }
+
+const stagedOperatorSource = sources.get(stagedOperatorCallsite);
+assert.equal(stagedOperatorSource.match(/release-server-command-contract-verify\.mjs/g)?.length, 1,
+  `${stagedOperatorCallsite}: expected one staged-operator command verifier call`);
+ordered(stagedOperatorSource, [
+  '"$root_seal_helper" bundle',
+  '--release-id="$active_release_id" --app="$active_target"',
+  '"$root_seal_helper" pointer',
+  '"$root_seal_helper" artifact',
+  "record?.releaseId !== id",
+  '--release-id="$release_id" --app="$source_target"',
+  "/usr/sbin/runuser -u mes-stage -- /usr/bin/env",
+  '"${source_target}/scripts/release-server-command-contract-verify.mjs"',
+], stagedOperatorCallsite);
+for (const mode of ["bundle", "pointer", "artifact"]) {
+  assert.match(stagedOperatorSource, new RegExp(`\\"\\$root_seal_helper\\" ${mode}[^\\n]*(?:\\\\\\n[^\\n]*)*\\|\\| return 1`),
+    `${stagedOperatorCallsite}: ${mode} root seal must fail closed before staged code`);
+}
+assert.equal((stagedOperatorSource.match(/"\$root_seal_helper" release[^\n]*\|\| return 1/g) || []).length, 2,
+  `${stagedOperatorCallsite}: both active and staged release roots must fail closed`);
+const stagedOperatorVerificationFunction = extractFunction(
+  stagedOperatorSource,
+  "verify_active_release_contract",
+  stagedOperatorCallsite,
+);
+assert(stagedOperatorVerificationFunction.includes("/usr/sbin/runuser -u mes-stage -- /usr/bin/env")
+  && stagedOperatorVerificationFunction.includes("HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin")
+  && stagedOperatorVerificationFunction.includes("--public-only"),
+`${stagedOperatorCallsite}: staged verifier must execute unprivileged in public-only mode`);
 
 for (const relativePath of activeCallsites) {
   const source = sources.get(relativePath);
@@ -179,6 +208,49 @@ verify_active_release_contract
     ], `${relativePath}: fixed root seals must execute before candidate verifier`);
   }
 
+  const operatorId = "v.qa-staged-operator";
+  const operatorReleaseRoot = join(releases, operatorId);
+  const operatorApp = join(operatorReleaseRoot, "app");
+  await mkdir(join(operatorApp, "scripts"), { recursive: true });
+  await writeFile(join(operatorReleaseRoot, "release-manifest.json"), "{}\n");
+  await writeFile(join(operatorApp, "scripts", "release-server-command-contract-verify.mjs"), `
+import { appendFileSync } from "node:fs";
+appendFileSync(process.env.QA_BOUNDARY_LOG, "verifier\\n");
+`);
+  const stagedOperatorFunction = stagedOperatorVerificationFunction
+    .replaceAll("/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs", rootSealHelper)
+    .replaceAll("/usr/sbin/runuser", shellQuote(runuserShim))
+    .replaceAll("/usr/bin/node", nodeCommand);
+  const stagedOperatorScript = `set -euo pipefail
+APP_DIR=${shellQuote(operatorApp)}
+ACTIVE_APP_DIR=${shellQuote(activePointer)}
+RELEASES_DIR=${shellQuote(releases)}
+${stagedOperatorFunction}
+verify_active_release_contract
+`;
+  await writeFile(logPath, "");
+  let result = spawnSync("bash", ["-c", stagedOperatorScript], { encoding: "utf8", env: baseEnv });
+  assert.equal(result.status, 0,
+    `${stagedOperatorCallsite}: dynamic staged trust-boundary proof failed: ${result.stderr}`);
+  assert.deepEqual((await readFile(logPath, "utf8")).trim().split("\n"), [
+    "seal:bundle",
+    `seal:release:${releaseId}`,
+    "seal:pointer",
+    "seal:artifact",
+    `seal:release:${operatorId}`,
+    "runuser:mes-stage",
+    "verifier",
+  ], `${stagedOperatorCallsite}: active and staged roots must be sealed before staged verifier`);
+
+  await writeFile(logPath, "");
+  result = spawnSync("bash", ["-c", stagedOperatorScript], {
+    encoding: "utf8",
+    env: { ...baseEnv, QA_FAIL_SEAL: `release:${operatorId}` },
+  });
+  assert.notEqual(result.status, 0, `${stagedOperatorCallsite}: staged seal failure must stop the operator script`);
+  assert(!((await readFile(logPath, "utf8")).includes("verifier")),
+    `${stagedOperatorCallsite}: staged verifier must not run after a root-seal failure`);
+
   const candidateId = "v.qa-candidate";
   const candidateReleaseRoot = join(releases, candidateId);
   const candidateApp = join(candidateReleaseRoot, "app");
@@ -213,7 +285,7 @@ ACTIVE_RELEASE_DIR=${shellQuote(releaseRoot)}
 ACTIVE_RELEASE_ID=${shellQuote(releaseId)}
 `;
   await writeFile(logPath, "");
-  let result = spawnSync("bash", ["-c", `${candidatePrelude}${candidateBlock}\n`], {
+  result = spawnSync("bash", ["-c", `${candidatePrelude}${candidateBlock}\n`], {
     encoding: "utf8",
     env: baseEnv,
   });

@@ -5,6 +5,10 @@ import { inspectSystemDomainsSnapshotImportGuard } from "../src/modules/system_d
 
 const SET_ID = "primary";
 const AUTHORITY_ID = "primary";
+export const SYSTEM_DOMAINS_LIFECYCLE_MIGRATION = "033_system_domains_lifecycle_archived_at";
+const LIFECYCLE_ARCHIVE_TABLES = Object.freeze([
+  "system_org_units", "system_work_centers", "system_positions", "system_employees", "system_equipment",
+]);
 const CLIENTS_BY_URL = new Map();
 
 function getClient(databaseUrl) {
@@ -27,6 +31,25 @@ const integer = (value, fallback = 0) => Number.isInteger(Number(value)) ? Numbe
 const number = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const iso = (value) => value?.toISOString?.() || "";
 const fingerprint = (domains) => `sha256:${createHash("sha256").update(JSON.stringify(domains)).digest("hex")}`;
+
+export function projectSystemDomainsCommandReadiness(row = {}) {
+  const archivedAtColumns = Number(row?.archived_at_columns || 0);
+  const responsibilityPolicyColumns = Number(row?.responsibility_policy_columns || 0);
+  const schemaReady = archivedAtColumns === LIFECYCLE_ARCHIVE_TABLES.length
+    && responsibilityPolicyColumns === 2
+    && row?.lifecycle_migration_applied === true
+    && row?.responsibility_migration_applied === true;
+  return {
+    storageMode: "postgres",
+    storageBackend: "postgresql",
+    configured: true,
+    schemaReady,
+    migration: SYSTEM_DOMAINS_LIFECYCLE_MIGRATION,
+    archivedAtColumns,
+    responsibilityPolicyColumns,
+    error: schemaReady ? "" : `Required PostgreSQL lifecycle migrations 026 and ${SYSTEM_DOMAINS_LIFECYCLE_MIGRATION} are not exact`,
+  };
+}
 
 function authorityState(row = null) {
   const mode = text(row?.mode);
@@ -87,26 +110,26 @@ async function hasStoredDomainEntities(tx) {
 
 async function insertAll(tx, domains) {
   for (const item of rows(domains, "orgUnits")) await tx`
-    INSERT INTO system_org_units (id, code, name, kind, parent_org_unit_id, is_active, valid_from, valid_to, source_ref)
-    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.kind)}, ${text(item.parentOrgUnitId) || null}, ${item.isActive !== false}, ${date(item.validFrom)}, ${date(item.validTo)}, ${tx.json(item.sourceRef || {})})`;
+    INSERT INTO system_org_units (id, code, name, kind, parent_org_unit_id, is_active, valid_from, valid_to, archived_at, source_ref)
+    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.kind)}, ${text(item.parentOrgUnitId) || null}, ${item.isActive !== false}, ${date(item.validFrom)}, ${date(item.validTo)}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "workCenters")) await tx`
-    INSERT INTO system_work_centers (id, code, name, org_unit_id, parent_work_center_id, participates_in_planning, can_plan_directly, show_in_gantt, availability_source, is_active, source_ref)
-    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.orgUnitId) || null}, ${text(item.parentWorkCenterId) || null}, ${Boolean(item.participatesInPlanning)}, ${Boolean(item.canPlanDirectly)}, ${item.showInGantt !== false}, ${text(item.availabilitySource)}, ${item.isActive !== false}, ${tx.json(item.sourceRef || {})})`;
+    INSERT INTO system_work_centers (id, code, name, org_unit_id, parent_work_center_id, participates_in_planning, can_plan_directly, show_in_gantt, availability_source, is_active, archived_at, source_ref)
+    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.orgUnitId) || null}, ${text(item.parentWorkCenterId) || null}, ${Boolean(item.participatesInPlanning)}, ${Boolean(item.canPlanDirectly)}, ${item.showInGantt !== false}, ${text(item.availabilitySource)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "scheduleTemplates")) await tx`
     INSERT INTO system_schedule_templates (id, code, label, start_time, end_time, subtract_lunch, pattern_offset, source)
     VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.label || item.name)}, ${text(item.start)}, ${text(item.end)}, ${Boolean(item.subtractLunch)}, ${integer(item.patternOffset)}, ${text(item.source)})`;
   for (const item of rows(domains, "positions")) await tx`
-    INSERT INTO system_positions (id, code, name, kind, org_unit_id, work_center_id, default_schedule_template_id, capabilities, operation_classes, is_active, source_ref)
-    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.kind)}, ${text(item.orgUnitId) || null}, ${text(item.workCenterId) || null}, ${text(item.defaultScheduleTemplateId) || null}, ${tx.json(item.capabilities || {})}, ${text(item.operationClasses)}, ${item.isActive !== false}, ${tx.json(item.sourceRef || {})})`;
+    INSERT INTO system_positions (id, code, name, kind, org_unit_id, work_center_id, default_schedule_template_id, capabilities, operation_classes, is_active, archived_at, source_ref)
+    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.kind)}, ${text(item.orgUnitId) || null}, ${text(item.workCenterId) || null}, ${text(item.defaultScheduleTemplateId) || null}, ${tx.json(item.capabilities || {})}, ${text(item.operationClasses)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "employees")) await tx`
-    INSERT INTO system_employees (id, personnel_number, display_name, is_active, source_ref)
-    VALUES (${text(item.id)}, ${text(item.personnelNumber)}, ${text(item.displayName)}, ${item.isActive !== false}, ${tx.json(item.sourceRef || {})})`;
+    INSERT INTO system_employees (id, personnel_number, display_name, is_active, archived_at, source_ref)
+    VALUES (${text(item.id)}, ${text(item.personnelNumber)}, ${text(item.displayName)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "employmentAssignments")) await tx`
     INSERT INTO system_employment_assignments (id, employee_id, position_id, org_unit_id, work_center_id, is_primary, valid_from, valid_to, source_ref)
     VALUES (${text(item.id)}, ${text(item.employeeId)}, ${text(item.positionId) || null}, ${text(item.orgUnitId) || null}, ${text(item.workCenterId) || null}, ${Boolean(item.isPrimary)}, ${date(item.validFrom)}, ${date(item.validTo)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "equipment")) await tx`
-    INSERT INTO system_equipment (id, code, name, org_unit_id, work_center_id, quantity, schedule_template_id, participates_in_planning, availability_source, is_active, source_ref)
-    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.orgUnitId) || null}, ${text(item.workCenterId) || null}, ${Math.max(1, integer(item.quantity, 1))}, ${text(item.scheduleTemplateId) || null}, ${Boolean(item.participatesInPlanning)}, ${text(item.availabilitySource)}, ${item.isActive !== false}, ${tx.json(item.sourceRef || {})})`;
+    INSERT INTO system_equipment (id, code, name, org_unit_id, work_center_id, quantity, schedule_template_id, participates_in_planning, availability_source, is_active, archived_at, source_ref)
+    VALUES (${text(item.id)}, ${text(item.code)}, ${text(item.name)}, ${text(item.orgUnitId) || null}, ${text(item.workCenterId) || null}, ${Math.max(1, integer(item.quantity, 1))}, ${text(item.scheduleTemplateId) || null}, ${Boolean(item.participatesInPlanning)}, ${text(item.availabilitySource)}, ${item.isActive !== false}, ${timestamp(item.archivedAt)}, ${tx.json(item.sourceRef || {})})`;
   for (const item of rows(domains, "scheduleAssignments")) await tx`
     INSERT INTO system_schedule_assignments (id, employee_id, schedule_template_id, pattern_offset, valid_from, valid_to, source)
     VALUES (${text(item.id)}, ${text(item.employeeId)}, ${text(item.scheduleTemplateId)}, ${integer(item.patternOffset)}, ${date(item.validFrom)}, ${date(item.validTo)}, ${text(item.source)})`;
@@ -131,15 +154,61 @@ async function insertAll(tx, domains) {
   }
 }
 
-export function createSystemDomainsRepository({ databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "" } = {}) {
-  if (!databaseUrl) throw new Error("DATABASE_URL is required for System Domains storage");
-  const sql = getClient(databaseUrl);
+export function createSystemDomainsRepository({
+  databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
+  transactionSql = null,
+} = {}) {
+  if (!databaseUrl && !transactionSql) throw new Error("DATABASE_URL is required for System Domains storage");
+  const sql = transactionSql || getClient(databaseUrl);
+  const writeTransaction = (action) => transactionSql ? action(transactionSql) : sql.begin(action);
+  const readTransaction = (action) => transactionSql
+    ? action(transactionSql)
+    : sql.begin("isolation level repeatable read read only", action);
   const storage = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   return {
     ...storage,
+    async commandReadiness() {
+      try {
+        const [row] = await sql`
+          SELECT
+            (
+              SELECT count(*)::int
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND column_name = 'archived_at'
+                AND data_type = 'timestamp with time zone'
+                AND table_name = ANY(${LIFECYCLE_ARCHIVE_TABLES})
+            ) AS archived_at_columns,
+            (
+              SELECT count(*)::int
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'system_responsibility_policies'
+                AND ((column_name = 'archived_at' AND data_type = 'timestamp with time zone')
+                  OR (column_name = 'is_active' AND data_type = 'boolean'))
+            ) AS responsibility_policy_columns,
+            EXISTS(
+              SELECT 1 FROM mes_schema_migrations WHERE version = ${SYSTEM_DOMAINS_LIFECYCLE_MIGRATION}
+            ) AS lifecycle_migration_applied,
+            EXISTS(
+              SELECT 1 FROM mes_schema_migrations WHERE version = '026_system_responsibility_policy_lifecycle'
+            ) AS responsibility_migration_applied
+        `;
+        return projectSystemDomainsCommandReadiness(row);
+      } catch (error) {
+        return {
+          ...storage,
+          schemaReady: false,
+          migration: SYSTEM_DOMAINS_LIFECYCLE_MIGRATION,
+          archivedAtColumns: 0,
+          responsibilityPolicyColumns: 0,
+          error: error?.message || "System Domains command schema readiness is unavailable",
+        };
+      }
+    },
     async withExclusiveProjectionLock(action) {
       if (typeof action !== "function") throw new Error("System Domains projection lock requires an action callback");
-      return sql.begin(async (tx) => {
+      return writeTransaction(async (tx) => {
         // Full projection commands use the same advisory lock in replace().
         // Promotion holds it while it obtains the final PostgreSQL reading and
         // swaps the compatibility snapshot, so a command cannot commit a new
@@ -160,7 +229,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
     } = {}) {
       const domains = normalizeInput(value);
       const digest = fingerprint(domains);
-      const result = await sql.begin(async (tx) => {
+      const result = await writeTransaction(async (tx) => {
         // Every full-projection replacement acquires the same transaction lock.
         // This closes the empty-set gap where a row-level lock cannot exist yet,
         // and lets snapshot-import safety evaluate the exact state it will write.
@@ -258,7 +327,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
       // registries transactionally, while PostgreSQL READ COMMITTED gives
       // each statement a fresh snapshot. Hold one repeatable-read snapshot
       // for the complete aggregate instead of borrowing parallel pool clients.
-      return sql.begin("isolation level repeatable read read only", async (tx) => {
+      return readTransaction(async (tx) => {
         const [set] = await tx`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;
         if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };
         const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([
@@ -268,12 +337,12 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
       const item = {
         schemaId: set.schema_id, schemaVersion: Number(set.schema_version), metadata: set.metadata || {},
         registries: {
-          orgUnits: orgUnits.map((r) => ({ id:r.id, code:r.code, name:r.name, kind:r.kind, parentOrgUnitId:r.parent_org_unit_id || "", isActive:r.is_active, validFrom:dateText(r.valid_from), validTo:dateText(r.valid_to), sourceRef:r.source_ref || {} })),
-          workCenters: workCenters.map((r) => ({ id:r.id, code:r.code, name:r.name, orgUnitId:r.org_unit_id || "", parentWorkCenterId:r.parent_work_center_id || "", participatesInPlanning:r.participates_in_planning, canPlanDirectly:r.can_plan_directly, showInGantt:r.show_in_gantt, availabilitySource:r.availability_source, isActive:r.is_active, sourceRef:r.source_ref || {} })),
-          positions: positions.map((r) => ({ id:r.id, code:r.code, name:r.name, kind:r.kind, orgUnitId:r.org_unit_id || "", workCenterId:r.work_center_id || "", defaultScheduleTemplateId:r.default_schedule_template_id || "", capabilities:r.capabilities || {}, operationClasses:r.operation_classes, isActive:r.is_active, sourceRef:r.source_ref || {} })),
-          employees: employees.map((r) => ({ id:r.id, personnelNumber:r.personnel_number, displayName:r.display_name, isActive:r.is_active, sourceRef:r.source_ref || {} })),
+          orgUnits: orgUnits.map((r) => ({ id:r.id, code:r.code, name:r.name, kind:r.kind, parentOrgUnitId:r.parent_org_unit_id || "", isActive:r.is_active, validFrom:dateText(r.valid_from), validTo:dateText(r.valid_to), ...(r.archived_at ? { archivedAt:iso(r.archived_at) } : {}), sourceRef:r.source_ref || {} })),
+          workCenters: workCenters.map((r) => ({ id:r.id, code:r.code, name:r.name, orgUnitId:r.org_unit_id || "", parentWorkCenterId:r.parent_work_center_id || "", participatesInPlanning:r.participates_in_planning, canPlanDirectly:r.can_plan_directly, showInGantt:r.show_in_gantt, availabilitySource:r.availability_source, isActive:r.is_active, ...(r.archived_at ? { archivedAt:iso(r.archived_at) } : {}), sourceRef:r.source_ref || {} })),
+          positions: positions.map((r) => ({ id:r.id, code:r.code, name:r.name, kind:r.kind, orgUnitId:r.org_unit_id || "", workCenterId:r.work_center_id || "", defaultScheduleTemplateId:r.default_schedule_template_id || "", capabilities:r.capabilities || {}, operationClasses:r.operation_classes, isActive:r.is_active, ...(r.archived_at ? { archivedAt:iso(r.archived_at) } : {}), sourceRef:r.source_ref || {} })),
+          employees: employees.map((r) => ({ id:r.id, personnelNumber:r.personnel_number, displayName:r.display_name, isActive:r.is_active, ...(r.archived_at ? { archivedAt:iso(r.archived_at) } : {}), sourceRef:r.source_ref || {} })),
           employmentAssignments: employmentAssignments.map((r) => ({ id:r.id, employeeId:r.employee_id, positionId:r.position_id || "", orgUnitId:r.org_unit_id || "", workCenterId:r.work_center_id || "", isPrimary:r.is_primary, validFrom:dateText(r.valid_from), validTo:dateText(r.valid_to), sourceRef:r.source_ref || {} })),
-          equipment: equipment.map((r) => ({ id:r.id, code:r.code, name:r.name, orgUnitId:r.org_unit_id || "", workCenterId:r.work_center_id || "", quantity:Number(r.quantity), scheduleTemplateId:r.schedule_template_id || "", participatesInPlanning:r.participates_in_planning, availabilitySource:r.availability_source, isActive:r.is_active, sourceRef:r.source_ref || {} })),
+          equipment: equipment.map((r) => ({ id:r.id, code:r.code, name:r.name, orgUnitId:r.org_unit_id || "", workCenterId:r.work_center_id || "", quantity:Number(r.quantity), scheduleTemplateId:r.schedule_template_id || "", participatesInPlanning:r.participates_in_planning, availabilitySource:r.availability_source, isActive:r.is_active, ...(r.archived_at ? { archivedAt:iso(r.archived_at) } : {}), sourceRef:r.source_ref || {} })),
           // pattern_offset participates in the deterministic shift-cycle
           // calculation. It must survive the SQL round trip; omitting it
           // makes a healthy projection appear divergent from its snapshot
@@ -300,7 +369,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
       // The readiness and navigation surfaces need counts, not all 1,000+
       // domain rows.  Keep the full projection in get(), but make its summary
       // a single compact SQL roundtrip.
-      return sql.begin("isolation level repeatable read read only", async (tx) => {
+      return readTransaction(async (tx) => {
         const [set, countRow] = await Promise.all([
           tx`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),
           tx`
@@ -369,7 +438,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
         || !normalizedSnapshotFingerprint) {
         throw new Error("A complete System Domains authority transition proof is required");
       }
-      return sql.begin(async (tx) => {
+      return writeTransaction(async (tx) => {
         await tx`SELECT pg_advisory_xact_lock(hashtext('mes-system-domains:primary'))`;
         const [set] = await tx`SELECT revision, source_fingerprint FROM system_domain_sets WHERE id = ${SET_ID} FOR UPDATE`;
         if (!set || Number(set.revision) !== Number(expectedRevision) || text(set.source_fingerprint) !== normalizedFingerprint) {
@@ -408,7 +477,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
     async finalizePostgresPrimaryTransition({ transitionId = "", actorId = "" } = {}) {
       const normalizedTransitionId = text(transitionId);
       if (!normalizedTransitionId) throw new Error("System Domains authority transition ID is required");
-      return sql.begin(async (tx) => {
+      return writeTransaction(async (tx) => {
         await tx`SELECT pg_advisory_xact_lock(hashtext('mes-system-domains:primary'))`;
         const current = await readAuthorityState(tx);
         if (current.mode === "postgres-primary") {
@@ -433,7 +502,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
     async abortPostgresPrimaryTransition({ transitionId = "" } = {}) {
       const normalizedTransitionId = text(transitionId);
       if (!normalizedTransitionId) throw new Error("System Domains authority transition ID is required");
-      return sql.begin(async (tx) => {
+      return writeTransaction(async (tx) => {
         await tx`SELECT pg_advisory_xact_lock(hashtext('mes-system-domains:primary'))`;
         const current = await readAuthorityState(tx);
         if (current.mode === "compatibility-snapshot") return { ...current, aborted: false, alreadyInactive: true };

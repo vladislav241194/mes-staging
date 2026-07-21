@@ -33,6 +33,11 @@ import {
 } from "./time.js";
 import { isExactIsoCalendarDate } from "./domain/calendar_date.js";
 import {
+  isSystemDomainsAssignmentActiveOnDate,
+  systemDomainsAssignmentContinuesAfterDate,
+  toSystemDomainsBusinessDate,
+} from "./domain/system_domains_lifecycle.js";
+import {
   byId,
   calculateProjectProgress,
   getDependencyPairs,
@@ -88,7 +93,6 @@ import {
   isSystemDomainsCapabilitiesResponseCurrent,
   projectSystemDomainsServerCommandState,
 } from "./modules/production_structure_matrix/server_capabilities.js";
-import { endActivePrimaryEmploymentAssignments, isAssignmentActiveOnDate } from "./modules/production_structure_matrix/lifecycle.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
@@ -3775,8 +3779,9 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
       const registries = getSystemDomainsRegistries();
       const employee = (registries.employees || []).find((row) => row.id === employeeId);
       if (!employee || employee.isActive === false) return { ok: false, message: "Активный сотрудник больше не существует." };
-      const hasActiveDependency = (registries.employmentAssignments || []).some((row) => row.employeeId === employeeId && row.isPrimary === false && isAssignmentActiveOnDate(row))
-        || (registries.scheduleAssignments || []).some((row) => row.employeeId === employeeId && isAssignmentActiveOnDate(row))
+      const businessDate = toSystemDomainsBusinessDate(new Date());
+      const hasActiveDependency = (registries.employmentAssignments || []).some((row) => row.employeeId === employeeId && row.isPrimary === false && isSystemDomainsAssignmentActiveOnDate(row, businessDate))
+        || (registries.scheduleAssignments || []).some((row) => row.employeeId === employeeId && isSystemDomainsAssignmentActiveOnDate(row, businessDate))
         || (registries.roleAssignments || []).some((row) => row.employeeId === employeeId)
         || (registries.responsibilityPolicies || []).some((row) => row.isActive !== false && (row.subjectEmployeeId === employeeId || (row.targetEmployeeIds || []).includes(employeeId)));
       if (hasActiveDependency) return { ok: false, message: "Нельзя архивировать сотрудника с действующими назначениями доступа, графика или ответственности." };
@@ -3881,7 +3886,8 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
       const positionId = String(input.positionId || "").trim();
       const position = (getSystemDomainsRegistries().positions || []).find((row) => row.id === positionId);
       if (!position || position.isActive === false) return { ok: false, message: "Активная должность больше не существует." };
-      const activeAssignment = (getSystemDomainsRegistries().employmentAssignments || []).find((assignment) => assignment.positionId === positionId && isAssignmentActiveOnDate(assignment));
+      const businessDate = toSystemDomainsBusinessDate(new Date());
+      const activeAssignment = (getSystemDomainsRegistries().employmentAssignments || []).find((assignment) => assignment.positionId === positionId && isSystemDomainsAssignmentActiveOnDate(assignment, businessDate));
       if (activeAssignment) return { ok: false, message: "Нельзя архивировать должность с действующим назначением сотрудника." };
       try {
         const result = await archiveSystemDomainEntity("positions", positionId, { source: "react:structure-positions:archive", serverCommand: true, surface: "production-structure" });
@@ -3970,7 +3976,7 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
         || (registries.workCenters || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
         || (registries.positions || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
         || (registries.equipment || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
-        || (registries.employmentAssignments || []).some((row) => row.orgUnitId === orgUnitId && isAssignmentActiveOnDate(row));
+        || (registries.employmentAssignments || []).some((row) => row.orgUnitId === orgUnitId && isSystemDomainsAssignmentActiveOnDate(row, toSystemDomainsBusinessDate(new Date())));
       if (hasActiveReference) return { ok: false, message: "Нельзя архивировать подразделение с действующими дочерними или производственными ссылками." };
       try {
         const result = await archiveSystemDomainEntity("orgUnits", orgUnitId, { source: "react:structure-org-units:archive", serverCommand: true, surface: "production-structure" });
@@ -4058,7 +4064,7 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
       const hasActiveReference = (registries.workCenters || []).some((row) => row.parentWorkCenterId === workCenterId && row.isActive !== false)
         || (registries.positions || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false)
         || (registries.equipment || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false)
-        || (registries.employmentAssignments || []).some((row) => row.workCenterId === workCenterId && isAssignmentActiveOnDate(row));
+        || (registries.employmentAssignments || []).some((row) => row.workCenterId === workCenterId && isSystemDomainsAssignmentActiveOnDate(row, toSystemDomainsBusinessDate(new Date())));
       if (hasActiveReference) return { ok: false, message: "Нельзя архивировать рабочий центр с действующими дочерними или производственными ссылками." };
       try {
         const result = await archiveSystemDomainEntity("workCenters", workCenterId, { source: "react:structure-work-centers:archive", serverCommand: true, surface: "production-structure" });
@@ -9231,7 +9237,7 @@ function archiveSystemDomainEntity(registryName = "", entityId = "", options = {
   if (!normalizedEntityId || !canEditSystemDomainRegistry(normalizedRegistryName)) return false;
   const archivedAt = new Date().toISOString();
   if (normalizedRegistryName === "employees") {
-    const archiveDate = toDateInput(new Date());
+    const archiveDate = toSystemDomainsBusinessDate(new Date());
     const candidate = normalizeSystemDomains({
       ...systemDomainsState,
       metadata: { ...(systemDomainsState.metadata || {}), updatedAt: archivedAt, lastMutationRegistry: "employees+employmentAssignments" },
@@ -9240,10 +9246,12 @@ function archiveSystemDomainEntity(registryName = "", entityId = "", options = {
         employees: (getSystemDomainsRegistries().employees || []).map((entity) => (
           entity.id === normalizedEntityId ? { ...entity, isActive: false, archivedAt } : entity
         )),
-        employmentAssignments: endActivePrimaryEmploymentAssignments(
-          getSystemDomainsRegistries().employmentAssignments || [],
-          { employeeId: normalizedEntityId, archiveDate, updatedAt: archivedAt },
-        ),
+        employmentAssignments: (getSystemDomainsRegistries().employmentAssignments || []).map((assignment) => (
+          assignment.employeeId === normalizedEntityId && assignment.isPrimary !== false
+            && systemDomainsAssignmentContinuesAfterDate(assignment, archiveDate)
+            ? { ...assignment, validTo: archiveDate }
+            : assignment
+        )),
       },
     });
     const validation = validateSystemDomains(candidate);

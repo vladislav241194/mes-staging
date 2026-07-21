@@ -641,6 +641,7 @@ verified_release_pointer_has_system_domains_command_compatibility() {
     const marker = JSON.parse(markerSource);
     const manifest = JSON.parse(await readFile(process.argv[2], "utf8"));
     const surfaces = ["production-structure", "timesheet", "access-control"];
+    const rolloutEligibleSurfaces = ["production-structure"];
     const required = [
       "011_system_domains_core",
       "012_system_domains_metadata_parity",
@@ -648,6 +649,7 @@ verified_release_pointer_has_system_domains_command_compatibility() {
       "023_system_domains_postgres_primary_authority",
       "026_system_responsibility_policy_lifecycle",
       "027_employee_auth_credentials",
+      "033_system_domains_lifecycle_archived_at",
     ];
     if (manifest?.schemaVersion < 3
       || !Array.isArray(manifest?.runtimeIncludes)
@@ -658,7 +660,11 @@ verified_release_pointer_has_system_domains_command_compatibility() {
       || marker?.actorPolicyVersion !== 1
       || marker?.authorizationSnapshotVersion !== 2
       || marker?.authorityTransitionVersion !== 1
+      || marker?.employeeAuthReadinessVersion !== 1
+      || marker?.lifecycleGuardVersion !== 1
+      || marker?.resourceDependencyLockVersion !== 1
       || JSON.stringify(marker?.supportedSurfaces) !== JSON.stringify(surfaces)
+      || JSON.stringify(marker?.rolloutEligibleSurfaces) !== JSON.stringify(rolloutEligibleSurfaces)
       || marker?.controlledRootExclusivity?.required !== true
       || marker?.controlledRootExclusivity?.lockName !== "mes-authority-rollout.lock"
       || JSON.stringify(marker?.controlledRootExclusivity?.incompatibleTargetRequiresDisabledFlags) !== JSON.stringify([
@@ -674,6 +680,7 @@ verified_release_pointer_has_system_domains_command_compatibility() {
       sha256: createHash("sha256").update(markerSource).digest("hex"),
       contract: marker.contract,
       supportedSurfaces: marker.supportedSurfaces,
+      rolloutEligibleSurfaces: marker.rolloutEligibleSurfaces,
       controlledRootExclusivity: marker.controlledRootExclusivity,
     };
     if (JSON.stringify(manifest?.systemDomainsCommandCompatibility) !== JSON.stringify(expected)) process.exit(1);

@@ -14,6 +14,10 @@ import {
   exportSpecifications2Entry,
 } from "./domain-specifications2-export.mjs";
 import { importSpecifications2ExportRows, lockSpecifications2SourceEntries, validateSpecifications2Export } from "./domain-specifications2-import.mjs";
+import {
+  acquireProductionResourceDependencySharedLock,
+  assertProductionResourceDependenciesWritable,
+} from "./production-resource-dependency-lock.mjs";
 
 // Revision reads happen on module selection and publication refresh. Reusing a
 // small client pool avoids a TCP/TLS/PostgreSQL handshake for every one of
@@ -1045,6 +1049,7 @@ export function createSpecifications2WorkOrderCommandRepository({
     },
     async create({ revisionId, routeSourceDraftId, quantity, idempotencyKey, actorId = "" }) {
       return sql.begin(async (tx) => {
+        await acquireProductionResourceDependencySharedLock(tx);
         const commandReadiness = await inspectSpecifications2CommandSchemaReadiness(tx);
         if (!commandReadiness.schemaReady) {
           return { ...metadata, created: false, item: null, error: commandReadiness.error };
@@ -1169,6 +1174,10 @@ export function createSpecifications2WorkOrderCommandRepository({
           });
         }
         catch (error) { return { ...metadata, created: false, item: null, error: error?.message || "Published route cannot create a work order" }; }
+        await assertProductionResourceDependenciesWritable(
+          tx,
+          command.operations.flatMap((operation) => [operation?.metadata?.resourceId, operation?.executionContext?.resourceId]),
+        );
         const order = command.workOrder;
         await tx`
           INSERT INTO work_orders (id, number, name, designation, unit, quantity, lifecycle_status, planning_status, source_kind, source_revision, aggregate_revision)

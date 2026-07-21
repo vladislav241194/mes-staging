@@ -6,6 +6,10 @@ import {
   buildShiftCarryoverCommand,
   buildShiftCarryoverCancelCommand,
 } from "../src/domain/shift_execution_assignment.js";
+import {
+  acquireProductionResourceDependencySharedLock,
+  assertProductionResourceDependenciesWritable,
+} from "./production-resource-dependency-lock.mjs";
 
 const READ_CLIENTS_BY_URL = new Map();
 
@@ -263,7 +267,7 @@ export function createShiftExecutionReadRepository({
     async findActiveResourceDependencies(resourceIds = []) {
       const normalizedIds = [...new Set((Array.isArray(resourceIds) ? resourceIds : [])
         .map((item) => String(item || "").trim())
-        .filter(Boolean))].slice(0, 100);
+        .filter(Boolean))];
       if (!normalizedIds.length) return { storageMode: "postgres", storageBackend: "postgresql", configured: true, items: [] };
       const rows = await sql`
         SELECT id, work_order_id, work_order_operation_id, resource_id, status
@@ -497,11 +501,21 @@ export function createShiftExecutionCommandRepository({
   databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
   sql: injectedSql = null,
   authorityGuard = null,
+  resourceDependencyLock = null,
+  resourceDependencyGuard = null,
 } = {}) {
   if (!databaseUrl && !injectedSql) throw new Error("DATABASE_URL is required for shift execution command storage");
   const sql = injectedSql || postgres(databaseUrl, { max: 1, connect_timeout: 5, prepare: false });
   const ensureAuthorityWritable = authorityGuard
     || (injectedSql ? async () => {} : assertShiftExecutionCommandAuthorityWritable);
+  const acquireResourceDependencyLock = resourceDependencyLock
+    || (injectedSql ? async () => {} : acquireProductionResourceDependencySharedLock);
+  const ensureResourceDependenciesWritable = resourceDependencyGuard
+    || (injectedSql ? async () => {} : assertProductionResourceDependenciesWritable);
+  const ensureCommandWritable = async (tx) => {
+    await ensureAuthorityWritable(tx);
+    await acquireResourceDependencyLock(tx);
+  };
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   const project = (row) => ({
     id: row.id, sourceRowId: row.source_row_id, sourceSlotId: row.source_slot_id,
@@ -547,7 +561,7 @@ export function createShiftExecutionCommandRepository({
       const authorizedWorkCenterId = requireAuthorizedWorkCenter(input);
       assertAuthorizedWorkCenter(command.assignment.workCenterId, authorizedWorkCenterId);
       return sql.begin(async (tx) => {
-        await ensureAuthorityWritable(tx);
+        await ensureCommandWritable(tx);
         const existing = await tx`
           SELECT assignment.* FROM shift_execution_command_requests request
           JOIN shift_assignments assignment ON assignment.id = request.shift_assignment_id
@@ -570,6 +584,7 @@ export function createShiftExecutionCommandRepository({
         const duplicateSource = await tx`SELECT id FROM shift_assignments WHERE source_row_id = ${command.assignment.sourceRowId} LIMIT 1`;
         if (duplicateSource[0]) return { ...metadata, created: false, item: null, error: "Shift assignment already exists for this source row" };
         const row = command.assignment;
+        await ensureResourceDependenciesWritable(tx, [row.resourceId]);
         const inserted = await tx`
           INSERT INTO shift_assignments (id, source_row_id, source_slot_id, work_order_id, work_order_operation_id, work_center_id, resource_id, master_id, planned_quantity, assigned_quantity, unit, status, issued_at, source_payload)
           VALUES (${row.id}, ${row.sourceRowId}, ${row.sourceSlotId}, ${row.workOrderId}, ${row.operationId}, ${row.workCenterId}, ${row.resourceId}, ${row.masterId}, ${row.plannedQuantity}, ${row.assignedQuantity}, ${row.unit}, ${row.status}, ${row.issuedAt || null}, ${tx.json({ command: "create_assignment", source: row.sourcePayload })})
@@ -595,7 +610,7 @@ export function createShiftExecutionCommandRepository({
       const authorizedWorkCenterId = requireAuthorizedWorkCenter(input);
       assertAuthorizedWorkCenter(command.assignment.workCenterId, authorizedWorkCenterId);
       return sql.begin(async (tx) => {
-        await ensureAuthorityWritable(tx);
+        await ensureCommandWritable(tx);
         const replay = await tx`
           SELECT request_fingerprint, shift_assignment_id FROM shift_execution_mutation_requests
           WHERE idempotency_key = ${command.idempotencyKey} LIMIT 1
@@ -624,6 +639,7 @@ export function createShiftExecutionCommandRepository({
           return { ...metadata, created: false, conflict: true, item: project(current[0]), error: "Shift assignment changed by another user" };
         }
         const row = command.assignment;
+        await ensureResourceDependenciesWritable(tx, [row.resourceId]);
         const [updated] = await tx`
           UPDATE shift_assignments
           SET source_slot_id = ${row.sourceSlotId}, work_order_id = ${row.workOrderId}, work_order_operation_id = ${row.operationId},
@@ -652,7 +668,7 @@ export function createShiftExecutionCommandRepository({
       const command = buildValidatedCommand(buildShiftFactCommand, input);
       const authorizedWorkCenterId = requireAuthorizedWorkCenter(input);
       return sql.begin(async (tx) => {
-        await ensureAuthorityWritable(tx);
+        await ensureCommandWritable(tx);
         const replay = await tx`SELECT request_fingerprint, shift_fact_id FROM shift_execution_fact_requests WHERE idempotency_key = ${command.idempotencyKey} LIMIT 1`;
         if (replay[0]) {
           if (replay[0].request_fingerprint !== command.requestFingerprint) throw new Error("Idempotency key was already used for another shift fact");
@@ -684,7 +700,7 @@ export function createShiftExecutionCommandRepository({
       const authorizedWorkCenterId = requireAuthorizedWorkCenter(input);
       assertAuthorizedWorkCenter(command.carryover.workCenterId, authorizedWorkCenterId);
       return sql.begin(async (tx) => {
-        await ensureAuthorityWritable(tx);
+        await ensureCommandWritable(tx);
         const replay = await tx`SELECT request_fingerprint, shift_carryover_id FROM shift_execution_carryover_requests WHERE idempotency_key = ${command.idempotencyKey} LIMIT 1`;
         if (replay[0]) {
           if (replay[0].request_fingerprint !== command.requestFingerprint) throw new Error("Idempotency key was already used for another carryover");
@@ -739,7 +755,7 @@ export function createShiftExecutionCommandRepository({
       const command = buildValidatedCommand(buildShiftCarryoverCancelCommand, input);
       const authorizedWorkCenterId = requireAuthorizedWorkCenter(input);
       return sql.begin(async (tx) => {
-        await ensureAuthorityWritable(tx);
+        await ensureCommandWritable(tx);
         const replay = await tx`
           SELECT request_fingerprint, shift_carryover_id
           FROM shift_execution_carryover_cancellation_requests

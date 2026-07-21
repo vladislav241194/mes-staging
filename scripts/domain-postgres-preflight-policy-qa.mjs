@@ -11,6 +11,7 @@ import {
   SPECIFICATIONS2_SERVER_COMMAND_REQUIRED_MIGRATIONS,
   SPECIFICATIONS2_ATTACHMENT_MIGRATION,
   SHIFT_EXECUTION_SERVER_COMMAND_REQUIRED_MIGRATIONS,
+  SYSTEM_DOMAINS_LIFECYCLE_MIGRATION,
   getRequiredDomainMigrations,
   requiresEmployeeAuthMigration,
   requiresSpecifications2PublicationIdempotencyMigration,
@@ -18,6 +19,7 @@ import {
   requiresSpecifications2AttachmentMigration,
   requiresShiftExecutionServerCommandMigrations,
   requiresPlanningStartDateCommandMigration,
+  requiresSystemDomainsLifecycleMigration,
 } from "./domain-postgres-preflight-policy.mjs";
 
 const foundation = getRequiredDomainMigrations({});
@@ -33,6 +35,7 @@ assert.equal(requiresSpecifications2ServerCommandMigrations({}), false);
 assert.equal(requiresSpecifications2AttachmentMigration({}), false);
 assert.equal(requiresShiftExecutionServerCommandMigrations({}), false);
 assert.equal(requiresPlanningStartDateCommandMigration({}), false);
+assert.equal(requiresSystemDomainsLifecycleMigration({}), false);
 
 for (const env of [
   { MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "1" },
@@ -96,5 +99,12 @@ assert.equal(planningStartDateRequired.at(-1), PLANNING_START_DATE_COMMAND_MIGRA
 assert.equal(planningStartDateRequired.filter((migration) => migration === PLANNING_START_DATE_COMMAND_MIGRATION).length, 1);
 assert.equal(requiresPlanningStartDateCommandMigration({ MES_ENABLE_PLANNING_START_DATE_COMMANDS: "0" }), false);
 assert.equal(getRequiredDomainMigrations({ MES_ENABLE_PLANNING_START_DATE_COMMANDS: "0" }).includes(PLANNING_START_DATE_COMMAND_MIGRATION), false);
+
+const systemDomainsRequired = getRequiredDomainMigrations({ MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS: "1" });
+assert.equal(requiresSystemDomainsLifecycleMigration({ MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS: "1" }), true);
+assert.equal(systemDomainsRequired.includes(SYSTEM_DOMAINS_LIFECYCLE_MIGRATION), true);
+assert.equal(systemDomainsRequired.filter((migration) => migration === SYSTEM_DOMAINS_LIFECYCLE_MIGRATION).length, 1);
+assert.equal(requiresSystemDomainsLifecycleMigration({ MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS: "0" }), false);
+assert.equal(getRequiredDomainMigrations({ MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS: "0" }).includes(SYSTEM_DOMAINS_LIFECYCLE_MIGRATION), false);
 
 console.log("Domain PostgreSQL preflight policy QA passed: optional command surfaces require their idempotency migrations.");

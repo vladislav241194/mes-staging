@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, extname, join } from "node:path";
@@ -2332,6 +2333,52 @@ try {
       "+assert.match(renderSource, /writeStore\\(\\{ \\.\\.\\.latestStore, registry, selectedId: normalizedEntryId \\}, \\{ suppressSharedStatePush: true \\}\\)/, \"server-primary acknowledgement must not enqueue a competing shared-state snapshot write\");",
     ], "Specifications authority QA may only follow the already-reviewed entryId normalization");
   }
+  const systemDomainsLifecycleArchiveContractPaths = new Set([
+    "package.json",
+    "db/migrations/033_system_domains_lifecycle_archived_at.sql",
+    "scripts/domain-api.mjs",
+    "scripts/domain-postgres-preflight-policy.mjs",
+    "scripts/domain-postgres-preflight-policy-qa.mjs",
+    "scripts/domain-schema-qa.mjs",
+    "scripts/domain-system-domains-repository.mjs",
+    "scripts/system-domains-lifecycle-schema-qa.mjs",
+    "src/domain/system_domains_lifecycle.js",
+    "src/modules/system_domains/service.js",
+  ]);
+  const hasSystemDomainsLifecycleArchiveContract = [...systemDomainsLifecycleArchiveContractPaths]
+    .some((path) => changedPaths.includes(path));
+  if (hasSystemDomainsLifecycleArchiveContract) {
+    assert.deepEqual(
+      [...systemDomainsLifecycleArchiveContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...systemDomainsLifecycleArchiveContractPaths].sort(),
+      "System Domains archivedAt persistence must keep migration, fail-closed route/preflight, repository and executable QA atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/system-domains-lifecycle-schema-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-postgres-preflight-policy-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-schema-qa.mjs")], { cwd: repositoryRoot });
+  }
+  const productionResourceDependencyLockContractPaths = new Set([
+    "package.json",
+    "scripts/domain-api.mjs",
+    "scripts/domain-postgres-import.mjs",
+    "scripts/domain-postgres-repository.mjs",
+    "scripts/domain-shift-execution-authority.mjs",
+    "scripts/domain-shift-execution-import.mjs",
+    "scripts/domain-shift-execution-repository.mjs",
+    "scripts/domain-specifications2-repository.mjs",
+    "scripts/production-resource-dependency-lock.mjs",
+    "scripts/production-resource-dependency-lock-qa.mjs",
+    "scripts/shift-execution-authority-qa.mjs",
+  ]);
+  if ([...productionResourceDependencyLockContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...productionResourceDependencyLockContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...productionResourceDependencyLockContractPaths].sort(),
+      "Equipment archive exclusion must keep System Domains, Planning, Specifications and Shift writers atomically QA-gated",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/production-resource-dependency-lock-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/shift-execution-authority-qa.mjs")], { cwd: repositoryRoot });
+  }
   const responsibilityLifecyclePaths = new Set([
     "db/migrations/026_system_responsibility_policy_lifecycle.sql",
     "scripts/domain-postgres-preflight.mjs",
@@ -2383,7 +2430,7 @@ try {
       "Responsibility-policy repository exception may only persist and hydrate lifecycle fields",
     );
     const consistentReadRepositoryChanges = repositoryChanges.filter((line) => !lifecycleRepositoryChangeSet.has(line));
-    assert.deepEqual(consistentReadRepositoryChanges, [
+    const expectedConsistentReadRepositoryChanges = [
       '-      const [set] = await sql`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;',
       '-      if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };',
       "-      const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([",
@@ -2445,7 +2492,27 @@ try {
       "+        const counts = Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, Number(countRow?.[aliases[name]] || 0)]));",
       "+        return { ...storage, revision: Number(set.revision), updatedAt: iso(set.updated_at), configured: true, summary: { registryCounts: counts, totalRows: Object.values(counts).reduce((sum, count) => sum + count, 0) } };",
       "+      });",
-    ], "System Domains repository may additionally contain only the separately QA-gated repeatable-read projection change");
+    ];
+    if (hasSystemDomainsLifecycleArchiveContract) {
+      const repositorySource = await readFile(join(repositoryRoot, "scripts/domain-system-domains-repository.mjs"), "utf8");
+      assert.equal(
+        createHash("sha256").update(repositorySource).digest("hex"),
+        "a4ee77fcf54be726093c863e484f735646da2fc74a8299cac5f2669a7e2c3a06",
+        "System Domains lifecycle persistence repository must remain the exact executable-QA-gated implementation",
+      );
+      let previousIndex = -1;
+      for (const change of expectedConsistentReadRepositoryChanges) {
+        const index = consistentReadRepositoryChanges.indexOf(change, previousIndex + 1);
+        assert(index > previousIndex, `System Domains repeatable-read projection change is missing or reordered: ${change}`);
+        previousIndex = index;
+      }
+    } else {
+      assert.deepEqual(
+        consistentReadRepositoryChanges,
+        expectedConsistentReadRepositoryChanges,
+        "System Domains repository may additionally contain only the separately QA-gated repeatable-read projection change",
+      );
+    }
     await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-system-domains-consistent-read-qa.mjs")], { cwd: repositoryRoot });
     const { stdout: preflightDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-postgres-preflight.mjs"], { cwd: repositoryRoot });
     const preflightChanges = preflightDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
@@ -2472,7 +2539,7 @@ try {
     ], "PostgreSQL preflight may only delegate the frozen migration list and exact Planning start-date schema proof to their separately tested policies");
     const { stdout: schemaQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-schema-qa.mjs"], { cwd: repositoryRoot });
     const schemaQaChanges = schemaQaDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
-    assert.deepEqual(schemaQaChanges, [
+    const expectedSchemaQaChanges = [
       '+const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/026_system_responsibility_policy_lifecycle.sql", import.meta.url));',
       '+const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");',
       '+const planningStartDateMigrationPath = fileURLToPath(new URL("../db/migrations/032_planning_work_order_start_date.sql", import.meta.url));',
@@ -2502,7 +2569,27 @@ try {
       '+    && postgresPreflightPolicySql.includes(\'"026_system_responsibility_policy_lifecycle"\'),',
       '+  "PostgreSQL domain preflight must require the Responsibility Policy lifecycle migration",',
       "+);",
-    ], "Schema QA exception must remain the exact Responsibility Policy/Planning start-date migration gates plus policy delegation");
+    ];
+    if (hasSystemDomainsLifecycleArchiveContract) {
+      const schemaQaSource = await readFile(join(repositoryRoot, "scripts/domain-schema-qa.mjs"), "utf8");
+      assert.equal(
+        createHash("sha256").update(schemaQaSource).digest("hex"),
+        "a27f68810e9bce93c4c45ea2172f250dcdce156cc9fbb885513e5d9ef37c9ddf",
+        "System Domains lifecycle schema QA must remain the exact executable-QA-gated implementation",
+      );
+      let previousIndex = -1;
+      for (const change of expectedSchemaQaChanges) {
+        const index = schemaQaChanges.indexOf(change, previousIndex + 1);
+        assert(index > previousIndex, `Existing schema QA gate is missing or reordered: ${change}`);
+        previousIndex = index;
+      }
+    } else {
+      assert.deepEqual(
+        schemaQaChanges,
+        expectedSchemaQaChanges,
+        "Schema QA exception must remain the exact Responsibility Policy/Planning start-date migration gates plus policy delegation",
+      );
+    }
   }
   const reactRuntimePolicyDeliveryPaths = new Set([
     "server.js",
@@ -2631,7 +2718,9 @@ try {
       && !planningCommandAuthorizationContractPaths.has(path)
       && !planningStartDatePersistenceContractPaths.has(path)
       && !systemDomainsConsistentReadContractPaths.has(path)
-      && !systemDomainsCommandClientContractPaths.has(path));
+      && !systemDomainsCommandClientContractPaths.has(path)
+      && !systemDomainsLifecycleArchiveContractPaths.has(path)
+      && !productionResourceDependencyLockContractPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([

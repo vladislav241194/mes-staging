@@ -101,6 +101,9 @@ MANAGED_DROPINS=(
   "${DROPIN_DIR}/63-specifications2-work-orders.conf"
   "${DROPIN_DIR}/64-specifications2-publication.conf"
   "${DROPIN_DIR}/50-shift-execution-commands.conf"
+  # Exact pre-immutable-release Pilot filename retained only so the staged
+  # bridge can disable the already-running legacy Shift owner before switch.
+  "${DROPIN_DIR}/50-shift-execution-server-commands.conf"
   "${DROPIN_DIR}/68-nomenclature-command-owner.conf"
   "${DROPIN_DIR}/50-directory-cluster-commands.conf"
 )

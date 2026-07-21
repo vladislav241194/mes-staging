@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Reversible rollback/downshift for a pre-cutover System Domains rollout.
-# It never restores a compatibility payload or changes PostgreSQL authority.
+# Reversible rollback/downshift for System Domains command ownership. Disabling
+# writers is also permitted under a durable PostgreSQL-primary tombstone so a
+# newer immutable release can be activated safely. It never restores a
+# compatibility payload or changes PostgreSQL authority.
 set -Eeuo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -12,9 +14,9 @@ usage() {
   cat >&2 <<'EOF'
 Usage: deactivate-system-domains-command-surfaces.sh [--to=disabled|production-structure|timesheet]
 
-This rollback is intentionally limited to the compatibility-snapshot phase.
-After PostgreSQL-primary cutover it refuses to run: use a separately reviewed
-disaster-recovery procedure instead of restoring or stranding legacy data.
+Partial downshift is limited to compatibility-snapshot authority. --to=disabled
+is also a reversible PostgreSQL-primary writer suspension: it preserves the
+durable tombstone and can be followed by the reviewed primary recovery script.
 EOF
   exit 2
 }
@@ -28,7 +30,8 @@ for argument in "$@"; do
 done
 case "$TARGET" in disabled|production-structure|timesheet) ;; *) usage ;; esac
 
-APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+SCRIPT_APP_DIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")/../..")"
+APP_DIR="${MES_PILOT_APP_DIR:-$SCRIPT_APP_DIR}"
 if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
   exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
 fi
@@ -50,32 +53,35 @@ DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRO
 INTERNAL_ORIGIN="http://127.0.0.1:4175"
 
 verify_active_release_contract() {
-  local active_target source_target release_path release_id manifest
+  local active_target source_target release_path release_id active_release_id manifest
   [[ -L "$ACTIVE_APP_DIR" ]] || return 1
   active_target="$(readlink -f "$ACTIVE_APP_DIR" 2>/dev/null || true)"
   source_target="$(readlink -f "$APP_DIR" 2>/dev/null || true)"
-  release_path="$(dirname "$active_target")"
+  release_path="$(dirname "$source_target")"
   release_id="$(basename "$release_path")"
+  active_release_id="$(basename "$(dirname "$active_target")")"
   manifest="${release_path}/release-manifest.json"
   [[ "$release_id" =~ ^[A-Za-z0-9._-]{1,96}$ ]] || return 1
-  [[ "$active_target" == "${RELEASES_DIR}/${release_id}/app" ]] || return 1
-  [[ "$source_target" == "$active_target" && -f "$manifest" ]] || return 1
+  [[ "$source_target" == "${RELEASES_DIR}/${release_id}/app" ]] || return 1
+  [[ "$active_target" == "${RELEASES_DIR}/${active_release_id}/app" ]] || return 1
+  [[ -f "$manifest" ]] || return 1
   local root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs" active_record="${RELEASES_DIR}/active-release.json"
   [[ -f "$root_seal_helper" && -f "$active_record" ]] || return 1
   /usr/bin/node "$root_seal_helper" bundle >/dev/null || return 1
-  /usr/bin/node "$root_seal_helper" release --releases-root="$RELEASES_DIR" --release-id="$release_id" --app="$active_target" >/dev/null || return 1
+  /usr/bin/node "$root_seal_helper" release --releases-root="$RELEASES_DIR" --release-id="$active_release_id" --app="$active_target" >/dev/null || return 1
   /usr/bin/node "$root_seal_helper" pointer --pointer="$ACTIVE_APP_DIR" --expected-target="$active_target" >/dev/null || return 1
   /usr/bin/node "$root_seal_helper" artifact --trusted-root="$RELEASES_DIR" --artifact="$active_record" >/dev/null || return 1
-  /usr/bin/node --input-type=module -e 'import { readFile } from "node:fs/promises"; const [path, id] = process.argv.slice(1); const record = JSON.parse(await readFile(path, "utf8")); if (record?.releaseId !== id) process.exit(1);' "$active_record" "$release_id" || return 1
+  /usr/bin/node --input-type=module -e 'import { readFile } from "node:fs/promises"; const [path, id] = process.argv.slice(1); const record = JSON.parse(await readFile(path, "utf8")); if (record?.releaseId !== id) process.exit(1);' "$active_record" "$active_release_id" || return 1
+  /usr/bin/node "$root_seal_helper" release --releases-root="$RELEASES_DIR" --release-id="$release_id" --app="$source_target" >/dev/null || return 1
   /usr/sbin/runuser -u mes-stage -- /usr/bin/env \
     HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin \
-    /usr/bin/node "${active_target}/scripts/release-server-command-contract-verify.mjs" \
-    --app="$active_target" --manifest="$manifest" \
+    /usr/bin/node "${source_target}/scripts/release-server-command-contract-verify.mjs" \
+    --app="$source_target" --manifest="$manifest" \
     --expected-release-id="$release_id" --contract=system-domains --public-only >/dev/null
 }
 
 verify_active_release_contract \
-  || { echo "Active release provenance or manifest-bound System Domains command-surface contract is invalid." >&2; exit 1; }
+  || { echo "Operator release provenance or manifest-bound System Domains command-surface contract is invalid." >&2; exit 1; }
 
 # Restart completion precedes listener readiness. Retry the loopback proof so
 # a healthy staged rollback is not itself rolled back merely because Node is
@@ -111,16 +117,22 @@ case "$TARGET" in
     ;;
 esac
 
-assert_compatibility_parity() {
+assert_safe_authority_state() {
   local consistency
   consistency="$(request_internal_api /api/v1/system-domains/consistency)"
   node -e '
     const value = JSON.parse(process.argv[1]);
+    const target = process.argv[2];
+    const expectedMode = process.argv[3] || "";
     const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};
     const authority = value?.consistency?.details?.authority?.mode;
-    if (value?.consistency?.matches !== true || reconciliation?.readEligible !== true || authority !== "compatibility-snapshot") process.exit(1);
-  ' "$consistency" || {
-    echo "Refusing command-surface rollback outside stable compatibility-snapshot authority; PostgreSQL-primary requires the separate disaster-recovery procedure." >&2
+    const compatibilityReady = authority === "compatibility-snapshot" && value?.consistency?.matches === true;
+    const primarySuspendReady = target === "disabled" && authority === "postgres-primary" && reconciliation?.retirementEligible === true;
+    if (value?.consistency?.ok !== true || reconciliation?.readEligible !== true
+      || (!compatibilityReady && !primarySuspendReady) || (expectedMode && authority !== expectedMode)) process.exit(1);
+    process.stdout.write(authority);
+  ' "$consistency" "$TARGET" "${EXPECTED_AUTHORITY_MODE:-}" || {
+    echo "Refusing command-surface change without stable compatibility parity or a durable PostgreSQL-primary tombstone for --to=disabled." >&2
     exit 1
   }
 }
@@ -139,7 +151,8 @@ validate_actor_policy() {
   ' "$ACTOR_POLICY_FILE"
 }
 
-assert_compatibility_parity
+EXPECTED_AUTHORITY_MODE=""
+EXPECTED_AUTHORITY_MODE="$(assert_safe_authority_state)"
 if [[ "$TARGET" != "disabled" ]]; then
   [[ -f "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" && -f "$TARGET_SOURCE" ]] || {
     echo "Missing rollback artifact in ${APP_DIR}/ops/postgres." >&2
@@ -199,7 +212,8 @@ node -e '
       || !/^public:[^,\s]+(?:,public:[^,\s]+)*$/.test(entries.MES_SYSTEM_DOMAINS_COMMAND_ACTORS || "")
       || !username
       || !actors.includes(expectedPrincipal)) process.exit(1);
-  } else if (entries.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS === "1") process.exit(1);
+  } else if (entries.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS === "1"
+    || String(entries.MES_SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES || "").trim()) process.exit(1);
 ' "$runtime_environment" "$EXPECTED_CSV" || {
   echo "The running service did not receive the requested rollback command configuration." >&2
   exit 1
@@ -223,7 +237,7 @@ node -e '
   echo "System Domains command capability does not match the requested rollback state." >&2
   exit 1
 }
-assert_compatibility_parity
+assert_safe_authority_state >/dev/null
 
 if [[ "$TARGET" == "disabled" && "${MES_DISABLE_COMPATIBILITY_OUTBOX_ON_ROLLBACK:-0}" == "1" ]]; then
   systemctl disable --now "$SYNC_TIMER" || true
@@ -231,4 +245,4 @@ fi
 APPLIED=0
 rm -rf "$BACKUP_DIR"
 trap - EXIT
-echo "System Domains command surfaces are now ${TARGET}; no compatibility snapshot data was restored."
+echo "System Domains command surfaces are now ${TARGET}; ${EXPECTED_AUTHORITY_MODE} authority and its snapshot/tombstone state were preserved."
