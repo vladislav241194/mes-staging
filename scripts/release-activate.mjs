@@ -110,8 +110,13 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 legacy_path=""
 failed_pointer_path="$release_path/failed-active-pointer-$timestamp"
 health_body_path="$release_path/activation-health-$timestamp.json"
+activation_record_path="$release_path/activation.json"
+activation_record_backup_path="$release_path/activation.json.before-$timestamp"
 activation_phase="initializing"
 diagnostics_emitted=0
+runtime_switched=0
+activation_record_had_previous=0
+activation_record_replaced=0
 
 redact_diagnostics() {
   # Service output can include application log text. Keep diagnostics useful
@@ -189,6 +194,7 @@ test -f "$release_path/release-manifest.json"
 test -f "$release_app_path/dist/index.html"
 test -f "$release_app_path/package-lock.json"
 test -f "$release_app_path/scripts/release-verify.mjs"
+release_app_target="$(readlink -f "$release_app_path")"
 
 cd "$release_app_path"
 activation_phase="manifest-verification"
@@ -230,6 +236,11 @@ if [ "$previous_kind" = "release-pointer" ]; then
     --manifest="$previous_release_path/release-manifest.json" \
     --expected-release-id="$previous_release_id" \
     --json)"
+fi
+
+if [ "$previous_kind" = "release-pointer" ] && [ "$previous_target" = "$release_app_target" ]; then
+  echo "Requested release is already active." >&2
+  fail_activation 1 "release_already_active"
 fi
 
 assert_no_active_evaluation() {
@@ -295,8 +306,9 @@ if [ "$dry_run" = "true" ]; then
 fi
 
 rollback() {
+  trap - ERR
   set +e
-  echo "Activation health check failed; restoring previous runtime." >&2
+  echo "Activation failed after the runtime switch; restoring previous runtime." >&2
   if [ "$previous_kind" = "release-pointer" ]; then
     if [ -L "$app_path" ]; then
       mv -T "$app_path" "$failed_pointer_path"
@@ -311,8 +323,17 @@ rollback() {
       mv "$legacy_path/app" "$app_path"
     fi
   fi
+  if [ "$activation_record_had_previous" = "1" ] && [ -e "$activation_record_backup_path" ]; then
+    mv -f "$activation_record_backup_path" "$activation_record_path"
+  elif [ "$activation_record_replaced" = "1" ]; then
+    rm -f "$activation_record_path"
+  fi
+  rm -f "$releases_path/active-release.json.next" "$release_path/activation.json.next"
   sudo -n /usr/bin/systemctl restart "$service" >/dev/null 2>&1 || true
+  runtime_switched=0
 }
+
+trap 'failure_code=$?; emit_failure_diagnostics "$failure_code" "unexpected_shell_failure_line_$LINENO"; if [ "$runtime_switched" = "1" ]; then rollback; fi; exit "$failure_code"' ERR
 
 activation_phase="switch-active-runtime"
 if [ "$previous_kind" = "release-pointer" ]; then
@@ -321,6 +342,7 @@ if [ "$previous_kind" = "release-pointer" ]; then
     echo "Unable to switch the active release pointer." >&2
     fail_activation 1 "active_pointer_switch_failed"
   fi
+  runtime_switched=1
 else
   legacy_path="$releases_path/legacy-app-pre-$timestamp"
   mkdir -p "$legacy_path"
@@ -334,6 +356,7 @@ else
     echo "Unable to create the active release pointer; the legacy runtime was restored." >&2
     fail_activation 1 "active_pointer_creation_failed"
   fi
+  runtime_switched=1
 fi
 
 activation_phase="restart-service"
@@ -470,8 +493,15 @@ const record = {
 await writeFile(activePath, JSON.stringify(record, null, 2) + "\n");
 await writeFile(activationPath, JSON.stringify(record, null, 2) + "\n");
 NODE
-mv -f "$release_path/activation.json.next" "$release_path/activation.json"
+if [ -e "$activation_record_path" ] || [ -L "$activation_record_path" ]; then
+  activation_record_had_previous=1
+  mv -f "$activation_record_path" "$activation_record_backup_path"
+fi
+mv -f "$release_path/activation.json.next" "$activation_record_path"
+activation_record_replaced=1
 mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"
+runtime_switched=0
+rm -f "$activation_record_backup_path"
 
 printf 'ACTIVATED release=%s previous_kind=%s previous_target=%s\n' "$release_id" "$previous_kind" "$previous_target"
 `;

@@ -15,6 +15,7 @@ assert(source.includes('activation_phase="manifest-verification"'), "manifest ve
 assert(source.includes('activation_phase="restart-service"'), "restart failures must identify their phase");
 assert(source.includes('activation_phase="local-healthcheck"'), "local health failures must identify their phase");
 assert(source.includes('activation_phase="public-healthcheck"'), "public health failures must identify their phase");
+assert(source.includes('activation_phase="record-activation"'), "activation-record failures must identify their phase");
 assert(source.includes('emit_failure_diagnostics 1 "service_restart_failed"'), "restart failures must emit diagnostics before rollback");
 assert(source.includes('emit_failure_diagnostics 1 "local_healthcheck_failed"'), "local health failures must emit diagnostics before rollback");
 assert(source.includes('emit_failure_diagnostics 1 "public_healthcheck_failed"'), "public health failures must emit diagnostics before rollback");
@@ -22,6 +23,11 @@ assert(source.includes('systemctl status "$service" --no-pager --full --lines=12
 assert(source.includes('journalctl -u "$service" --no-pager --output=short-iso --lines=30'), "diagnostics must include bounded service journal when readable");
 assert(source.includes('redact_diagnostics()'), "service output must pass through a credential redactor");
 assert(source.includes("trap 'failure_code=$?; emit_failure_diagnostics"), "unexpected shell failures must emit diagnostics");
+assert(source.includes('if [ "$runtime_switched" = "1" ]; then rollback; fi'), "unexpected post-switch failures must restore the prior runtime");
+const activeRecordCommit = source.indexOf('mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"');
+const rollbackGuardDisarm = source.indexOf("runtime_switched=0", activeRecordCommit);
+const activationSuccess = source.indexOf("printf 'ACTIVATED", rollbackGuardDisarm);
+assert(activeRecordCommit >= 0 && rollbackGuardDisarm > activeRecordCommit && activationSuccess > rollbackGuardDisarm, "the rollback guard must remain armed until the active release record is committed");
 
 const startMarker = "const activationScript = String.raw`";
 const endMarker = "\n`;\n\nasync function main()";
