@@ -185,6 +185,7 @@ export function createProductionStructureMatrixModule(dependencies = {}) {
     getSystemDomainsMigrationReport = () => null,
     getSystemDomainsState = () => ({}),
     notifySaveSuccess = () => {},
+    onActiveRegistryChange = () => {},
     render = () => {},
     renderUiActionButton = () => "",
     renderUiEmptyState = ({ title = "", text = "" } = {}) => `<div><strong>${title}</strong><span>${text}</span></div>`,
@@ -275,6 +276,11 @@ export function createProductionStructureMatrixModule(dependencies = {}) {
     activeRegistryId = supportedRegistryIds.includes(normalizedRegistryId) ? normalizedRegistryId : "employees";
     selectedEntityId = "";
     lastMutationError = "";
+    onActiveRegistryChange(activeRegistryId);
+    return activeRegistryId;
+  }
+
+  function getProductionStructureMatrixActiveRegistry() {
     return activeRegistryId;
   }
 
@@ -681,9 +687,7 @@ export function createProductionStructureMatrixModule(dependencies = {}) {
       button.addEventListener("click", () => {
         const registryId = normalizeText(button.dataset.systemDomainRegistry);
         if (![...REGISTRY_DEFINITIONS.map((item) => item.id), DIAGNOSTICS_REGISTRY.id].includes(registryId)) return;
-        activeRegistryId = registryId;
-        selectedEntityId = "";
-        lastMutationError = "";
+        setProductionStructureMatrixActiveRegistry(registryId);
         render();
       });
     });
@@ -771,6 +775,7 @@ export function createProductionStructureMatrixModule(dependencies = {}) {
 
   return {
     bindProductionStructureMatrixEvents,
+    getProductionStructureMatrixActiveRegistry,
     getProductionStructureMatrixRuntimeOverrides,
     renderProductionStructureMatrixPage,
     setProductionStructureMatrixActiveRegistry,

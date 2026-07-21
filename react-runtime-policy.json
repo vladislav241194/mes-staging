@@ -14,7 +14,7 @@
     "structureWorkCenters": "evaluation",
     "structureEquipment": "evaluation",
     "structureResponsibilityPolicies": "evaluation",
-    "structureMigrationDiagnostics": "evaluation",
+    "structureMigrationDiagnostics": "react",
     "roles": "evaluation",
     "weeklyProductionControl": "react",
     "timesheet": "evaluation",

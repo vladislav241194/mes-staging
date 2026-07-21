@@ -30,6 +30,8 @@ assert.match(policy.sha256 || "", /^[a-f0-9]{64}$/);
 assert.equal(policy.source, "react-runtime-policy.json");
 assert.equal(Object.keys(policy.surfaces).length, 24);
 assert(REACT_RUNTIME_SURFACE_IDS.every((id) => ["legacy", "evaluation", "react"].includes(policy.surfaces[id])));
+assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, ["structureMigrationDiagnostics", "weeklyProductionControl"], "permanent allowlist must stay explicit and minimal");
+assert.deepEqual(summarizeReactRuntimePolicy(policy).reactSurfaces, ["structureMigrationDiagnostics", "weeklyProductionControl"], "release policy must permanently enable only accepted read-only surfaces");
 assert(
   summarizeReactRuntimePolicy(policy).reactSurfaces.every((id) => REACT_RUNTIME_PERMANENT_CONSUMERS.includes(id)),
   "only explicitly wired permanent consumers may use react mode",
@@ -52,6 +54,11 @@ const weeklyLegacyPolicy = normalizeReactRuntimePolicy({
   policyId: "qa-weekly-legacy",
   surfaces: { ...allEvaluationSurfaces, weeklyProductionControl: "legacy" },
 });
+const acceptedPermanentPolicy = normalizeReactRuntimePolicy({
+  schemaVersion: 1,
+  policyId: "qa-accepted-permanent",
+  surfaces: { ...allEvaluationSurfaces, structureMigrationDiagnostics: "react", weeklyProductionControl: "react" },
+});
 
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 2, policyId: "bad", surfaces: {} }), /schema/);
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad", surfaces: {} }), /every production surface/);
@@ -70,6 +77,10 @@ const weeklyEvaluationEnv = {
 const nomenclatureEvaluationEnv = {
   MES_REACT_NOMENCLATURE: "1",
   MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: "1",
+};
+const diagnosticsEvaluationEnv = {
+  MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS: "1",
+  MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION: "1",
 };
 assert.deepEqual(assertReactRuntimeEnvironment({}, evaluationPolicy), []);
 assert.deepEqual(assertReactRuntimeEnvironment(weeklyEvaluationEnv, evaluationPolicy), ["weeklyProductionControl"]);
@@ -90,15 +101,18 @@ assert.throws(() => assertReactRuntimeEnvironment({ MES_REACT_UNKNOWN_SURFACE: "
 assert.throws(() => assertReactRuntimeEnvironment({ MES_REACT_WEEKLY_PRODUCTION_CONTROL: "true" }, evaluationPolicy), /exact value 1/);
 assert.throws(() => assertReactRuntimeEnvironment(weeklyEvaluationEnv, weeklyReactPolicy), /flags are forbidden.*mode is react/);
 assert.throws(() => assertReactRuntimeEnvironment(weeklyEvaluationEnv, weeklyLegacyPolicy), /flags are forbidden.*mode is legacy/);
+assert.throws(() => assertReactRuntimeEnvironment(diagnosticsEvaluationEnv, acceptedPermanentPolicy), /flags are forbidden.*mode is react/);
 
 const evaluationPublicPolicy = getPublicReactRuntimePolicy(evaluationPolicy);
 const weeklyReactPublicPolicy = getPublicReactRuntimePolicy(weeklyReactPolicy);
 const weeklyLegacyPublicPolicy = getPublicReactRuntimePolicy(weeklyLegacyPolicy);
+const acceptedPermanentPublicPolicy = getPublicReactRuntimePolicy(acceptedPermanentPolicy);
 const maskedEnvironment = {
   APP_ENV: "pilot",
   DATABASE_URL: "must-not-leak",
   ...weeklyEvaluationEnv,
   ...nomenclatureEvaluationEnv,
+  ...diagnosticsEvaluationEnv,
 };
 const evaluationConfig = getPublicRuntimeConfig(maskedEnvironment, { reactRuntimePolicy: evaluationPublicPolicy });
 assert.equal(evaluationConfig.MES_REACT_WEEKLY_PRODUCTION_CONTROL, true);
@@ -111,6 +125,9 @@ assert.equal(reactConfig.MES_REACT_NOMENCLATURE, true, "another surface may reta
 const legacyConfig = getPublicRuntimeConfig(maskedEnvironment, { reactRuntimePolicy: weeklyLegacyPublicPolicy });
 assert.equal(legacyConfig.MES_REACT_WEEKLY_PRODUCTION_CONTROL, false, "legacy mode must mask its evaluation feature flag");
 assert.equal(legacyConfig.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION, false, "legacy mode must mask its evaluation permission");
+const acceptedPermanentConfig = getPublicRuntimeConfig(maskedEnvironment, { reactRuntimePolicy: acceptedPermanentPublicPolicy });
+assert.equal(acceptedPermanentConfig.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS, false, "permanent Diagnostics must mask its obsolete evaluation feature flag");
+assert.equal(acceptedPermanentConfig.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION, false, "permanent Diagnostics must mask its obsolete evaluation permission");
 
 const runtimeScript = renderRuntimeConfigScript(maskedEnvironment, { reactRuntimePolicy: weeklyReactPublicPolicy });
 assert.match(runtimeScript, /"MES_REACT_RUNTIME_POLICY"/);
@@ -136,6 +153,13 @@ assert.deepEqual(resolveReactRuntimeActivation({
   evaluationRequested: true,
   localQaEnabled: true,
 }), { runtimeMode: "react", featureFlagEnabled: true, accessMode: "react" }, "query and evaluation flags must not downgrade permanent React");
+assert.deepEqual(resolveReactRuntimeActivation({
+  surfaceId: "structureMigrationDiagnostics",
+  runtimeConfig: acceptedPermanentConfig,
+  evaluationFeatureEnabled: true,
+  evaluationRequested: true,
+  localQaEnabled: true,
+}), { runtimeMode: "react", featureFlagEnabled: true, accessMode: "react" }, "query and local flags must not downgrade permanent Diagnostics");
 
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-react-runtime-policy-"));
 try {

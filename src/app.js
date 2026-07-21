@@ -78,7 +78,7 @@ import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactI
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
-import { resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
+import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
@@ -185,7 +185,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.17";
+const APP_VERSION_FALLBACK = "v.1.500.20";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1639,20 +1639,44 @@ function getWeeklyProductionControlRuntimeInstance() {
   return weeklyProductionControlLoadingInstance;
 }
 
+const PRODUCTION_STRUCTURE_REGISTRY_IDS = new Set(["employees", "positions", "orgUnits", "workCenters", "equipment", "responsibilityPolicies", "migrationDiagnostics"]);
+const PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM = "structureRegistry";
+
+function getProductionStructureMatrixRegistryFromUrl() {
+  if (typeof window === "undefined") return "";
+  const raw = String(new URLSearchParams(window.location.search || "").get(PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM) || "").trim();
+  if (!raw) return "";
+  return PRODUCTION_STRUCTURE_REGISTRY_IDS.has(raw) ? raw : "orgUnits";
+}
+
+function updateProductionStructureMatrixRegistryUrl(registryId = "orgUnits") {
+  if (typeof window === "undefined" || !window.history?.replaceState) return;
+  const normalized = PRODUCTION_STRUCTURE_REGISTRY_IDS.has(String(registryId || "")) ? String(registryId) : "orgUnits";
+  const url = new URL(window.location.href);
+  const evaluationRouteActive = [...url.searchParams].some(([key, value]) => key.startsWith("react-structure-") && (key.endsWith("-evaluation") || key.endsWith("-write")) && value === "1");
+  if (ui.activeModule === "productionStructureMatrix" && (normalized !== "orgUnits" || evaluationRouteActive)) url.searchParams.set(PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM, normalized);
+  else url.searchParams.delete(PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM);
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  if (nextUrl !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(null, "", nextUrl);
+}
+
 let bindProductionStructureMatrixEvents = () => {};
+let getProductionStructureMatrixActiveRegistry = () => getProductionStructureMatrixRegistryFromUrl() || "orgUnits";
 let getProductionStructureMatrixRuntimeOverrides = () => normalizePlainRecord(ui?.productionStructureMatrixOverrides);
-let setProductionStructureMatrixActiveRegistry = () => "employees";
+let setProductionStructureMatrixActiveRegistry = () => "orgUnits";
 let renderProductionStructureMatrixPage = () => renderUiModulePage({
   ariaLabel: "Структура производства",
   className: "production-structure-matrix-page",
   content: renderUiEmptyState({ title: "Загружаем структуру производства", description: "Полная матрица открывается только по запросу." }),
 });
 let productionStructureMatrixModuleLoad = null;
+let productionStructureMatrixModuleState = { status: "idle", error: "" };
 let productionStructureMatrixData = { PRODUCTION_STRUCTURE_MATRIX_COLUMNS: [], PRODUCTION_STRUCTURE_MATRIX_ROWS: [] };
 function initializeProductionStructureMatrixModule(factory, matrixData) {
   productionStructureMatrixData = matrixData;
   ({
     bindProductionStructureMatrixEvents,
+    getProductionStructureMatrixActiveRegistry,
     getProductionStructureMatrixRuntimeOverrides,
     renderProductionStructureMatrixPage,
     setProductionStructureMatrixActiveRegistry,
@@ -1682,6 +1706,7 @@ function initializeProductionStructureMatrixModule(factory, matrixData) {
   normalizePlainRecord,
   normalizeShiftMasterAssignmentScopeMode,
   notifySaveSuccess,
+  onActiveRegistryChange: updateProductionStructureMatrixRegistryUrl,
   persistUiState,
   render,
   renderUiActionButton,
@@ -1709,14 +1734,17 @@ function initializeProductionStructureMatrixModule(factory, matrixData) {
 
 function ensureProductionStructureMatrixModule() {
   if (productionStructureMatrixModuleLoad) return;
+  productionStructureMatrixModuleState = { status: "loading", error: "" };
   productionStructureMatrixModuleLoad = Promise.all([
     import("./modules/production_structure_matrix/render.js"),
     import("./production_structure_matrix_data.js"),
     ensureLegacyProductionStructure(),
   ]).then(([{ createProductionStructureMatrixModule }, matrixData]) => {
     initializeProductionStructureMatrixModule(createProductionStructureMatrixModule, matrixData);
+    productionStructureMatrixModuleState = { status: "ready", error: "" };
     if (["productionStructureMatrix", "weeklyProductionControl", "timesheet"].includes(ui.activeModule)) render();
   }).catch((error) => {
+    productionStructureMatrixModuleState = { status: "error", error: error?.message || "Production Structure Matrix module is unavailable" };
     console.error("Не удалось загрузить структуру производства", error);
     renderProductionStructureMatrixPage = () => renderUiModulePage({
       ariaLabel: "Структура производства",
@@ -3168,12 +3196,73 @@ const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibi
     }
   },
 });
+function getStructureMigrationDiagnosticsReactLocalQaOverrides() {
+  const params = new URLSearchParams(window.location.search);
+  const localQa = params.get("qa-auth-bypass") === "1" && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  return { featureFlagEnabled: localQa && params.get("react-structure-migration-diagnostics") === "1", readOnlyEvaluation: localQa && params.get("react-structure-migration-diagnostics-readonly") === "1" };
+}
 function isStructureMigrationDiagnosticsReactEvaluationRequested() { const params = new URLSearchParams(window.location.search); if (params.get("react-structure-migration-diagnostics-evaluation") !== "1") return false; return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson()); }
+function getStructureMigrationDiagnosticsReactReadState() {
+  const report = productionStructureMatrixModuleState.status === "ready" ? getSystemDomainsMigrationReport() : null;
+  const sourceCounts = normalizePlainRecord(report?.sourceCounts);
+  const targetCounts = normalizePlainRecord(report?.targetCounts);
+  const matrixReady = productionStructureMatrixModuleState.status === "ready"
+    && Array.isArray(productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS)
+    && productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS.length > 0
+    && Array.isArray(productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS)
+    && productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS.length > 0;
+  const reportReady = Boolean(report)
+    && Number(sourceCounts.matrixRows) === productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS.length
+    && ["employees", "orgUnits", "positions"].every((id) => Number.isFinite(Number(targetCounts[id])));
+  const serverReadFailure = productionStructureMatrixModuleState.status === "error"
+    ? "model-unavailable"
+    : systemDomainsServerReadState.status === "fallback"
+      ? "read-unavailable"
+      : systemDomainsServerReadState.status === "server" && matrixReady && !reportReady
+        ? "model-unavailable"
+        : "";
+  return { report, serverReadFailure, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState) && matrixReady && reportReady };
+}
 const structureMigrationDiagnosticsReactIslandHost = createStructureMigrationDiagnosticsReactIslandHost({
-  getActivation: () => { const params = new URLSearchParams(window.location.search); const localQa = params.get("qa-auth-bypass") === "1" && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION === true; return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS === true || (localQa && params.get("react-structure-migration-diagnostics") === "1"), serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: (serverEvaluationAllowed && isStructureMigrationDiagnosticsReactEvaluationRequested()) || (localQa && params.get("react-structure-migration-diagnostics-readonly") === "1") ? "read-only-evaluation" : "editor" }; },
-  getPayload: () => ({ item: systemDomainsState, migrationReport: systemDomainsMigrationReport, legacyMatrixRows: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS, legacyMatrixColumns: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS }), getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "migrationDiagnostics"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  getActivation: () => {
+    const localQa = getStructureMigrationDiagnosticsReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION === true;
+    const runtimeActivation = resolveReactRuntimeActivation({
+      surfaceId: "structureMigrationDiagnostics",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS === true && serverEvaluationAllowed,
+      evaluationRequested: isStructureMigrationDiagnosticsReactEvaluationRequested(),
+      localQaEnabled: localQa.featureFlagEnabled && localQa.readOnlyEvaluation,
+    });
+    const readState = getStructureMigrationDiagnosticsReactReadState();
+    return { ...runtimeActivation, serverReadFailure: readState.serverReadFailure, serverReadReady: readState.serverReadReady, policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || "") };
+  },
+  getPayload: () => ({ item: systemDomainsState, migrationReport: getSystemDomainsMigrationReport(), legacyMatrixRows: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS, legacyMatrixColumns: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS }),
+  getTargetRoot: () => app,
+  navigateRegistry: (registryId) => {
+    setProductionStructureMatrixActiveRegistry(PRODUCTION_STRUCTURE_REGISTRY_IDS.has(String(registryId || "")) ? registryId : "employees");
+    if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  },
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
 });
+
+const productionStructureReactHosts = Object.freeze({ employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost });
+function getActiveProductionStructureReactHost() {
+  const evaluationRegistry = getReactRuntimeMode("structureMigrationDiagnostics") === "evaluation" && isStructureMigrationDiagnosticsReactEvaluationRequested() ? "migrationDiagnostics"
+    : getReactRuntimeMode("structureResponsibilityPolicies") === "evaluation" && isStructureResponsibilityPoliciesReactEvaluationRequested() ? "responsibilityPolicies"
+      : getReactRuntimeMode("structureEquipment") === "evaluation" && (isStructureEquipmentReactEvaluationRequested() || getStructureEquipmentReactLocalQaOverrides().writeEvaluation) ? "equipment"
+        : getReactRuntimeMode("structureWorkCenters") === "evaluation" && (isStructureWorkCentersReactEvaluationRequested() || getStructureWorkCentersReactLocalQaOverrides().writeEvaluation) ? "workCenters"
+          : getReactRuntimeMode("structureOrgUnits") === "evaluation" && (isStructureOrgUnitsReactEvaluationRequested() || getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation) ? "orgUnits"
+            : getReactRuntimeMode("structurePositions") === "evaluation" && (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? "positions"
+              : getReactRuntimeMode("structureEmployees") === "evaluation" && (isStructureEmployeesReactEvaluationRequested() || getStructureEmployeesReactLocalQaOverrides().writeEvaluation || (getStructureEmployeesReactLocalQaOverrides().featureFlagEnabled && getStructureEmployeesReactLocalQaOverrides().readOnlyEvaluation)) ? "employees"
+                : "";
+  const structureRouteParams = new URLSearchParams(window.location.search || "");
+  const registryQueryPresent = structureRouteParams.has(PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM);
+  const registryQueryValid = PRODUCTION_STRUCTURE_REGISTRY_IDS.has(String(structureRouteParams.get(PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM) || ""));
+  const registryFromUrl = getProductionStructureMatrixRegistryFromUrl();
+  const requestedRegistry = registryQueryPresent ? (registryFromUrl || "orgUnits") : evaluationRegistry;
+  if (requestedRegistry && (getProductionStructureMatrixActiveRegistry() !== requestedRegistry || !registryQueryValid)) setProductionStructureMatrixActiveRegistry(requestedRegistry);
+  return productionStructureReactHosts[getProductionStructureMatrixActiveRegistry()] || productionStructureReactHosts.orgUnits;
+}
 function getWeeklyProductionControlReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
@@ -5943,6 +6032,8 @@ let systemDomainsServerCommandState = { status: "idle", enabled: false, surfaces
 let systemDomainsServerCapabilitiesPromise = null;
 let systemDomainsServerCapabilitiesFetchedAt = 0;
 let systemDomainsServerReadRetryTimer = null;
+let systemDomainsServerReadRenderModuleId = "";
+let systemDomainsServerReadPromise = null;
 let systemDomainsCompatibilityState = "unknown";
 let systemDomainsCompatibilityHydrated = false;
 const SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES = ["production-structure", "timesheet", "access-control"];
@@ -6021,13 +6112,32 @@ function scheduleSystemDomainsServerReadRetry(moduleId = "") {
     void hydrateSystemDomainsServerRead(moduleId, { fallbackToLegacy: false });
   }, SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS);
 }
-async function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy = false, force = false } = {}) {
+function renderSystemDomainsServerReadConsumer(moduleId = "") {
+  const activeModuleId = String(ui?.activeModule || "");
+  if (!activeModuleId || (activeModuleId !== moduleId && activeModuleId !== systemDomainsServerReadRenderModuleId)) return;
+  if (systemDomainsServerReadRenderModuleId === activeModuleId) systemDomainsServerReadRenderModuleId = "";
+  render({ skipRememberScroll: true });
+}
+function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy = false, force = false } = {}) {
+  if (moduleId && (!systemDomainsServerReadRenderModuleId || ui?.activeModule === moduleId)) systemDomainsServerReadRenderModuleId = moduleId;
+  if (systemDomainsServerReadPromise) return systemDomainsServerReadPromise;
+  if (!force && systemDomainsServerReadState.status === "fallback" && systemDomainsServerReadRetryTimer !== null) {
+    return Promise.resolve({ ok: false, pending: true, error: systemDomainsServerReadState.error || "System Domains read retry is pending" });
+  }
+  const readPromise = performSystemDomainsServerRead(moduleId, { fallbackToLegacy, force });
+  systemDomainsServerReadPromise = readPromise;
+  void readPromise.finally(() => { if (systemDomainsServerReadPromise === readPromise) systemDomainsServerReadPromise = null; });
+  return readPromise;
+}
+async function performSystemDomainsServerRead(moduleId = "", { fallbackToLegacy = false, force = false } = {}) {
   try {
+    systemDomainsServerReadState = { ...systemDomainsServerReadState, status: "loading", error: "" };
     const [result] = await Promise.all([systemDomainsReadModel.refresh({ force }), hydrateSystemDomainsServerCommands()]);
     if (!result.ok || !result.item) {
       systemDomainsServerReadState = { status: "fallback", error: result.error || "", revision: 0 };
       if (canFallbackToLegacySystemDomains(fallbackToLegacy)) reloadSystemDomainsState({ source: "server-read-fallback", migrateLegacy: true });
       scheduleSystemDomainsServerReadRetry(moduleId);
+      renderSystemDomainsServerReadConsumer(moduleId);
       return { ok: false, error: systemDomainsServerReadState.error };
     }
     const loaded = loadSystemDomains(result.item);
@@ -6035,6 +6145,7 @@ async function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy 
       systemDomainsServerReadState = { status: "fallback", error: "Server projection is not activatable", revision: 0 };
       if (canFallbackToLegacySystemDomains(fallbackToLegacy)) reloadSystemDomainsState({ source: "server-read-invalid", migrateLegacy: true });
       scheduleSystemDomainsServerReadRetry(moduleId);
+      renderSystemDomainsServerReadConsumer(moduleId);
       return { ok: false, error: systemDomainsServerReadState.error };
     }
     // A complete command rollout is still a compatibility phase until the
@@ -6046,6 +6157,7 @@ async function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy 
     if (!hasObservedSystemDomainsPrimaryAuthority() && localSignature && localSignature !== serverSignature) {
       systemDomainsServerReadState = { status: "fallback", error: "Server projection differs from compatibility snapshot", revision: Number(result.revision || 0) };
       scheduleSystemDomainsServerReadRetry(moduleId);
+      renderSystemDomainsServerReadConsumer(moduleId);
       return { ok: false, error: systemDomainsServerReadState.error };
     }
     activateSystemDomains(loaded.domains, { source: "server-read", report: loaded.report });
@@ -6054,12 +6166,13 @@ async function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy 
     // an exact proof and backup. The browser only observes that marker; it
     // never creates one merely because command surfaces became available.
     if (!hasObservedSystemDomainsPrimaryAuthority()) scheduleSystemDomainsServerReadRetry(moduleId);
-    if (moduleId && ui?.activeModule === moduleId) render({ skipRememberScroll: true });
+    renderSystemDomainsServerReadConsumer(moduleId);
     return { ok: true, revision: systemDomainsServerReadState.revision };
   } catch {
     systemDomainsServerReadState = { status: "fallback", error: "System Domains read request failed", revision: 0 };
     if (canFallbackToLegacySystemDomains(fallbackToLegacy)) reloadSystemDomainsState({ source: "server-read-error", migrateLegacy: true });
     scheduleSystemDomainsServerReadRetry(moduleId);
+    renderSystemDomainsServerReadConsumer(moduleId);
     return { ok: false, error: systemDomainsServerReadState.error };
   }
 }
@@ -7171,10 +7284,19 @@ function getSystemDomainsState() {
 }
 
 function getSystemDomainsMigrationReport() {
+  let migrationReport = systemDomainsMigrationReport || {};
+  try {
+    migrationReport = migrateCurrentLegacySystemDomains()?.report || migrationReport;
+  } catch {
+    // The caller also receives current validation below. A diagnostics report
+    // must never make the operational registries unavailable.
+  }
+  const validation = systemDomainsState ? validateSystemDomains(systemDomainsState) : { valid: false, errors: [{ code: "not-loaded" }] };
   return {
-    ...(systemDomainsMigrationReport || {}),
+    ...migrationReport,
+    canActivate: migrationReport.canActivate === true && validation.valid === true,
     lastReloadSource: systemDomainsLastReloadSource,
-    validation: systemDomainsState ? validateSystemDomains(systemDomainsState) : { valid: false, errors: [{ code: "not-loaded" }] },
+    validation,
   };
 }
 
@@ -8469,19 +8591,18 @@ function initializeModuleRuntime() {
     },
     productionStructureMatrix: {
       render: () => {
-        if (systemDomainsServerReadState.status !== "server") {
+        if (systemDomainsServerReadState.status === "idle" || (systemDomainsServerReadState.status === "fallback" && systemDomainsServerReadRetryTimer === null)) {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
         ensureProductionStructureMatrixModule();
-        const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost };
-        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : (isStructureResponsibilityPoliciesReactEvaluationRequested() || getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.responsibilityPolicies : (isStructureEquipmentReactEvaluationRequested() || getStructureEquipmentReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.equipment : (isStructureWorkCentersReactEvaluationRequested() || getStructureWorkCentersReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.workCenters : (isStructureOrgUnitsReactEvaluationRequested() || getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.orgUnits : (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.positions : structureReactHosts.employees;
-        Object.values(structureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
+        const activeReactHost = getActiveProductionStructureReactHost();
+        Object.values(productionStructureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();
         return renderProductionStructureMatrixPage();
       },
       bind: () => {
-        if (Object.values({ structureEmployeesReactIslandHost, structurePositionsReactIslandHost, structureOrgUnitsReactIslandHost, structureWorkCentersReactIslandHost, structureEquipmentReactIslandHost, structureResponsibilityPoliciesReactIslandHost, structureMigrationDiagnosticsReactIslandHost }).some((host) => host.isReactEligible())) return;
+        if (getActiveProductionStructureReactHost().isReactEligible()) return;
         bindProductionStructureMatrixEvents();
       },
       afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); void structureOrgUnitsReactIslandHost.mount(); void structureWorkCentersReactIslandHost.mount(); void structureEquipmentReactIslandHost.mount(); void structureResponsibilityPoliciesReactIslandHost.mount(); void structureMigrationDiagnosticsReactIslandHost.mount(); },

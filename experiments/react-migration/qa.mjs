@@ -1487,7 +1487,12 @@ try {
   assert.match(productionAppSource, /authoritativeEmployee\.isActive === false/, "Structure Employees reactivation must read the owner result back");
   assert.match(productionAppSource, /authoritativeEmployee\.archivedAt/, "Structure Employees reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /systemDomainsServerReadState\.status === "server"/);
-  assert.match(productionAppSource, /const structureReactHosts = \{ employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost \}/);
+  assert.match(productionAppSource, /const productionStructureReactHosts = Object\.freeze\(\{ employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost \}\)/, "Every structure registry must retain an independently selectable island host");
+  assert.match(productionAppSource, /function getActiveProductionStructureReactHost\(\)/, "Structure runtime must select only the currently active nested registry host");
+  assert.match(productionAppSource, /getReactRuntimeMode\("structureEmployees"\) === "evaluation"[\s\S]*?\? "employees"/, "Cold Employees read/write evaluation must retain the Employees nested registry");
+  assert.match(productionAppSource, /const PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM = "structureRegistry"/, "Structure nested routing must use one canonical query parameter");
+  assert.match(productionAppSource, /getProductionStructureMatrixRegistryFromUrl\(\)/, "Structure runtime must restore the canonical nested registry from the URL");
+  assert.match(productionAppSource, /if \(getActiveProductionStructureReactHost\(\)\.isReactEligible\(\)\) return;/, "An eligible nested React host must suppress only its own legacy event binding");
   assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /structureEmployeesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "employees"\)/);
@@ -1523,8 +1528,14 @@ try {
   assert.match(productionAppSource, /structureResponsibilityPoliciesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /resolveReactRuntimeActivation\(\{[\s\S]*?surfaceId: "structureMigrationDiagnostics"/, "Diagnostics activation must derive from the immutable three-mode release policy");
+  assert.match(productionAppSource, /function getStructureMigrationDiagnosticsReactReadState\(\)/, "Permanent Diagnostics ownership must wait for both System Domains and the lazy matrix model");
+  assert.match(productionAppSource, /systemDomainsServerReadState\.status === "server" && Boolean\(systemDomainsState\) && matrixReady && reportReady/, "Diagnostics readiness must be authoritative and fail closed");
+  assert.match(productionAppSource, /if \(systemDomainsServerReadPromise\) return systemDomainsServerReadPromise/, "Concurrent System Domains consumers must await the same authoritative read");
+  assert.match(productionAppSource, /systemDomainsServerReadState\.status === "fallback" && systemDomainsServerReadRetryTimer !== null/, "A rendered read error must wait for the scheduled retry instead of starting a sibling fetch loop");
   assert.match(productionAppSource, /productionStructureMatrixData = matrixData/);
   assert.match(productionAppSource, /legacyMatrixRows: productionStructureMatrixData\.PRODUCTION_STRUCTURE_MATRIX_ROWS/);
+  assert.match(productionAppSource, /navigateRegistry: \(registryId\) => \{[\s\S]*?setProductionStructureMatrixActiveRegistry/, "Diagnostics registry navigation must use the normal nested-route owner instead of a fallback signal");
   assert.match(productionAppSource, /structureMigrationDiagnosticsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL === true/);
   assert.match(productionAppSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true/);

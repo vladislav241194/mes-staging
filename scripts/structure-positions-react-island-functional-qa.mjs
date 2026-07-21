@@ -71,9 +71,17 @@ const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy:
 await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
 assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary shared state permissions changed");
 const original = await readFile(sharedStateFile, "utf8");
+let diagnosticsEvaluationPolicyFile = ""; let diagnosticsLegacyPolicyFile = "";
+if (qaConfig.isDiagnostics) {
+  const releasePolicy = JSON.parse(await readFile(join(process.cwd(), "react-runtime-policy.json"), "utf8"));
+  diagnosticsEvaluationPolicyFile = join(temporaryRoot, "diagnostics-evaluation-policy.json");
+  diagnosticsLegacyPolicyFile = join(temporaryRoot, "diagnostics-legacy-policy.json");
+  await writeFile(diagnosticsEvaluationPolicyFile, `${JSON.stringify({ ...releasePolicy, policyId: "qa-diagnostics-evaluation", surfaces: { ...releasePolicy.surfaces, structureMigrationDiagnostics: "evaluation" } }, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(diagnosticsLegacyPolicyFile, `${JSON.stringify({ ...releasePolicy, policyId: "qa-diagnostics-legacy", surfaces: { ...releasePolicy.surfaces, structureMigrationDiagnostics: "legacy" } }, null, 2)}\n`, { mode: 0o600 });
+}
 const enabledPort = await getFreePort(); const legacyPort = await getFreePort();
 const enabledOrigin = `http://127.0.0.1:${enabledPort}`; const legacyOrigin = `http://127.0.0.1:${legacyPort}`;
-const start = (port, enabled) => spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, ...(enabled ? { [qaConfig.featureFlag]: "1", [qaConfig.evaluationFlag]: "1" } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
+const start = (port, enabled) => spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, ...(qaConfig.isDiagnostics ? { MES_REACT_RUNTIME_POLICY_PATH: enabled ? diagnosticsEvaluationPolicyFile : diagnosticsLegacyPolicyFile } : {}), ...(enabled ? { [qaConfig.featureFlag]: "1", [qaConfig.evaluationFlag]: "1" } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
 const enabledPreview = start(enabledPort, true); const legacyPreview = start(legacyPort, false);
 let enabledOutput = ""; let legacyOutput = "";
 enabledPreview.stdout.on("data", (chunk) => { enabledOutput += chunk.toString(); }); enabledPreview.stderr.on("data", (chunk) => { enabledOutput += chunk.toString(); });
@@ -108,7 +116,7 @@ try {
     }
     if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
   });
-  await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] }); await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Page.addScriptToEvaluateOnNewDocument", { source: 'window.__MES_QA_REACT_TELEMETRY__=[];window.addEventListener("mes:react-island-telemetry",(event)=>window.__MES_QA_REACT_TELEMETRY__.push(event.detail));' }); await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] }); await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
   await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 19, { message: "legacy canonical payload missing" });
@@ -122,7 +130,7 @@ try {
   await selectRegistry(client, qaConfig.registryId); await waitForCondition(client, (config) => document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`).length === config.rowCount, { arg: qaConfig, message: `enabled default did not retain legacy ${qaConfig.label}` });
   assert(await evaluate(client, (config) => !document.querySelector(`[${config.target}]`), qaConfig), "server permission without session request must remain legacy");
 
-  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&${qaConfig.evaluationQuery}=1` });
+  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=productionStructureMatrix${qaConfig.isDiagnostics ? `&structureRegistry=${qaConfig.registryId}` : ""}&qa-auth-bypass=1&${qaConfig.evaluationQuery}=1` });
   await waitForCondition(client, (config) => Boolean(document.querySelector(`[${config.target}][data-react-island-state="ready"]`) && document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : '[data-ui-component="SelectableRow"]').length === config.rowCount), { arg: qaConfig, message: `Structure ${qaConfig.label} React island did not render ${qaConfig.rowCount} rows`, timeoutMs: 15_000 });
   const initial = await evaluate(client, (config) => { const target = document.querySelector(`[${config.target}]`); const selected = document.querySelector('[data-ui-component="SelectableRow"].is-selected'); const metrics = Object.fromEntries([...document.querySelectorAll('[data-ui-component="MetricCard"]')].map((card) => [card.querySelector("span")?.textContent?.trim() || "", Number(card.querySelector("strong")?.textContent || 0)])); const rowSelector = config.isDiagnostics ? "[data-migration-source-row]" : '[data-ui-component="SelectableRow"]'; return { rows: [...document.querySelectorAll(rowSelector)].map((row) => [...row.querySelectorAll("td")].map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" ")), selectedText: selected?.textContent?.replace(/\s+/g, " ").trim() || "", detail: document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || "", disabled: config.isDiagnostics || document.querySelector('[data-ui-component="ActionButton"]')?.disabled === true, sidebarItems: document.querySelectorAll('[data-ui-component="SidebarItem"]').length, metrics, issueTitles: [...document.querySelectorAll('[data-ui-component="Panel"] h2')].map((heading) => heading.textContent?.trim() || ""), revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }; }, qaConfig);
   assert(JSON.stringify(initial.rows) === JSON.stringify(legacyRows), `React and legacy ${qaConfig.label} cells/order differ\nlegacy=${JSON.stringify(legacyRows)}\nreact=${JSON.stringify(initial.rows)}`);
@@ -133,6 +141,14 @@ try {
   if (!qaConfig.isDiagnostics) { const second = await evaluate(client, async () => { const rows = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]; const target = rows[Math.min(1, rows.length - 1)]; target?.click(); await new Promise((resolve) => setTimeout(resolve, 50)); return [document.querySelectorAll('[data-ui-component="SelectableRow"].is-selected').length, target?.textContent?.replace(/\s+/g, " ").trim() || "", document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || ""]; }); assert(second[0] === 1 && second[1].includes(second[2]), `${qaConfig.label} selection/detail synchronization failed`); }
   await evaluate(client, (config) => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((entry) => entry.textContent?.includes(config.fallbackLabel))?.click(), qaConfig);
   await waitForCondition(client, (config) => Boolean(!document.querySelector(`[${config.target}]`) && document.querySelectorAll(`[data-system-domain-table="${config.fallbackRegistry}"] [data-system-domain-row]`).length === config.fallbackCount), { arg: qaConfig, message: `${qaConfig.label} legacy fallback failed` });
+  if (qaConfig.isDiagnostics) {
+    const navigationState = await evaluate(client, () => ({ registry: new URL(location.href).searchParams.get("structureRegistry") || "employees", fallbackEvents: (window.__MES_QA_REACT_TELEMETRY__ || []).filter((event) => event.state === "legacy-fallback" || event.state === "error").length }));
+    assert(navigationState.registry === "employees" && navigationState.fallbackEvents === 0, `Diagnostics cross-registry navigation was treated as a runtime fallback: ${JSON.stringify(navigationState)}`);
+    await evaluate(client, () => document.querySelector('.module-tab[data-module="planning"]')?.click());
+    await waitForCondition(client, () => new URL(location.href).searchParams.get("module") === "planning" && !new URL(location.href).searchParams.has("structureRegistry"), { message: "Diagnostics evaluation leave-route did not clear nested registry" });
+    await evaluate(client, () => document.querySelector('.module-tab[data-module="productionStructureMatrix"]')?.click());
+    await waitForCondition(client, (config) => new URL(location.href).searchParams.get("structureRegistry") === config.registryId && Boolean(document.querySelector(`[${config.target}][data-react-island-state="ready"]`)), { arg: qaConfig, message: "Diagnostics evaluation route did not reactivate after leaving and returning", timeoutMs: 15_000 });
+  }
   if (qaConfig.registryId === "positions") {
     primaryAuthorityReady = true;
     await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
@@ -544,7 +560,7 @@ try {
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`); assert(await readFile(sharedStateFile, "utf8") === original, "read-only Positions scenario changed state");
   console.log(`Structure ${qaConfig.label} React production-shell functional QA: OK`);
   console.log(`- same PostgreSQL payload: ${qaConfig.rowCount} legacy rows = ${qaConfig.rowCount} React rows; first commit ${initial.commitMs.toFixed(2)} ms`);
-  console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, legacy fallback and unchanged state: pass`);
+  console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, ${qaConfig.isDiagnostics ? "ordinary cross-registry navigation" : "legacy fallback"} and unchanged state: pass`);
   if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, explicit confirmations, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, hierarchy/dependency rejection, ID-bound confirmations, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "workCenters") console.log("- PostgreSQL create/edit/archive/reactivate, lifecycle-neutral save, hierarchy/dependency rejection, ID-bound confirmations, Planning/Gantt flags, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");

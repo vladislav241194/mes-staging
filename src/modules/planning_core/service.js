@@ -1762,6 +1762,7 @@ function updateModuleUrlParam(moduleId = "") {
   } else {
     url.searchParams.delete("module");
   }
+  if (moduleId !== "productionStructureMatrix") url.searchParams.delete("structureRegistry");
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 

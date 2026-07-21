@@ -115,6 +115,7 @@ const featureGate = createReactIslandFeatureGate({
         else featureGate.update(createEmployeeDesktopReportFixture(command.taskId, Boolean(command.photo)));
         return { ok: true };
       },
+      onNavigateRegistry: () => featureGate.requestLegacy("unsupported-scope"),
       onRequestLegacy: () => featureGate.requestLegacy("unsupported-scope"),
     });
   },
