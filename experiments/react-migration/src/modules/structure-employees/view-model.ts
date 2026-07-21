@@ -7,14 +7,14 @@ export interface StructureRegistryOption {
   label: string;
   description: string;
   count: number;
-  action: "employees" | "legacy";
+  action: "employees" | "navigate";
 }
 
 export function buildStructureRegistryOptions(model: StructureEmployeesReadModel): StructureRegistryOption[] {
   return STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => ({
     ...definition,
     count: model.counts[definition.id],
-    action: definition.id === "employees" ? "employees" as const : "legacy" as const,
+    action: definition.id === "employees" ? "employees" as const : "navigate" as const,
   }));
 }
 

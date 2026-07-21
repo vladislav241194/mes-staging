@@ -426,7 +426,7 @@ let employeeServerSessionPromise = null;
 let nomenclatureServerCapabilitiesState = { status: "idle", result: null, error: "" };
 let nomenclatureServerCapabilitiesPromise = null;
 let nomenclatureServerCapabilitiesFetchedAt = 0;
-let nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+let nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature", returnStructureRegistry: "" };
 let nomenclatureTypesServerCapabilitiesState = { status: "idle", result: null, error: "" };
 let nomenclatureTypesServerCapabilitiesPromise = null;
 let nomenclatureTypesServerCapabilitiesFetchedAt = 0;
@@ -445,7 +445,9 @@ function isEmployeeServerAuthAvailable() {
   return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_AVAILABLE === true
     || isNomenclatureServerCommandsPrimary()
     || isDirectoryClusterServerCommandsPrimary()
-    || isPlanningStartDateServerCommandsPrimary();
+    || isPlanningStartDateServerCommandsPrimary()
+    || ["structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies"]
+      .some((surfaceId) => getReactRuntimeMode(surfaceId) === "react");
 }
 
 function isNomenclatureEmployeeElevationActive() {
@@ -495,6 +497,7 @@ function resetNomenclatureTypesServerCapabilities() {
 function resetEmployeeServerCapabilities() {
   resetNomenclatureServerCapabilities();
   resetNomenclatureTypesServerCapabilities();
+  resetSystemDomainsServerCapabilities();
   planningCommandCapabilitiesState = { status: "idle", result: null, error: "" };
   planningCommandCapabilitiesPromise = null;
 }
@@ -544,11 +547,12 @@ async function createEmployeeServerSession({ employeeId = "", pin = "" } = {}) {
   employeeServerSessionState = { status: "authenticated", authenticated: true, actor, error: "" };
   void ensureNomenclatureServerCapabilities({ force: true });
   void ensureNomenclatureTypesServerCapabilities({ force: true });
+  void hydrateSystemDomainsServerRead(ui?.activeModule || "", { fallbackToLegacy: false, force: true });
   return { ...result, ok: true, authenticated: true, actor };
 }
 
 function deleteEmployeeServerSession() {
-  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature", returnStructureRegistry: "" };
   employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "" };
   resetEmployeeServerCapabilities();
   if (!isEmployeeServerAuthAvailable()) return Promise.resolve({ ok: true, authenticated: false });
@@ -571,6 +575,9 @@ function reconcileEmployeeServerSession({ force = false } = {}) {
         error: result?.ok === true ? "" : getNomenclatureServerFailureMessage(result),
       };
     resetEmployeeServerCapabilities();
+    void hydrateSystemDomainsServerCommands().then(() => {
+      if (appBootstrapped && ui?.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+    });
     if (ui && !isAuthGateQaBypassEnabled()) {
       const localEmployeeId = String(ui.authCurrentUserId || "");
       if (actor && (!localEmployeeId || localEmployeeId !== actor.employeeId)) {
@@ -817,16 +824,19 @@ function getNomenclatureElevationAuthModel() {
   return { ...model, departments, forcedPersonId: employeeId, elevation: true };
 }
 
-async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature") {
+async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature", returnStructureRegistry = "") {
   const person = getAuthenticatedAccessPerson();
   if (!person?.id || !isEmployeeServerAuthAvailable()) {
     return { ok: false, message: "Подтверждение PIN для текущего сотрудника недоступно." };
   }
   await deleteEmployeeServerSession().catch(() => {});
-  const normalizedReturnModule = ["nomenclature", "planning"].includes(String(returnModule || ""))
+  const normalizedReturnModule = ["nomenclature", "planning", "productionStructureMatrix"].includes(String(returnModule || ""))
     ? String(returnModule)
     : "nomenclature";
-  nomenclatureEmployeeElevationState = { active: true, employeeId: person.id, returnModule: normalizedReturnModule };
+  const normalizedReturnStructureRegistry = normalizedReturnModule === "productionStructureMatrix" && PRODUCTION_STRUCTURE_REGISTRY_IDS.has(String(returnStructureRegistry || ""))
+    ? String(returnStructureRegistry)
+    : "";
+  nomenclatureEmployeeElevationState = { active: true, employeeId: person.id, returnModule: normalizedReturnModule, returnStructureRegistry: normalizedReturnStructureRegistry };
   const authModel = getAuthPrototypeReactModel();
   const department = (authModel.departments || []).find((entry) => (
     (entry.directPeople || []).some((candidate) => candidate.id === person.id)
@@ -862,15 +872,21 @@ function finishNomenclatureEmployeeElevation(actor = null) {
     return { ok: false, message: "Сервер подтвердил не текущего сотрудника. Сессия закрыта." };
   }
   const returnModule = nomenclatureEmployeeElevationState.returnModule || "nomenclature";
-  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+  const returnStructureRegistry = nomenclatureEmployeeElevationState.returnStructureRegistry || "";
+  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature", returnStructureRegistry: "" };
   authPrototypePinDraft = "";
   authPrototypeKeypadDigits = [];
   ui.authPrototypeResult = "";
   ui.activeModule = returnModule;
   updateModuleUrlParam(returnModule);
+  if (returnModule === "productionStructureMatrix") setProductionStructureMatrixActiveRegistry(returnStructureRegistry || "orgUnits");
   persistUiState();
   void ensureNomenclatureServerCapabilities({ force: true });
   void ensureNomenclatureTypesServerCapabilities({ force: true });
+  resetSystemDomainsServerCapabilities();
+  void hydrateSystemDomainsServerRead(returnModule, { fallbackToLegacy: false, force: true }).finally(() => {
+    if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  });
   render({ skipRememberScroll: true });
   return { ok: true, authenticated: true, personId: localEmployeeId };
 }
@@ -878,7 +894,8 @@ function finishNomenclatureEmployeeElevation(actor = null) {
 function cancelNomenclatureEmployeeElevation() {
   if (!isNomenclatureEmployeeElevationActive()) return false;
   const returnModule = nomenclatureEmployeeElevationState.returnModule || "nomenclature";
-  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+  const returnStructureRegistry = nomenclatureEmployeeElevationState.returnStructureRegistry || "";
+  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature", returnStructureRegistry: "" };
   void deleteEmployeeServerSession().catch(() => {});
   cancelAuthPrototypePinFeedback();
   authPrototypePinDraft = "";
@@ -886,6 +903,7 @@ function cancelNomenclatureEmployeeElevation() {
   ui.authPrototypeResult = "";
   ui.activeModule = returnModule;
   updateModuleUrlParam(returnModule);
+  if (returnModule === "productionStructureMatrix") setProductionStructureMatrixActiveRegistry(returnStructureRegistry || "orgUnits");
   persistUiState();
   render({ skipRememberScroll: true });
   return true;
@@ -2420,9 +2438,25 @@ function updateProductionStructureMatrixRegistryUrl(registryId = "orgUnits") {
 }
 
 let bindProductionStructureMatrixEvents = () => {};
-let getProductionStructureMatrixActiveRegistry = () => getProductionStructureMatrixRegistryFromUrl() || "orgUnits";
+let productionStructureMatrixActiveRegistry = getProductionStructureMatrixRegistryFromUrl() || "orgUnits";
+let setLegacyProductionStructureMatrixActiveRegistry = () => "orgUnits";
+function getProductionStructureMatrixActiveRegistry() {
+  return productionStructureMatrixActiveRegistry;
+}
+function syncProductionStructureMatrixActiveRegistry(registryId = "orgUnits") {
+  const normalized = PRODUCTION_STRUCTURE_REGISTRY_IDS.has(String(registryId || "")) ? String(registryId) : "orgUnits";
+  productionStructureMatrixActiveRegistry = normalized;
+  ui.productionStructureMatrixActiveRegistry = normalized;
+  updateProductionStructureMatrixRegistryUrl(normalized);
+  return normalized;
+}
+function setProductionStructureMatrixActiveRegistry(registryId = "orgUnits") {
+  const normalized = syncProductionStructureMatrixActiveRegistry(registryId);
+  if (productionStructureMatrixModuleState.status === "ready") setLegacyProductionStructureMatrixActiveRegistry(normalized);
+  persistUiState();
+  return normalized;
+}
 let getProductionStructureMatrixRuntimeOverrides = () => normalizePlainRecord(ui?.productionStructureMatrixOverrides);
-let setProductionStructureMatrixActiveRegistry = () => "orgUnits";
 let renderProductionStructureMatrixPage = () => renderUiModulePage({
   ariaLabel: "Структура производства",
   className: "production-structure-matrix-page",
@@ -2433,13 +2467,7 @@ let productionStructureMatrixModuleState = { status: "idle", error: "" };
 let productionStructureMatrixData = { PRODUCTION_STRUCTURE_MATRIX_COLUMNS: [], PRODUCTION_STRUCTURE_MATRIX_ROWS: [] };
 function initializeProductionStructureMatrixModule(factory, matrixData) {
   productionStructureMatrixData = matrixData;
-  ({
-    bindProductionStructureMatrixEvents,
-    getProductionStructureMatrixActiveRegistry,
-    getProductionStructureMatrixRuntimeOverrides,
-    renderProductionStructureMatrixPage,
-    setProductionStructureMatrixActiveRegistry,
-  } = factory({
+  const legacyModule = factory({
   PRODUCTION_STRUCTURE_MATRIX_COLUMNS: matrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
   PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS: matrixData.PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS,
   PRODUCTION_STRUCTURE_MATRIX_ROWS: matrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS,
@@ -2465,7 +2493,7 @@ function initializeProductionStructureMatrixModule(factory, matrixData) {
   normalizePlainRecord,
   normalizeShiftMasterAssignmentScopeMode,
   notifySaveSuccess,
-  onActiveRegistryChange: updateProductionStructureMatrixRegistryUrl,
+  onActiveRegistryChange: syncProductionStructureMatrixActiveRegistry,
   persistUiState,
   render,
   renderUiActionButton,
@@ -2488,7 +2516,12 @@ function initializeProductionStructureMatrixModule(factory, matrixData) {
   sortShiftMasterAssignableEmployees,
   syncProductionStructureMatrixToPlanningState,
   upsertSystemDomainEntity,
-  }));
+  });
+  bindProductionStructureMatrixEvents = legacyModule.bindProductionStructureMatrixEvents;
+  getProductionStructureMatrixRuntimeOverrides = legacyModule.getProductionStructureMatrixRuntimeOverrides;
+  renderProductionStructureMatrixPage = legacyModule.renderProductionStructureMatrixPage;
+  setLegacyProductionStructureMatrixActiveRegistry = legacyModule.setProductionStructureMatrixActiveRegistry;
+  setLegacyProductionStructureMatrixActiveRegistry(productionStructureMatrixActiveRegistry);
 }
 
 function ensureProductionStructureMatrixModule() {
@@ -3556,6 +3589,79 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     };
   },
 });
+function resolveProductionStructureRegistryActivation({
+  surfaceId,
+  featureFlagEnabled,
+  readOnlyEvaluationAllowed,
+  evaluationRequested,
+  localQa,
+} = {}) {
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId,
+    evaluationFeatureEnabled: featureFlagEnabled === true && readOnlyEvaluationAllowed === true,
+    evaluationRequested: evaluationRequested === true,
+    localQaEnabled: localQa?.featureFlagEnabled === true && (localQa.readOnlyEvaluation === true || localQa.writeEvaluation === true),
+  });
+  const serverReadReady = systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState);
+  const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+    ? "read-unavailable"
+    : systemDomainsServerReadState.status === "server" && !systemDomainsState
+      ? "model-unavailable"
+      : "";
+  return {
+    ...runtimeActivation,
+    accessMode: runtimeActivation.runtimeMode === "evaluation" && runtimeActivation.featureFlagEnabled && localQa?.writeEvaluation === true
+      ? "write-evaluation"
+      : runtimeActivation.accessMode,
+    serverReadFailure,
+    serverReadReady,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+function isProductionStructureRegistryCommandReady(surfaceId, registryId, localQa = {}) {
+  const signedRuntimeActivation = resolveReactRuntimeActivation({ surfaceId });
+  const writeModeAllowed = signedRuntimeActivation.accessMode === "react"
+    || (getReactRuntimeMode(surfaceId) === "evaluation" && localQa.writeEvaluation === true);
+  return writeModeAllowed
+    && systemDomainsServerReadState.status === "server"
+    && Boolean(systemDomainsState)
+    && systemDomainsServerCommandState.status === "ready"
+    && systemDomainsServerCommandState.configured === true
+    && systemDomainsServerCommandState.enabled === true
+    && systemDomainsServerCommandState.primaryAuthority === true
+    && systemDomainsServerCommandState.consistencyMatches === true
+    && systemDomainsServerCommandState.actorAuthorized === true
+    && systemDomainsServerCommandState.surfaces.includes("production-structure")
+    && canEditSystemDomainRegistry(registryId);
+}
+function canRequestProductionStructureEmployeeElevation(surfaceId) {
+  return getReactRuntimeMode(surfaceId) === "react"
+    && isEmployeeServerAuthAvailable()
+    && Boolean(getAuthenticatedAccessPerson()?.id)
+    && employeeServerSessionState.authenticated !== true
+    && systemDomainsServerCommandState.status === "ready"
+    && systemDomainsServerCommandState.configured === true
+    && systemDomainsServerCommandState.primaryAuthority === true
+    && systemDomainsServerCommandState.consistencyMatches === true
+    && systemDomainsServerCommandState.actorAuthorized !== true
+    && systemDomainsServerCommandState.actorAuthorizationReason === "authenticated-session-required";
+}
+function getProductionStructureRegistryCapabilities(surfaceId, registryId, localQa = {}) {
+  const commandReady = isProductionStructureRegistryCommandReady(surfaceId, registryId, localQa);
+  return {
+    createEdit: commandReady,
+    archive: commandReady,
+    employeeElevation: !commandReady && canRequestProductionStructureEmployeeElevation(surfaceId),
+    writeUnavailableReason: commandReady ? "" : "Для изменений подтвердите PIN сотрудника и право System Domains.",
+  };
+}
+function beginProductionStructureEmployeeElevation(registryId) {
+  return beginNomenclatureEmployeeElevation("productionStructureMatrix", registryId);
+}
+function navigateProductionStructureRegistry(registryId) {
+  setProductionStructureMatrixActiveRegistry(registryId);
+  if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+}
 function getStructureEmployeesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -3575,40 +3681,21 @@ function isStructureEmployeesReactEvaluationRequested() {
 const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHost({
   getActivation: () => {
     const localQa = getStructureEmployeesReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES === true || localQa.featureFlagEnabled,
-      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
-      accessMode: localQa.writeEvaluation
-        ? "write-evaluation"
-        : (serverEvaluationAllowed && isStructureEmployeesReactEvaluationRequested()) || localQa.readOnlyEvaluation
-          ? "read-only-evaluation"
-          : "editor",
-    };
+    return resolveProductionStructureRegistryActivation({ surfaceId: "structureEmployees", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureEmployeesReactEvaluationRequested(), localQa });
   },
   getPayload: () => {
-    const commandReady = getStructureEmployeesReactLocalQaOverrides().writeEvaluation
-        && systemDomainsServerCommandState.status === "ready"
-        && systemDomainsServerCommandState.enabled === true
-        && systemDomainsServerCommandState.surfaces.includes("production-structure")
-        && canEditSystemDomainRegistry("employees");
-    return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } };
+    return { ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureEmployees", "employees", getStructureEmployeesReactLocalQaOverrides()) };
   },
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => {
-    setProductionStructureMatrixActiveRegistry(registryId || "employees");
-    if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
-  },
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("employees");
     const localQa = getStructureEmployeesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) {
+    if (!["save", "archive", "reactivate"].includes(command.type)) {
       return { ok: false, message: "Команда редактирования сотрудников недоступна." };
     }
-    if (systemDomainsServerReadState.status !== "server"
-      || systemDomainsServerCommandState.status !== "ready"
-      || systemDomainsServerCommandState.enabled !== true
-      || !systemDomainsServerCommandState.surfaces.includes("production-structure")
-      || !canEditSystemDomainRegistry("employees")) {
+    if (!isProductionStructureRegistryCommandReady("structureEmployees", "employees", localQa)) {
       return { ok: false, message: "PostgreSQL-команда или право редактирования сотрудников недоступны." };
     }
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
@@ -3703,23 +3790,17 @@ function isStructurePositionsReactEvaluationRequested() {
 const structurePositionsReactIslandHost = createStructurePositionsReactIslandHost({
   getActivation: () => {
     const localQa = getStructurePositionsReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS === true || localQa.featureFlagEnabled,
-      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructurePositionsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
-    };
+    return resolveProductionStructureRegistryActivation({ surfaceId: "structurePositions", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION === true, evaluationRequested: isStructurePositionsReactEvaluationRequested(), localQa });
   },
-  getPayload: () => { const commandReady = getStructurePositionsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("positions"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; },
+  getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structurePositions", "positions", getStructurePositionsReactLocalQaOverrides()) }),
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => {
-    setProductionStructureMatrixActiveRegistry(registryId || "positions");
-    if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
-  },
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("positions");
     const localQa = getStructurePositionsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда должностей недоступна." };
-    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("positions")) return { ok: false, message: "PostgreSQL-команда или право редактирования должностей недоступны." };
+    if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда должностей недоступна." };
+    if (!isProductionStructureRegistryCommandReady("structurePositions", "positions", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования должностей недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "reactivate") {
       const positionId = String(input.positionId || "").trim(); const registries = getSystemDomainsRegistries();
@@ -3794,16 +3875,17 @@ function isStructureOrgUnitsReactEvaluationRequested() {
 const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost({
   getActivation: () => {
     const localQa = getStructureOrgUnitsReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true;
-    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureOrgUnitsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
+    return resolveProductionStructureRegistryActivation({ surfaceId: "structureOrgUnits", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureOrgUnitsReactEvaluationRequested(), localQa });
   },
-  getPayload: () => { const commandReady = getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("orgUnits"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; },
+  getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureOrgUnits", "orgUnits", getStructureOrgUnitsReactLocalQaOverrides()) }),
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "orgUnits"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("orgUnits");
     const localQa = getStructureOrgUnitsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда подразделений недоступна." };
-    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("orgUnits")) return { ok: false, message: "PostgreSQL-команда или право редактирования подразделений недоступны." };
+    if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда подразделений недоступна." };
+    if (!isProductionStructureRegistryCommandReady("structureOrgUnits", "orgUnits", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования подразделений недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "reactivate") {
       const orgUnitId = String(input.orgUnitId || "").trim();
@@ -3883,15 +3965,17 @@ function isStructureWorkCentersReactEvaluationRequested() {
 }
 const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslandHost({
   getActivation: () => {
-    const localQa = getStructureWorkCentersReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true;
-    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureWorkCentersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
-  },
-  getPayload: () => { const commandReady = getStructureWorkCentersReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("workCenters"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; }, getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "workCenters"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
-  executeCommand: async (command = {}) => {
     const localQa = getStructureWorkCentersReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда рабочего центра недоступна." };
-    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("workCenters")) return { ok: false, message: "PostgreSQL-команда или право редактирования рабочих центров недоступны." };
+    return resolveProductionStructureRegistryActivation({ surfaceId: "structureWorkCenters", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureWorkCentersReactEvaluationRequested(), localQa });
+  },
+  getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureWorkCenters", "workCenters", getStructureWorkCentersReactLocalQaOverrides()) }), getTargetRoot: () => app,
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  navigateRegistry: navigateProductionStructureRegistry,
+  executeCommand: async (command = {}) => {
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("workCenters");
+    const localQa = getStructureWorkCentersReactLocalQaOverrides();
+    if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда рабочего центра недоступна." };
+    if (!isProductionStructureRegistryCommandReady("structureWorkCenters", "workCenters", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования рабочих центров недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "reactivate") {
       const workCenterId = String(input.workCenterId || "").trim(); const registries = getSystemDomainsRegistries();
@@ -3963,15 +4047,17 @@ function isStructureEquipmentReactEvaluationRequested() {
 }
 const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHost({
   getActivation: () => {
-    const localQa = getStructureEquipmentReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION === true;
-    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureEquipmentReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
-  },
-  getPayload: () => { const commandReady = getStructureEquipmentReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("equipment"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; }, getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "equipment"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
-  executeCommand: async (command = {}) => {
     const localQa = getStructureEquipmentReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда оборудования недоступна." };
-    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("equipment")) return { ok: false, message: "PostgreSQL-команда или право редактирования оборудования недоступны." };
+    return resolveProductionStructureRegistryActivation({ surfaceId: "structureEquipment", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureEquipmentReactEvaluationRequested(), localQa });
+  },
+  getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureEquipment", "equipment", getStructureEquipmentReactLocalQaOverrides()) }), getTargetRoot: () => app,
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  navigateRegistry: navigateProductionStructureRegistry,
+  executeCommand: async (command = {}) => {
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("equipment");
+    const localQa = getStructureEquipmentReactLocalQaOverrides();
+    if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда оборудования недоступна." };
+    if (!isProductionStructureRegistryCommandReady("structureEquipment", "equipment", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования оборудования недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "reactivate") {
       const equipmentId = String(input.equipmentId || "").trim(); const registries = getSystemDomainsRegistries();
@@ -3994,8 +4080,11 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
     }
     if (command.type === "archive") {
       const equipmentId = String(input.equipmentId || "").trim();
-      const equipment = (getSystemDomainsRegistries().equipment || []).find((row) => row.id === equipmentId);
+      const registries = getSystemDomainsRegistries();
+      const equipment = (registries.equipment || []).find((row) => row.id === equipmentId);
       if (!equipment || equipment.isActive === false) return { ok: false, message: "Активное оборудование больше не существует." };
+      const hasActiveDependency = Object.entries(registries).some(([registryId, rows]) => registryId !== "equipment" && Array.isArray(rows) && rows.some((row) => row?.isActive !== false && (String(row?.equipmentId || "") === equipmentId || (Array.isArray(row?.equipmentIds) && row.equipmentIds.map(String).includes(equipmentId)))));
+      if (hasActiveDependency) return { ok: false, message: "Нельзя архивировать оборудование с действующими производственными или календарными связями." };
       try {
         const result = await archiveSystemDomainEntity("equipment", equipmentId, { source: "react:structure-equipment:archive", serverCommand: true, surface: "production-structure" });
         if (result !== true) return { ok: false, message: "Архивирование оборудования отклонено проверкой System Domains." };
@@ -4040,15 +4129,17 @@ function isStructureResponsibilityPoliciesReactEvaluationRequested() {
 }
 const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibilityPoliciesReactIslandHost({
   getActivation: () => {
-    const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION === true;
-    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureResponsibilityPoliciesReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
-  },
-  getPayload: () => { const commandReady = getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("responsibilityPolicies"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; }, getTargetRoot: () => app,
-  requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "responsibilityPolicies"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
-  executeCommand: async (command = {}) => {
     const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда жизненного цикла зон ответственности недоступна." };
-    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("responsibilityPolicies")) return { ok: false, message: "PostgreSQL-команда или право редактирования зон ответственности недоступны." };
+    return resolveProductionStructureRegistryActivation({ surfaceId: "structureResponsibilityPolicies", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureResponsibilityPoliciesReactEvaluationRequested(), localQa });
+  },
+  getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureResponsibilityPolicies", "responsibilityPolicies", getStructureResponsibilityPoliciesReactLocalQaOverrides()) }), getTargetRoot: () => app,
+  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  navigateRegistry: navigateProductionStructureRegistry,
+  executeCommand: async (command = {}) => {
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("responsibilityPolicies");
+    const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides();
+    if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда жизненного цикла зон ответственности недоступна." };
+    if (!isProductionStructureRegistryCommandReady("structureResponsibilityPolicies", "responsibilityPolicies", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования зон ответственности недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "archive") {
       const policyId = String(input.policyId || "").trim();
@@ -7581,9 +7672,10 @@ let shiftExecutionDomainApiModuleLoad = null;
 let shiftExecutionServerState = { status: "idle", primaryPostgres: false, schemaReady: false, commandsEnabled: false, coverageComplete: false, error: "" };
 let shiftExecutionOutboxFlushInFlight = false;
 let systemDomainsServerReadState = { status: "idle", error: "", revision: 0 };
-let systemDomainsServerCommandState = { status: "idle", enabled: false, surfaces: [], primaryAuthority: false, error: "" };
+let systemDomainsServerCommandState = { status: "idle", configured: false, enabled: false, surfaces: [], primaryAuthority: false, consistencyMatches: false, actorAuthorized: false, actorAuthorizationReason: "", error: "" };
 let systemDomainsServerCapabilitiesPromise = null;
 let systemDomainsServerCapabilitiesFetchedAt = 0;
+let systemDomainsServerCapabilitiesEpoch = 0;
 let systemDomainsServerReadRetryTimer = null;
 let systemDomainsServerReadRenderModuleId = "";
 let systemDomainsServerReadPromise = null;
@@ -7591,6 +7683,11 @@ let systemDomainsCompatibilityState = "unknown";
 let systemDomainsCompatibilityHydrated = false;
 const SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES = ["production-structure", "timesheet", "access-control"];
 const SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS = 5_000;
+function resetSystemDomainsServerCapabilities() {
+  systemDomainsServerCapabilitiesEpoch += 1;
+  systemDomainsServerCommandState = { status: "idle", configured: false, enabled: false, surfaces: [], primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(), consistencyMatches: false, actorAuthorized: false, actorAuthorizationReason: "", error: "" };
+  systemDomainsServerCapabilitiesFetchedAt = 0;
+}
 function hasSystemDomainsPrimaryTombstoneHint() {
   return window.sessionStorage?.getItem(SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY) === "1";
 }
@@ -7645,22 +7742,33 @@ function hydrateSystemDomainsServerCommands() {
   if (systemDomainsServerCommandState.status === "ready"
     && Date.now() - systemDomainsServerCapabilitiesFetchedAt < SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS) return Promise.resolve(systemDomainsServerCommandState);
   if (systemDomainsServerCapabilitiesPromise) return systemDomainsServerCapabilitiesPromise;
+  const requestEpoch = systemDomainsServerCapabilitiesEpoch;
   systemDomainsServerCommandState = { ...systemDomainsServerCommandState, status: "loading", error: "" };
   systemDomainsServerCapabilitiesPromise = systemDomainsCommands.getCapabilities().then((result) => {
+    if (requestEpoch !== systemDomainsServerCapabilitiesEpoch) return systemDomainsServerCommandState;
+    const capabilities = result.ok && result.capabilities && typeof result.capabilities === "object" ? result.capabilities : {};
     systemDomainsServerCommandState = {
       status: "ready",
-      enabled: result.ok && result.enabled === true,
-      surfaces: result.ok && Array.isArray(result.capabilities?.serverCommandSurfaces) ? result.capabilities.serverCommandSurfaces : [],
-      primaryAuthority: result.ok && result.capabilities?.consistency?.details?.authority?.mode === "postgres-primary",
+      configured: result.ok && capabilities.serverCommandsConfigured === true,
+      enabled: result.ok && result.enabled === true && capabilities.serverCommandsEnabled === true,
+      surfaces: result.ok && Array.isArray(capabilities.serverCommandSurfaces) ? capabilities.serverCommandSurfaces : [],
+      primaryAuthority: result.ok && capabilities.consistency?.details?.authority?.mode === "postgres-primary",
+      consistencyMatches: result.ok && capabilities.consistency?.matches === true,
+      actorAuthorized: result.ok && capabilities.actorAuthorization?.authorized === true,
+      actorAuthorizationReason: result.ok ? String(capabilities.actorAuthorization?.reason || "") : "capabilities-unavailable",
       error: result.ok ? "" : (result.error || "System Domains command capabilities are unavailable"),
     };
     systemDomainsServerCapabilitiesFetchedAt = Date.now();
     return systemDomainsServerCommandState;
   }).catch(() => {
-    systemDomainsServerCommandState = { status: "ready", enabled: false, surfaces: [], primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(), error: "System Domains command capabilities are unavailable" };
+    if (requestEpoch !== systemDomainsServerCapabilitiesEpoch) return systemDomainsServerCommandState;
+    systemDomainsServerCommandState = { status: "ready", configured: false, enabled: false, surfaces: [], primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(), consistencyMatches: false, actorAuthorized: false, actorAuthorizationReason: "capabilities-unavailable", error: "System Domains command capabilities are unavailable" };
     systemDomainsServerCapabilitiesFetchedAt = Date.now();
     return systemDomainsServerCommandState;
-  }).finally(() => { systemDomainsServerCapabilitiesPromise = null; });
+  }).finally(() => {
+    systemDomainsServerCapabilitiesPromise = null;
+    if (requestEpoch !== systemDomainsServerCapabilitiesEpoch) queueMicrotask(() => { void hydrateSystemDomainsServerCommands(); });
+  });
   return systemDomainsServerCapabilitiesPromise;
 }
 function scheduleSystemDomainsServerReadRetry(moduleId = "") {
@@ -10230,11 +10338,12 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status === "idle" || (systemDomainsServerReadState.status === "fallback" && systemDomainsServerReadRetryTimer === null)) {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
-        ensureProductionStructureMatrixModule();
         const activeReactHost = getActiveProductionStructureReactHost();
+        if (getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") ensureProductionStructureMatrixModule();
         Object.values(productionStructureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();
+        ensureProductionStructureMatrixModule();
         return renderProductionStructureMatrixPage();
       },
       bind: () => {

@@ -3,7 +3,7 @@ import { STRUCTURE_REGISTRY_DEFINITIONS, type StructureRegistryId } from "../str
 interface EntityDto { id?: unknown; name?: unknown; displayName?: unknown; code?: unknown; kind?: unknown; orgUnitId?: unknown; workCenterId?: unknown; defaultScheduleTemplateId?: unknown; isActive?: unknown }
 export interface StructurePosition { id: string; name: string; code: string; kind: string; kindLabel: string; orgUnitId: string; orgUnitLabel: string; workCenterId: string; workCenterLabel: string; scheduleTemplateId: string; scheduleTemplateLabel: string; statusLabel: string; statusTone: "success" | "warning"; isActive: boolean }
 export interface StructurePositionOption { id: string; label: string }
-export interface StructurePositionsReadModel { positions: StructurePosition[]; counts: Record<StructureRegistryId, number>; orgUnits: StructurePositionOption[]; workCenters: StructurePositionOption[]; scheduleTemplates: StructurePositionOption[]; canCreateEdit: boolean; canArchive: boolean }
+export interface StructurePositionsReadModel { positions: StructurePosition[]; counts: Record<StructureRegistryId, number>; orgUnits: StructurePositionOption[]; workCenters: StructurePositionOption[]; scheduleTemplates: StructurePositionOption[]; canCreateEdit: boolean; canArchive: boolean; canElevate?: boolean; writeUnavailableReason?: string }
 
 const KIND_LABELS: Record<string, string> = { manager: "Руководитель", supervisor: "Мастер", worker: "Исполнитель" };
 const text = (value: unknown) => String(value ?? "").trim();
@@ -35,5 +35,7 @@ export function adaptStructurePositions(payload: unknown): StructurePositionsRea
     scheduleTemplates: options(schedules),
     canCreateEdit: record(payloadRecord.capabilities).createEdit === true,
     canArchive: record(payloadRecord.capabilities).archive === true,
+    canElevate: record(payloadRecord.capabilities).employeeElevation === true,
+    writeUnavailableReason: text(record(payloadRecord.capabilities).writeUnavailableReason),
   };
 }

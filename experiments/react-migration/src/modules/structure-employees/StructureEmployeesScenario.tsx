@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { formatRecordCount } from "../../ui/format";
-import { adaptStructureEmployees, type StructureEmployee } from "./adapter";
+import { adaptStructureEmployees, type StructureEmployee, type StructureRegistryId } from "./adapter";
 import { buildStructureRegistryOptions, resolveVisibleStructureEmployee, STRUCTURE_EMPLOYEE_READ_COLUMNS } from "./view-model";
 
 export interface StructureEmployeeDraft {
@@ -17,7 +17,7 @@ export interface StructureEmployeeDraft {
   isActive: boolean;
 }
 
-export type StructureEmployeesReactCommand = { type: "save"; payload: StructureEmployeeDraft } | { type: "archive"; payload: { employeeId: string } } | { type: "reactivate"; payload: { employeeId: string } };
+export type StructureEmployeesReactCommand = { type: "save"; payload: StructureEmployeeDraft } | { type: "archive"; payload: { employeeId: string } } | { type: "reactivate"; payload: { employeeId: string } } | { type: "request-elevation" };
 
 const draftValue = (value: string) => value === "—" ? "" : value;
 const createEmployeeDraft = (employee?: StructureEmployee): StructureEmployeeDraft => ({
@@ -33,10 +33,10 @@ const createEmployeeDraft = (employee?: StructureEmployee): StructureEmployeeDra
   isActive: employee?.isActive ?? true,
 });
 
-export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy }: {
+export function StructureEmployeesScenario({ payload, onCommand, onNavigateRegistry }: {
   payload: unknown;
   onCommand?(command: StructureEmployeesReactCommand): Promise<{ ok?: boolean; id?: string; message?: string } | void>;
-  onRequestLegacy?(scope?: string): void;
+  onNavigateRegistry?(registryId: StructureRegistryId): void;
 }) {
   const model = useMemo(() => adaptStructureEmployees(payload), [payload]);
   const registries = useMemo(() => buildStructureRegistryOptions(model), [model]);
@@ -85,7 +85,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
     } finally { setSaving(false); }
   };
 
-  const header = <ModuleHeader eyebrow="Система · System Domains" title="Сотрудники" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL lifecycle evaluation" : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Система · System Domains" title="Сотрудники" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL lifecycle" : "React preview · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Реестры структуры и сотрудников" title="Структура и сотрудники">
       {registries.map((registry) => (
@@ -95,7 +95,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
           key={registry.id}
           label={registry.label}
           meta={registry.description}
-          onClick={() => registry.action === "employees" ? undefined : onRequestLegacy?.(registry.id)}
+          onClick={() => registry.id === "employees" ? undefined : onNavigateRegistry?.(registry.id)}
         />
       ))}
     </ModuleSidebar>
@@ -112,7 +112,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
           <MetricCard label="Оборудования" value={model.counts.equipment} />
           <MetricCard label="Зон ответственности" value={model.counts.responsibilityPolicies} />
         </MetricGrid>
-        <Panel heading={<div className="panel-heading"><div><h2>Сотрудники</h2><p>{formatRecordCount(model.employees.length)} · stable ID · архивирование без hard delete</p></div><ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createEmployeeDraft())} title={model.canCreateEdit ? "Создать сотрудника и основное назначение" : "Write evaluation выключен или PostgreSQL-команда недоступна"}>Новая запись</ActionButton></div>}>
+        <Panel heading={<div className="panel-heading"><div><h2>Сотрудники</h2><p>{formatRecordCount(model.employees.length)} · stable ID · архивирование без hard delete</p></div><div className="react-nomenclature-editor-actions">{model.canElevate ? <ActionButton onClick={() => void onCommand?.({ type: "request-elevation" })} title={model.writeUnavailableReason} variant="secondary">Подтвердить PIN</ActionButton> : null}<ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createEmployeeDraft())} title={model.canCreateEdit ? "Создать сотрудника и основное назначение" : model.writeUnavailableReason || "PostgreSQL-команда недоступна"}>Новая запись</ActionButton></div></div>}>
           {model.employees.length ? <TableWrap><table>
             <thead><tr>{STRUCTURE_EMPLOYEE_READ_COLUMNS.map((column) => <th key={column}>{column}</th>)}</tr></thead>
             <tbody>{model.employees.map((employee) => (

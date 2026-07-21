@@ -57,6 +57,8 @@ export interface StructureEmployeesReadModel {
   workCenters: StructureReferenceOption[];
   canCreateEdit: boolean;
   canArchive: boolean;
+  canElevate?: boolean;
+  writeUnavailableReason?: string;
 }
 
 function text(value: unknown): string {
@@ -184,5 +186,7 @@ export function adaptStructureEmployees(payload: unknown): StructureEmployeesRea
     workCenters: referenceOptions(workCenters),
     canCreateEdit: capabilities.createEdit === true,
     canArchive: capabilities.archive === true,
+    canElevate: capabilities.employeeElevation === true,
+    writeUnavailableReason: text(capabilities.writeUnavailableReason),
   };
 }

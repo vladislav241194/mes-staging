@@ -525,14 +525,14 @@ try {
   const structureViewModel = await import(`${pathToFileURL(structureViewModelOutput).href}?qa=${Date.now()}`);
   const structureRegistryOptions = structureViewModel.buildStructureRegistryOptions(structureModel);
   assert.deepEqual(structureRegistryOptions.map((option) => [option.id, option.count, option.action]), [
-    ["orgUnits", 2, "legacy"],
-    ["workCenters", 2, "legacy"],
-    ["positions", 3, "legacy"],
+    ["orgUnits", 2, "navigate"],
+    ["workCenters", 2, "navigate"],
+    ["positions", 3, "navigate"],
     ["employees", 3, "employees"],
-    ["equipment", 1, "legacy"],
-    ["responsibilityPolicies", 1, "legacy"],
-    ["migrationDiagnostics", 152, "legacy"],
-  ], "only the Employees registry may remain inside the React vertical slice");
+    ["equipment", 1, "navigate"],
+    ["responsibilityPolicies", 1, "navigate"],
+    ["migrationDiagnostics", 152, "navigate"],
+  ], "the permanent Structure surface must keep registry navigation inside React");
   assert.equal(structureViewModel.resolveVisibleStructureEmployee(structureModel.employees, "missing")?.id, "EMP-001");
 
   const { PRODUCTION_STRUCTURE_MATRIX_COLUMNS, PRODUCTION_STRUCTURE_MATRIX_ROWS } = await import(`${pathToFileURL(join(repositoryRoot, "src/production_structure_matrix_data.js")).href}?qa=${Date.now()}`);
@@ -1220,7 +1220,8 @@ try {
 
   const structureEmployeesIslandSource = await readFile(join(sourceRoot, "structure-employees-island.tsx"), "utf8");
   assert.match(structureEmployeesIslandSource, /export function mountStructureEmployeesReactIsland/);
-  assert.match(structureEmployeesIslandSource, /onRequestLegacy/);
+  assert.match(structureEmployeesIslandSource, /onNavigateRegistry/);
+  assert.doesNotMatch(structureEmployeesIslandSource, /onRequestLegacy/, "permanent Structure navigation must not request a generic legacy fallback");
 
   const rolesIslandSource = await readFile(join(sourceRoot, "roles-island.tsx"), "utf8");
   assert.match(rolesIslandSource, /export function mountRolesReactIsland/);
@@ -1600,14 +1601,14 @@ try {
   assert.match(productionAppSource, /if \(getActiveProductionStructureReactHost\(\)\.isReactEligible\(\)\) return;/, "An eligible nested React host must suppress only its own legacy event binding");
   assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /structureEmployeesReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "employees"\)/);
+  assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId\)/, "Structure navigation must preserve the selected typed registry");
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_POSITIONS === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-positions"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-structure-positions-readonly"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-structure-positions-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /structurePositionsReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "positions"\)/);
+  assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId\)/);
   assert.match(productionAppSource, /source: "react:structure-positions:reactivate"/, "Positions reactivation must use the existing System Domains owner");
   assert.match(productionAppSource, /authoritativePosition\.archivedAt/, "Positions reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_ORG_UNITS === true/);
