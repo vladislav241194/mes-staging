@@ -279,6 +279,18 @@ async function readAppDisplayVersion() {
   return version;
 }
 
+async function assertAppDisplayVersionContract(version) {
+  const [indexSource, appSource] = await Promise.all([
+    readFile(join(projectRoot, "index.html"), "utf-8"),
+    readFile(join(projectRoot, "src", "app.js"), "utf-8"),
+  ]);
+  const indexVersion = String(indexSource.match(/window\.__MES_DEPLOY_VERSION__\s*=\s*["']([^"']+)["'];/)?.[1] || "");
+  const fallbackVersion = String(appSource.match(/const APP_VERSION_FALLBACK\s*=\s*["']([^"']+)["'];/)?.[1] || "");
+  if (indexVersion !== version || fallbackVersion !== version) {
+    throw new Error(`App version contract mismatch: manifest=${version}, index=${indexVersion || "missing"}, fallback=${fallbackVersion || "missing"}`);
+  }
+}
+
 function injectAppDisplayVersion(html, version) {
   return replaceRequired(
     html,
@@ -333,6 +345,7 @@ if (await pathExists(bootstrapSnapshotPath)) {
 }
 
 const appDisplayVersion = await readAppDisplayVersion();
+await assertAppDisplayVersionContract(appDisplayVersion);
 await copyFile(appVersionPath, join(stagingDistDir, "app-version.json"));
 await copyFile(join(projectRoot, "react-runtime-policy.json"), join(stagingDistDir, "react-runtime-policy.json"));
 let html = await readFile(join(stagingDistDir, "index.html"), "utf-8");

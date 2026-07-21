@@ -156,6 +156,7 @@ export function createReactIslandHost({
             target.dataset.reactIslandState = "ready";
             target.dataset.reactIslandRevision = String(readyRevision);
             target.dataset.reactIslandCommitMs = durationMs.toFixed(2);
+            target.setAttribute("aria-busy", "false");
             lastShellTelemetryKey = "ready";
             emitTelemetry({ activation, state: "ready", stage: "commit", revision: readyRevision, durationMs });
           },

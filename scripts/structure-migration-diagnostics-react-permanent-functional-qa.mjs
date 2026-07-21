@@ -31,6 +31,7 @@ const capturePermanentDiagnostics = () => {
     sourceMeta: panels.find((panel) => panel.querySelector("h2")?.textContent?.includes("Legacy Excel"))?.textContent?.replace(/\s+/g, " ").trim() || "",
     revision: target?.dataset.reactIslandRevision,
     commitMs: Number(target?.dataset.reactIslandCommitMs),
+    ariaBusy: target?.getAttribute("aria-busy") || "",
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     registry: new URL(location.href).searchParams.get("structureRegistry"),
   };
@@ -123,7 +124,7 @@ try {
   assert(["Потерянные связи", "Дубликаты", "Неприменённые overrides", "Игнорированные legacy-строки"].every((title) => permanent.issuePanels.some((panel) => panel.includes(title))) && permanent.issuePanels.some((panel) => panel.includes("Игнорированные legacy-строки") && panel.includes("2 записей")), "Diagnostics issue groups/counts failed");
   assert(["Подразделения", "Рабочие центры", "Должности", "Сотрудники", "Оборудование", "Зоны ответственности", "Диагностика миграции"].every((label) => permanent.sidebar.some((item) => item.includes(label))), "Diagnostics sidebar registry coverage failed");
   assert(!permanent.buttons.some((label) => /создать|сохранить|удалить|архивировать|редактировать/i.test(label)) && systemDomainWrites === 0, `read-only Diagnostics exposed or called a write: ${JSON.stringify({ buttons: permanent.buttons, systemDomainWrites })}`);
-  assert(permanent.revision === "1" && Number.isFinite(permanent.commitMs) && permanent.commitMs < 2000 && !permanent.overflow && permanent.registry === "migrationDiagnostics", `Diagnostics ready/route/overflow telemetry failed: ${JSON.stringify(permanent)}`);
+  assert(permanent.revision === "1" && Number.isFinite(permanent.commitMs) && permanent.commitMs < 2000 && permanent.ariaBusy === "false" && !permanent.overflow && permanent.registry === "migrationDiagnostics", `Diagnostics ready/route/accessibility/overflow telemetry failed: ${JSON.stringify(permanent)}`);
   const readyTelemetry = await evaluate(client, () => window.__MES_QA_REACT_TELEMETRY__ || []);
   assert(readyTelemetry.some((item) => item.surfaceId === "structureMigrationDiagnostics" && item.runtimeMode === "react" && item.state === "ready" && item.stage === "commit" && item.policyId === "qa-diagnostics-permanent" && Number.isFinite(item.durationMs)), `Diagnostics ready telemetry missing: ${JSON.stringify(readyTelemetry)}`);
 

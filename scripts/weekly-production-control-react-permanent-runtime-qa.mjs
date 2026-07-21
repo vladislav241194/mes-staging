@@ -79,6 +79,27 @@ try {
   assert.equal(evaluationHost.getFallbackReason(), "mount-error");
   assert.equal(evaluationTelemetry.filter((event) => event.state === "legacy-fallback").length, 1);
 
+  const readyTarget = new FakeElement();
+  readyTarget.setAttribute("aria-busy", "true");
+  const readyTelemetry = [];
+  const readyHost = createReactIslandHost({
+    getActivation: () => ({ runtimeMode: "react" }),
+    getPayload: () => ({}),
+    getTargetRoot: () => ({ querySelector: () => readyTarget }),
+    getIneligibilityReason: () => "",
+    targetSelector: "[data-react-test]",
+    renderTarget: '<div data-react-test data-react-island-state="loading" aria-busy="true"></div>',
+    loadIsland: async () => ({}),
+    mountIsland: ({ onReady }) => { onReady({ revision: 7 }); return { unmount() {} }; },
+    canFallbackToLegacy: () => false,
+    getTelemetryContext: () => ({ surfaceId: "weeklyProductionControl", runtimeMode: "react", policyId: "qa-weekly-react" }),
+    reportTelemetry: (event) => readyTelemetry.push(event),
+  });
+  assert.equal(await readyHost.mount(), true);
+  assert.equal(readyTarget.dataset.reactIslandState, "ready");
+  assert.equal(readyTarget["aria-busy"], "false", "ready React islands must clear the loading accessibility state");
+  assert.equal(readyTelemetry.filter((event) => event.state === "ready" && event.stage === "commit").length, 1);
+
   const shellTelemetry = [];
   let shellLoads = 0;
   let shellState = { state: "loading", stage: "read", reason: "server-read-pending" };
