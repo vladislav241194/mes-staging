@@ -260,6 +260,33 @@ export function createShiftExecutionReadRepository({
         },
       };
     },
+    async findActiveResourceDependencies(resourceIds = []) {
+      const normalizedIds = [...new Set((Array.isArray(resourceIds) ? resourceIds : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean))].slice(0, 100);
+      if (!normalizedIds.length) return { storageMode: "postgres", storageBackend: "postgresql", configured: true, items: [] };
+      const rows = await sql`
+        SELECT id, work_order_id, work_order_operation_id, resource_id, status
+        FROM shift_assignments
+        WHERE resource_id = ANY(${normalizedIds})
+          AND COALESCE(status, '') NOT IN ('completed', 'done', 'closed', 'canceled', 'cancelled', 'archived')
+        ORDER BY updated_at DESC, id
+        LIMIT 100
+      `;
+      return {
+        storageMode: "postgres",
+        storageBackend: "postgresql",
+        configured: true,
+        items: rows.map((row) => ({
+          kind: "shift-assignment",
+          id: String(row.id || ""),
+          workOrderId: String(row.work_order_id || ""),
+          operationId: String(row.work_order_operation_id || ""),
+          equipmentId: String(row.resource_id || ""),
+          status: String(row.status || ""),
+        })),
+      };
+    },
     async list({ limit = 100 } = {}) {
       const boundedLimit = Math.max(1, Math.min(500, Math.trunc(number(limit) || 100)));
       const rows = await sql`

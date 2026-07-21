@@ -25,6 +25,11 @@ import {
   isPlanningAuthorizationInfrastructureReason,
   resolvePlanningCommandAuthorization,
 } from "./planning-command-authorization.mjs";
+import {
+  projectSystemDomainsProductionStructureAuthorization,
+  resolveSystemDomainsProductionStructureAuthorization,
+} from "./system-domains-command-authorization.mjs";
+import { validateSystemDomainsProductionStructureImpact } from "./system-domains-production-structure-impact.mjs";
 import { isPlanningSnapshotObservationEnabled } from "./planning-snapshot-observer.mjs";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
@@ -263,6 +268,33 @@ function sendPlanningAuthorizationFailure(res, headers, authorization, actionLab
     apiVersion: "v1",
     code: "planning-write-forbidden",
     error: `Current employee is not authorized for ${actionLabel}`,
+  });
+}
+
+function sendSystemDomainsProductionStructureAuthorizationFailure(res, headers, authorization) {
+  if (authorization.infrastructureUnavailable) {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "production-structure-authorization-unavailable",
+      error: "Current Production Structure authorization is unavailable",
+    });
+    return;
+  }
+  if (!authorization.actor) {
+    sendJson(res, headers, 401, {
+      ok: false,
+      apiVersion: "v1",
+      code: String(authorization.reason || "employee-session-required"),
+      error: "Authenticated employee session is required to update Production Structure",
+    });
+    return;
+  }
+  sendJson(res, headers, 403, {
+    ok: false,
+    apiVersion: "v1",
+    code: "production-structure-write-forbidden",
+    error: "Current employee is not authorized to update Production Structure",
   });
 }
 
@@ -1635,6 +1667,8 @@ export async function handleDomainApiRequest(req, res, url, {
   shiftExecutionSessionResolver = inspectShiftExecutionCommandSession,
   shiftExecutionAuthorizationResolver = getCurrentShiftExecutionAuthorization,
   planningAuthorizationResolver = resolvePlanningCommandAuthorization,
+  systemDomainsProductionStructureAuthorizationResolver = resolveSystemDomainsProductionStructureAuthorization,
+  systemDomainsProductionStructureImpactResolver = validateSystemDomainsProductionStructureImpact,
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const isPlanningWorkbenchBootstrap = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`;
@@ -2074,6 +2108,24 @@ export async function handleDomainApiRequest(req, res, url, {
     const enabledSurfaces = getEnabledSystemDomainsCommandSurfaces(env);
     const commandRequested = enabledSurfaces.length > 0 && health.storageBackend === "postgresql";
     const actorAuthorization = getSystemDomainsCommandActorAuthorization(getPublicAuthPrincipal(req, env), env);
+    let productionStructureAuthorization = projectSystemDomainsProductionStructureAuthorization({
+      allowed: false,
+      reason: actorAuthorization.authorized ? "employee-session-required" : actorAuthorization.reason,
+    });
+    if (commandRequested && enabledSurfaces.includes("production-structure") && actorAuthorization.authorized) {
+      try {
+        const resolved = typeof systemDomainsProductionStructureAuthorizationResolver === "function"
+          ? await systemDomainsProductionStructureAuthorizationResolver(req, { env })
+          : { allowed: false, reason: "production-structure-authorization-unavailable", infrastructureUnavailable: true };
+        productionStructureAuthorization = projectSystemDomainsProductionStructureAuthorization(resolved);
+      } catch {
+        productionStructureAuthorization = projectSystemDomainsProductionStructureAuthorization({
+          allowed: false,
+          reason: "production-structure-authorization-unavailable",
+          infrastructureUnavailable: true,
+        });
+      }
+    }
     let consistency = null;
     if (commandRequested) {
       let domains;
@@ -2086,7 +2138,15 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     const serverAuthoritative = hasSystemDomainsServerAuthority(consistency, enabledSurfaces);
     const serverCommandsConfigured = commandRequested && serverAuthoritative && actorAuthorization.policyConfigured;
-    const serverCommandsEnabled = serverCommandsConfigured && actorAuthorization.authorized;
+    const productionStructureWriteEnabled = serverCommandsConfigured
+      && actorAuthorization.authorized
+      && enabledSurfaces.includes("production-structure")
+      && productionStructureAuthorization.canEdit
+      && Number(productionStructureAuthorization.revision || 0) === Number(consistency?.revision || 0);
+    const serverCommandSurfaces = serverCommandsConfigured && actorAuthorization.authorized
+      ? enabledSurfaces.filter((surface) => surface !== "production-structure" || productionStructureWriteEnabled)
+      : [];
+    const serverCommandsEnabled = serverCommandSurfaces.length > 0;
     sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
       // The rollout flag is deliberately insufficient by itself. A command
       // writer is exposed only when its compatibility projection matches the
@@ -2097,8 +2157,10 @@ export async function handleDomainApiRequest(req, res, url, {
       serverCommandsConfigured,
       configuredServerCommandSurfaces: serverCommandsConfigured ? enabledSurfaces : [],
       serverCommandsEnabled,
-      serverCommandSurfaces: serverCommandsEnabled ? enabledSurfaces : [],
+      serverCommandSurfaces,
       actorAuthorization,
+      productionStructureWriteEnabled,
+      productionStructureAuthorization,
       primaryPostgres: health.storageBackend === "postgresql",
       consistency,
     } });
@@ -2598,6 +2660,27 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "System Domains command surface is not enabled during snapshot migration", surface, enabledSurfaces });
       return true;
     }
+    let commandActor = actor;
+    let productionStructureAuthorization = null;
+    if (surface === "production-structure") {
+      try {
+        const resolved = typeof systemDomainsProductionStructureAuthorizationResolver === "function"
+          ? await systemDomainsProductionStructureAuthorizationResolver(req, { env })
+          : { allowed: false, reason: "production-structure-authorization-unavailable", infrastructureUnavailable: true };
+        productionStructureAuthorization = projectSystemDomainsProductionStructureAuthorization(resolved);
+      } catch {
+        productionStructureAuthorization = projectSystemDomainsProductionStructureAuthorization({
+          allowed: false,
+          reason: "production-structure-authorization-unavailable",
+          infrastructureUnavailable: true,
+        });
+      }
+      if (!productionStructureAuthorization.authorized) {
+        sendSystemDomainsProductionStructureAuthorizationFailure(res, headers, productionStructureAuthorization);
+        return true;
+      }
+      commandActor = productionStructureAuthorization.actor;
+    }
     let candidate;
     try { candidate = normalizeSystemDomainsCommandPayload(payload.domains); }
     catch (error) {
@@ -2623,7 +2706,7 @@ export async function handleDomainApiRequest(req, res, url, {
         const replay = await domains.inspectCommandReplay(candidate, {
           idempotencyKey,
           expectedRevision: expected.value,
-          actorId: actor.id,
+          actorId: commandActor.id,
         });
         if (replay.matches !== true) {
           sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, error: "System Domains revision conflict", revision: currentProjection.revision });
@@ -2635,6 +2718,18 @@ export async function handleDomainApiRequest(req, res, url, {
         return true;
       }
       if (currentRevisionMatches) {
+        if (surface === "production-structure"
+          && Number(productionStructureAuthorization?.revision || 0) !== Number(currentProjection.revision)) {
+          sendJson(res, headers, 409, {
+            ok: false,
+            apiVersion: "v1",
+            conflict: true,
+            code: "production-structure-authorization-stale",
+            revision: currentProjection.revision,
+            error: "Production Structure authorization changed before the command could be committed",
+          });
+          return true;
+        }
         const surfaceValidation = validateSystemDomainsSurfaceChange({ current: currentProjection.item, candidate, surface });
         if (!surfaceValidation.ok) {
           sendJson(res, headers, 403, {
@@ -2646,9 +2741,37 @@ export async function handleDomainApiRequest(req, res, url, {
           });
           return true;
         }
+        if (surface === "production-structure") {
+          let impact;
+          try {
+            impact = typeof systemDomainsProductionStructureImpactResolver === "function"
+              ? await systemDomainsProductionStructureImpactResolver({
+                current: currentProjection.item,
+                candidate,
+                workOrdersRepository: workOrders,
+                shiftExecutionReadRepositoryFactory,
+                databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "",
+              })
+              : { ok: false, unavailable: true, code: "production-structure-impact-unavailable", error: "Production Structure impact validation is unavailable" };
+          } catch {
+            impact = { ok: false, unavailable: true, code: "production-structure-impact-unavailable", error: "Production Structure impact validation is unavailable" };
+          }
+          if (impact?.ok !== true) {
+            sendJson(res, headers, impact?.unavailable === true ? 503 : 409, {
+              ok: false,
+              apiVersion: "v1",
+              conflict: impact?.unavailable !== true,
+              retryable: impact?.unavailable === true,
+              code: String(impact?.code || "production-structure-impact-conflict"),
+              error: String(impact?.error || "Production Structure impact validation rejected the command"),
+              dependencies: Array.isArray(impact?.dependencies) ? impact.dependencies : [],
+            });
+            return true;
+          }
+        }
       }
       const result = await domains.replace(candidate, {
-        source: `api-command:${surface}`, expectedRevision: expected.value, actorId: actor.id, commandType: `replace_projection:${surface}`, idempotencyKey,
+        source: `api-command:${surface}`, expectedRevision: expected.value, actorId: commandActor.id, commandType: `replace_projection:${surface}`, idempotencyKey,
       });
       if (result.conflict) {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, error: "System Domains revision conflict", revision: result.revision });

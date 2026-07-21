@@ -12,6 +12,8 @@ import {
 const markerSource = await readFile(new URL(`../${SYSTEM_DOMAINS_COMMAND_MARKER_PATH}`, import.meta.url), "utf8");
 const marker = JSON.parse(markerSource);
 const compatibility = buildSystemDomainsCommandManifestContract(markerSource);
+assert.equal(marker.authorizationSnapshotVersion, 2, "production-structure commands must bind the signed employee/RBAC authorization contract");
+assert(marker.requiredMigrations.includes("027_employee_auth_credentials"), "the System Domains command release must require durable employee-session storage");
 const manifest = {
   schemaVersion: 3,
   releaseId: "v.1.500.system-domains-qa",
@@ -53,6 +55,18 @@ const [activateSource, rollbackSource, stageSource, verifierSource] = await Prom
   readFile(new URL("./release-stage.mjs", import.meta.url), "utf8"),
   readFile(new URL("./release-server-command-contract-verify.mjs", import.meta.url), "utf8"),
 ]);
+const [apiSource, authorizationSource, impactSource] = await Promise.all([
+  readFile(new URL("./domain-api.mjs", import.meta.url), "utf8"),
+  readFile(new URL("./system-domains-command-authorization.mjs", import.meta.url), "utf8"),
+  readFile(new URL("./system-domains-production-structure-impact.mjs", import.meta.url), "utf8"),
+]);
+assert(apiSource.includes("resolveSystemDomainsProductionStructureAuthorization")
+  && apiSource.includes("validateSystemDomainsProductionStructureImpact")
+  && apiSource.includes("production-structure-authorization-stale")
+  && apiSource.includes("productionStructureWriteEnabled"),
+"the versioned server surface must enforce employee RBAC, impact validation and revision binding");
+assert(authorizationSource.includes("inspectEmployeeAuthSession") && authorizationSource.includes('moduleId: "productionStructureMatrix"'), "authorization v2 must derive its actor from the signed employee session and current module grant");
+assert(impactSource.includes("position-active-assignment") && impactSource.includes("equipment-active-resource-dependency"), "authorization v2 must retain the server-owned Position and Equipment impact guards");
 assert(stageSource.includes("systemDomainsCommandCompatibility") && stageSource.includes("validateSystemDomainsCandidateManifest(manifest"), "release staging must bind and validate the System Domains contract");
 assert(verifierSource.includes('args.contract === "all" || args.contract === "system-domains"'), "the common immutable-release verifier must expose the System Domains contract");
 

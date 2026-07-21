@@ -8,6 +8,9 @@ import { createSystemDomainsRepository } from "./domain-system-domains-repositor
 import { syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
 import { handleDomainApiRequest } from "./domain-api.mjs";
 import { createPublicPasswordHash, handlePublicAuthRequest } from "./public-auth-guard.mjs";
+import { createEmployeeAuthRepository } from "./domain-employee-auth-repository.mjs";
+import { createEmployeeSessionCookie } from "./employee-auth-guard.mjs";
+import { createEmployeePinHash } from "./employee-auth-crypto.mjs";
 import { serializeSystemDomains } from "../src/modules/system_domains/service.js";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -72,8 +75,18 @@ try {
   const domains = { schemaId: "mes.system-domains", schemaVersion: 1, metadata: { source: "e2e" }, registries: {
     orgUnits: [{ id: "D1", code: "D1", name: "Склад", kind: "department", parentOrgUnitId: "", isActive: true, validFrom: "", validTo: "", sourceRef: {} }],
     workCenters: [{ id: "D1", code: "D1", name: "Склад", orgUnitId: "D1", parentWorkCenterId: "", participatesInPlanning: true, canPlanDirectly: true, showInGantt: true, availabilitySource: "calendar", isActive: true, sourceRef: {} }],
-    positions: [], employees: [], employmentAssignments: [], equipment: [], scheduleTemplates: [], scheduleAssignments: [], attendanceEvents: [],
-    accessRoles: [], grants: [], roleAssignments: [], responsibilityPolicies: [],
+    positions: [{ id: "position-e2e", code: "POS-E2E", name: "Structure administrator", kind: "manager", orgUnitId: "D1", workCenterId: "D1", isActive: true, sourceRef: {} }],
+    employees: [{ id: "employee-structure-admin", personnelNumber: "E2E-001", displayName: "Structure Admin", positionId: "position-e2e", orgUnitId: "D1", workCenterId: "D1", isActive: true, sourceRef: {} }],
+    employmentAssignments: [{ id: "employment-structure-admin", employeeId: "employee-structure-admin", positionId: "position-e2e", orgUnitId: "D1", workCenterId: "D1", isPrimary: true, validFrom: "", validTo: "", sourceRef: {} }],
+    equipment: [{ id: "equipment-e2e", code: "EQ-E2E", name: "E2E resource", orgUnitId: "D1", workCenterId: "D1", quantity: 1, isActive: true, sourceRef: {} }],
+    scheduleTemplates: [], scheduleAssignments: [], attendanceEvents: [],
+    accessRoles: [{ id: "structure-admin", label: "Structure Admin", scope: "factory", isActive: true }],
+    grants: [
+      { id: "structure-admin:view", roleId: "structure-admin", resourceType: "module", resourceId: "productionStructureMatrix", actionId: "view", effect: "allow" },
+      { id: "structure-admin:edit", roleId: "structure-admin", resourceType: "module", resourceId: "productionStructureMatrix", actionId: "edit", effect: "allow" },
+    ],
+    roleAssignments: [{ id: "structure-admin:employee", employeeId: "employee-structure-admin", roleId: "structure-admin" }],
+    responsibilityPolicies: [],
   } };
   await writeFile(snapshotFile, JSON.stringify({ version: 5, values: { "mes-planning-prototype-state-v2": "{}", "mes-planning-prototype-directories-v2": "{}" } }), "utf8");
   const primary = createSystemDomainsRepository({ databaseUrl: scopedUrl });
@@ -107,13 +120,31 @@ try {
       MES_PUBLIC_AUTH_USERNAME: "e2e",
       MES_PUBLIC_AUTH_PASSWORD_HASH: createPublicPasswordHash("e2e-password", "0123456789abcdef0123456789abcdef"),
       MES_PUBLIC_AUTH_SESSION_SECRET: "system-domains-e2e-session-secret",
+      MES_EMPLOYEE_AUTH_HOSTS: "mes.e2e",
+      MES_EMPLOYEE_AUTH_SESSION_SECRET: "system-domains-e2e-employee-session-secret",
     };
-    const sessionCookie = await loginForApi(apiEnv);
+    const publicSessionCookie = await loginForApi(apiEnv);
+    const employeeAuth = createEmployeeAuthRepository({ databaseUrl: scopedUrl });
+    const credential = await employeeAuth.setPinHash({
+      employeeId: "employee-structure-admin",
+      pinHash: await createEmployeePinHash("e2e-pin", "system-domains-e2e-pin-salt"),
+    });
+    await employeeAuth.close();
+    const employeeSessionCookie = createEmployeeSessionCookie({
+      employeeId: "employee-structure-admin",
+      authVersion: credential.authVersion,
+      publicPrincipalId: "public:e2e",
+    }, apiEnv).split(";", 1)[0];
+    const sessionCookie = `${publicSessionCookie}; ${employeeSessionCookie}`;
     const loopbackLikeCapabilities = await invokeApi({ pathname: "/api/v1/system-domains/capabilities", env: apiEnv });
     assert(loopbackLikeCapabilities.statusCode === 200
       && loopbackLikeCapabilities.json.capabilities?.serverCommandsConfigured === true
       && loopbackLikeCapabilities.json.capabilities?.configuredServerCommandSurfaces?.includes("production-structure")
       && loopbackLikeCapabilities.json.capabilities?.serverCommandsEnabled === false
+      && loopbackLikeCapabilities.json.capabilities?.productionStructureWriteEnabled === false
+      && loopbackLikeCapabilities.json.capabilities?.productionStructureAuthorization?.authenticated === false
+      && loopbackLikeCapabilities.json.capabilities?.productionStructureAuthorization?.canEdit === false
+      && loopbackLikeCapabilities.json.capabilities?.productionStructureAuthorization?.actor === null
       && loopbackLikeCapabilities.json.capabilities?.actorAuthorization?.reason === "authenticated-session-required",
     "an unauthenticated loopback capability check must prove configuration without pretending it has a browser session");
     const deniedActorCapabilities = await invokeApi({
@@ -199,7 +230,70 @@ try {
     const consistency = await invokeApi({ pathname: "/api/v1/system-domains/consistency", env: apiEnv });
     assert(consistency.statusCode === 200 && consistency.json.consistency?.matches === true && consistency.json.consistency?.revision === 3, "HTTP consistency check must confirm that the server command mirrored its snapshot projection");
     const capabilities = await invokeApi({ pathname: "/api/v1/system-domains/capabilities", headers: { cookie: sessionCookie }, env: apiEnv });
-    assert(capabilities.statusCode === 200 && capabilities.json.capabilities?.serverCommandsConfigured === true && capabilities.json.capabilities?.serverCommandsEnabled === true && capabilities.json.capabilities?.serverCommandSurfaces?.includes("production-structure") && capabilities.json.capabilities?.actorAuthorization?.authorized === true && capabilities.json.capabilities?.consistency?.matches === true, "command capability must require and expose a parity-safe compatible snapshot to its authorized session");
+    assert(capabilities.statusCode === 200
+      && capabilities.json.capabilities?.serverCommandsConfigured === true
+      && capabilities.json.capabilities?.serverCommandsEnabled === true
+      && capabilities.json.capabilities?.serverCommandSurfaces?.includes("production-structure")
+      && capabilities.json.capabilities?.productionStructureWriteEnabled === true
+      && capabilities.json.capabilities?.actorAuthorization?.authorized === true
+      && capabilities.json.capabilities?.productionStructureAuthorization?.authorized === true
+      && capabilities.json.capabilities?.productionStructureAuthorization?.authenticated === true
+      && capabilities.json.capabilities?.productionStructureAuthorization?.canEdit === true
+      && capabilities.json.capabilities?.productionStructureAuthorization?.actor?.id === "employee:employee-structure-admin"
+      && capabilities.json.capabilities?.productionStructureAuthorization?.revision === 3
+      && capabilities.json.capabilities?.consistency?.matches === true,
+    "command capability must expose production-structure only for the current server-confirmed employee actor and RBAC revision");
+
+    const positionArchiveCandidate = {
+      ...apiChanged,
+      registries: {
+        ...apiChanged.registries,
+        positions: apiChanged.registries.positions.map((item) => item.id === "position-e2e" ? { ...item, isActive: false, archivedAt: "2026-07-21T00:00:00.000Z" } : item),
+      },
+    };
+    const blockedPositionArchive = await invokeApi({
+      pathname: "/api/v1/system-domains",
+      method: "PUT",
+      headers: { cookie: sessionCookie, "content-type": "application/json", "if-match": '"3"', "idempotency-key": "e2e-position-impact" },
+      payload: { domains: positionArchiveCandidate, surface: "production-structure", expectedRevision: 3 },
+      env: apiEnv,
+    });
+    assert(blockedPositionArchive.statusCode === 409
+      && blockedPositionArchive.json.code === "position-active-assignment"
+      && blockedPositionArchive.json.dependencies?.some((item) => item.id === "employment-structure-admin"),
+    "server-owned Position archive must reject an active employment assignment before mutation");
+    assert((await primary.get()).revision === 3, "rejected Position impact must leave the System Domains revision unchanged");
+
+    const impactDb = postgres(scopedUrl, { max: 1, prepare: false });
+    try {
+      await impactDb`
+        INSERT INTO work_orders (id, number, name, designation, unit, quantity, lifecycle_status, planning_status, source_kind, source_revision, aggregate_revision)
+        VALUES ('e2e-impact-order', 'WO-E2E-IMPACT', 'Equipment impact', 'E2E.IMPACT', 'шт.', 1, 'released', 'scheduled', 'qa', 1, 1)
+      `;
+      await impactDb`
+        INSERT INTO work_order_operations (id, work_order_id, operation_id, name, work_center_id, next_work_center_id, sequence_no, quantity_multiplier, execution_context, labor, metadata)
+        VALUES ('e2e-impact-operation', 'e2e-impact-order', 'OP-E2E', 'Equipment operation', 'D1', '', 1, 1, ${impactDb.json({ resourceId: "equipment-e2e" })}, ${impactDb.json({})}, ${impactDb.json({})})
+      `;
+    } finally { await impactDb.end({ timeout: 5 }); }
+    const equipmentArchiveCandidate = {
+      ...apiChanged,
+      registries: {
+        ...apiChanged.registries,
+        equipment: apiChanged.registries.equipment.map((item) => item.id === "equipment-e2e" ? { ...item, isActive: false, archivedAt: "2026-07-21T00:00:00.000Z" } : item),
+      },
+    };
+    const blockedEquipmentArchive = await invokeApi({
+      pathname: "/api/v1/system-domains",
+      method: "PUT",
+      headers: { cookie: sessionCookie, "content-type": "application/json", "if-match": '"3"', "idempotency-key": "e2e-equipment-impact" },
+      payload: { domains: equipmentArchiveCandidate, surface: "production-structure", expectedRevision: 3 },
+      env: apiEnv,
+    });
+    assert(blockedEquipmentArchive.statusCode === 409
+      && blockedEquipmentArchive.json.code === "equipment-active-resource-dependency"
+      && blockedEquipmentArchive.json.dependencies?.some((item) => item.id === "e2e-impact-operation" && item.equipmentId === "equipment-e2e"),
+    "server-owned Equipment archive must reject an active Planning resource dependency before mutation");
+    assert((await primary.get()).revision === 3, "rejected Equipment impact must leave the System Domains revision unchanged");
     const apiStale = await invokeApi({
       pathname: "/api/v1/system-domains",
       method: "PUT",

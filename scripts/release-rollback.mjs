@@ -710,6 +710,7 @@ verified_release_pointer_has_system_domains_command_compatibility() {
       "013_system_domains_command_idempotency",
       "023_system_domains_postgres_primary_authority",
       "026_system_responsibility_policy_lifecycle",
+      "027_employee_auth_credentials",
     ];
     if (manifest?.schemaVersion < 3
       || !Array.isArray(manifest?.runtimeIncludes)
@@ -718,7 +719,7 @@ verified_release_pointer_has_system_domains_command_compatibility() {
       || marker?.contract !== "system-domains-server-commands"
       || marker?.commandSurfaceVersion !== 1
       || marker?.actorPolicyVersion !== 1
-      || marker?.authorizationSnapshotVersion !== 1
+      || marker?.authorizationSnapshotVersion !== 2
       || marker?.authorityTransitionVersion !== 1
       || JSON.stringify(marker?.supportedSurfaces) !== JSON.stringify(surfaces)
       || marker?.controlledRootExclusivity?.required !== true

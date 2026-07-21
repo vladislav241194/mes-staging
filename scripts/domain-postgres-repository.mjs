@@ -111,6 +111,12 @@ function normalizeExecutionContext(value = {}) {
   };
 }
 
+function normalizeResourceDependencyIds(value = []) {
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean))].slice(0, 100);
+}
+
 function mapOperation(row, slot = null) {
   return {
     id: String(row.id),
@@ -516,6 +522,61 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         ...metadata,
         revision: Number(current.revision || 0),
         updatedAt: current.updated_at?.toISOString?.() || String(current.updated_at || migrations[0]?.updated_at?.toISOString?.() || ""),
+      };
+    },
+
+    async findActiveResourceDependencies(resourceIds = []) {
+      const normalizedIds = normalizeResourceDependencyIds(resourceIds);
+      if (!normalizedIds.length) return { ...metadata, items: [] };
+      const rows = await sql`
+        WITH active_resource_dependencies AS (
+          SELECT
+            'work-order-operation'::text AS dependency_kind,
+            op.id AS dependency_id,
+            wo.id AS work_order_id,
+            op.id AS operation_id,
+            COALESCE(
+              NULLIF(op.metadata ->> 'resourceId', ''),
+              NULLIF(op.execution_context ->> 'resourceId', ''),
+              ''
+            ) AS resource_id,
+            COALESCE(NULLIF(wo.lifecycle_status, ''), NULLIF(wo.planning_status, ''), 'active') AS dependency_status
+          FROM work_order_operations AS op
+          JOIN work_orders AS wo ON wo.id = op.work_order_id
+          WHERE COALESCE(wo.lifecycle_status, '') NOT IN ('completed', 'done', 'closed', 'canceled', 'cancelled', 'archived')
+            AND COALESCE(wo.planning_status, '') NOT IN ('completed', 'done', 'closed', 'canceled', 'cancelled', 'archived')
+            AND COALESCE(NULLIF(op.metadata ->> 'resourceId', ''), NULLIF(op.execution_context ->> 'resourceId', ''), '') = ANY(${normalizedIds})
+          UNION ALL
+          SELECT
+            'planning-slot'::text AS dependency_kind,
+            ps.id AS dependency_id,
+            wo.id AS work_order_id,
+            op.id AS operation_id,
+            COALESCE(NULLIF(ps.metadata ->> 'resourceId', ''), '') AS resource_id,
+            COALESCE(NULLIF(ps.status, ''), 'planned') AS dependency_status
+          FROM planning_slots AS ps
+          JOIN work_order_operations AS op ON op.id = ps.work_order_operation_id
+          JOIN work_orders AS wo ON wo.id = op.work_order_id
+          WHERE COALESCE(wo.lifecycle_status, '') NOT IN ('completed', 'done', 'closed', 'canceled', 'cancelled', 'archived')
+            AND COALESCE(wo.planning_status, '') NOT IN ('completed', 'done', 'closed', 'canceled', 'cancelled', 'archived')
+            AND COALESCE(ps.status, '') NOT IN ('completed', 'done', 'closed', 'canceled', 'cancelled', 'archived')
+            AND COALESCE(NULLIF(ps.metadata ->> 'resourceId', ''), '') = ANY(${normalizedIds})
+        )
+        SELECT dependency_kind, dependency_id, work_order_id, operation_id, resource_id, dependency_status
+        FROM active_resource_dependencies
+        ORDER BY dependency_kind, work_order_id, operation_id, dependency_id
+        LIMIT 100
+      `;
+      return {
+        ...metadata,
+        items: rows.map((row) => ({
+          kind: String(row.dependency_kind || "active-resource-reference"),
+          id: String(row.dependency_id || ""),
+          workOrderId: String(row.work_order_id || ""),
+          operationId: String(row.operation_id || ""),
+          equipmentId: String(row.resource_id || ""),
+          status: String(row.dependency_status || ""),
+        })),
       };
     },
 

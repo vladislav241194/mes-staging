@@ -12,6 +12,7 @@ export const SYSTEM_DOMAINS_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   "013_system_domains_command_idempotency",
   "023_system_domains_postgres_primary_authority",
   "026_system_responsibility_policy_lifecycle",
+  "027_employee_auth_credentials",
 ]);
 export const SYSTEM_DOMAINS_INCOMPATIBLE_TARGET_FLAGS = Object.freeze([
   "MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS",
@@ -27,7 +28,7 @@ export function parseAndValidateSystemDomainsCommandMarker(source) {
     || marker?.contract !== "system-domains-server-commands"
     || marker?.commandSurfaceVersion !== 1
     || marker?.actorPolicyVersion !== 1
-    || marker?.authorizationSnapshotVersion !== 1
+    || marker?.authorizationSnapshotVersion !== 2
     || marker?.authorityTransitionVersion !== 1
     || JSON.stringify(marker?.supportedSurfaces) !== JSON.stringify(SYSTEM_DOMAINS_COMMAND_SURFACES)
     || exclusivity?.required !== true

@@ -3,7 +3,7 @@
   "contract": "system-domains-server-commands",
   "commandSurfaceVersion": 1,
   "actorPolicyVersion": 1,
-  "authorizationSnapshotVersion": 1,
+  "authorizationSnapshotVersion": 2,
   "authorityTransitionVersion": 1,
   "supportedSurfaces": [
     "production-structure",
@@ -25,6 +25,7 @@
     "012_system_domains_metadata_parity",
     "013_system_domains_command_idempotency",
     "023_system_domains_postgres_primary_authority",
-    "026_system_responsibility_policy_lifecycle"
+    "026_system_responsibility_policy_lifecycle",
+    "027_employee_auth_credentials"
   ]
 }
