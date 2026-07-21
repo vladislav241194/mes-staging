@@ -65,29 +65,33 @@ const canonicalDomains = migrateLegacySystemDomains({
   defaultAccessRoleProfiles: [weeklyRole],
   migratedAt: "2026-07-19T00:00:00.000Z",
 }).domains;
-const compactRows = [{
-  id: "weekly-react-slot-1",
-  routeId: "weekly-react-route-1",
-  routeStepId: "weekly-react-step-1",
-  plannedStart: "2026-07-15T06:00:00.000Z",
-  plannedEnd: "2026-07-15T08:00:00.000Z",
-  quantity: 20,
-  unit: "шт.",
-  workCenterId: "D3",
-  resourceId: "",
-  status: "planned",
-  locked: false,
-  sourceWorkCenterId: "D3",
-  sourceResourceId: "",
-  sourceUnit: "шт.",
-  sourceComment: "Weekly React parity QA",
-  sourceOperationName: "Монтаж",
-  sourceSpecificationId: "spec-weekly-react",
-  sourceProjectId: "spec-weekly-react",
-  sourcePlanningOrderId: "weekly-react-route-1",
-  sourceBatchId: "weekly-react-route-1",
-  sourceRouteId: "weekly-react-route-1",
-}];
+const compactWeekStart = startOfWeek(new Date());
+const compactRows = ["D5", "D9", "D3_UW", "D3_AOI", "D4", "D3"].map((workCenterId, index) => {
+  const plannedStart = new Date(compactWeekStart.getTime() + index * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000);
+  return {
+    id: `weekly-react-slot-${workCenterId}`,
+    routeId: `weekly-react-route-${workCenterId}`,
+    routeStepId: `weekly-react-step-${workCenterId}`,
+    plannedStart: plannedStart.toISOString(),
+    plannedEnd: new Date(plannedStart.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+    quantity: 20 + index,
+    unit: "шт.",
+    workCenterId,
+    resourceId: "",
+    status: "planned",
+    locked: false,
+    sourceWorkCenterId: workCenterId,
+    sourceResourceId: "",
+    sourceUnit: "шт.",
+    sourceComment: "Weekly React canonical work-center identity parity QA",
+    sourceOperationName: "Монтаж",
+    sourceSpecificationId: "spec-weekly-react",
+    sourceProjectId: "spec-weekly-react",
+    sourcePlanningOrderId: `weekly-react-route-${workCenterId}`,
+    sourceBatchId: `weekly-react-route-${workCenterId}`,
+    sourceRouteId: `weekly-react-route-${workCenterId}`,
+  };
+});
 const responseBody = Buffer.from(JSON.stringify({ ok: true, view: "weekly", rows: compactRows, fallbackReason: "" })).toString("base64");
 
 async function waitPreview(origin) {
@@ -105,6 +109,20 @@ const normalizedTable = () => ({
   headers: [...document.querySelectorAll(".weekly-production-control-table thead th")].map((cell) => cell.textContent.replace(/\s+/g, " ").trim()),
   rows: [...document.querySelectorAll(".weekly-production-control-table tbody tr")].map((row) => [...row.querySelectorAll("td")].map((cell) => cell.textContent.replace(/\s+/g, " ").trim())),
 });
+const assertCanonicalAliasRows = (table, runtimeLabel) => {
+  const expectedPlans = new Map([
+    ["Отдел ручного монтажа", 20],
+    ["Слесарный участок 1", 21],
+    ["Участок отмывки", 22],
+    ["Участок оптической инспекции", 23],
+    ["Отдел технического контроля", 24],
+    ["Отдел поверхностного монтажа", 25],
+  ]);
+  expectedPlans.forEach((quantity, label) => {
+    const row = table.rows.find((candidate) => candidate[0] === label);
+    assert(row && row[8]?.startsWith(`${quantity} шт.`), `${runtimeLabel} did not merge ${label} into its canonical owner row: ${JSON.stringify(row)}`);
+  });
+};
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-weekly-production-control-react-"));
 const sharedStateFile = join(temporaryRoot, "shared-state.json");
 const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy: { actor: "weekly-react-qa" }, values: { [SYSTEM_DOMAINS_STORAGE_KEY]: serializeSystemDomains(canonicalDomains) }, sharedUi: {}, events: [] };
@@ -178,6 +196,8 @@ try {
   await client.send("Page.navigate", { url: `${legacyOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1` });
   await waitForCondition(client, () => document.querySelectorAll(".weekly-production-control-table tbody tr").length >= 25, { message: "completed legacy Weekly Control rows missing", timeoutMs: 15_000 });
   const legacy = await evaluate(client, normalizedTable);
+  assert(legacy.rows.length === 25 && legacy.headers.length === 11, `legacy Weekly fixture must expose exactly 25 rows/11 headers, got ${legacy.rows.length}/${legacy.headers.length}`);
+  assertCanonicalAliasRows(legacy, "legacy Weekly");
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1` });
   await waitForCondition(client, () => document.querySelectorAll(".weekly-production-control-table tbody tr").length >= 25, { message: "completed enabled Weekly legacy default missing", timeoutMs: 15_000 });
@@ -201,6 +221,8 @@ try {
   const state = await evaluate(client, () => { const target = document.querySelector("[data-react-weekly-production-control-island]"); const tableWrap = document.querySelector('[data-ui-component="TableWrap"]'); return { revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableOwnsOverflow: Boolean(tableWrap && tableWrap.scrollWidth > tableWrap.clientWidth), tableOverflowMode: tableWrap ? getComputedStyle(tableWrap).overflowX : "" }; });
   assert(JSON.stringify(react.headers) === JSON.stringify(legacy.headers), `Weekly header parity failed\nlegacy=${JSON.stringify(legacy.headers)}\nreact=${JSON.stringify(react.headers)}`);
   assert(JSON.stringify(react.rows) === JSON.stringify(legacy.rows), `Weekly row parity failed\nlegacy=${JSON.stringify(legacy.rows)}\nreact=${JSON.stringify(react.rows)}`);
+  assert(react.rows.length === 25 && react.headers.length === 11, `React Weekly canonical bridge must expose exactly 25 rows/11 headers, got ${react.rows.length}/${react.headers.length}`);
+  assertCanonicalAliasRows(react, "evaluation React Weekly");
   assert(state.revision === "1" && Number.isFinite(state.commitMs) && state.commitMs < 2000, "Weekly React commit telemetry failed");
   assert(!state.pageOverflow && (state.tableOwnsOverflow || ["auto", "scroll"].includes(state.tableOverflowMode)), "Weekly dense matrix must retain table-owned horizontal overflow policy");
 
@@ -218,6 +240,8 @@ try {
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="ready"]')), { message: "permanent Weekly React did not become ready after its PostgreSQL read", timeoutMs: 15_000 });
   const permanent = await evaluate(client, normalizedTable);
   assert(JSON.stringify(permanent.headers) === JSON.stringify(legacy.headers) && JSON.stringify(permanent.rows) === JSON.stringify(legacy.rows), "permanent Weekly lost exact legacy read parity");
+  assert(permanent.rows.length === 25 && permanent.headers.length === 11, `permanent React Weekly canonical bridge must expose exactly 25 rows/11 headers, got ${permanent.rows.length}/${permanent.headers.length}`);
+  assertCanonicalAliasRows(permanent, "permanent React Weekly");
   const permanentResources = await evaluate(client, () => performance.getEntriesByType("resource").map((entry) => new URL(entry.name).pathname));
   assert(!permanentResources.some((path) => path.endsWith("/modules/weekly_production_control/render.js")), `permanent Weekly fetched its legacy renderer: ${JSON.stringify(permanentResources)}`);
   assert(!permanentResources.some((path) => path.endsWith("/modules/production_structure_matrix/render.js")), `permanent Weekly fetched the legacy Structure renderer: ${JSON.stringify(permanentResources)}`);
