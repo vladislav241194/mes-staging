@@ -122,6 +122,43 @@ assert.match(stageSource, /root SSH from a clean published commit/);
 const firstFixedContentVerification = stageSource.indexOf('await run("ssh", sshArgs(args.remote, fixedContentVerificationCommand({');
 const remoteCandidatePreflight = stageSource.indexOf("const remotePreflight = [");
 assert(firstFixedContentVerification >= 0 && firstFixedContentVerification < remoteCandidatePreflight, "fixed root content verification must bind exact candidate bytes before npm or candidate scripts execute");
+const remoteCandidatePreflightEnd = stageSource.indexOf('].join("\\n");', remoteCandidatePreflight);
+const remoteCandidatePreflightSource = stageSource.slice(remoteCandidatePreflight, remoteCandidatePreflightEnd);
+assert.match(remoteCandidatePreflightSource, /install -d -o mes-stage -g mes-stage -m 0700[^\n]*\$stage_scratch\/runtime\/shared-state[^\n]*\$stage_scratch\/runtime\/backups[^\n]*\$stage_scratch\/runtime\/audit/);
+assert.match(remoteCandidatePreflightSource, /\/usr\/bin\/env -i [^\n]*MES_SHARED_STATE_DIR="\$stage_scratch\/runtime\/shared-state" MES_BACKUP_DIR="\$stage_scratch\/runtime\/backups" MES_AUDIT_LOG_PATH="\$stage_scratch\/runtime\/audit\/audit\.log" \/usr\/bin\/npm run server:preflight/);
+for (const livePath of ["/srv/mes/pilot/shared-state", "/srv/mes/pilot/backups", "/srv/mes/pilot/audit", "/srv/mes/dev/shared-state", "/srv/mes/dev/backups", "/srv/mes/dev/audit"]) {
+  assert(!remoteCandidatePreflightSource.includes(livePath), `mes-stage candidate preflight must not receive live write path ${livePath}`);
+}
+const stagePreflightRuntime = await mkdtemp(join(tmpdir(), "mes-stage-preflight-runtime-"));
+try {
+  const sharedStateDir = join(stagePreflightRuntime, "shared-state");
+  const backupDir = join(stagePreflightRuntime, "backups");
+  const auditDir = join(stagePreflightRuntime, "audit");
+  await Promise.all([mkdir(sharedStateDir), mkdir(backupDir), mkdir(auditDir)]);
+  const isolatedPreflight = spawnSync(process.execPath, [join(projectRoot, "scripts", "server-preflight.mjs"), "--json"], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    env: {
+      HOME: stagePreflightRuntime,
+      PATH: process.env.PATH || "/usr/bin:/bin",
+      APP_ENV: "pilot",
+      PORT: "4175",
+      APP_BASE_URL: "https://pilot.mes-line.ru",
+      MES_SHARED_STATE_DIR: sharedStateDir,
+      MES_BACKUP_DIR: backupDir,
+      MES_AUDIT_LOG_PATH: join(auditDir, "audit.log"),
+      MES_ALLOW_DESTRUCTIVE_ACTIONS: "false",
+      MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE: "false",
+    },
+  });
+  assert.equal(isolatedPreflight.status, 0, isolatedPreflight.stderr || isolatedPreflight.stdout);
+  const isolatedResult = JSON.parse(isolatedPreflight.stdout);
+  assert.equal(isolatedResult.appEnv, "pilot");
+  assert.equal(isolatedResult.failures.length, 0);
+  assert.equal(isolatedResult.checks.filter((item) => item.endsWith(": writable")).length, 3);
+} finally {
+  await rm(stagePreflightRuntime, { recursive: true, force: true });
+}
 assert.match(stageSource, /--mode=verify/);
 assert.match(stageSource, /--confirm=VERIFY_ROOT_STAGED_RELEASE/);
 

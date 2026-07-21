@@ -201,9 +201,6 @@ function preflightEnvironment(contour) {
     APP_ENV: contour.appEnv,
     PORT: contour.port,
     APP_BASE_URL: contour.url,
-    MES_SHARED_STATE_DIR: contour.sharedStateDir,
-    MES_BACKUP_DIR: contour.backupDir,
-    MES_AUDIT_LOG_PATH: contour.auditLogPath,
     MES_ALLOW_DESTRUCTIVE_ACTIONS: "false",
     MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE: "false",
   };
@@ -692,14 +689,16 @@ async function main() {
     'chmod 0700 "$stage_scratch"',
     'install -o mes-stage -g mes-stage -m 0644 "$candidate_app/package.json" "$stage_scratch/package.json"',
     'install -o mes-stage -g mes-stage -m 0644 "$candidate_app/package-lock.json" "$stage_scratch/package-lock.json"',
-    'install -d -o mes-stage -g mes-stage -m 0700 "$stage_scratch/home" "$stage_scratch/npm-cache"',
+    // Candidate preflight proves the runtime path contract as mes-stage without
+    // granting that build-only identity write access to any live contour data.
+    'install -d -o mes-stage -g mes-stage -m 0700 "$stage_scratch/home" "$stage_scratch/npm-cache" "$stage_scratch/runtime" "$stage_scratch/runtime/shared-state" "$stage_scratch/runtime/backups" "$stage_scratch/runtime/audit"',
     '/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME="$stage_scratch/home" NPM_CONFIG_CACHE="$stage_scratch/npm-cache" PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/npm ci --prefix "$stage_scratch" --omit=dev --ignore-scripts',
     'rm -rf -- "$candidate_app/node_modules"',
     'mv "$stage_scratch/node_modules" "$candidate_app/node_modules"',
     'chown -hR root:root "$candidate_app/node_modules"',
     'find "$candidate_app/node_modules" -xdev ! -type l -perm /022 -exec chmod go-w -- {} +',
     `cd ${shellQuote(releaseAppPath)}`,
-    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME="$stage_scratch/home" NPM_CONFIG_CACHE="$stage_scratch/npm-cache" PATH=/usr/sbin:/usr/bin:/sbin:/bin ${preflightEnvironment(contour)} /usr/bin/npm run server:preflight`,
+    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env -i HOME="$stage_scratch/home" NPM_CONFIG_CACHE="$stage_scratch/npm-cache" PATH=/usr/sbin:/usr/bin:/sbin:/bin ${preflightEnvironment(contour)} MES_SHARED_STATE_DIR="$stage_scratch/runtime/shared-state" MES_BACKUP_DIR="$stage_scratch/runtime/backups" MES_AUDIT_LOG_PATH="$stage_scratch/runtime/audit/audit.log" /usr/bin/npm run server:preflight`,
     `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-specifications2-stage-preflight.mjs --candidate-app=${shellQuote(releaseAppPath)} --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --active-app=${shellQuote(contour.appPath)} --service=${shellQuote(contour.service)}`,
     `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-server-command-contract-verify.mjs --app=${shellQuote(releaseAppPath)} --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --contract=all`,
     `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-verify.mjs --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --json`,
