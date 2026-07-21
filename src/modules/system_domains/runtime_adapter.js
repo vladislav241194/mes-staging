@@ -53,6 +53,21 @@ export function createSystemDomainRuntimeIdMap(domains, legacyWorkCenters = []) 
   }).filter(([domainId]) => domainId));
 }
 
+// Planning transports still carry the stable runtime work-center IDs while
+// System Domains owns the migrated matrix IDs.  Keep the reverse bridge next
+// to the existing domain -> runtime projection so read-only consumers can
+// canonicalize transport rows without importing a legacy renderer or copying
+// the production-structure alias table.
+export function createSystemDomainCanonicalWorkCenterIdMap(domains, legacyWorkCenters = []) {
+  const runtimeIdByDomainId = createSystemDomainRuntimeIdMap(domains, legacyWorkCenters);
+  const canonicalIdByRuntimeId = new Map();
+  runtimeIdByDomainId.forEach((runtimeId, domainId) => {
+    canonicalIdByRuntimeId.set(domainId, domainId);
+    if (runtimeId) canonicalIdByRuntimeId.set(runtimeId, domainId);
+  });
+  return canonicalIdByRuntimeId;
+}
+
 export function projectSystemDomainWorkCenters(domains, legacyWorkCenters = []) {
   const centers = registry(domains, "workCenters");
   if (!centers.length) return asArray(legacyWorkCenters).map((row) => ({ ...row }));

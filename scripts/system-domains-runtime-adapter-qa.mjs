@@ -7,6 +7,7 @@ import {
 } from "../src/production_structure_service.js";
 import { migrateLegacySystemDomains } from "../src/modules/system_domains/service.js";
 import {
+  createSystemDomainCanonicalWorkCenterIdMap,
   getSystemDomainAccessSubject,
   getSystemDomainSummary,
   projectSystemDomainEmployees,
@@ -27,6 +28,7 @@ assert.equal(report.canActivate, true);
 const workCenters = projectSystemDomainWorkCenters(domains, legacyWorkCenters);
 const resources = projectSystemDomainResources(domains, legacyResources, legacyWorkCenters);
 const employees = projectSystemDomainEmployees(domains, legacyEmployees, legacyWorkCenters);
+const canonicalWorkCenterIdByRuntimeId = createSystemDomainCanonicalWorkCenterIdMap(domains, legacyWorkCenters);
 assert.equal(workCenters.length, domains.registries.workCenters.length);
 assert.equal(employees.length, domains.registries.employees.length);
 assert.ok(resources.length >= domains.registries.equipment.length);
@@ -36,6 +38,21 @@ assert.deepEqual(
   workCenters.map((row) => row.id).sort(),
   legacyWorkCenters.map((row) => row.id).sort(),
   "Runtime work-center ids must stay stable through the canonical projection",
+);
+assert.deepEqual(
+  Object.fromEntries(["D5", "D9", "D3", "D3_AOI", "D3_UW", "D4"].map((runtimeId) => [
+    runtimeId,
+    canonicalWorkCenterIdByRuntimeId.get(runtimeId),
+  ])),
+  {
+    D5: "D-MANUAL",
+    D9: "S-LOCKSMITH-1",
+    D3: "D-SMT",
+    D3_AOI: "S-AOI",
+    D3_UW: "S-WASH",
+    D4: "D-QC",
+  },
+  "Bounded planning runtime IDs must resolve back to their canonical System Domain owners",
 );
 assert.deepEqual(
   employees.map((row) => row.id).sort(),

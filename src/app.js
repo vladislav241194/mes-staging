@@ -108,6 +108,7 @@ import {
   validateSystemDomains,
 } from "./modules/system_domains/service.js";
 import {
+  createSystemDomainCanonicalWorkCenterIdMap,
   getSystemDomainAccessSubject,
   getSystemDomainSummary,
   projectSystemDomainEmployees,
@@ -1769,7 +1770,14 @@ function getWeeklyPlanningPeriodLookups({ canonicalOnly = false } = {}) {
     .map((item) => [String(item?.id || ""), item]));
   const resourcesById = new Map(resources
     .map((item) => [String(item?.id || ""), item]));
+  const canonicalWorkCenterIdByRuntimeId = canonicalOnly
+    ? createSystemDomainCanonicalWorkCenterIdMap(systemDomainsState, DEFAULT_PRODUCTION_WORK_CENTERS)
+    : null;
   return {
+    mapWorkCenterId: (id) => {
+      const sourceId = String(id || "");
+      return canonicalWorkCenterIdByRuntimeId?.get(sourceId) || sourceId;
+    },
     getWorkCenter: (id) => workCentersById.get(String(id || "")) || null,
     getResource: (id) => resourcesById.get(String(id || "")) || null,
   };
@@ -1928,17 +1936,17 @@ function hydrateWeeklyPlanningPeriod() {
       if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
       return;
     }
-    const lookups = getWeeklyPlanningPeriodLookups({ canonicalOnly: typedReactRead });
+    const { mapWorkCenterId: mapCanonicalWorkCenterId, ...lookups } = getWeeklyPlanningPeriodLookups({ canonicalOnly: typedReactRead });
     const rows = hasCompactRows
       ? buildWeeklyPlanningPeriodRowsFromCompact(result.rows, {
         toDate,
-        mapWorkCenterId: typedReactRead ? (value) => String(value || "") : mapLegacyWorkCenterId,
+        mapWorkCenterId: typedReactRead ? mapCanonicalWorkCenterId : mapLegacyWorkCenterId,
         ...lookups,
         ...(typedReactRead ? {} : { resolveSlotPresentation: resolveWeeklyCompactSlotPresentation }),
       })
       : buildWeeklyPlanningPeriodRows(result.projection, {
         toDate,
-        mapWorkCenterId: typedReactRead ? (value) => String(value || "") : mapLegacyWorkCenterId,
+        mapWorkCenterId: typedReactRead ? mapCanonicalWorkCenterId : mapLegacyWorkCenterId,
         ...lookups,
       });
     // A 304 only means the server answer did not change; it does not prove
