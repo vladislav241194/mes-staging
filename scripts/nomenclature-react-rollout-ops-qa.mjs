@@ -88,6 +88,6 @@ assert.match(writeDecisionSource, /canEditDirectorySection\("nomenclature"\)/, "
 assert.match(writeDecisionSource, /activation\.accessMode === "react"[^]*activation\.ownerReady !== true/, "permanent write capability must require React ownership and durable owner readiness");
 assert.match(writeDecisionSource, /serverCommandsConfigured !== true \|\| capabilities\.serverCommandsEnabled !== true/, "permanent write capability must require the authenticated server command owner");
 assert.match(nomenclatureHostSource, /getPayload:[^]*getNomenclatureReactWriteDecision\("create", activation\)[^]*getNomenclatureReactWriteDecision\("edit", activation\)[^]*getNomenclatureReactWriteDecision\("delete", activation\)/, "payload capabilities must use action-specific write decisions");
-assert.match(nomenclatureHostSource, /executeCommand:[^]*getNomenclatureReactWriteDecision\("delete"\)[^]*getNomenclatureReactWriteDecision\(input\.isNew === true \? "create" : "edit"\)/, "write dispatch must recheck action-specific write decisions");
+assert.match(nomenclatureHostSource, /executeCommand:[^]*await getNomenclatureReactWriteDecisionForCommand\("delete"\)[^]*await getNomenclatureReactWriteDecisionForCommand\(input\.isNew === true \? "create" : "edit"\)/, "write dispatch must await and recheck action-specific write decisions");
 
 console.log("React Nomenclature rollout operations QA: OK");
