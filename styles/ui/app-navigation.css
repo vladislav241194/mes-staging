@@ -198,9 +198,62 @@
     stroke: currentColor;
     filter: none;
   }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tab:has(.module-react-complete-marker){
+    padding-right: 47px !important;
+  }
+}
+
+main.app-shell[data-layout="app-shell"] > .module-menu :is(.module-tab, .mobile-module-tab):has(.module-react-complete-marker){
+  position: relative;
+}
+
+main.app-shell[data-layout="app-shell"] > .module-menu .module-react-complete-marker{
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 39px;
+  height: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.42);
+  border-radius: var(--mes-ui-pill);
+  background: rgba(16, 185, 129, 0.16);
+  color: #a7f3d0;
+  padding: 0 4px;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 10px;
+  letter-spacing: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"] > .module-menu .module-react-complete-marker.is-deferred{
+  border-color: rgba(96, 165, 250, 0.46);
+  background: rgba(37, 99, 235, 0.2);
+  color: #bfdbfe;
+}
+
+main.app-shell[data-layout="app-shell"] > .module-menu :is(.module-tab, .mobile-module-tab).is-active .module-react-complete-marker{
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 
 @media (max-width: 768px) {
+  main.app-shell[data-layout="app-shell"] > .module-menu .mobile-module-tab:has(.module-react-complete-marker){
+    padding-right: 50px !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .mobile-module-tab .module-react-complete-marker{
+    right: 4px;
+    bottom: 3px;
+  }
+
   main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand-logo{
     grid-column: 1;
     grid-row: 1 / span 2;

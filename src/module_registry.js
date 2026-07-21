@@ -10,6 +10,10 @@ import {
   defineMesModuleBlueprint,
 } from "./module_blueprint.js";
 import { GENERATED_MODULE_BLUEPRINTS } from "./generated/module_blueprint_index.js";
+import {
+  getMesReactCompletionModuleDefinition,
+  getMesReactCompletionModuleStatus,
+} from "./react_completion_registry.js";
 
 export { MES_MODULE_NAVIGATION_SCOPES } from "./module_blueprint.js";
 
@@ -279,14 +283,19 @@ const SCOPE_ORDER = new Map([
 ]);
 
 export const MES_MODULE_NAVIGATION_REGISTRY = Object.freeze(MES_MODULE_BLUEPRINT_REGISTRY
-  .map((blueprint) => Object.freeze({
-    id: blueprint.id,
-    label: blueprint.label,
-    icon: blueprint.icon,
-    groupId: blueprint.navigation.groupId,
-    order: blueprint.navigation.order,
-    scope: blueprint.navigation.scope,
-  }))
+  .map((blueprint) => {
+    const completion = getMesReactCompletionModuleDefinition(blueprint.id);
+    return Object.freeze({
+      id: blueprint.id,
+      label: blueprint.label,
+      icon: blueprint.icon,
+      groupId: blueprint.navigation.groupId,
+      order: blueprint.navigation.order,
+      scope: blueprint.navigation.scope,
+      reactCompletionStatus: getMesReactCompletionModuleStatus(blueprint.id),
+      reactVerificationStatus: completion?.verification || "deferred",
+    });
+  })
   .sort((left, right) => (
     (SCOPE_ORDER.get(left.scope) ?? 99) - (SCOPE_ORDER.get(right.scope) ?? 99)
     || (GROUP_ORDER_BY_ID.get(left.groupId) ?? 999) - (GROUP_ORDER_BY_ID.get(right.groupId) ?? 999)

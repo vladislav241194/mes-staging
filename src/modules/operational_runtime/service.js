@@ -2133,6 +2133,31 @@ function renderModuleMenuBadge(badge = null) {
   `;
 }
 
+function renderReactCompletionMarker(moduleItem = {}) {
+  if (moduleItem.reactCompletionStatus !== "react-complete") return "";
+  const accepted = moduleItem.reactVerificationStatus === "accepted";
+  const verificationLabel = accepted ? "приёмка подтверждена" : "приёмка отложена";
+  return `
+    <em
+      class="module-react-complete-marker is-${accepted ? "accepted" : "deferred"}"
+      data-react-complete-marker
+      data-react-verification-status="${accepted ? "accepted" : "deferred"}"
+      title="Код переведён на React + TypeScript; ${verificationLabel}"
+      aria-hidden="true"
+    >React TS</em>
+  `;
+}
+
+function getModuleAccessibleLabel(moduleItem = {}) {
+  const label = String(moduleItem.label || "Модуль");
+  const verificationLabel = moduleItem.reactVerificationStatus === "accepted"
+    ? "приёмка подтверждена"
+    : "приёмка отложена";
+  return moduleItem.reactCompletionStatus === "react-complete"
+    ? `${label}. Код полностью переведён на React и TypeScript; ${verificationLabel}`
+    : label;
+}
+
 function renderModuleMenu() {
   const modules = getAvailableModules();
   const groups = getModuleGroups(modules);
@@ -2164,8 +2189,8 @@ function renderModuleMenu() {
               <span class="mobile-module-group-title">${escapeHtml(group.label)}</span>
               <div class="mobile-module-group-grid">
                 ${group.modules.map((moduleItem) => `
-                  <button class="mobile-module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button" aria-label="${escapeAttribute(moduleItem.label)}">
-                    ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>${renderModuleMenuBadge(menuBadges[moduleItem.id])}
+                  <button class="mobile-module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" data-react-completion-status="${escapeAttribute(moduleItem.reactCompletionStatus)}" data-react-verification-status="${escapeAttribute(moduleItem.reactVerificationStatus)}" type="button" aria-label="${escapeAttribute(getModuleAccessibleLabel(moduleItem))}">
+                    ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>${renderModuleMenuBadge(menuBadges[moduleItem.id])}${renderReactCompletionMarker(moduleItem)}
                   </button>
                 `).join("")}
               </div>
@@ -2178,8 +2203,8 @@ function renderModuleMenu() {
           <div class="module-group ${group.tone ? `is-${escapeAttribute(group.tone)}-group` : ""}" ${group.tone ? `data-module-group-tone="${escapeAttribute(group.tone)}"` : ""}>
             <span class="module-group-title">${escapeHtml(group.label)}</span>
             ${group.modules.map((moduleItem) => `
-              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button" aria-label="${escapeAttribute(moduleItem.label)}" title="${escapeAttribute(moduleItem.label)}">
-                ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>${renderModuleMenuBadge(menuBadges[moduleItem.id])}
+              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" data-react-completion-status="${escapeAttribute(moduleItem.reactCompletionStatus)}" data-react-verification-status="${escapeAttribute(moduleItem.reactVerificationStatus)}" type="button" aria-label="${escapeAttribute(getModuleAccessibleLabel(moduleItem))}" title="${escapeAttribute(getModuleAccessibleLabel(moduleItem))}">
+                ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>${renderModuleMenuBadge(menuBadges[moduleItem.id])}${renderReactCompletionMarker(moduleItem)}
               </button>
             `).join("")}
           </div>
