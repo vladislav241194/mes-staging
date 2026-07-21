@@ -191,6 +191,11 @@ try {
     appSource.includes('hydrateSystemDomainsServerRead("authSessionPrototype", { fallbackToLegacy: false })'),
     "The authenticated workspace must retain the direct PostgreSQL System Domains hydration contract",
   );
+  assert(
+    /const hasReadyServerProjection = !force\s*&& systemDomainsServerReadState\.status === "server"\s*&& Boolean\(systemDomainsState\);/.test(appSource)
+      && /status: hasReadyServerProjection \? "server" : "loading"/.test(appSource),
+    "A cached background read must keep an activated PostgreSQL projection mountable, while forced authorization revalidation remains fail-closed",
+  );
 
   console.log("System Domains primary runtime QA: OK");
 } finally {

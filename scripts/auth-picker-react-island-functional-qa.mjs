@@ -64,7 +64,12 @@ try {
     localStorage.removeItem("mes-planning-prototype-auth-session-v1");
   });
   await client.send("Page.navigate", { url: `${origin}/?module=authPrototype&qa=auth-functional&react-auth-picker=1&react-auth-picker-write=1` });
-  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-auth-picker-island][data-react-island-state="ready"]')) && document.querySelectorAll(".auth-picker-react-grid > button").length > 0, { message: "Authorization React PIN evaluation not ready", timeoutMs: 20_000 });
+  try {
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-auth-picker-island][data-react-island-state="ready"]')) && document.querySelectorAll(".auth-picker-react-grid > button").length > 0, { message: "Authorization React PIN evaluation not ready", timeoutMs: 20_000 });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({ href: location.href, page: document.querySelector("main.app-shell")?.dataset.layoutPage, react: document.querySelector("[data-react-auth-picker-island]")?.getAttribute("data-react-island-state"), legacyStep: document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step"), activation: window.__MES_AUTH_PICKER_ACTIVATION__, ui: JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"), session: localStorage.getItem("mes-planning-prototype-auth-session-v1"), text: document.body.innerText.replace(/\s+/g, " ").slice(0, 500) }));
+    throw new Error(`${error.message}: ${JSON.stringify({ ...diagnostic, ui: { department: diagnostic.ui.authPrototypeDepartment, unit: diagnostic.ui.authPrototypeUnit, person: diagnostic.ui.authPrototypePersonId, result: diagnostic.ui.authPrototypeResult, unlocked: diagnostic.ui.authGateUnlocked, currentUser: diagnostic.ui.authCurrentUserId } })} reads=${reads} writes=${writes} console=${JSON.stringify(consoleProblems)}`);
+  }
   await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
   await waitForCondition(client, () => document.querySelectorAll(".auth-picker-react-grid > button, [data-auth-picker-person]").length > 0, { message: "write-evaluation department selection did not advance", timeoutMs: 5_000 });
   if (await evaluate(client, () => !document.querySelector("[data-auth-picker-person]"))) await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());

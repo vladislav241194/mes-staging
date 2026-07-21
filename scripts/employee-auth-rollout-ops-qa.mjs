@@ -15,6 +15,7 @@ const paths = {
   deactivateStack: new URL("deactivate-pilot-nomenclature-evaluation-stack.sh", opsRoot),
   scheduleAutoRollback: new URL("schedule-pilot-nomenclature-evaluation-auto-rollback.sh", opsRoot),
   prepareRollback: new URL("prepare-pilot-nomenclature-release-rollback.sh", opsRoot),
+  readinessPolicy: new URL("../../scripts/employee-auth-readiness-policy.mjs", opsRoot),
   authDropin: new URL("mes-pilot-employee-auth.conf", opsRoot),
   commandDropin: new URL("mes-pilot-nomenclature-command-owner.conf", opsRoot),
   envExample: new URL("mes-pilot-employee-auth.env.example", opsRoot),
@@ -26,6 +27,7 @@ const entries = await Promise.all(Object.entries(paths).map(async ([name, path])
   await readFile(path, "utf-8"),
 ]));
 const source = Object.fromEntries(entries);
+const readinessPolicy = await import(paths.readinessPolicy.href);
 
 const shellNames = [
   "installEnv",
@@ -139,12 +141,45 @@ assert.match(source.deactivateAuth, /operator-modified employee-auth drop-in/);
 
 assert.match(source.assertReadiness, /cmp -s "\$SOURCE_FILE" "\$DROPIN_FILE"/);
 assert.match(source.assertReadiness, /0:0:600/);
-assert.match(source.assertReadiness, /MES_ENABLE_EMPLOYEE_AUTH/);
-assert.match(source.assertReadiness, /MES_EMPLOYEE_AUTH_SESSION_SECRET/);
+assert.match(source.assertReadiness, /READINESS_POLICY="\$\{APP_DIR\}\/scripts\/employee-auth-readiness-policy\.mjs"/);
+assert.equal((source.assertReadiness.match(/\/usr\/bin\/node "\$READINESS_POLICY"/g) || []).length, 1, "Readiness shell must invoke the shared policy exactly once");
+assert.ok(source.assertReadiness.includes('/usr/bin/node "$READINESS_POLICY" "$ENV_FILE" "/proc/${MAIN_PID}/environ" "$REQUIRED_HOST" \\\n'), "Readiness shell must pass the protected env, exact running process env and required host to the shared policy in order");
 assert.match(source.assertReadiness, /\/proc\/\$\{MAIN_PID\}\/environ/);
 assert.match(source.assertReadiness, /employeeAuthStorageConfigured/);
 assert.match(source.assertReadiness, /employeeAuthSchemaReady/);
 assert.doesNotMatch(source.assertReadiness, /Cookie:|mes_employee_session/);
+
+assert.deepEqual(readinessPolicy.EMPLOYEE_AUTH_RUNTIME_KEYS, [
+  "MES_EMPLOYEE_AUTH_HOSTS",
+  "MES_EMPLOYEE_AUTH_SESSION_TTL_SECONDS",
+  "MES_EMPLOYEE_AUTH_MAX_ATTEMPTS",
+  "MES_EMPLOYEE_AUTH_LOCK_SECONDS",
+  "MES_EMPLOYEE_AUTH_SESSION_SECRET",
+]);
+assert.match(source.readinessPolicy, /runtime\.MES_ENABLE_EMPLOYEE_AUTH !== "1"/);
+assert.match(source.readinessPolicy, /Running employee-auth value differs from the protected environment/);
+assert.match(source.readinessPolicy, /import\.meta\.url === pathToFileURL\(process\.argv\[1\]\)\.href/);
+const testSecret = "s".repeat(32);
+const protectedEnvironment = [
+  "MES_EMPLOYEE_AUTH_HOSTS=pilot.mes-line.ru",
+  "MES_EMPLOYEE_AUTH_SESSION_TTL_SECONDS=900",
+  "MES_EMPLOYEE_AUTH_MAX_ATTEMPTS=5",
+  "MES_EMPLOYEE_AUTH_LOCK_SECONDS=300",
+  `MES_EMPLOYEE_AUTH_SESSION_SECRET=${testSecret}`,
+].join("\n");
+const runningEnvironment = [
+  "MES_ENABLE_EMPLOYEE_AUTH=1",
+  "MES_EMPLOYEE_AUTH_HOSTS=pilot.mes-line.ru",
+  "MES_EMPLOYEE_AUTH_SESSION_TTL_SECONDS=900",
+  "MES_EMPLOYEE_AUTH_MAX_ATTEMPTS=5",
+  "MES_EMPLOYEE_AUTH_LOCK_SECONDS=300",
+  `MES_EMPLOYEE_AUTH_SESSION_SECRET=${testSecret}`,
+].join("\0");
+assert.equal(readinessPolicy.assertEmployeeAuthRuntimeMatches({ protectedSource: protectedEnvironment, processSource: runningEnvironment, requiredHost: "pilot.mes-line.ru" }), true);
+assert.throws(() => readinessPolicy.parseProtectedEmployeeAuthEnvironment(`${protectedEnvironment}\nMES_EMPLOYEE_AUTH_HOSTS=pilot.mes-line.ru`), /unsupported or duplicate/);
+assert.throws(() => readinessPolicy.parseProtectedEmployeeAuthEnvironment(`${protectedEnvironment}\nUNREVIEWED_SECRET=value`), /unsupported or duplicate/);
+assert.throws(() => readinessPolicy.assertEmployeeAuthRuntimeMatches({ protectedSource: protectedEnvironment, processSource: runningEnvironment.replace("MES_ENABLE_EMPLOYEE_AUTH=1", "MES_ENABLE_EMPLOYEE_AUTH=0"), requiredHost: "pilot.mes-line.ru" }), /not enabled/);
+assert.throws(() => readinessPolicy.assertEmployeeAuthRuntimeMatches({ protectedSource: protectedEnvironment, processSource: runningEnvironment, requiredHost: "stage.mes-line.ru" }), /Required employee-auth host is missing/);
 
 const rollbackEvaluationIndex = source.prepareRollback.indexOf("deactivate-react-nomenclature-write-evaluation.sh");
 const rollbackCommandsIndex = source.prepareRollback.indexOf("deactivate-pilot-nomenclature-command-owner.sh");

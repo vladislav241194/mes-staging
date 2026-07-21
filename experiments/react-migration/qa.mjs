@@ -2393,6 +2393,19 @@ try {
     "src/modules/domain_api/system_domains_commands.js",
     "scripts/system-domains-commands-client-qa.mjs",
   ]);
+  const systemDomainsDisposableCleanupContractPaths = new Set([
+    "ops/postgres/cleanup-disposable-production-structure.sh",
+    "scripts/system-domains-disposable-structure-cleanup.mjs",
+    "scripts/system-domains-disposable-structure-cleanup-qa.mjs",
+  ]);
+  if ([...systemDomainsDisposableCleanupContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...systemDomainsDisposableCleanupContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...systemDomainsDisposableCleanupContractPaths].sort(),
+      "Disposable Production Structure cleanup must keep its root wrapper, sealed implementation and executable QA atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/system-domains-disposable-structure-cleanup-qa.mjs")], { cwd: repositoryRoot });
+  }
   if ([...systemDomainsCommandClientContractPaths].some((path) => changedPaths.includes(path))) {
     assert.deepEqual(
       [...systemDomainsCommandClientContractPaths].filter((path) => changedPaths.includes(path)).sort(),
@@ -2441,7 +2454,7 @@ try {
       "+      // registries transactionally, while PostgreSQL READ COMMITTED gives",
       "+      // each statement a fresh snapshot. Hold one repeatable-read snapshot",
       "+      // for the complete aggregate instead of borrowing parallel pool clients.",
-      '+      return sql.begin("isolation level repeatable read read only", async (tx) => {',
+      "+      return readTransaction(async (tx) => {",
       '+        const [set] = await tx`SELECT schema_id, schema_version, source_fingerprint, source, metadata, migrated_at, revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`;',
       '+        if (!set) return { ...storage, item: null, revision: 0, updatedAt: "" };',
       "+        const [orgUnits, workCenters, scheduleTemplates, positions, employees, employmentAssignments, equipment, scheduleAssignments, attendanceEvents, accessRoles, grants, roleAssignments, policies, targets] = await Promise.all([",
@@ -2465,7 +2478,7 @@ try {
       "-      const [set, countRow] = await Promise.all([",
       '-        sql`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),',
       "-        sql`",
-      '+      return sql.begin("isolation level repeatable read read only", async (tx) => {',
+      "+      return readTransaction(async (tx) => {",
       "+        const [set, countRow] = await Promise.all([",
       '+          tx`SELECT revision, updated_at FROM system_domain_sets WHERE id = ${SET_ID}`.then((result) => result[0]),',
       "+          tx`",
@@ -2719,6 +2732,7 @@ try {
       && !planningStartDatePersistenceContractPaths.has(path)
       && !systemDomainsConsistentReadContractPaths.has(path)
       && !systemDomainsCommandClientContractPaths.has(path)
+      && !systemDomainsDisposableCleanupContractPaths.has(path)
       && !systemDomainsLifecycleArchiveContractPaths.has(path)
       && !productionResourceDependencyLockContractPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);

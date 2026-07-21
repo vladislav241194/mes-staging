@@ -1,11 +1,26 @@
 import { useMemo, useState } from "react";
 import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, Panel, StatusToken } from "../../ui/components";
-import { adaptAuthPickerPayload, type AuthPickerPerson } from "./adapter";
+import { adaptAuthPickerPayload, type AuthPickerElevationTarget, type AuthPickerPerson } from "./adapter";
 
 export type AuthPickerReactCommand =
   | { type: "submit-pin"; personId: string; pin: string }
   | { type: "cancel-elevation" };
 interface AuthPickerCommandResult { ok?: boolean; authenticated?: boolean; attemptsLeft?: number; locked?: boolean; message?: string; }
+
+const ELEVATION_COPY: Record<AuthPickerElevationTarget, { eyebrow: string; description: string }> = {
+  nomenclature: {
+    eyebrow: "Номенклатура",
+    description: "Подтверждение временно разрешит серверные команды Номенклатуры. Обычный вход в MES не изменяется.",
+  },
+  planning: {
+    eyebrow: "Планирование",
+    description: "Подтверждение временно разрешит серверные команды планирования. Обычный вход в MES не изменяется.",
+  },
+  "production-structure": {
+    eyebrow: "Структура и сотрудники",
+    description: "Подтверждение временно разрешит серверные команды производственной структуры. Обычный вход в MES не изменяется.",
+  },
+};
 
 const shuffleDigits = () => {
   const digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -36,6 +51,7 @@ export function AuthPickerScenario({ payload, onCommand, onRequestLegacy }: { pa
   const people = unit ? unit.people : department && !department.units.length ? department.directPeople : [];
   const filteredPeople = people.filter((person) => `${person.name} ${person.role}`.toLocaleLowerCase("ru").includes(search.toLocaleLowerCase("ru")));
   const locked = attemptsLeft <= 0;
+  const elevationCopy = ELEVATION_COPY[model.elevationTarget];
   const choosePerson = (person: AuthPickerPerson) => {
     if (!model.canEnterPin) {
       onRequestLegacy?.(`person:${encodeURIComponent(person.id)}:${encodeURIComponent(department?.id || "")}:${encodeURIComponent(unit?.id || "")}`);
@@ -64,8 +80,8 @@ export function AuthPickerScenario({ payload, onCommand, onRequestLegacy }: { pa
     if (next.length === 5) void submitPin(next);
   };
   const step = selectedPerson ? 4 : department ? unit || !department.units.length ? 3 : 2 : 1;
-  return <ModulePage header={<ModuleHeader eyebrow={model.elevation ? "Номенклатура" : "Вход в систему"} title={model.elevation ? "Подтверждение изменений" : "Авторизация"} badge={<span className="lab-badge">{model.elevation ? "PIN elevation" : model.canEnterPin ? "React · PIN evaluation" : "PostgreSQL · React picker"}</span>} />}>
-    <section className="auth-picker-react-security"><StatusToken label={model.elevation ? "Только текущий сотрудник" : model.canEnterPin ? "PIN проверяет сервер" : "PIN остаётся в защищённом legacy-контуре"} tone="success" /><span>{model.elevation ? "Подтверждение временно разрешит серверные команды Номенклатуры. Обычный вход в MES не изменяется." : model.canEnterPin ? "React хранит ввод только в памяти компонента. Проверку и создание подписанной сессии выполняет серверный auth-владелец." : "React получает только имена, должности и оргструктуру. PIN, попытки и сессия сюда не передаются."}</span></section>
+  return <ModulePage header={<ModuleHeader eyebrow={model.elevation ? elevationCopy.eyebrow : "Вход в систему"} title={model.elevation ? "Подтверждение изменений" : "Авторизация"} badge={<span className="lab-badge">{model.elevation ? "PIN elevation" : model.canEnterPin ? "React · PIN evaluation" : "PostgreSQL · React picker"}</span>} />}>
+    <section className="auth-picker-react-security"><StatusToken label={model.elevation ? "Только текущий сотрудник" : model.canEnterPin ? "PIN проверяет сервер" : "PIN остаётся в защищённом legacy-контуре"} tone="success" /><span>{model.elevation ? elevationCopy.description : model.canEnterPin ? "React хранит ввод только в памяти компонента. Проверку и создание подписанной сессии выполняет серверный auth-владелец." : "React получает только имена, должности и оргструктуру. PIN, попытки и сессия сюда не передаются."}</span></section>
     <MetricGrid label="Структура входа"><MetricCard label="Отделы" value={model.departments.length} /><MetricCard label="Сотрудники" value={model.employeeCount} /><MetricCard label="PIN в React" value={model.canEnterPin ? "серверная проверка" : "нет"} /></MetricGrid>
     <Panel heading={<div className="panel-heading"><div><p>{model.elevation ? "Подтверждение права" : `Шаг ${step} из ${model.canEnterPin ? "4" : "3"}`}</p><h2>{selectedPerson ? "Введите PIN" : !department ? "Выберите отдел" : unit || !department.units.length ? "Выберите сотрудника" : "Выберите участок"}</h2></div>{model.elevation ? <ActionButton variant="secondary" onClick={() => { void onCommand?.({ type: "cancel-elevation" }); }}>Отмена</ActionButton> : department ? <ActionButton variant="secondary" onClick={() => selectedPerson ? (setSelectedPerson(null), setPin(""), setFeedback("")) : unit ? setUnitId("") : setDepartmentId("")}>Назад</ActionButton> : null}</div>}>
       {selectedPerson ? <div className="auth-picker-react-pin" data-auth-picker-pin-step>

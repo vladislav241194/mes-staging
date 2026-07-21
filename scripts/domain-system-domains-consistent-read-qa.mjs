@@ -20,12 +20,18 @@ const section = (start, end) => {
 const getSource = section("    async get() {", "    async summary() {");
 const summarySource = section("    async summary() {", "    async getAuthority() {");
 const replaceSource = section("    async replace(value, {", "    async get() {");
-const repeatableRead = "sql.begin(\"isolation level repeatable read read only\", async (tx) =>";
+const transactionHelpers = section("  const writeTransaction =", "  const storage =");
+
+assert(
+  transactionHelpers.includes("const writeTransaction = (action) => transactionSql ? action(transactionSql) : sql.begin(action);")
+    && transactionHelpers.includes(': sql.begin("isolation level repeatable read read only", action);'),
+  "System Domains must use a read-only repeatable-read transaction for standalone reads while reusing an injected command transaction",
+);
 
 for (const [label, readSource] of [["get", getSource], ["summary", summarySource]]) {
   assert(
-    readSource.includes(repeatableRead),
-    `System Domains ${label} must hold one repeatable-read, read-only PostgreSQL snapshot`,
+    readSource.includes("return readTransaction(async (tx) =>"),
+    `System Domains ${label} must use the shared consistent-read transaction boundary`,
   );
   assert(
     !/\bsql`/.test(readSource),
@@ -42,9 +48,9 @@ assert(
   "System Domains get must read the revision row and all registries through one transaction client",
 );
 assert(
-  replaceSource.includes("sql.begin(async (tx) =>")
+  replaceSource.includes("const result = await writeTransaction(async (tx) =>")
     && replaceSource.includes("pg_advisory_xact_lock(hashtext('mes-system-domains:primary'))"),
-  "System Domains replace must remain transactionally serialized while read snapshots are enforced",
+  "System Domains replace must remain serialized in either its own or the injected command transaction",
 );
 
 console.log("System Domains consistent PostgreSQL read QA: OK");

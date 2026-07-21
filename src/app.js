@@ -848,6 +848,11 @@ function ensureNomenclatureTypesDeleteContracts({ force = false } = {}) {
 function getNomenclatureElevationAuthModel() {
   const employeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
   const model = getAuthPrototypeReactModel();
+  const elevationTarget = nomenclatureEmployeeElevationState.returnModule === "productionStructureMatrix"
+    ? "production-structure"
+    : nomenclatureEmployeeElevationState.returnModule === "planning"
+      ? "planning"
+      : "nomenclature";
   const departments = (model.departments || []).flatMap((department) => {
     const directPeople = (department.directPeople || []).filter((person) => person.id === employeeId);
     const units = (department.units || []).flatMap((unit) => {
@@ -857,7 +862,7 @@ function getNomenclatureElevationAuthModel() {
     if (!directPeople.length && !units.length) return [];
     return [{ ...department, directPeople, units, employeeCount: directPeople.length + units.reduce((total, unit) => total + unit.people.length, 0) }];
   });
-  return { ...model, departments, forcedPersonId: employeeId, elevation: true };
+  return { ...model, departments, forcedPersonId: employeeId, elevation: true, elevationTarget };
 }
 
 async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature", returnStructureRegistry = "") {
@@ -7887,7 +7892,18 @@ function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy = fals
 }
 async function performSystemDomainsServerRead(moduleId = "", { fallbackToLegacy = false, force = false } = {}) {
   try {
-    systemDomainsServerReadState = { ...systemDomainsServerReadState, status: "loading", error: "" };
+    // Keep an already activated PostgreSQL projection eligible while the read
+    // model performs a cached/background revalidation. Dropping readiness for
+    // that short window can invalidate an island between renderTarget() and
+    // mount(), leaving its loading shell behind after a generic startup refresh.
+    const hasReadyServerProjection = !force
+      && systemDomainsServerReadState.status === "server"
+      && Boolean(systemDomainsState);
+    systemDomainsServerReadState = {
+      ...systemDomainsServerReadState,
+      status: hasReadyServerProjection ? "server" : "loading",
+      error: "",
+    };
     const [result] = await Promise.all([systemDomainsReadModel.refresh({ force }), hydrateSystemDomainsServerCommands()]);
     if (!result.ok || !result.item) {
       systemDomainsServerReadState = { status: "fallback", error: result.error || "", revision: 0 };
