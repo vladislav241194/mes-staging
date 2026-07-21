@@ -25,9 +25,18 @@ verify_active_release_contract() {
   manifest="${release_path}/release-manifest.json"
   [[ "$release_id" =~ ^[A-Za-z0-9._-]{1,96}$ ]] || return 1
   [[ "$active_target" == "${RELEASES_DIR}/${release_id}/app" && "$source_target" == "$active_target" && -f "$manifest" ]] || return 1
-  /usr/bin/node "${active_target}/scripts/release-server-command-contract-verify.mjs" \
+  local root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs" active_record="${RELEASES_DIR}/active-release.json"
+  [[ -f "$root_seal_helper" && -f "$active_record" ]] || return 1
+  /usr/bin/node "$root_seal_helper" bundle >/dev/null || return 1
+  /usr/bin/node "$root_seal_helper" release --releases-root="$RELEASES_DIR" --release-id="$release_id" --app="$active_target" >/dev/null || return 1
+  /usr/bin/node "$root_seal_helper" pointer --pointer="$ACTIVE_APP_DIR" --expected-target="$active_target" >/dev/null || return 1
+  /usr/bin/node "$root_seal_helper" artifact --trusted-root="$RELEASES_DIR" --artifact="$active_record" >/dev/null || return 1
+  /usr/bin/node --input-type=module -e 'import { readFile } from "node:fs/promises"; const [path, id] = process.argv.slice(1); const record = JSON.parse(await readFile(path, "utf8")); if (record?.releaseId !== id) process.exit(1);' "$active_record" "$release_id" || return 1
+  /usr/sbin/runuser -u mes-stage -- /usr/bin/env \
+    HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin \
+    /usr/bin/node "${active_target}/scripts/release-server-command-contract-verify.mjs" \
     --app="$active_target" --manifest="$manifest" \
-    --expected-release-id="$release_id" --contract=directory-cluster >/dev/null
+    --expected-release-id="$release_id" --contract=directory-cluster --public-only >/dev/null
 }
 verify_active_release_contract || { echo "Active release provenance or manifest-bound Directory Cluster contract is invalid." >&2; exit 1; }
 [[ -f "$SOURCE_FILE" ]] || { echo "Missing Directory Cluster drop-in source." >&2; exit 1; }

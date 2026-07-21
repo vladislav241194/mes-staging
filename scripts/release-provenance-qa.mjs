@@ -82,6 +82,7 @@ async function verifyManifestContract() {
   const bootstrapSnapshotArtifact = {
     id: "bootstrap-snapshot",
     sha256: sha256(bootstrapSnapshot),
+    operationalPath: "/srv/mes/pilot/runtime/bootstrap-snapshot.json",
     stagedPaths: ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"],
     generatedPaths: [
       { path: "dist/bootstrap-snapshot.json.gz", sha256: sha256(bootstrapSnapshotGzip) },
@@ -91,6 +92,7 @@ async function verifyManifestContract() {
   const manifest = {
     schemaVersion: 3,
     releaseId: "qa-release",
+    appVersion: "v.1.500.26",
     gitCommit: commit,
     gitProvenance: {
       schemaVersion: 1,
@@ -129,7 +131,13 @@ async function verifyManifestContract() {
   const passing = await execFile("node", command, { cwd: process.cwd() });
   const parsed = JSON.parse(passing.stdout);
   assert(parsed.gitProvenanceVerification === "fresh-upstream-fetch", "Verifier must report fresh Git provenance");
+  assert(parsed.appVersion === manifest.appVersion, "Verifier must report the strictly validated application version");
   assert(parsed.compatibilityArtifactCount === 1, "Verifier must report the bootstrap compatibility artifact");
+  assert(parsed.privateCompatibilityArtifactsVerified === true, "Full verification must report that private compatibility bytes were hashed");
+  assert(parsed.compatibilityArtifactVerification?.schemaVersion === 1
+    && parsed.compatibilityArtifactVerification?.mode === "full"
+    && parsed.compatibilityArtifactVerification?.descriptorSchemaVerified === true,
+  "Full verification must emit the versioned compatibility verification descriptor");
   assert(parsed.runtimePolicyId === "qa-runtime-policy", "Verifier must report the packaged React runtime policy");
   assert(parsed.runtimePolicySha256 === sha256(runtimePolicy), "Verifier must report the packaged policy digest");
 
@@ -143,11 +151,41 @@ async function verifyManifestContract() {
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), "{\"corrupt\":true}\n");
+  const publicOnly = await execFile("node", [...command, "--public-only"], { cwd: process.cwd() });
+  const publicOnlyResult = JSON.parse(publicOnly.stdout);
+  assert(publicOnlyResult.privateCompatibilityArtifactsVerified === false,
+    "Public-only verification must never claim that private compatibility bytes were hashed");
+  assert(publicOnlyResult.compatibilityArtifactVerification?.schemaVersion === 1
+    && publicOnlyResult.compatibilityArtifactVerification?.mode === "public-only"
+    && publicOnlyResult.compatibilityArtifactVerification?.descriptorSchemaVerified === true
+    && publicOnlyResult.compatibilityArtifactVerification?.privateCompatibilityArtifactsVerified === false,
+  "Public-only verification must emit an honest versioned descriptor-only result");
   await expectFailure(
     () => execFile("node", command, { cwd: process.cwd() }),
     "Compatibility artifact bootstrap-snapshot hash mismatch at dist/bootstrap-snapshot.json",
   );
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), bootstrapSnapshot);
+
+  manifest.compatibilityArtifacts[0].stagedPaths[0] = "../bootstrap-snapshot.json";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  await expectFailure(
+    () => execFile("node", [...command, "--public-only"], { cwd: process.cwd() }),
+    "Public-only verification requires the exact canonical bootstrap staged paths",
+  );
+  manifest.compatibilityArtifacts[0].stagedPaths[0] = "bootstrap-snapshot.json";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+  manifest.compatibilityArtifacts.push({
+    ...bootstrapSnapshotArtifact,
+    id: "extra-exclusion",
+  });
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  await expectFailure(
+    () => execFile("node", [...command, "--public-only"], { cwd: process.cwd() }),
+    "Public-only verification requires exactly one compatibility artifact",
+  );
+  manifest.compatibilityArtifacts.pop();
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.gz"), "corrupt-generated\n");
   await expectFailure(
@@ -170,6 +208,15 @@ async function verifyManifestContract() {
   );
   await writeFile(join(appRoot, "package-lock.json"), packageLock);
 
+  manifest.appVersion = "v.1.500.qa";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Manifest application version is invalid",
+  );
+  manifest.appVersion = "v.1.500.26";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
   manifest.gitProvenance.verification = "cached-upstream";
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
   await expectFailure(
@@ -183,6 +230,11 @@ async function verifyManifestContract() {
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
   const schemaTwo = await execFile("node", command, { cwd: process.cwd() });
   assert(JSON.parse(schemaTwo.stdout).runtimePolicyId === "implicit-legacy", "Schema 2 manifests must remain implicit-legacy compatible");
+  delete manifest.appVersion;
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const schemaTwoWithoutVersion = await execFile("node", command, { cwd: process.cwd() });
+  assert(JSON.parse(schemaTwoWithoutVersion.stdout).appVersion === null,
+    "Schema 1/2 full verification must preserve rollback compatibility when appVersion is absent");
 
   manifest.schemaVersion = 1;
   delete manifest.gitProvenance;

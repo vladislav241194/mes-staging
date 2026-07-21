@@ -62,6 +62,7 @@ assert(start >= 0 && end >= 0, "activation shell must remain extractable for tra
 const activationShellTemplate = activationSource.slice(start + startMarker.length, end);
 const directory = await realpath(await mkdtemp(join(tmpdir(), "mes-release-activation-transaction-")));
 const rootSealHelperPath = join(directory, "trusted-root-seal-helper.mjs");
+const publicVerifierPath = join(directory, "trusted-public-release-verifier.mjs");
 const journalHelperPath = join(directory, "trusted-switch-journal-helper.mjs");
 const activationShell = activationShellTemplate
   .replace('if [ "$(id -u)" -ne 0 ]; then', 'if [ "0" -ne 0 ]; then')
@@ -69,6 +70,7 @@ const activationShell = activationShellTemplate
   .replaceAll('/usr/bin/node "$root_seal_helper"', 'node "$root_seal_helper"')
   .replaceAll('/usr/bin/node "$journal_helper"', 'node "$journal_helper"')
   .replaceAll("/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs", rootSealHelperPath)
+  .replaceAll("/usr/local/libexec/mes/active-bundle/release-verify.mjs", publicVerifierPath)
   .replaceAll("/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs", journalHelperPath)
   .replace(/case "\$app_path:\$releases_path:\$service" in[\s\S]*?\nesac/, 'contour_name="staging"')
   .replace(/activation_phase="authority-rollout-lock"[\s\S]*?authority_lock_held=1\n/,
@@ -138,6 +140,7 @@ try {
     Buffer.from("MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS=0\0MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS=0\0MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS=0\0MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS=0\0MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS=0\0MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS=0\0MES_ENABLE_DIRECTORY_CLUSTER_SERVER_COMMANDS=0\0", "utf8"),
   );
   await writeFile(rootSealHelperPath, "// fixed root-seal helper is modeled by the QA node shim\n");
+  await writeFile(publicVerifierPath, "// fixed public verifier is modeled by the QA node shim\n");
   await writeFile(journalHelperPath, "// fixed switch journal helper is modeled as a successful transaction boundary\n");
   await writeFile(activationScriptPath, activationShell, "utf8");
 
@@ -172,7 +175,7 @@ if [ "\${1:-}" = "$QA_ROOT_SEAL_HELPER" ]; then
   fi
   exit 0
 fi
-if [ "\${1:-}" = "scripts/release-verify.mjs" ]; then
+if [ "\${1:-}" = "$QA_PUBLIC_RELEASE_VERIFIER" ]; then
   printf '{"appVersion":"v.1.500.qa","runtimePolicyId":"qa-permanent","runtimePolicySha256":"qa-policy-sha","reactSurfaces":%s}\\n' "$QA_REACT_SURFACES_JSON"
   exit 0
 fi
@@ -278,6 +281,7 @@ exit 2
     PATH: `${binPath}:/usr/bin:/bin:/usr/sbin:/sbin`,
     QA_REAL_NODE: process.execPath,
     QA_ROOT_SEAL_HELPER: rootSealHelperPath,
+    QA_PUBLIC_RELEASE_VERIFIER: publicVerifierPath,
     QA_ROOT_SEAL_FAIL_AFTER: "0",
     QA_RESTART_LOG: restartLogPath,
     QA_REACT_SURFACES_JSON: '["structureMigrationDiagnostics"]',

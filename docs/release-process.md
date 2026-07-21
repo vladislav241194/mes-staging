@@ -50,6 +50,113 @@ not reached its configured upstream. It performs:
 Staging does not switch `/srv/mes/pilot/app`, does not restart the service,
 and does not modify production data.
 
+### First root-trust bootstrap: ordered legacy, previous and active re-inode
+
+On the first run after installing the fixed root-trust helpers, the sealed
+`/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json` mirror does not yet
+exist. `release:stage:pilot` deliberately stops with exit code `78` before it
+creates a candidate release. The root bootstrap does **not** publish
+`06-bootstrap-snapshot-bind.conf` in this state, so the already running Pilot
+remains restartable. It also never copies the mutable operational runtime file
+into the sealed mirror.
+
+The active re-inode deliberately requires existing `root-reinode-copy`
+attestations for both rollback targets. Therefore do not invoke it immediately
+after exit `78`. Use clean, published worktrees for the exact releases to obtain
+every reviewed manifest/root-attestation anchor. Do not derive these values
+from mutable live runtime bytes. Through the authenticated root SSH alias,
+perform the following order exactly.
+
+1. Re-inode the pinned legacy release while it is inactive:
+
+```bash
+/usr/bin/node /usr/local/libexec/mes/active-bundle/release-root-reinode-active.mjs \
+  --mode=inactive \
+  --release-id=<pinned-legacy-release-id> \
+  --expected-git-commit=<legacy-published-commit> \
+  --expected-source-sha256=<legacy-source-sha256> \
+  --expected-dist-sha256=<legacy-dist-sha256> \
+  --expected-package-lock-sha256=<legacy-package-lock-sha256> \
+  --expected-runtime-policy-sha256=<legacy-runtime-policy-sha256> \
+  --expected-bootstrap-sha256=<legacy-bootstrap-sha256> \
+  --expected-bootstrap-gzip-sha256=<legacy-bootstrap-gzip-sha256> \
+  --expected-bootstrap-brotli-sha256=<legacy-bootstrap-brotli-sha256> \
+  --confirm=REINODE_INACTIVE_PILOT_RELEASE
+```
+
+2. If the immediate previous release ID differs from the pinned legacy release
+   ID, re-inode that inactive release separately. If both IDs are identical,
+   skip this second command; the first command already produced its attestation.
+
+```bash
+/usr/bin/node /usr/local/libexec/mes/active-bundle/release-root-reinode-active.mjs \
+  --mode=inactive \
+  --release-id=<immediate-previous-release-id> \
+  --expected-git-commit=<previous-published-commit> \
+  --expected-source-sha256=<previous-source-sha256> \
+  --expected-dist-sha256=<previous-dist-sha256> \
+  --expected-package-lock-sha256=<previous-package-lock-sha256> \
+  --expected-runtime-policy-sha256=<previous-runtime-policy-sha256> \
+  --expected-bootstrap-sha256=<previous-bootstrap-sha256> \
+  --expected-bootstrap-gzip-sha256=<previous-bootstrap-gzip-sha256> \
+  --expected-bootstrap-brotli-sha256=<previous-bootstrap-brotli-sha256> \
+  --confirm=REINODE_INACTIVE_PILOT_RELEASE
+```
+
+3. Only after both rollback targets carry verified re-inode attestations,
+   re-inode the currently active release:
+
+```bash
+/usr/bin/node /usr/local/libexec/mes/active-bundle/release-root-reinode-active.mjs \
+  --mode=active \
+  --release-id=<active-release-id> \
+  --expected-git-commit=<published-active-commit> \
+  --expected-source-sha256=<active-source-sha256> \
+  --expected-dist-sha256=<active-dist-sha256> \
+  --expected-package-lock-sha256=<active-package-lock-sha256> \
+  --expected-runtime-policy-sha256=<active-runtime-policy-sha256> \
+  --expected-bootstrap-sha256=<active-bootstrap-sha256> \
+  --expected-bootstrap-gzip-sha256=<active-bootstrap-gzip-sha256> \
+  --expected-bootstrap-brotli-sha256=<active-bootstrap-brotli-sha256> \
+  --expected-previous-release-id=<immediate-previous-release-id> \
+  --expected-legacy-release-id=<pinned-legacy-release-id> \
+  --confirm=REINODE_ACTIVE_PILOT_RELEASE
+```
+
+Before writing the mirror, a journal, or either application pointer, the fixed
+helper verifies that the active, immediate previous and pinned legacy root
+attestations carry the same `bootstrapSha256`. A mismatch is a hard stop with
+the mirror and pointers unchanged. When they match, the helper seeds the mirror
+from the manifest-bound active release, publishes the exact read-only bind,
+re-inodes the active release, and completes its normal health/rollback checks.
+
+4. Verify the mirror, the on-disk bind, the effective systemd bind and the
+   served bytes before repeating stage:
+
+```bash
+expected_bootstrap_sha256=<active-bootstrap-sha256>
+mirror=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json
+bind=/etc/systemd/system/mes-pilot.service.d/06-bootstrap-snapshot-bind.conf
+app_binding=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/bootstrap-snapshot.json
+dist_binding=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/dist/bootstrap-snapshot.json
+
+test "$(stat -Lc '%u:%g:%a:%h' -- "$mirror")" = 0:0:444:1
+test "$(sha256sum "$mirror" | awk '{print $1}')" = "$expected_bootstrap_sha256"
+test "$(stat -Lc '%u:%g:%a:%h' -- "$bind")" = 0:0:644:1
+grep -Fxq "BindReadOnlyPaths=$app_binding" "$bind"
+grep -Fxq "BindReadOnlyPaths=$dist_binding" "$bind"
+systemctl show mes-pilot.service --property=BindReadOnlyPaths --value | tr ' ' '\n' | grep -Fxq "$app_binding"
+systemctl show mes-pilot.service --property=BindReadOnlyPaths --value | tr ' ' '\n' | grep -Fxq "$dist_binding"
+test "$(systemctl show mes-pilot.service --property=NeedDaemonReload --value)" = no
+systemctl is-active --quiet mes-pilot.service
+test "$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+  -H 'Host: mes-internal' http://127.0.0.1:4175/bootstrap-snapshot.json | sha256sum | awk '{print $1}')" \
+  = "$expected_bootstrap_sha256"
+```
+
+5. Rerun `release:stage:pilot`. This bootstrap observes the sealed mirror and
+   keeps the mandatory bind published.
+
 ## Activation and rollback
 
 Activate only a staged release that has passed manifest verification:

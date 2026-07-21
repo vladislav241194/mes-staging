@@ -13,11 +13,15 @@ const BOOTSTRAP_FILES = Object.freeze([
   { sourceRelativePath: "ops/frontend/harden-pilot-release-root-trust.sh", remoteName: "harden-pilot-release-root-trust.sh" },
   { sourceRelativePath: "scripts/release-root-seal-verify.mjs", remoteName: "release-root-seal-verify.mjs" },
   { sourceRelativePath: "scripts/release-root-reinode-active.mjs", remoteName: "release-root-reinode-active.mjs" },
+  { sourceRelativePath: "scripts/release-verify.mjs", remoteName: "release-verify.mjs" },
+  { sourceRelativePath: "scripts/release-tree-sha.mjs", remoteName: "release-tree-sha.mjs" },
+  { sourceRelativePath: "scripts/react-runtime-policy.mjs", remoteName: "react-runtime-policy.mjs" },
   { sourceRelativePath: "scripts/release-activate.mjs", remoteName: "release-activate.mjs" },
   { sourceRelativePath: "scripts/release-rollback.mjs", remoteName: "release-rollback.mjs" },
   { sourceRelativePath: "scripts/release-switch-journal.mjs", remoteName: "release-switch-journal.mjs" },
   { sourceRelativePath: "ops/frontend/with-pilot-release-authority-lock.sh", remoteName: "with-pilot-release-authority-lock.sh" },
   { sourceRelativePath: "ops/frontend/recover-pilot-release-transitions.sh", remoteName: "recover-pilot-release-transitions.sh" },
+  { sourceRelativePath: "ops/frontend/mes-pilot-bootstrap-snapshot-bind.conf", remoteName: "mes-pilot-bootstrap-snapshot-bind.conf" },
 ]);
 const sshOptions = ["-o", "ControlMaster=auto", "-o", "ControlPersist=60"];
 
@@ -108,11 +112,15 @@ export function buildRemoteBootstrapCommand({ remoteDirectory, blobs }) {
     shellQuote(remotePaths["ops/frontend/harden-pilot-release-root-trust.sh"]),
     shellQuote(remotePaths["scripts/release-root-seal-verify.mjs"]),
     shellQuote(remotePaths["scripts/release-root-reinode-active.mjs"]),
+    shellQuote(remotePaths["scripts/release-verify.mjs"]),
+    shellQuote(remotePaths["scripts/release-tree-sha.mjs"]),
+    shellQuote(remotePaths["scripts/react-runtime-policy.mjs"]),
     shellQuote(remotePaths["scripts/release-activate.mjs"]),
     shellQuote(remotePaths["scripts/release-rollback.mjs"]),
     shellQuote(remotePaths["scripts/release-switch-journal.mjs"]),
     shellQuote(remotePaths["ops/frontend/with-pilot-release-authority-lock.sh"]),
     shellQuote(remotePaths["ops/frontend/recover-pilot-release-transitions.sh"]),
+    shellQuote(remotePaths["ops/frontend/mes-pilot-bootstrap-snapshot-bind.conf"]),
   ].join(" "));
   lines.push("/usr/bin/node /usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs bundle");
   lines.push('/usr/bin/rm -rf -- "$bootstrap_dir"');

@@ -98,9 +98,30 @@ assert.doesNotMatch(stageSource, /ensureBootstrapSnapshotArtifact/);
 assert.doesNotMatch(stageSource, /prepareLocalBootstrapSnapshotArtifact/);
 assert.doesNotMatch(stageSource, /installBootstrapSnapshotArtifact/);
 const chainCall = stageSource.indexOf("sshArgs(args.remote, buildPilotRootTrustPreflightCommand())");
-const nonexistenceCheck = stageSource.indexOf("test ! -e", chainCall);
+const nonexistenceCheck = stageSource.indexOf("const remoteExists =");
+const bootstrapDownload = stageSource.indexOf("const bootstrapSnapshotArtifact = await downloadPinnedBootstrapSnapshot", nonexistenceCheck);
+const rootTrustBootstrap = stageSource.indexOf("await bootstrapPublishedPilotRootTrust({");
 const freshReleaseInstall = stageSource.indexOf("install -d -o root -g root -m 0755", nonexistenceCheck);
-assert(chainCall >= 0 && nonexistenceCheck > chainCall && freshReleaseInstall > nonexistenceCheck, "Pilot chain and exact nonexistence must be proved before creating fresh root-owned release inodes");
+assert(rootTrustBootstrap >= 0 && chainCall > rootTrustBootstrap && nonexistenceCheck > chainCall
+  && bootstrapDownload > nonexistenceCheck && freshReleaseInstall > bootstrapDownload,
+"Pilot root bootstrap must seed the sealed recovery mirror before root-authenticated pinning and fresh release creation");
+assert.match(stageSource, /bootstrapSnapshotPath: "\/srv\/mes\/pilot\/bootstrap-recovery\/bootstrap-snapshot\.json"/);
+assert.match(stageSource, /bootstrapOperationalPath: "\/srv\/mes\/pilot\/runtime\/bootstrap-snapshot\.json"/);
+assert.match(stageSource, /Pilot bootstrap mirror is not initialized\. Root trust bootstrap intentionally left the bind unpublished, so Pilot remains restartable\./);
+assert.match(stageSource, /Run the documented active-release re-inode with explicit out-of-band anchors, then rerun release:stage\./);
+const firstRunBootstrapDownload = stageSource.indexOf("const bootstrapSnapshotArtifact = await downloadPinnedBootstrapSnapshot");
+const candidateCreation = stageSource.indexOf("const createReleaseCommand", firstRunBootstrapDownload);
+assert(firstRunBootstrapDownload >= 0 && candidateCreation > firstRunBootstrapDownload,
+  "a first-run missing mirror must fail safely before the candidate release directory is created");
+const pinFunctionStart = stageSource.indexOf("async function downloadPinnedBootstrapSnapshot");
+const pinFunctionEnd = stageSource.indexOf("\n}\n\nasync function installPinnedBootstrapSnapshotArtifact", pinFunctionStart);
+const pinFunction = stageSource.slice(pinFunctionStart, pinFunctionEnd);
+assert(pinFunctionStart >= 0 && pinFunctionEnd > pinFunctionStart);
+assert.match(pinFunction, /operationalPath: contour\.bootstrapOperationalPath/);
+assert.doesNotMatch(pinFunction, /mkdir -p|active_artifact|active_dist_artifact|cp -p/,
+  "staging must fail closed when the sealed pin source is absent and never manufacture it from an active or runtime path");
+assert.equal(resolveReleaseStageRemote("pilot"), "mes-line-root",
+  "post-UID Pilot staging must pin the root-only recovery mirror through the root alias");
 assert.match(stageSource, /Release path already exists/);
 assert.match(stageSource, /bootstrapPublishedPilotRootTrust\(\{/);
 assert.doesNotMatch(stageSource, /installPublishedPilotRootTrustTools/);
@@ -125,10 +146,13 @@ assert(firstFixedContentVerification >= 0 && firstFixedContentVerification < rem
 const remoteCandidatePreflightEnd = stageSource.indexOf('].join("\\n");', remoteCandidatePreflight);
 const remoteCandidatePreflightSource = stageSource.slice(remoteCandidatePreflight, remoteCandidatePreflightEnd);
 assert.match(remoteCandidatePreflightSource, /install -d -o mes-stage -g mes-stage -m 0700[^\n]*\$stage_scratch\/runtime\/shared-state[^\n]*\$stage_scratch\/runtime\/backups[^\n]*\$stage_scratch\/runtime\/audit/);
-assert.match(remoteCandidatePreflightSource, /\/usr\/bin\/env -i [^\n]*MES_SHARED_STATE_DIR="\$stage_scratch\/runtime\/shared-state" MES_BACKUP_DIR="\$stage_scratch\/runtime\/backups" MES_AUDIT_LOG_PATH="\$stage_scratch\/runtime\/audit\/audit\.log" \/usr\/bin\/npm run server:preflight/);
+assert.match(remoteCandidatePreflightSource, /install -o mes-stage -g mes-stage -m 0600 "\$candidate_app\/bootstrap-snapshot\.json" "\$stage_scratch\/runtime\/bootstrap-snapshot\.json"/);
+assert.match(remoteCandidatePreflightSource, /\/usr\/bin\/env -i [^\n]*MES_SHARED_STATE_DIR="\$stage_scratch\/runtime\/shared-state" MES_BACKUP_DIR="\$stage_scratch\/runtime\/backups" MES_AUDIT_LOG_PATH="\$stage_scratch\/runtime\/audit\/audit\.log" MES_BOOTSTRAP_SNAPSHOT_PATH="\$stage_scratch\/runtime\/bootstrap-snapshot\.json" \/usr\/bin\/npm run server:preflight/);
 for (const livePath of ["/srv/mes/pilot/shared-state", "/srv/mes/pilot/backups", "/srv/mes/pilot/audit", "/srv/mes/dev/shared-state", "/srv/mes/dev/backups", "/srv/mes/dev/audit"]) {
   assert(!remoteCandidatePreflightSource.includes(livePath), `mes-stage candidate preflight must not receive live write path ${livePath}`);
 }
+assert(!remoteCandidatePreflightSource.includes("/srv/mes/pilot/runtime/bootstrap-snapshot.json"),
+  "mes-stage candidate preflight must never receive the live operational bootstrap path");
 const stagePreflightRuntime = await mkdtemp(join(tmpdir(), "mes-stage-preflight-runtime-"));
 try {
   const sharedStateDir = join(stagePreflightRuntime, "shared-state");
@@ -161,13 +185,31 @@ try {
 }
 assert.match(stageSource, /--mode=verify/);
 assert.match(stageSource, /--confirm=VERIFY_ROOT_STAGED_RELEASE/);
+for (const privateBootstrapPath of [
+  "bootstrap-snapshot.json",
+  "dist/bootstrap-snapshot.json",
+  "dist/bootstrap-snapshot.json.gz",
+  "dist/bootstrap-snapshot.json.br",
+]) {
+  assert(stageSource.includes(`$release_app/${privateBootstrapPath}`),
+    `fresh stage must normalize ${privateBootstrapPath} as a canonical private artifact`);
+}
+assert.match(stageSource, /chmod 0400 \\"\$private_path\\"/);
+const fixedActiveFunctionStart = stageSource.indexOf("function fixedActivePilotReleaseVerificationCommand()");
+const fixedActiveFunctionEnd = stageSource.indexOf("\n}\n", fixedActiveFunctionStart);
+const fixedActiveFunction = stageSource.slice(fixedActiveFunctionStart, fixedActiveFunctionEnd);
+const fixedBundleSeal = fixedActiveFunction.indexOf('"$root_seal_helper" bundle');
+const fixedReleaseSeal = fixedActiveFunction.indexOf('"$root_seal_helper" release');
+const fixedActiveSuccess = fixedActiveFunction.indexOf("ACTIVE_RELEASE_ROOT_SEAL_OK");
+assert(fixedBundleSeal >= 0 && fixedReleaseSeal > fixedBundleSeal && fixedActiveSuccess > fixedReleaseSeal,
+  "active Pilot stage preflight must verify the fixed helper bundle before sealing release-owned state");
 
 const helperPath = join(projectRoot, "ops", "frontend", "harden-pilot-release-root-trust.sh");
 const helperSource = await readFile(helperPath, "utf8");
 const helperSyntax = spawnSync("bash", ["-n", helperPath], { encoding: "utf8" });
 assert.equal(helperSyntax.status, 0, helperSyntax.stderr);
 assert.doesNotMatch(helperSource, /bash\s+-s/);
-assert.match(helperSource, /SHA-verified root-uploaded helper paths/);
+assert.match(helperSource, /SHA-verified bootstrap bind drop-in/);
 assert.match(helperSource, /release-root-seal-verify\.mjs/);
 assert.match(helperSource, /release-root-reinode-active\.mjs/);
 assert.match(helperSource, /release-activate-root\.mjs/);
@@ -175,7 +217,8 @@ assert.match(helperSource, /release-rollback-root\.mjs/);
 assert.match(helperSource, /release-switch-journal\.mjs/);
 assert.match(helperSource, /with-pilot-release-authority-lock\.sh/);
 assert.match(helperSource, /recover-pilot-release-transitions\.sh/);
-assert.match(helperSource, /"\$#" -ne 7/);
+assert.match(helperSource, /"\$#" -ne 11/);
+assert.match(helperSource, /lock_wrapper_source="\$\{9:-\}"/);
 assert.match(helperSource, /active_bundle="\/usr\/local\/libexec\/mes\/active-bundle"/);
 assert.match(helperSource, /mv -Tf "\$active_bundle_next" "\$active_bundle"/);
 assert.match(helperSource, /install -o root -g root -m 0555/);

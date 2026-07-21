@@ -24,11 +24,11 @@ assert(activateSource.includes("await assertFixedRootRunner(FIXED_ROOT_ACTIVATE_
 assert(stageSource.includes('sourceRelativePath: "scripts/release-activate.mjs"') && stageSource.includes("FIXED_ROOT_ACTIVATE_RUNNER"), "Staging must install the activation runner from the exact published Git blob");
 assert(stageSource.includes('sourceRelativePath: "scripts/release-rollback.mjs"') && stageSource.includes("FIXED_ROOT_ROLLBACK_RUNNER"), "Staging must install the rollback runner from the exact published Git blob");
 assert(source.includes('root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"') && activateSource.includes('root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"'), "Every release switch must start from the atomically selected root-owned seal verifier");
-assert(source.indexOf('/usr/bin/node "$root_seal_helper" release') < source.indexOf('(cd "$current_target" && run_candidate_node scripts/release-verify.mjs'), "Rollback must recursively seal the current release before executing its unprivileged verifier");
-assert(source.indexOf('--app="$previous_target" >/dev/null') < source.indexOf('restore_verification="$(cd "$previous_target" && run_candidate_node'), "Rollback must recursively seal the selected release before executing its unprivileged verifier");
-assert(source.indexOf('--app="$previous_target" >/dev/null') < source.indexOf('(cd "$current_target" && run_candidate_node scripts/release-verify.mjs'), "Rollback must seal both sides before executing code from either release");
-assert(activateSource.indexOf('/usr/bin/node "$root_seal_helper" release') < activateSource.indexOf('cd "$release_app_path"'), "Activation must recursively seal the candidate before executing candidate code");
-assert(activateSource.indexOf('--app="$previous_target" >/dev/null') < activateSource.indexOf('cd "$release_app_path"'), "Activation must seal the currently serving release before executing candidate code");
+assert(source.indexOf('/usr/bin/node "$root_seal_helper" release') < source.indexOf('run_fixed_public_verifier \\\n  --app-root="$current_target"'), "Rollback must recursively seal the current release before executing the fixed public verifier");
+assert(source.indexOf('--app="$previous_target" >/dev/null') < source.indexOf('restore_verification="$(run_fixed_public_verifier --app-root="$previous_target"'), "Rollback must recursively seal the selected release before executing the fixed public verifier");
+assert(!source.includes("run_candidate_node") && !activateSource.includes("run_candidate_node"), "Release switches must never execute a release-provided verifier");
+assert(activateSource.indexOf('/usr/bin/node "$root_seal_helper" release') < activateSource.indexOf('manifest_verification="$(run_fixed_public_verifier'), "Activation must recursively seal the candidate before fixed public verification");
+assert(activateSource.indexOf('--app="$previous_target" >/dev/null') < activateSource.indexOf('previous_manifest_verification="$(run_fixed_public_verifier'), "Activation must seal the currently serving release before fixed public verification");
 assert(activateSource.includes('refusing automatic rollback to an unsealed previous release') && activateSource.includes('--pointer="$rollback_pointer_path"'), "Automatic activation rollback must fail closed and verify its exact temporary pointer");
 assert(source.includes('Rollback recovery is fail-closed') && source.includes('--pointer="$rolled_pointer"'), "Failed manual rollback recovery must not restart an unsealed prior runtime");
 assert(source.includes('["previous", "legacy-baseline"]'), "Rollback CLI must allow only the two reviewed target modes");
@@ -40,6 +40,32 @@ assert(source.includes("release-verify.mjs") && source.includes("--expected-rele
 assert(source.includes("restore_current") && source.includes("trap 'code=$?; restore_current"), "A failed rollback must restore the current release pointer");
 assert(source.includes('check_health "http://localhost:$port/healthz"') && source.includes('check_health "$public_health_url"'), "Rollback must pass local and public health checks");
 assert(source.includes('health?.version !== expectedVersion') && activateSource.includes('health?.version !== expectedVersion'), "Activation and rollback health checks must prove the exact selected release version");
+for (const [name, releaseSwitch, currentNeedle, targetNeedle] of [
+  ["activation", activateSource, '"$previous_target" "$previous_release_path/release-manifest.json"', '"$release_app_path" "$release_path/release-manifest.json"'],
+  ["rollback", source, '"$current_target" "$current_release_path/release-manifest.json"', '"$previous_target" "$previous_release_path/release-manifest.json"'],
+]) {
+  const journalPrepare = releaseSwitch.indexOf('"$journal_helper" prepare');
+  const mirrorInvariant = releaseSwitch.indexOf('target_bootstrap_sha="$(verify_pilot_bootstrap_recovery_invariant');
+  const pointerSwitch = releaseSwitch.indexOf('phase=pointer-switched', journalPrepare);
+  const restart = releaseSwitch.indexOf('systemctl restart "$service"', pointerSwitch);
+  const servedDigest = releaseSwitch.indexOf('check_served_bootstrap "$target_bootstrap_sha"', restart);
+  assert(mirrorInvariant >= 0 && journalPrepare > mirrorInvariant && pointerSwitch > journalPrepare
+    && restart > pointerSwitch && servedDigest > restart,
+  `${name} must prove the immutable bootstrap invariant before journaling or pointer mutation and verify served bytes after restart`);
+  assert(releaseSwitch.includes(currentNeedle) && releaseSwitch.includes(targetNeedle)
+    && releaseSwitch.includes('"$legacy_bootstrap_target" "$legacy_bootstrap_manifest"'),
+  `${name} bootstrap invariant must cover current, target and pinned legacy releases`);
+  assert(releaseSwitch.includes('descriptor.operationalPath !== "/srv/mes/pilot/runtime/bootstrap-snapshot.json"'),
+    `${name} must retain the exact schema-v3 operationalPath while treating bootstrap-recovery as implementation state`);
+  const invariantStart = releaseSwitch.indexOf("verify_pilot_bootstrap_recovery_invariant() {");
+  const invariantEnd = releaseSwitch.indexOf("\n}\n\nclear_release_app_verification_intent", invariantStart);
+  const invariantFunction = releaseSwitch.slice(invariantStart, invariantEnd);
+  assert(invariantStart >= 0 && invariantEnd > invariantStart);
+  assert(invariantFunction.includes('[ "$current_sha" = "$target_sha" ] && [ "$current_sha" = "$legacy_sha" ]'));
+  assert(!/(?:install|cp|mv|rm|writeFile|rename)[^\n]*recovery/.test(invariantFunction)
+    && !invariantFunction.includes(".next.$$"),
+  `${name} switch-time invariant must be read-only so SIGKILL recovery cannot expose a pointer/mirror mismatch`);
+}
 assert(source.includes("rollback-$timestamp.json") && source.includes("active-release.json.next"), "Rollback must write an audit record and atomically replace the active release record");
 assert(source.includes("runtimePolicyFromVerification") && source.includes("health?.reactRuntime?.sha256"), "Rollback must restore and verify the selected release policy");
 assert(!source.includes('previousReleasePath + "/activation.json"') && source.includes("Restored manifest identity differs from the verified release"), "Rollback must reconstruct its active record from the sealed target manifest instead of trusting copied deploy-era activation metadata");

@@ -7,6 +7,8 @@ import {
   validateSpecifications2CandidateManifest,
 } from "./release-specifications2-command-contract.mjs";
 
+const FIXED_PUBLIC_RELEASE_VERIFIER = "/usr/local/libexec/mes/active-bundle/release-verify.mjs";
+
 const options = Object.fromEntries(process.argv.slice(2).map((arg) => {
   const [key, ...value] = arg.replace(/^--/, "").split("=");
   return [key, value.join("=")];
@@ -28,13 +30,28 @@ async function validateRelease(appPath, manifestPath, { verify = false } = {}) {
   const manifest = JSON.parse(manifestSource);
   validateSpecifications2CandidateManifest(manifest, markerSource);
   if (verify) {
-    const verification = spawnSync(process.execPath, [
-      join(appPath, "scripts/release-verify.mjs"),
+    let publicVerifierPath = FIXED_PUBLIC_RELEASE_VERIFIER;
+    if (process.env.MES_RELEASE_PUBLIC_VERIFIER_QA_PATH) {
+      if (appPath.startsWith("/srv/mes/") || manifestPath.startsWith("/srv/mes/")) {
+        throw new Error("A fixed public verifier QA override is forbidden for MES release paths");
+      }
+      publicVerifierPath = resolve(process.env.MES_RELEASE_PUBLIC_VERIFIER_QA_PATH);
+    }
+    const verificationArgs = [
+      publicVerifierPath,
       `--manifest=${manifestPath}`,
       `--app-root=${appPath}`,
       `--expected-release-id=${manifest.releaseId}`,
       "--json",
-    ], { encoding: "utf8" });
+      "--public-only",
+    ];
+    const verification = typeof process.getuid === "function" && process.getuid() === 0
+      ? spawnSync("/usr/sbin/runuser", [
+        "-u", "mes-stage", "--", "/usr/bin/env",
+        "HOME=/nonexistent", "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+        "/usr/bin/node", ...verificationArgs,
+      ], { encoding: "utf8" })
+      : spawnSync(process.execPath, verificationArgs, { encoding: "utf8" });
     if (verification.status !== 0) throw new Error("Active release marker is not covered by a valid release manifest");
   }
   return true;

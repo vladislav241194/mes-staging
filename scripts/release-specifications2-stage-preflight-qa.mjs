@@ -109,6 +109,8 @@ assert(stageSource.includes("validateSpecifications2CandidateManifest(manifest")
 assert(stageSource.includes("release-specifications2-stage-preflight.mjs"), "remote staging must inspect the active command surface before activation handoff");
 assert(stageSource.includes("remotePreflightResult.stderr.trim()") && stageSource.includes("console.warn"), "controlled-root deactivation warnings must be visible to the release operator");
 assert(preflightSource.includes("`--app-root=${appPath}`"), "active release verification must hash the active app instead of the candidate working directory");
+assert(preflightSource.includes('FIXED_PUBLIC_RELEASE_VERIFIER = "/usr/local/libexec/mes/active-bundle/release-verify.mjs"'),
+  "active release verification must use the root-owned fixed public verifier");
 
 const root = await mkdtemp(join(tmpdir(), "mes-specifications2-stage-preflight-"));
 try {
@@ -136,7 +138,16 @@ try {
   await mkdir(bin, { recursive: true });
   await writeFile(candidateManifest, `${JSON.stringify(manifest)}\n`);
   await writeFile(join(activeRelease, "release-manifest.json"), `${JSON.stringify({ ...manifest, releaseId: "v.1.500.qa-active" })}\n`);
-  await writeFile(join(activeReleaseApp, "scripts", "release-verify.mjs"), "process.stdout.write('{}\\n');\n");
+  await writeFile(join(candidateApp, "scripts", "release-verify.mjs"), `
+const args = process.argv.slice(2);
+const appRoot = args.find((arg) => arg.startsWith("--app-root="));
+if (!args.includes("--public-only") || !appRoot?.endsWith("/active-release/app")) process.exit(91);
+process.stdout.write('{}\\n');
+`);
+  await writeFile(join(activeReleaseApp, "scripts", "release-verify.mjs"), `
+if (process.argv.includes("--public-only")) process.exit(92);
+process.stdout.write('{}\\n');
+`);
   await writeFile(join(bin, "systemctl"), `#!/bin/sh
 if [ "\${1:-}" = "show" ]; then
   printf '%s\\n' "\${QA_MAIN_PID:-0}"
@@ -152,6 +163,7 @@ exit 0
     MES_RELEASE_GUARD_SYSTEMD_ROOT: systemdRoot,
     MES_RELEASE_GUARD_PROC_ROOT: procRoot,
     QA_MAIN_PID: mainPid,
+    MES_RELEASE_PUBLIC_VERIFIER_QA_PATH: join(candidateApp, "scripts", "release-verify.mjs"),
   };
   const run = (env = baseEnv) => spawnSync(process.execPath, [
     cli,

@@ -14,11 +14,15 @@ const sourcePaths = [
   "ops/frontend/harden-pilot-release-root-trust.sh",
   "scripts/release-root-seal-verify.mjs",
   "scripts/release-root-reinode-active.mjs",
+  "scripts/release-verify.mjs",
+  "scripts/release-tree-sha.mjs",
+  "scripts/react-runtime-policy.mjs",
   "scripts/release-activate.mjs",
   "scripts/release-rollback.mjs",
   "scripts/release-switch-journal.mjs",
   "ops/frontend/with-pilot-release-authority-lock.sh",
   "ops/frontend/recover-pilot-release-transitions.sh",
+  "ops/frontend/mes-pilot-bootstrap-snapshot-bind.conf",
 ];
 const commit = "a".repeat(40);
 const fixtureRoot = await mkdtemp(join(tmpdir(), "mes-root-bootstrap-qa-"));
@@ -72,7 +76,9 @@ const hardenerSource = await readFile(hardenerPath, "utf8");
 const hardenerSyntax = spawnSync("bash", ["-n", hardenerPath], { encoding: "utf8" });
 assert.equal(hardenerSyntax.status, 0, hardenerSyntax.stderr);
 assert.doesNotMatch(hardenerSource, /bash\s+-s/);
-assert.match(hardenerSource, /"\$#" -ne 7/);
+assert.match(hardenerSource, /"\$#" -ne 11/);
+assert.match(hardenerSource, /lock_wrapper_source="\$\{9:-\}"/);
+assert.match(hardenerSource, /-- \/bin\/bash "\$0" --locked "\$@"/);
 const atomicInstallFunction = hardenerSource.match(/atomic_install_config\(\) \{\n[\s\S]*?\n\}/)?.[0];
 assert(atomicInstallFunction, "hardener must define atomic_install_config");
 assert.match(atomicInstallFunction, /local target="\$1"\n\s+local source="\$2"\n\s+local next="\$\{target\}\.next\.\$\{bundle_id\}\.\$\$"/);
@@ -89,6 +95,9 @@ assert.equal(atomicInstallHarness.status, 0, atomicInstallHarness.stderr || "ato
 for (const mapping of [
   "release-root-seal-verify.mjs",
   "release-root-reinode-active.mjs",
+  "release-verify.mjs",
+  "release-tree-sha.mjs",
+  "react-runtime-policy.mjs",
   "release-activate-root.mjs",
   "release-rollback-root.mjs",
   "release-switch-journal.mjs",
@@ -98,6 +107,46 @@ for (const mapping of [
   assert(hardenerSource.includes(mapping), `hardener is missing ${mapping}`);
 }
 assert.match(hardenerSource, /active_bundle="\/usr\/local\/libexec\/mes\/active-bundle"/);
+assert.match(hardenerSource, /bootstrap_bind_source="\$\{11:-\}"/);
+assert.match(hardenerSource, /bootstrap_bind_target=\/etc\/systemd\/system\/mes-pilot\.service\.d\/06-bootstrap-snapshot-bind\.conf/);
+assert.match(hardenerSource, /if \[\[ -f "\$sealed_bootstrap" && ! -L "\$sealed_bootstrap" \]\]; then[\s\S]*atomic_install_config "\$bootstrap_bind_target" "\$bootstrap_bind_source"/);
+assert.match(hardenerSource, /elif \[\[ -e "\$bootstrap_bind_target" \|\| -L "\$bootstrap_bind_target" \]\]; then[\s\S]*sha256sum "\$bootstrap_bind_target"[\s\S]*rm -f -- "\$bootstrap_bind_target"/);
+assert.equal((hardenerSource.match(/atomic_install_config "\$bootstrap_bind_target" "\$bootstrap_bind_source"/g) || []).length, 1,
+  "the mandatory bind may be published only inside the sealed-mirror-ready branch");
+assert.match(hardenerSource, /stat -Lc '%u:%g:%a:%h'.*operational_bootstrap[\s\S]*0:0:444:1/);
+assert.match(hardenerSource, /runuser -u "\$runtime_reader" -- test -r "\$operational_bootstrap"/);
+assert.match(hardenerSource, /runuser -u mes-stage -- test -r "\$operational_bootstrap"/);
+assert.match(hardenerSource, /Active re-inode is[\s\S]*allowed to atomically seed manifest-bound mirror bytes/);
+assert.doesNotMatch(hardenerSource, /(?:cp|install)[^\n]*"\$operational_bootstrap"[^\n]*"\$sealed_bootstrap/,
+  "root trust bootstrap must never copy mutable runtime bytes into the sealed mirror");
+assert.doesNotMatch(hardenerSource, /sealed_bootstrap_next=/,
+  "root trust bootstrap must leave an absent mirror absent until active re-inode seeds it");
+const bindReadyBranch = hardenerSource.indexOf('if [[ -f "$sealed_bootstrap" && ! -L "$sealed_bootstrap" ]]; then');
+const bindPublication = hardenerSource.indexOf('atomic_install_config "$bootstrap_bind_target" "$bootstrap_bind_source"', bindReadyBranch);
+const firstRunResidueBranch = hardenerSource.indexOf('elif [[ -e "$bootstrap_bind_target" || -L "$bootstrap_bind_target" ]]; then', bindPublication);
+const firstRunResidueRemoval = hardenerSource.indexOf('rm -f -- "$bootstrap_bind_target"', firstRunResidueBranch);
+const daemonReload = hardenerSource.indexOf("systemctl daemon-reload", firstRunResidueRemoval);
+assert(bindReadyBranch >= 0 && bindPublication > bindReadyBranch
+  && firstRunResidueBranch > bindPublication && firstRunResidueRemoval > firstRunResidueBranch
+  && daemonReload > firstRunResidueRemoval,
+"first-run bootstrap must either publish after a sealed mirror or remove only exact managed residue before daemon-reload");
+
+// Adversarial first-run model bound to the exact production branches above:
+// a missing mirror cannot expose the mandatory bind, including when recovering
+// the exact residue from the older unsafe ordering. Unknown residue fails
+// closed instead of being silently removed.
+function firstRunBindDecision({ mirrorExists, bindExists, bindIsExactManaged }) {
+  if (mirrorExists) return "publish";
+  if (!bindExists) return "defer";
+  if (!bindIsExactManaged) throw new Error("unsafe bootstrap bind residue");
+  return "remove-managed-residue";
+}
+assert.equal(firstRunBindDecision({ mirrorExists: false, bindExists: false, bindIsExactManaged: false }), "defer");
+assert.equal(firstRunBindDecision({ mirrorExists: false, bindExists: true, bindIsExactManaged: true }), "remove-managed-residue");
+assert.throws(
+  () => firstRunBindDecision({ mirrorExists: false, bindExists: true, bindIsExactManaged: false }),
+  /unsafe bootstrap bind residue/,
+);
 assert.match(hardenerSource, /ln -s "bundles\/\$\{bundle_id\}" "\$active_bundle_next"/);
 assert.match(hardenerSource, /mv -Tf "\$active_bundle_next" "\$active_bundle"/);
 assert.doesNotMatch(hardenerSource, /stable_path=.*installed_names/);

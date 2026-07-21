@@ -69,7 +69,7 @@ try {
   await mkdir(join(app, "scripts"), { recursive: true });
   await mkdir(join(app, "ops", "postgres"), { recursive: true });
   await writeFile(join(app, SHIFT_EXECUTION_COMMAND_MARKER_PATH), markerSource);
-  await writeFile(join(app, "scripts", "release-verify.mjs"), "process.exit(0);\n");
+  await writeFile(join(app, "scripts", "release-verify.mjs"), "if (!process.argv.includes('--public-only')) process.exit(41);\n");
   await writeFile(releaseManifest, `${JSON.stringify(manifest)}\n`);
   const commonVerifier = spawnSync(process.execPath, [
     new URL("./release-server-command-contract-verify.mjs", import.meta.url).pathname,
@@ -77,7 +77,7 @@ try {
     `--manifest=${releaseManifest}`,
     `--expected-release-id=${manifest.releaseId}`,
     "--contract=shift-execution",
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8", env: { ...process.env, MES_RELEASE_PUBLIC_VERIFIER_QA_PATH: join(app, "scripts", "release-verify.mjs") } });
   assert.equal(commonVerifier.status, 0, commonVerifier.stderr);
 
   const bin = join(root, "bin");

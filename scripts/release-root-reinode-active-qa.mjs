@@ -1,30 +1,64 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmod,
   cp,
+  lstat,
   mkdir,
   mkdtemp,
   open,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  PILOT_BOOTSTRAP_BIND_CONTENT,
+  assertBootstrapLineageInvariant,
   buildTrustedActiveRecord,
   copyAnchoredAppPayload,
   computeTrustedTreeSha,
   executeReinodeSwapTransaction,
   fdInfoProvesCanonicalFlock,
+  normalizePublicReleasePayloadModes,
+  refreshPilotBootstrapRecoveryMirror,
   recoverReinodeTransaction,
   verifyOutOfBandReleaseAnchors,
   writeDurableTransactionJournal,
 } from "./release-root-reinode-active.mjs";
+
+assert.equal(
+  PILOT_BOOTSTRAP_BIND_CONTENT,
+  await readFile(new URL("../ops/frontend/mes-pilot-bootstrap-snapshot-bind.conf", import.meta.url), "utf8"),
+  "the fixed root helper must publish the exact reviewed bootstrap bind drop-in",
+);
+
+const helperSource = await readFile(new URL("./release-root-reinode-active.mjs", import.meta.url), "utf8");
+const preparationStart = helperSource.indexOf("await writeReinodeAttestation(temporaryReleasePath, anchors)");
+const journalStart = helperSource.indexOf("const journal = {", preparationStart);
+assert(preparationStart >= 0 && journalStart > preparationStart,
+  "production re-inode preparation must remain statically reviewable before the durable journal");
+const preparation = helperSource.slice(preparationStart, journalStart);
+let preparationCursor = -1;
+for (const needle of [
+  'run(TRUSTED_BIN.chown, ["-hR", "0:0", temporaryReleasePath])',
+  "await normalizePublicReleasePayloadModes({ releasePath: temporaryReleasePath })",
+  "await verifyReleaseRootSeal({",
+  "ROOT_PUBLIC_RELEASE_VERIFIER_PATH",
+  '"--public-only"',
+]) {
+  const index = preparation.indexOf(needle, preparationCursor + 1);
+  assert(index > preparationCursor, `production re-inode preparation is missing or reorders: ${needle}`);
+  preparationCursor = index;
+}
 
 const fixtureLockPid = 5151;
 const fixtureLockInode = 9191n;
@@ -68,14 +102,10 @@ async function createRelease(root, releaseId) {
     await writeFile(join(appPath, directory, "fixture.txt"), `${directory}-trusted\n`);
   }
   const packageLock = '{"lockfileVersion":3}\n';
-  const runtimePolicy = `${JSON.stringify({
-    schemaVersion: 1,
-    policyId: "mes-react-runtime-v1",
-    surfaces: { structureMigrationDiagnostics: "react", weeklyProductionControl: "react" },
-  })}\n`;
+  const runtimePolicy = await readFile(new URL("../react-runtime-policy.json", import.meta.url), "utf8");
   const bootstrap = '{"fixture":"bootstrap"}\n';
   const runtimeFiles = {
-    "app-version.json": '{"version":"v.1.500.qa"}\n',
+    "app-version.json": '{"version":"v.1.500.99"}\n',
     "index.html": "<!doctype html>\n",
     "styles.css": "/* trusted */\n",
     "favicon.svg": "<svg/>\n",
@@ -87,6 +117,8 @@ async function createRelease(root, releaseId) {
     "vercel.json": "{}\n",
   };
   for (const [path, source] of Object.entries(runtimeFiles)) await writeFile(join(appPath, path), source);
+  await writeFile(join(appPath, "scripts", "executable-fixture.sh"), "#!/bin/sh\nexit 0\n");
+  await chmod(join(appPath, "scripts", "executable-fixture.sh"), 0o755);
   await writeFile(join(appPath, "bootstrap-snapshot.json"), bootstrap);
   await writeFile(join(appPath, "dist", "bootstrap-snapshot.json"), bootstrap);
   const bootstrapGzip = "fixture-gzip\n";
@@ -104,7 +136,18 @@ async function createRelease(root, releaseId) {
     schemaVersion: 3,
     releaseId,
     gitCommit: "1".repeat(40),
-    appVersion: "v.1.500.qa",
+    appVersion: "v.1.500.99",
+    gitProvenance: {
+      schemaVersion: 1,
+      gitCommit: "1".repeat(40),
+      branch: "codex/frontend-react-migration",
+      remote: "origin",
+      upstreamRef: "origin/main",
+      upstreamBranchRef: "refs/heads/main",
+      upstreamCommit: "2".repeat(40),
+      verification: "fresh-upstream-fetch",
+      verifiedAt: "2026-07-21T00:00:00.000Z",
+    },
     runtimeIncludes: RUNTIME_INCLUDES,
     sourceTreeSha256,
     distTreeSha256,
@@ -118,6 +161,7 @@ async function createRelease(root, releaseId) {
     compatibilityArtifacts: [{
       id: "bootstrap-snapshot",
       sha256: sha256(bootstrap),
+      operationalPath: "/srv/mes/pilot/runtime/bootstrap-snapshot.json",
       stagedPaths: ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"],
       generatedPaths: [
         { path: "dist/bootstrap-snapshot.json.gz", sha256: sha256(bootstrapGzip) },
@@ -140,7 +184,7 @@ async function createRelease(root, releaseId) {
   return { releasePath, appPath, manifest, anchors };
 }
 
-const root = await mkdtemp(join(tmpdir(), "mes-root-reinode-qa-"));
+const root = await realpath(await mkdtemp(join(tmpdir(), "mes-root-reinode-qa-")));
 try {
   const releaseId = "v.1.500.qa-active";
   const releasesRoot = join(root, "releases");
@@ -148,14 +192,126 @@ try {
   await mkdir(releasesRoot);
   await mkdir(quarantineRoot);
   const source = await createRelease(releasesRoot, releaseId);
+  const externalBootstrapPath = join(root, "external-bootstrap.json");
+  const sourceBootstrapPath = join(source.appPath, "bootstrap-snapshot.json");
+  const sourceBootstrap = await readFile(sourceBootstrapPath);
+  await writeFile(externalBootstrapPath, "external-do-not-touch\n", { mode: 0o600 });
+  await rm(sourceBootstrapPath);
+  await symlink(externalBootstrapPath, sourceBootstrapPath);
+  const rejectedTarget = join(releasesRoot, ".symlink-rejected", "app");
+  await assert.rejects(
+    copyAnchoredAppPayload({ sourceAppPath: source.appPath, targetAppPath: rejectedTarget }),
+    /source private bootstrap path is not a regular file/,
+    "a source bootstrap symlink must be rejected before a trusted target is created or chmod is attempted",
+  );
+  await assert.rejects(lstat(rejectedTarget), /ENOENT/,
+    "source validation must fail before creating the trusted target tree");
+  assert.equal(await readFile(externalBootstrapPath, "utf8"), "external-do-not-touch\n");
+  assert.equal((await stat(externalBootstrapPath)).mode & 0o777, 0o600,
+    "rejecting a source bootstrap symlink must not chmod its external target");
+  await rm(sourceBootstrapPath);
+  await writeFile(sourceBootstrapPath, sourceBootstrap);
+  const recoveryPath = join(root, "bootstrap-recovery", "bootstrap-snapshot.json");
+  await refreshPilotBootstrapRecoveryMirror({
+    sourcePath: sourceBootstrapPath,
+    expectedSha256: source.anchors.expectedBootstrapSha256,
+    recoveryPath,
+    expectedUid: process.getuid(),
+    expectedGid: process.getgid(),
+  });
+  assert.equal(await readFile(recoveryPath, "utf8"), sourceBootstrap.toString("utf8"));
+  assert.equal((await stat(recoveryPath)).mode & 0o777, 0o444);
+  const mismatchedBootstrap = join(root, "mismatched-bootstrap.json");
+  await writeFile(mismatchedBootstrap, '{"fixture":"attacker"}\n');
+  await assert.rejects(
+    refreshPilotBootstrapRecoveryMirror({
+      sourcePath: mismatchedBootstrap,
+      expectedSha256: source.anchors.expectedBootstrapSha256,
+      recoveryPath,
+      expectedUid: process.getuid(),
+      expectedGid: process.getgid(),
+    }),
+    /differs from the manifest-bound digest/,
+    "a digest-mismatched release bootstrap must not replace the sealed recovery mirror",
+  );
+  assert.equal(await readFile(recoveryPath, "utf8"), sourceBootstrap.toString("utf8"),
+    "a rejected bootstrap refresh must leave the previous sealed mirror unchanged");
+
+  const lineagePointer = join(root, "lineage-pointer");
+  const lineageMirror = join(root, "lineage-mirror");
+  await writeFile(lineagePointer, "active-pointer-before\n");
+  await writeFile(lineageMirror, "sealed-mirror-before\n");
+  const commonBootstrapSha256 = source.anchors.expectedBootstrapSha256;
+  assert.equal(assertBootstrapLineageInvariant({
+    activeBootstrapSha256: commonBootstrapSha256,
+    previousBootstrapSha256: commonBootstrapSha256,
+    legacyBootstrapSha256: commonBootstrapSha256,
+  }), commonBootstrapSha256);
+  assert.throws(() => assertBootstrapLineageInvariant({
+    activeBootstrapSha256: commonBootstrapSha256,
+    previousBootstrapSha256: "f".repeat(64),
+    legacyBootstrapSha256: commonBootstrapSha256,
+  }), /active, immediate previous and pinned legacy bootstrap digests differ/);
+  assert.equal(await readFile(lineagePointer, "utf8"), "active-pointer-before\n",
+    "a lineage mismatch must leave the application pointer unchanged");
+  assert.equal(await readFile(lineageMirror, "utf8"), "sealed-mirror-before\n",
+    "a lineage mismatch must leave the sealed recovery mirror unchanged");
   await writeFile(join(source.appPath, ".npmrc"), "unsafe-root-script=true\n");
   await mkdir(join(source.appPath, "unmanifested-extra"));
   await writeFile(join(source.appPath, "unmanifested-extra", "payload"), "unsafe\n");
+  await chmod(join(source.appPath, "src", "fixture.txt"), 0o600);
+  await chmod(join(source.appPath, "src"), 0o700);
   const allowlistCopy = join(releasesRoot, ".allowlist-copy", "app");
   await mkdir(join(releasesRoot, ".allowlist-copy"));
   await copyAnchoredAppPayload({ sourceAppPath: source.appPath, targetAppPath: allowlistCopy });
   await assert.rejects(readFile(join(allowlistCopy, ".npmrc")), /ENOENT/);
   await assert.rejects(readFile(join(allowlistCopy, "unmanifested-extra", "payload")), /ENOENT/);
+  for (const privatePath of [
+    "bootstrap-snapshot.json",
+    "dist/bootstrap-snapshot.json",
+    "dist/bootstrap-snapshot.json.gz",
+    "dist/bootstrap-snapshot.json.br",
+  ]) {
+    assert.equal((await stat(join(allowlistCopy, privatePath))).mode & 0o777, 0o400,
+      `re-inode must normalize ${privatePath} to root-private mode 0400`);
+  }
+  const publicCopyRelease = join(releasesRoot, ".public-mode-copy");
+  const publicCopyApp = join(publicCopyRelease, "app");
+  await mkdir(publicCopyRelease);
+  await copyAnchoredAppPayload({ sourceAppPath: source.appPath, targetAppPath: publicCopyApp });
+  await writeFile(
+    join(publicCopyRelease, "release-manifest.json"),
+    await readFile(join(source.releasePath, "release-manifest.json")),
+  );
+  await normalizePublicReleasePayloadModes({ releasePath: publicCopyRelease });
+  assert.equal((await stat(publicCopyRelease)).mode & 0o777, 0o755);
+  assert.equal((await stat(publicCopyApp)).mode & 0o777, 0o755);
+  assert.equal((await stat(join(publicCopyRelease, "release-manifest.json"))).mode & 0o777, 0o444);
+  assert.equal((await stat(join(publicCopyApp, "src"))).mode & 0o777, 0o755);
+  assert.equal((await stat(join(publicCopyApp, "src", "fixture.txt"))).mode & 0o777, 0o444);
+  assert.equal((await stat(join(publicCopyApp, "scripts", "executable-fixture.sh"))).mode & 0o777, 0o555);
+  const privatePaths = [
+    "bootstrap-snapshot.json",
+    "dist/bootstrap-snapshot.json",
+    "dist/bootstrap-snapshot.json.gz",
+    "dist/bootstrap-snapshot.json.br",
+  ];
+  for (const privatePath of privatePaths) {
+    assert.equal((await stat(join(publicCopyApp, privatePath))).mode & 0o777, 0o400,
+      `${privatePath} must stay root-private after public payload mode normalization`);
+    await chmod(join(publicCopyApp, privatePath), 0o000);
+  }
+  const publicVerifier = spawnSync(process.execPath, [
+    new URL("./release-verify.mjs", import.meta.url).pathname,
+    `--app-root=${publicCopyApp}`,
+    `--manifest=${join(publicCopyRelease, "release-manifest.json")}`,
+    `--expected-release-id=${releaseId}`,
+    "--json",
+    "--public-only",
+  ], { encoding: "utf8" });
+  assert.equal(publicVerifier.status, 0,
+    `the normalized public payload must be verifiable without reading private bootstrap bytes: ${publicVerifier.stderr}`);
+  for (const privatePath of privatePaths) await chmod(join(publicCopyApp, privatePath), 0o400);
   const sourceRuntimePath = join(source.appPath, "src", "fixture.txt");
   const deployHandle = await open(sourceRuntimePath, "r+");
   const freshPath = join(releasesRoot, ".root-reinode-fixture");
@@ -169,6 +325,31 @@ try {
 
   const attackerGeneratedPath = join(source.releasePath, "release-manifest.json");
   const attackerManifest = JSON.parse(await readFile(attackerGeneratedPath, "utf8"));
+  const canonicalOperationalPath = attackerManifest.compatibilityArtifacts[0].operationalPath;
+  delete attackerManifest.compatibilityArtifacts[0].operationalPath;
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
+  await assert.rejects(
+    verifyOutOfBandReleaseAnchors({ releasePath: source.releasePath, anchors: source.anchors }),
+    /bootstrap snapshot differs/,
+    "re-inode must reject a missing schema-v3 bootstrap operationalPath",
+  );
+  attackerManifest.compatibilityArtifacts[0].operationalPath = "/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json";
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
+  await assert.rejects(
+    verifyOutOfBandReleaseAnchors({ releasePath: source.releasePath, anchors: source.anchors }),
+    /bootstrap snapshot differs/,
+    "the sealed recovery mirror must not replace the canonical legacy operationalPath descriptor",
+  );
+  attackerManifest.compatibilityArtifacts[0].operationalPath = canonicalOperationalPath;
+  attackerManifest.compatibilityArtifacts[0].extraOperationalPath = canonicalOperationalPath;
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
+  await assert.rejects(
+    verifyOutOfBandReleaseAnchors({ releasePath: source.releasePath, anchors: source.anchors }),
+    /bootstrap snapshot differs/,
+    "re-inode must reject extra top-level bootstrap descriptor keys",
+  );
+  delete attackerManifest.compatibilityArtifacts[0].extraOperationalPath;
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
   const attackerPayload = "self-declared-untrusted-generated-artifact\n";
   await writeFile(join(source.appPath, "dist", "bootstrap-snapshot.json.attacker"), attackerPayload);
   attackerManifest.compatibilityArtifacts[0].generatedPaths.push({
@@ -184,6 +365,29 @@ try {
   attackerManifest.compatibilityArtifacts[0].generatedPaths.pop();
   await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
   await rm(join(source.appPath, "dist", "bootstrap-snapshot.json.attacker"));
+
+  attackerManifest.compatibilityArtifacts.push({
+    id: "self-declared-extra",
+    sha256: "0".repeat(64),
+    stagedPaths: ["dist/self-declared-extra"],
+    generatedPaths: [],
+  });
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
+  await assert.rejects(
+    verifyOutOfBandReleaseAnchors({ releasePath: source.releasePath, anchors: source.anchors }),
+    /exactly one compatibility artifact/,
+    "re-inode must reject an extra manifest compatibility descriptor before preparing a transaction",
+  );
+  attackerManifest.compatibilityArtifacts.pop();
+  attackerManifest.schemaVersion = 2;
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
+  await assert.rejects(
+    verifyOutOfBandReleaseAnchors({ releasePath: source.releasePath, anchors: source.anchors }),
+    /schema must be exactly version 3/,
+    "re-inode must reject schema drift before preparing a transaction",
+  );
+  attackerManifest.schemaVersion = 3;
+  await writeFile(attackerGeneratedPath, `${JSON.stringify(attackerManifest, null, 2)}\n`);
 
   // The active name is atomically replaced with the fresh copy. A deploy
   // process retaining the old writable fd can only alter the quarantined inode.
@@ -300,6 +504,18 @@ try {
   assert(helperSource.includes("RECOVER_PILOT_REINODE_TRANSACTION"));
   assert(helperSource.includes("requireOriginAttestation: true"));
   assert(helperSource.includes("writeDurableTransactionJournal"));
+  const activeLineageStart = helperSource.indexOf("const previousAttestation = await verifyPriorReinodeAttestation");
+  const activeLineageGate = helperSource.indexOf("assertBootstrapLineageInvariant({", activeLineageStart);
+  const preJournalMirrorRefresh = helperSource.indexOf("await refreshPilotBootstrapRecoveryMirror({", activeLineageGate);
+  const preJournalBindPublication = helperSource.indexOf("await publishPilotBootstrapBindContract", preJournalMirrorRefresh);
+  const firstTemporaryRelease = helperSource.indexOf("const temporaryReleaseId", activeLineageStart);
+  const productionJournal = helperSource.indexOf("const journal = {", firstTemporaryRelease);
+  assert(activeLineageStart >= 0 && activeLineageGate > activeLineageStart
+    && preJournalMirrorRefresh > activeLineageGate
+    && preJournalBindPublication > preJournalMirrorRefresh
+    && firstTemporaryRelease > preJournalBindPublication
+    && productionJournal > firstTemporaryRelease,
+  "active/previous/legacy bootstrap equality must fail closed before mirror publication, temporary release preparation and durable journal creation");
 
   async function runRollbackScenario(failurePhase) {
     const transactionRoot = join(root, `transaction-${failurePhase}`);

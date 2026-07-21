@@ -139,6 +139,15 @@ npm run list:shared-state-backups
 npm run release:stage:pilot -- --release-id=<version-and-commit>
 ```
 
+При самом первом запуске нового root-trust контура команда может безопасно
+остановиться с кодом `78`: recovery mirror ещё не создан, а mandatory bind
+намеренно не опубликован, поэтому Pilot не становится restart-broken. Выполнить
+re-inode только с явными out-of-band anchors и строго в порядке: pinned legacy
+в inactive-режиме, immediate previous в inactive-режиме, если это другой
+release ID, затем active release. После этого проверить recovery mirror,
+on-disk/effective systemd bind и выдаваемый bootstrap по точной инструкции в
+[`release-process.md`](./release-process.md), и лишь затем повторить stage.
+
 3. Убедиться, что stage завершился успешно. Он не затрагивает работающий
    пилот, а только создаёт новый артефакт в `/srv/mes/pilot/releases`.
 4. Атомарно активировать именно этот релиз:

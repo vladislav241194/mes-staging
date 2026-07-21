@@ -12,7 +12,8 @@ import {
   symlink,
   unlink,
 } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const FIXED_HELPER_PATH = "/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs";
@@ -504,7 +505,32 @@ async function productionMain() {
   console.log(JSON.stringify(result));
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+function isProductionCliEntrypoint() {
+  const declaredMain = process.env.MES_RELEASE_QA_FORCE_NODE20_ENTRYPOINT === "1"
+    ? undefined
+    : import.meta.main;
+  if (typeof declaredMain === "boolean") return declaredMain;
+  const invokedPath = process.argv[1];
+  if (!invokedPath) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  if (basename(invokedPath) !== basename(modulePath)) return false;
+  let invokedCanonical;
+  let moduleCanonical;
+  try {
+    invokedCanonical = realpathSync(invokedPath);
+    moduleCanonical = realpathSync(modulePath);
+  } catch (error) {
+    console.error(`Release-switch journal helper entrypoint identity resolution failed: ${error?.message || error}`);
+    process.exit(1);
+  }
+  if (invokedCanonical !== moduleCanonical) {
+    console.error("Release-switch journal helper CLI entrypoint identity mismatch");
+    process.exit(1);
+  }
+  return true;
+}
+
+if (isProductionCliEntrypoint()) {
   productionMain().catch((error) => {
     console.error(error.message);
     process.exit(1);

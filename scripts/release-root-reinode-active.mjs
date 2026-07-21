@@ -18,10 +18,12 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   ROOT_RELEASE_TRUST_ATTESTATION as FIXED_ROOT_RELEASE_TRUST_ATTESTATION,
+  ROOT_PUBLIC_RELEASE_VERIFIER_PATH,
   ROOT_SEAL_HELPER_PATH,
   assertTrustedPathChain,
   verifyReleaseRootSeal,
@@ -36,6 +38,20 @@ export const PILOT_ROOT = "/srv/mes/pilot";
 export const PILOT_RELEASES_ROOT = `${PILOT_ROOT}/releases`;
 export const PILOT_APP_POINTER = `${PILOT_ROOT}/app`;
 export const PILOT_ACTIVE_RECORD = `${PILOT_RELEASES_ROOT}/active-release.json`;
+export const PILOT_BOOTSTRAP_OPERATIONAL_PATH = `${PILOT_ROOT}/runtime/bootstrap-snapshot.json`;
+export const PILOT_BOOTSTRAP_RECOVERY_PATH = `${PILOT_ROOT}/bootstrap-recovery/bootstrap-snapshot.json`;
+export const PILOT_BOOTSTRAP_BIND_DROPIN = "/etc/systemd/system/mes-pilot.service.d/06-bootstrap-snapshot-bind.conf";
+export const PILOT_BOOTSTRAP_BIND_CONTENT = [
+  "# Root-owned systemd drop-in. The recovery snapshot is a root-sealed mirror",
+  "# beneath a root-only, non-writable parent, outside every immutable release and",
+  "# every runtime-writable directory. It is exposed read-only inside the service",
+  "# mount namespace. Keep both targets: preview-dist serves dist/, while",
+  "# server.js serves the application root during local/legacy recovery.",
+  "[Service]",
+  "BindReadOnlyPaths=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/bootstrap-snapshot.json",
+  "BindReadOnlyPaths=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/dist/bootstrap-snapshot.json",
+  "",
+].join("\n");
 export const PILOT_SERVICE = "mes-pilot.service";
 export const PILOT_PORT = 4175;
 export const PILOT_PUBLIC_HEALTH_URL = "https://pilot.mes-line.ru/healthz";
@@ -81,6 +97,11 @@ const EXPECTED_RUNTIME_INCLUDES = Object.freeze([
 const EXPECTED_BOOTSTRAP_GENERATED_PATHS = Object.freeze([
   "dist/bootstrap-snapshot.json.gz",
   "dist/bootstrap-snapshot.json.br",
+]);
+const EXPECTED_PRIVATE_BOOTSTRAP_PATHS = Object.freeze([
+  "bootstrap-snapshot.json",
+  "dist/bootstrap-snapshot.json",
+  ...EXPECTED_BOOTSTRAP_GENERATED_PATHS,
 ]);
 
 function fail(message) {
@@ -220,16 +241,162 @@ async function sha256(path) {
   return createHash("sha256").update(await readFile(path)).digest("hex");
 }
 
+export async function refreshPilotBootstrapRecoveryMirror({
+  sourcePath,
+  expectedSha256,
+  recoveryPath = PILOT_BOOTSTRAP_RECOVERY_PATH,
+  expectedUid = 0,
+  expectedGid = 0,
+}) {
+  if (!isSha256(expectedSha256)) fail("bootstrap recovery mirror digest anchor is invalid");
+  const sourceMetadata = await lstat(sourcePath);
+  if (!sourceMetadata.isFile() || sourceMetadata.isSymbolicLink()
+    || sourceMetadata.nlink !== 1 || await realpath(sourcePath) !== sourcePath) {
+    fail("bootstrap recovery source is not a canonical single-link regular file");
+  }
+  const sourceBytes = await readFile(sourcePath);
+  const sourceSha256 = createHash("sha256").update(sourceBytes).digest("hex");
+  if (sourceSha256 !== expectedSha256) {
+    fail("bootstrap recovery source differs from the manifest-bound digest");
+  }
+
+  const recoveryDirectory = dirname(recoveryPath);
+  try {
+    await mkdir(recoveryDirectory, { mode: 0o700 });
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error;
+  }
+  const directoryMetadata = await lstat(recoveryDirectory);
+  if (!directoryMetadata.isDirectory() || directoryMetadata.isSymbolicLink()
+    || directoryMetadata.uid !== expectedUid || directoryMetadata.gid !== expectedGid
+    || (directoryMetadata.mode & 0o777) !== 0o700
+    || await realpath(recoveryDirectory) !== recoveryDirectory) {
+    fail("bootstrap recovery directory is not canonical root-private state");
+  }
+  if (await pathExists(recoveryPath)) {
+    const currentMetadata = await lstat(recoveryPath);
+    if (!currentMetadata.isFile() || currentMetadata.isSymbolicLink()
+      || currentMetadata.uid !== expectedUid || currentMetadata.gid !== expectedGid
+      || (currentMetadata.mode & 0o777) !== 0o444 || currentMetadata.nlink !== 1
+      || await realpath(recoveryPath) !== recoveryPath) {
+      fail("existing bootstrap recovery mirror is unsafe");
+    }
+  }
+
+  const temporaryPath = `${recoveryPath}.next.${process.pid}.${process.hrtime.bigint()}`;
+  let handle;
+  try {
+    handle = await open(temporaryPath, "wx", 0o400);
+    await handle.writeFile(sourceBytes);
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await lchown(temporaryPath, expectedUid, expectedGid);
+    await chmod(temporaryPath, 0o444);
+    const temporaryMetadata = await lstat(temporaryPath);
+    if (!temporaryMetadata.isFile() || temporaryMetadata.isSymbolicLink()
+      || temporaryMetadata.uid !== expectedUid || temporaryMetadata.gid !== expectedGid
+      || (temporaryMetadata.mode & 0o777) !== 0o444 || temporaryMetadata.nlink !== 1
+      || await sha256(temporaryPath) !== expectedSha256) {
+      fail("prepared bootstrap recovery mirror failed validation");
+    }
+    await durableRename(temporaryPath, recoveryPath);
+  } catch (error) {
+    if (handle) await handle.close().catch(() => {});
+    await rm(temporaryPath, { force: true }).catch(() => {});
+    throw error;
+  }
+  if (await sha256(recoveryPath) !== expectedSha256) {
+    fail("installed bootstrap recovery mirror differs from the manifest-bound digest");
+  }
+  return { path: recoveryPath, sha256: expectedSha256 };
+}
+
+export function assertBootstrapLineageInvariant({
+  activeBootstrapSha256,
+  previousBootstrapSha256,
+  legacyBootstrapSha256,
+}) {
+  for (const [label, value] of Object.entries({
+    active: activeBootstrapSha256,
+    previous: previousBootstrapSha256,
+    legacyBaseline: legacyBootstrapSha256,
+  })) {
+    if (!isSha256(value)) fail(`${label} bootstrap lineage digest is invalid`);
+  }
+  if (activeBootstrapSha256 !== previousBootstrapSha256
+    || activeBootstrapSha256 !== legacyBootstrapSha256) {
+    fail("active, immediate previous and pinned legacy bootstrap digests differ");
+  }
+  return activeBootstrapSha256;
+}
+
+async function publishPilotBootstrapBindContract(expectedSha256) {
+  if (await sha256(PILOT_BOOTSTRAP_RECOVERY_PATH) !== expectedSha256) {
+    fail("bootstrap bind publication requires the exact manifest-bound recovery mirror");
+  }
+  const systemdRoot = "/etc/systemd/system";
+  const systemdRootMetadata = await lstat(systemdRoot);
+  if (!systemdRootMetadata.isDirectory() || systemdRootMetadata.isSymbolicLink()
+    || systemdRootMetadata.uid !== 0 || systemdRootMetadata.gid !== 0
+    || (systemdRootMetadata.mode & 0o022) !== 0 || await realpath(systemdRoot) !== systemdRoot) {
+    fail("systemd unit root is not canonical root-controlled state");
+  }
+  const dropinDirectory = dirname(PILOT_BOOTSTRAP_BIND_DROPIN);
+  await assertRootDirectory(dropinDirectory, 0o755);
+  let mustInstall = true;
+  if (await pathExists(PILOT_BOOTSTRAP_BIND_DROPIN)) {
+    const metadata = await lstat(PILOT_BOOTSTRAP_BIND_DROPIN);
+    if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.uid !== 0 || metadata.gid !== 0
+      || (metadata.mode & 0o777) !== 0o644 || metadata.nlink !== 1
+      || await realpath(PILOT_BOOTSTRAP_BIND_DROPIN) !== PILOT_BOOTSTRAP_BIND_DROPIN) {
+      fail("existing bootstrap bind contract is unsafe");
+    }
+    mustInstall = await readFile(PILOT_BOOTSTRAP_BIND_DROPIN, "utf8") !== PILOT_BOOTSTRAP_BIND_CONTENT;
+  }
+  if (mustInstall) {
+    const temporaryPath = `${PILOT_BOOTSTRAP_BIND_DROPIN}.next.${process.pid}.${process.hrtime.bigint()}`;
+    let handle;
+    try {
+      handle = await open(temporaryPath, "wx", 0o644);
+      await handle.writeFile(PILOT_BOOTSTRAP_BIND_CONTENT, "utf8");
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await lchown(temporaryPath, 0, 0);
+      await chmod(temporaryPath, 0o644);
+      await durableRename(temporaryPath, PILOT_BOOTSTRAP_BIND_DROPIN);
+    } catch (error) {
+      if (handle) await handle.close().catch(() => {});
+      await rm(temporaryPath, { force: true }).catch(() => {});
+      throw error;
+    }
+  }
+  const reload = run(TRUSTED_BIN.systemctl, ["daemon-reload"], { allowFailure: true });
+  if (reload.status !== 0) {
+    fail(`systemd rejected the bootstrap bind publication: ${(reload.stderr || reload.stdout || "").trim()}`);
+  }
+}
+
 function exactStringArray(actual, expected) {
   return Array.isArray(actual)
     && actual.length === expected.length
     && actual.every((value, index) => value === expected[index]);
 }
 
+function exactObjectKeys(value, expected) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  return actual.length === wanted.length
+    && actual.every((key, index) => key === wanted[index]);
+}
+
 export async function verifyOutOfBandReleaseAnchors({ releasePath, anchors }) {
   const appPath = join(releasePath, "app");
   const manifestPath = join(releasePath, "release-manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  if (manifest.schemaVersion !== 3) fail("manifest schema must be exactly version 3");
   if (manifest.releaseId !== anchors.releaseId) fail("manifest release id does not match the explicit anchor");
   if (manifest.gitCommit !== anchors.expectedGitCommit) fail("manifest Git commit does not match the explicit anchor");
   if (!exactStringArray(manifest.runtimeIncludes, EXPECTED_RUNTIME_INCLUDES)) {
@@ -243,9 +410,14 @@ export async function verifyOutOfBandReleaseAnchors({ releasePath, anchors }) {
     fail("manifest runtime policy differs from the explicit anchor");
   }
 
-  const bootstrap = (Array.isArray(manifest.compatibilityArtifacts) ? manifest.compatibilityArtifacts : [])
-    .find((artifact) => artifact?.id === "bootstrap-snapshot");
-  if (!bootstrap || bootstrap.sha256 !== anchors.expectedBootstrapSha256) {
+  if (!Array.isArray(manifest.compatibilityArtifacts) || manifest.compatibilityArtifacts.length !== 1) {
+    fail("manifest must contain exactly one compatibility artifact");
+  }
+  const [bootstrap] = manifest.compatibilityArtifacts;
+  if (!exactObjectKeys(bootstrap, ["id", "sha256", "operationalPath", "stagedPaths", "generatedPaths"])
+    || bootstrap.id !== "bootstrap-snapshot"
+    || bootstrap.operationalPath !== PILOT_BOOTSTRAP_OPERATIONAL_PATH
+    || bootstrap.sha256 !== anchors.expectedBootstrapSha256) {
     fail("manifest bootstrap snapshot differs from the explicit anchor");
   }
   const requiredBootstrapPaths = ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"];
@@ -274,7 +446,8 @@ export async function verifyOutOfBandReleaseAnchors({ releasePath, anchors }) {
   }
   for (const [index, expected] of expectedGenerated.entries()) {
     const generated = generatedPaths[index];
-    if (generated?.path !== expected.path || generated?.sha256 !== expected.sha256) {
+    if (!exactObjectKeys(generated, ["path", "sha256"])
+      || generated.path !== expected.path || generated.sha256 !== expected.sha256) {
       fail(`generated bootstrap artifact identity differs from the explicit anchor at ${expected.path}`);
     }
     if (await sha256(join(appPath, expected.path)) !== expected.sha256) {
@@ -418,6 +591,7 @@ async function writeReinodeAttestation(releasePath, anchors) {
 }
 
 export async function copyAnchoredAppPayload({ sourceAppPath, targetAppPath }) {
+  await assertPrivateBootstrapFiles(sourceAppPath, "source");
   await mkdir(targetAppPath, { mode: 0o700 });
   for (const relativePath of EXPECTED_RUNTIME_INCLUDES) {
     await cp(join(sourceAppPath, relativePath), join(targetAppPath, relativePath), {
@@ -437,6 +611,65 @@ export async function copyAnchoredAppPayload({ sourceAppPath, targetAppPath }) {
       errorOnExist: true,
       preserveTimestamps: true,
     });
+  }
+  await assertPrivateBootstrapFiles(targetAppPath, "copied target");
+  for (const relativePath of EXPECTED_PRIVATE_BOOTSTRAP_PATHS) {
+    await chmod(join(targetAppPath, relativePath), 0o400);
+  }
+}
+
+async function assertPrivateBootstrapFiles(appPath, label) {
+  const rootMetadata = await lstat(appPath);
+  if (!rootMetadata.isDirectory() || rootMetadata.isSymbolicLink()) {
+    fail(`${label} app path is not a real directory`);
+  }
+  const checkedDirectories = new Set();
+  for (const relativePath of EXPECTED_PRIVATE_BOOTSTRAP_PATHS) {
+    const parts = relativePath.split("/");
+    let current = appPath;
+    for (const part of parts.slice(0, -1)) {
+      current = join(current, part);
+      if (checkedDirectories.has(current)) continue;
+      const directoryMetadata = await lstat(current);
+      if (!directoryMetadata.isDirectory() || directoryMetadata.isSymbolicLink()) {
+        fail(`${label} private bootstrap parent is not a real directory: ${relativePath}`);
+      }
+      checkedDirectories.add(current);
+    }
+    const path = join(appPath, relativePath);
+    const metadata = await lstat(path);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) {
+      fail(`${label} private bootstrap path is not a regular file: ${relativePath}`);
+    }
+  }
+}
+
+async function normalizePublicPathModes(path, excludedPaths) {
+  if (excludedPaths.has(path)) return;
+  const metadata = await lstat(path);
+  if (metadata.isSymbolicLink()) fail(`symlink is forbidden in public release payload: ${path}`);
+  if (metadata.isDirectory()) {
+    const entries = await readdir(path, { withFileTypes: true });
+    for (const entry of entries) await normalizePublicPathModes(join(path, entry.name), excludedPaths);
+    await chmod(path, 0o755);
+    return;
+  }
+  if (!metadata.isFile()) fail(`unsupported public release payload entry: ${path}`);
+  await chmod(path, (metadata.mode & 0o111) !== 0 ? 0o555 : 0o444);
+}
+
+export async function normalizePublicReleasePayloadModes({ releasePath }) {
+  const appPath = join(releasePath, "app");
+  const excludedPaths = new Set(EXPECTED_PRIVATE_BOOTSTRAP_PATHS.map((path) => join(appPath, path)));
+  for (const relativePath of [...EXPECTED_RUNTIME_INCLUDES, "dist"]) {
+    await normalizePublicPathModes(join(appPath, relativePath), excludedPaths);
+  }
+  await chmod(appPath, 0o755);
+  await chmod(join(releasePath, "release-manifest.json"), 0o444);
+  await chmod(releasePath, 0o755);
+  await assertPrivateBootstrapFiles(appPath, "normalized target");
+  for (const relativePath of EXPECTED_PRIVATE_BOOTSTRAP_PATHS) {
+    await chmod(join(appPath, relativePath), 0o400);
   }
 }
 
@@ -487,6 +720,7 @@ async function verifyPriorReinodeAttestation(pointerRecord, label) {
       }
     }
   }
+  return attestation;
 }
 
 function run(command, args, { cwd = "/", env = TRUSTED_CHILD_ENV, allowFailure = false } = {}) {
@@ -562,11 +796,16 @@ function sleep(milliseconds) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
 }
 
-async function waitForTrustedHealth(expectedVersion) {
+async function waitForTrustedHealth(expectedVersion, expectedBootstrapSha256) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const localResponse = run(TRUSTED_BIN.curl, ["-fsS", "--max-time", "3", `http://127.0.0.1:${PILOT_PORT}/healthz`], { allowFailure: true });
     const publicResponse = run(TRUSTED_BIN.curl, ["-fsS", "--max-time", "5", PILOT_PUBLIC_HEALTH_URL], { allowFailure: true });
-    if (localResponse.status === 0 && publicResponse.status === 0) {
+    const servedBootstrap = run(TRUSTED_BIN.curl, ["-fsS", "--max-time", "3", `http://127.0.0.1:${PILOT_PORT}/bootstrap-snapshot.json`], { allowFailure: true });
+    const servedBootstrapSha256 = servedBootstrap.status === 0
+      ? createHash("sha256").update(servedBootstrap.stdout).digest("hex")
+      : "";
+    if (localResponse.status === 0 && publicResponse.status === 0
+      && servedBootstrapSha256 === expectedBootstrapSha256) {
       try {
         const localHealth = JSON.parse(localResponse.stdout);
         const publicHealth = JSON.parse(publicResponse.stdout);
@@ -580,7 +819,7 @@ async function waitForTrustedHealth(expectedVersion) {
     }
     await sleep(1000);
   }
-  fail("trusted re-inoded release did not become healthy locally and publicly; rollback is required");
+  fail("trusted re-inoded release did not become healthy with the manifest-bound bootstrap locally and publicly; rollback is required");
 }
 
 async function pathExists(path) {
@@ -1111,6 +1350,12 @@ async function main() {
         requireOriginAttestation: true,
       });
       await verifyOutOfBandReleaseAnchors({ releasePath: journal.sourceReleasePath, anchors: journal.anchors });
+      if (journal.mode === "active") {
+        await refreshPilotBootstrapRecoveryMirror({
+          sourcePath: join(journal.sourceReleasePath, "app", "bootstrap-snapshot.json"),
+          expectedSha256: journal.anchors.expectedBootstrapSha256,
+        });
+      }
       if (await pathExists(journal.activeRecordBackup) && !await pathExists(journal.nextActiveRecord)) {
         await verifySealedPointer({ pointerPath: PILOT_APP_POINTER, expectedTarget: journal.pointerTarget });
         await verifySealedArtifact({ trustedRoot: PILOT_RELEASES_ROOT, artifactPath: PILOT_ACTIVE_RECORD });
@@ -1132,6 +1377,7 @@ async function main() {
           if (anchors.prestart) return null;
           const health = await waitForTrustedHealth(
             JSON.parse(await readFile(join(journal.sourceReleasePath, "release-manifest.json"), "utf8")).appVersion,
+            journal.anchors.expectedBootstrapSha256,
           );
           await clearReleaseAppVerificationIntent();
           appVerificationIntentActive = false;
@@ -1184,8 +1430,22 @@ async function main() {
       expectedPreviousReleaseId: anchors.expectedPreviousReleaseId,
       expectedLegacyReleaseId: anchors.expectedLegacyReleaseId,
     });
-    await verifyPriorReinodeAttestation(trustedActiveRecord.previous, "previous");
-    await verifyPriorReinodeAttestation(trustedActiveRecord.legacyBaseline, "legacyBaseline");
+    const previousAttestation = await verifyPriorReinodeAttestation(trustedActiveRecord.previous, "previous");
+    const legacyAttestation = await verifyPriorReinodeAttestation(trustedActiveRecord.legacyBaseline, "legacyBaseline");
+    assertBootstrapLineageInvariant({
+      activeBootstrapSha256: anchors.expectedBootstrapSha256,
+      previousBootstrapSha256: previousAttestation.bootstrapSha256,
+      legacyBootstrapSha256: legacyAttestation.bootstrapSha256,
+    });
+    // This is the only safe first-run publication point. All three rollback
+    // generations have already proved the same manifest-bound digest, while
+    // no transaction journal, release rename or application pointer mutation
+    // exists yet. A failure therefore leaves the serving Pilot untouched.
+    await refreshPilotBootstrapRecoveryMirror({
+      sourcePath: join(sourceAppPath, "bootstrap-snapshot.json"),
+      expectedSha256: anchors.expectedBootstrapSha256,
+    });
+    await publishPilotBootstrapBindContract(anchors.expectedBootstrapSha256);
   }
 
   const temporaryReleaseId = `.root-reinode-${anchors.releaseId}-${process.pid}`;
@@ -1237,12 +1497,24 @@ async function main() {
   await writeReinodeAttestation(temporaryReleasePath, anchors);
   run(TRUSTED_BIN.chown, ["-hR", "0:0", temporaryReleasePath]);
   run(TRUSTED_BIN.find, [temporaryReleasePath, "-xdev", "!", "-type", "l", "-perm", "/022", "-exec", "chmod", "go-w", "--", "{}", "+"]);
+  await normalizePublicReleasePayloadModes({ releasePath: temporaryReleasePath });
   await verifyReleaseRootSeal({
     releasesRoot: PILOT_RELEASES_ROOT,
     releaseId: temporaryReleaseId,
     appPath: join(temporaryReleasePath, "app"),
     requireOriginAttestation: false,
   });
+  run(TRUSTED_BIN.runuser, [
+    "-u", "mes-stage", "--", "/usr/bin/env",
+    "HOME=/nonexistent",
+    "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+    "/usr/bin/node", ROOT_PUBLIC_RELEASE_VERIFIER_PATH,
+    `--app-root=${temporaryAppPath}`,
+    `--manifest=${join(temporaryReleasePath, "release-manifest.json")}`,
+    `--expected-release-id=${anchors.releaseId}`,
+    "--json",
+    "--public-only",
+  ]);
   // The complete candidate tree must reach stable storage before the durable
   // journal can claim artifacts-prepared. Recovery may rely on this exact
   // ordering after sudden power loss, not only after a catchable exception.
@@ -1362,11 +1634,14 @@ async function main() {
       if (anchors.mode === "active") {
         await verifySealedPointer({ pointerPath: PILOT_APP_POINTER, expectedTarget: sourceAppPath });
         await verifySealedArtifact({ trustedRoot: PILOT_RELEASES_ROOT, artifactPath: PILOT_ACTIVE_RECORD });
+        if (await sha256(PILOT_BOOTSTRAP_RECOVERY_PATH) !== anchors.expectedBootstrapSha256) {
+          fail("bootstrap recovery mirror changed after its pre-journal lineage gate");
+        }
       }
       return true;
     },
     verifyHealth: async () => {
-      const health = await waitForTrustedHealth(verified.manifest.appVersion);
+      const health = await waitForTrustedHealth(verified.manifest.appVersion, anchors.expectedBootstrapSha256);
       await clearReleaseAppVerificationIntent();
       appVerificationIntentActive = false;
       return health;
@@ -1396,8 +1671,32 @@ async function main() {
   })}\n`);
 }
 
-const invokedAsCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
-if (invokedAsCli) {
+function isProductionCliEntrypoint() {
+  const declaredMain = process.env.MES_RELEASE_QA_FORCE_NODE20_ENTRYPOINT === "1"
+    ? undefined
+    : import.meta.main;
+  if (typeof declaredMain === "boolean") return declaredMain;
+  const invokedPath = process.argv[1];
+  if (!invokedPath) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  if (basename(invokedPath) !== basename(modulePath)) return false;
+  let invokedCanonical;
+  let moduleCanonical;
+  try {
+    invokedCanonical = realpathSync(invokedPath);
+    moduleCanonical = realpathSync(modulePath);
+  } catch (error) {
+    console.error(`Pilot active release re-inode failed: CLI entrypoint identity resolution failed: ${error?.message || error}`);
+    process.exit(1);
+  }
+  if (invokedCanonical !== moduleCanonical) {
+    console.error("Pilot active release re-inode failed: CLI entrypoint identity mismatch");
+    process.exit(1);
+  }
+  return true;
+}
+
+if (isProductionCliEntrypoint()) {
   main().catch((error) => {
     console.error(error?.message || error);
     process.exit(1);

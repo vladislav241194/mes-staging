@@ -100,6 +100,11 @@ async function runQa() {
       const recovered = await controller.recover({ contour: "qa" });
       assert.equal(recovered.status, scenario.expectedStatus, `${scenario.boundary} must select the deterministic recovery direction`);
       await assertCoherentRelease(root, scenario.expectedRelease);
+      assert.equal(await readFile(pathsFor(root).bootstrapMirrorPath, "utf8"), "shared-bootstrap\n",
+        `${scenario.boundary} must leave the pre-proved immutable bootstrap mirror unchanged`);
+      assert.equal(await readFile(join(pathsFor(root).releasesPath, scenario.expectedRelease, "app", "bootstrap-snapshot.json"), "utf8"),
+        await readFile(pathsFor(root).bootstrapMirrorPath, "utf8"),
+      `${scenario.boundary} recovery may select either release only because both were proved digest-identical to the mirror before the switch`);
       assert.equal(await stopCount(root), scenario.expectedStops, `${scenario.boundary} must stop only an uncommitted target runtime`);
       assert.equal((await controller.recover({ contour: "qa" })).status, "none", `${scenario.boundary} recovery must be idempotent`);
     } finally {
@@ -127,6 +132,7 @@ async function runQa() {
   console.log("- SIGKILL after pointer / health failure: source pointer restored, service remains stopped");
   console.log("- SIGKILL after active record: committed target retained and journal cleared");
   console.log("- impossible pointer/record direction: service stopped, evidence retained");
+  console.log("- SIGKILL boundaries preserve the read-only, digest-identical bootstrap mirror invariant");
 }
 
 async function runWorker(root, boundary) {
@@ -148,6 +154,7 @@ function pathsFor(root) {
     appPath: join(root, "app"),
     releasesPath,
     activeRecordPath: join(releasesPath, "active-release.json"),
+    bootstrapMirrorPath: join(root, "bootstrap-recovery", "bootstrap-snapshot.json"),
     stopLogPath: join(root, "service-stop.log"),
   };
 }
@@ -178,8 +185,12 @@ async function setupRuntime(root) {
   const paths = pathsFor(root);
   await mkdir(join(paths.releasesPath, "from", "app"), { recursive: true });
   await mkdir(join(paths.releasesPath, "to", "app"), { recursive: true });
+  await mkdir(dirname(paths.bootstrapMirrorPath), { recursive: true });
   await writeFile(join(paths.releasesPath, "from", "app", "sealed.txt"), "from\n");
   await writeFile(join(paths.releasesPath, "to", "app", "sealed.txt"), "to\n");
+  await writeFile(join(paths.releasesPath, "from", "app", "bootstrap-snapshot.json"), "shared-bootstrap\n");
+  await writeFile(join(paths.releasesPath, "to", "app", "bootstrap-snapshot.json"), "shared-bootstrap\n");
+  await writeFile(paths.bootstrapMirrorPath, "shared-bootstrap\n");
   await writeActiveRecord(root, "from");
   await symlink(join(paths.releasesPath, "from", "app"), paths.appPath);
 }

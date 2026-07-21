@@ -44,7 +44,10 @@ import {
   buildPilotRootTrustPreflightCommand,
   resolveReleaseStageRemote,
 } from "./release-root-stage-policy.mjs";
-import { ROOT_SEAL_HELPER_PATH } from "./release-root-seal-verify.mjs";
+import {
+  ROOT_PUBLIC_RELEASE_VERIFIER_PATH,
+  ROOT_SEAL_HELPER_PATH,
+} from "./release-root-seal-verify.mjs";
 import {
   ROOT_REINODE_HELPER_PATH,
   ROOT_RELEASE_TRUST_ATTESTATION,
@@ -71,7 +74,8 @@ const CONTOURS = {
     sharedStateDir: "/srv/mes/pilot/shared-state",
     backupDir: "/srv/mes/pilot/backups",
     auditLogPath: "/srv/mes/pilot/audit/audit.log",
-    bootstrapSnapshotPath: "/srv/mes/pilot/runtime/bootstrap-snapshot.json",
+    bootstrapSnapshotPath: "/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json",
+    bootstrapOperationalPath: "/srv/mes/pilot/runtime/bootstrap-snapshot.json",
   },
   staging: {
     appEnv: "staging",
@@ -84,6 +88,7 @@ const CONTOURS = {
     backupDir: "/srv/mes/dev/backups",
     auditLogPath: "/srv/mes/dev/audit/audit.log",
     bootstrapSnapshotPath: "/srv/mes/dev/runtime/bootstrap-snapshot.json",
+    bootstrapOperationalPath: "/srv/mes/dev/runtime/bootstrap-snapshot.json",
   },
 };
 
@@ -291,32 +296,31 @@ function pilotFixedReleaseSealVerificationCommand(releaseId, releasePath, releas
 
 async function downloadPinnedBootstrapSnapshot({ contour, remote }) {
   const externalPath = contour.bootstrapSnapshotPath;
-  const activePath = `${contour.appPath}/bootstrap-snapshot.json`;
-  const activeDistPath = `${contour.appPath}/dist/bootstrap-snapshot.json`;
   const remoteCommand = [
     "set -euo pipefail",
     `artifact=${shellQuote(externalPath)}`,
-    `active_artifact=${shellQuote(activePath)}`,
-    `active_dist_artifact=${shellQuote(activeDistPath)}`,
-    "if [ ! -f \"$artifact\" ]; then",
-    `  mkdir -p ${shellQuote(dirname(externalPath))}`,
-    "  if [ -f \"$active_artifact\" ]; then",
-    "    cp -p \"$active_artifact\" \"$artifact\"",
-    "  elif [ -f \"$active_dist_artifact\" ]; then",
-    "    cp -p \"$active_dist_artifact\" \"$artifact\"",
-    "  else",
-    "    echo 'bootstrap snapshot is absent in both operational and active runtime paths' >&2",
-    "    exit 1",
-    "  fi",
-    "fi",
+    ...(externalPath === CONTOURS.pilot.bootstrapSnapshotPath ? [
+      "bootstrap_bind=/etc/systemd/system/mes-pilot.service.d/06-bootstrap-snapshot-bind.conf",
+      'if [ ! -e "$artifact" ] && [ ! -L "$artifact" ]; then',
+      '  if [ -e "$bootstrap_bind" ] || [ -L "$bootstrap_bind" ]; then',
+      '    echo "Pilot bootstrap mirror is absent but its mandatory systemd bind is still published; refusing an unsafe first-run state." >&2',
+      "    exit 76",
+      "  fi",
+      '  echo "Pilot bootstrap mirror is not initialized. Root trust bootstrap intentionally left the bind unpublished, so Pilot remains restartable." >&2',
+      '  echo "Run the documented active-release re-inode with explicit out-of-band anchors, then rerun release:stage." >&2',
+      "  exit 78",
+      "fi",
+    ] : []),
+    "test -f \"$artifact\" && test ! -L \"$artifact\"",
+    "test \"$(readlink -f -- \"$artifact\")\" = \"$artifact\"",
     "node --input-type=module -e 'JSON.parse(await (await import(\"node:fs/promises\")).readFile(process.argv[1], \"utf8\"));' \"$artifact\"",
-    "test -f \"$artifact\"",
   ].join("\n");
   await run("ssh", sshArgs(remote, remoteCommand));
 
-  // The operational path is downloaded exactly once. Every build and both
-  // candidate destinations use these pinned local bytes; a later mutation of
-  // the live operational path cannot change the candidate under construction.
+  // The root-sealed source is downloaded exactly once. Every build and both
+  // candidate destinations use these pinned local bytes; a later release
+  // switch cannot change the candidate under construction. The schema-v3
+  // descriptor deliberately retains the legacy operational runtime path.
   const downloadDir = await mkdtemp(join(tmpdir(), "mes-release-bootstrap-pinned-"));
   const pinnedPath = join(downloadDir, "bootstrap-snapshot.json");
   registerTransientCleanup(async () => rm(downloadDir, { recursive: true, force: true }));
@@ -327,7 +331,7 @@ async function downloadPinnedBootstrapSnapshot({ contour, remote }) {
   return {
     id: "bootstrap-snapshot",
     sha256: pinnedSha256,
-    operationalPath: externalPath,
+    operationalPath: contour.bootstrapOperationalPath,
     stagedPaths: ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"],
     pinnedPath,
   };
@@ -344,6 +348,11 @@ async function installPinnedBootstrapSnapshotArtifact({ artifact, remote, releas
     "  test -f \"$staged_path\"",
     "  actual_sha256=\"$(sha256sum \"$staged_path\" | awk '{print $1}')\"",
     "  if [ \"$actual_sha256\" != \"$expected_sha256\" ]; then echo \"Pinned bootstrap digest mismatch at $staged_path\" >&2; exit 76; fi",
+    "done",
+    "for private_path in \"$release_app/bootstrap-snapshot.json\" \"$release_app/dist/bootstrap-snapshot.json\" \"$release_app/dist/bootstrap-snapshot.json.gz\" \"$release_app/dist/bootstrap-snapshot.json.br\"; do",
+    "  test -f \"$private_path\" && test ! -L \"$private_path\"",
+    "  chmod 0400 \"$private_path\"",
+    "  test \"$(stat -c '%a' \"$private_path\")\" = 400",
     "done",
   ].join("\n");
   await run("ssh", sshArgs(remote, remoteCommand));
@@ -414,6 +423,31 @@ function fixedContentVerificationCommand({ releaseId, anchors }) {
     `--expected-bootstrap-brotli-sha256=${shellQuote(anchors.expectedBootstrapBrotliSha256)}`,
     "--confirm=VERIFY_ROOT_STAGED_RELEASE",
   ].join(" ");
+}
+
+function fixedActivePilotReleaseVerificationCommand() {
+  return [
+    "set -euo pipefail",
+    `active_app=${shellQuote(CONTOURS.pilot.appPath)}`,
+    `releases_root=${shellQuote(CONTOURS.pilot.releasesPath)}`,
+    `root_seal_helper=${shellQuote(ROOT_SEAL_HELPER_PATH)}`,
+    'test -L "$active_app"',
+    'active_target="$(readlink -f -- "$active_app")"',
+    'active_release_path="$(dirname -- "$active_target")"',
+    'active_release_id="$(basename -- "$active_release_path")"',
+    'test "$active_target" = "$releases_root/$active_release_id/app"',
+    '/usr/bin/node "$root_seal_helper" bundle >/dev/null',
+    '/usr/bin/node "$root_seal_helper" release --releases-root="$releases_root" --release-id="$active_release_id" --app="$active_target" >/dev/null',
+    '/usr/bin/node "$root_seal_helper" pointer --pointer="$active_app" --expected-target="$active_target" >/dev/null',
+    '/usr/bin/node "$root_seal_helper" artifact --trusted-root="$releases_root" --artifact="$releases_root/active-release.json" >/dev/null',
+    '/usr/bin/node --input-type=module - "$releases_root/active-release.json" "$active_release_id" <<\'NODE\'',
+    'import { readFile } from "node:fs/promises";',
+    'const [recordPath, expectedReleaseId] = process.argv.slice(2);',
+    'const record = JSON.parse(await readFile(recordPath, "utf8"));',
+    'if (record?.releaseId !== expectedReleaseId) throw new Error("Active release record differs from the sealed pointer");',
+    "NODE",
+    "printf '%s\\n' ACTIVE_RELEASE_ROOT_SEAL_OK",
+  ].join("\n");
 }
 
 async function main() {
@@ -487,7 +521,7 @@ async function main() {
 
   if (args.dryRun) {
     console.log(`- would build immutable Git-object source inputs and upload ${SOURCE_INCLUDES.join(", ")} plus dist/`);
-    console.log(`- would preserve the external bootstrap snapshot at ${contour.bootstrapSnapshotPath}`);
+    console.log(`- would pin the root-sealed bootstrap source at ${contour.bootstrapSnapshotPath}`);
     console.log(`- would stage into ${releaseAppPath} without changing ${contour.appPath}`);
     return;
   }
@@ -676,6 +710,10 @@ async function main() {
       releaseId,
       anchors: fixedContentAnchors,
     })));
+    // Specifications preflight reads the active release with the fixed public
+    // verifier. Seal its release, pointer and active record first so no
+    // unprivileged verifier ever establishes its own trust boundary.
+    await run("ssh", sshArgs(args.remote, fixedActivePilotReleaseVerificationCommand()));
   }
 
   const remotePreflight = [
@@ -692,16 +730,17 @@ async function main() {
     // Candidate preflight proves the runtime path contract as mes-stage without
     // granting that build-only identity write access to any live contour data.
     'install -d -o mes-stage -g mes-stage -m 0700 "$stage_scratch/home" "$stage_scratch/npm-cache" "$stage_scratch/runtime" "$stage_scratch/runtime/shared-state" "$stage_scratch/runtime/backups" "$stage_scratch/runtime/audit"',
+    'install -o mes-stage -g mes-stage -m 0600 "$candidate_app/bootstrap-snapshot.json" "$stage_scratch/runtime/bootstrap-snapshot.json"',
     '/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME="$stage_scratch/home" NPM_CONFIG_CACHE="$stage_scratch/npm-cache" PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/npm ci --prefix "$stage_scratch" --omit=dev --ignore-scripts',
     'rm -rf -- "$candidate_app/node_modules"',
     'mv "$stage_scratch/node_modules" "$candidate_app/node_modules"',
     'chown -hR root:root "$candidate_app/node_modules"',
     'find "$candidate_app/node_modules" -xdev ! -type l -perm /022 -exec chmod go-w -- {} +',
     `cd ${shellQuote(releaseAppPath)}`,
-    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env -i HOME="$stage_scratch/home" NPM_CONFIG_CACHE="$stage_scratch/npm-cache" PATH=/usr/sbin:/usr/bin:/sbin:/bin ${preflightEnvironment(contour)} MES_SHARED_STATE_DIR="$stage_scratch/runtime/shared-state" MES_BACKUP_DIR="$stage_scratch/runtime/backups" MES_AUDIT_LOG_PATH="$stage_scratch/runtime/audit/audit.log" /usr/bin/npm run server:preflight`,
+    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env -i HOME="$stage_scratch/home" NPM_CONFIG_CACHE="$stage_scratch/npm-cache" PATH=/usr/sbin:/usr/bin:/sbin:/bin ${preflightEnvironment(contour)} MES_SHARED_STATE_DIR="$stage_scratch/runtime/shared-state" MES_BACKUP_DIR="$stage_scratch/runtime/backups" MES_AUDIT_LOG_PATH="$stage_scratch/runtime/audit/audit.log" MES_BOOTSTRAP_SNAPSHOT_PATH="$stage_scratch/runtime/bootstrap-snapshot.json" /usr/bin/npm run server:preflight`,
     `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-specifications2-stage-preflight.mjs --candidate-app=${shellQuote(releaseAppPath)} --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --active-app=${shellQuote(contour.appPath)} --service=${shellQuote(contour.service)}`,
-    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-server-command-contract-verify.mjs --app=${shellQuote(releaseAppPath)} --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --contract=all`,
-    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-verify.mjs --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --json`,
+    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node scripts/release-server-command-contract-verify.mjs --app=${shellQuote(releaseAppPath)} --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --contract=all --public-only`,
+    `/usr/sbin/runuser -u mes-stage -- /usr/bin/env HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/node ${shellQuote(ROOT_PUBLIC_RELEASE_VERIFIER_PATH)} --app-root=${shellQuote(releaseAppPath)} --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --json --public-only`,
   ].join("\n");
   const remotePreflightResult = await run("ssh", sshArgs(args.remote, remotePreflight));
   if (remotePreflightResult.stdout.trim()) console.log(remotePreflightResult.stdout.trim());

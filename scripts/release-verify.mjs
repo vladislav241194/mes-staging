@@ -5,8 +5,27 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { computeTreeSha } from "./release-tree-sha.mjs";
 import { REACT_RUNTIME_POLICY_FILE, normalizeReactRuntimePolicy } from "./react-runtime-policy.mjs";
 
+const CANONICAL_BOOTSTRAP_STAGED_PATHS = Object.freeze([
+  "bootstrap-snapshot.json",
+  "dist/bootstrap-snapshot.json",
+]);
+const CANONICAL_BOOTSTRAP_GENERATED_PATHS = Object.freeze([
+  "dist/bootstrap-snapshot.json.gz",
+  "dist/bootstrap-snapshot.json.br",
+]);
+const CANONICAL_BOOTSTRAP_OPERATIONAL_PATH = "/srv/mes/pilot/runtime/bootstrap-snapshot.json";
+const CANONICAL_BOOTSTRAP_DESCRIPTOR_KEYS = Object.freeze([
+  "generatedPaths", "id", "operationalPath", "sha256", "stagedPaths",
+]);
+
 function parseArgs(argv) {
-  const args = { manifest: "", appRoot: process.cwd(), expectedReleaseId: "", json: false };
+  const args = {
+    manifest: "",
+    appRoot: process.cwd(),
+    expectedReleaseId: "",
+    json: false,
+    publicOnly: false,
+  };
   for (const arg of argv) {
     if (!arg.startsWith("--")) throw new Error(`Unknown positional argument: ${arg}`);
     const [key, rawValue] = arg.slice(2).split("=");
@@ -15,6 +34,7 @@ function parseArgs(argv) {
     else if (key === "app-root") args.appRoot = String(value);
     else if (key === "expected-release-id") args.expectedReleaseId = String(value);
     else if (key === "json") args.json = true;
+    else if (key === "public-only") args.publicOnly = true;
     else throw new Error(`Unknown option: --${key}`);
   }
   if (!args.manifest) throw new Error("--manifest is required");
@@ -48,6 +68,33 @@ function resolveAppFile(appRoot, relativePath) {
   return absolutePath;
 }
 
+function assertCanonicalPublicCompatibilityDescriptor(manifest) {
+  assert(manifest.schemaVersion === 3, "Public-only verification requires a schema-v3 release manifest");
+  assert(Array.isArray(manifest.compatibilityArtifacts) && manifest.compatibilityArtifacts.length === 1,
+    "Public-only verification requires exactly one compatibility artifact");
+  const [bootstrap] = manifest.compatibilityArtifacts;
+  assert(bootstrap && Object.keys(bootstrap).sort().join(",") === CANONICAL_BOOTSTRAP_DESCRIPTOR_KEYS.join(","),
+    "Public-only verification requires the exact canonical bootstrap descriptor schema");
+  assert(bootstrap.id === "bootstrap-snapshot", "Public-only verification requires the canonical bootstrap artifact");
+  assert(bootstrap.operationalPath === CANONICAL_BOOTSTRAP_OPERATIONAL_PATH,
+    "Public-only verification requires the canonical bootstrap operational path");
+  assert(/^[a-f0-9]{64}$/i.test(String(bootstrap.sha256 || "")),
+    "Public-only verification requires the canonical bootstrap digest");
+  assert(Array.isArray(bootstrap.stagedPaths)
+    && bootstrap.stagedPaths.length === CANONICAL_BOOTSTRAP_STAGED_PATHS.length
+    && bootstrap.stagedPaths.every((path, index) => path === CANONICAL_BOOTSTRAP_STAGED_PATHS[index]),
+  "Public-only verification requires the exact canonical bootstrap staged paths");
+  assert(Array.isArray(bootstrap.generatedPaths)
+    && bootstrap.generatedPaths.length === CANONICAL_BOOTSTRAP_GENERATED_PATHS.length,
+  "Public-only verification requires exactly the canonical bootstrap sidecars");
+  for (const [index, expectedPath] of CANONICAL_BOOTSTRAP_GENERATED_PATHS.entries()) {
+    const generated = bootstrap.generatedPaths[index];
+    assert(generated && Object.keys(generated).sort().join(",") === "path,sha256"
+      && generated.path === expectedPath,
+    `Public-only verification requires the exact canonical bootstrap sidecar ${expectedPath}`);
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const appRoot = resolve(args.appRoot);
@@ -57,6 +104,10 @@ async function main() {
   assert([1, 2, 3].includes(manifest?.schemaVersion), "Unsupported release manifest schema");
   assert(typeof manifest.releaseId === "string" && manifest.releaseId, "Manifest release id is missing");
   assert(isGitObjectId(manifest.gitCommit), "Manifest Git commit is invalid");
+  const appVersion = manifest.appVersion == null ? null : String(manifest.appVersion);
+  if (manifest.schemaVersion === 3 || args.publicOnly || appVersion !== null) {
+    assert(/^v\.\d\.\d{3}\.\d{2}$/.test(String(appVersion || "")), "Manifest application version is invalid");
+  }
   if (args.expectedReleaseId) {
     assert(manifest.releaseId === args.expectedReleaseId, `Unexpected release id: ${manifest.releaseId}`);
   }
@@ -113,22 +164,29 @@ async function main() {
   const compatibilityArtifacts = Array.isArray(manifest.compatibilityArtifacts)
     ? manifest.compatibilityArtifacts
     : [];
+  if (args.publicOnly) assertCanonicalPublicCompatibilityDescriptor(manifest);
   const distExcludes = [];
   for (const artifact of compatibilityArtifacts) {
     assert(typeof artifact?.id === "string" && artifact.id, "Compatibility artifact id is missing");
     assert(typeof artifact?.sha256 === "string" && /^[a-f0-9]{64}$/i.test(artifact.sha256), `Compatibility artifact ${artifact.id} digest is invalid`);
     assert(Array.isArray(artifact.stagedPaths) && artifact.stagedPaths.length, `Compatibility artifact ${artifact.id} paths are missing`);
     for (const stagedPath of artifact.stagedPaths) {
-      const actualDigest = await sha256(resolveAppFile(appRoot, stagedPath));
-      assert(actualDigest === artifact.sha256, `Compatibility artifact ${artifact.id} hash mismatch at ${stagedPath}`);
+      const artifactPath = resolveAppFile(appRoot, stagedPath);
+      if (!args.publicOnly) {
+        const actualDigest = await sha256(artifactPath);
+        assert(actualDigest === artifact.sha256, `Compatibility artifact ${artifact.id} hash mismatch at ${stagedPath}`);
+      }
       if (stagedPath.startsWith("dist/")) distExcludes.push(stagedPath);
     }
     const generatedPaths = Array.isArray(artifact.generatedPaths) ? artifact.generatedPaths : [];
     for (const generated of generatedPaths) {
       assert(typeof generated?.path === "string" && generated.path, `Compatibility artifact ${artifact.id} generated path is missing`);
       assert(typeof generated?.sha256 === "string" && /^[a-f0-9]{64}$/i.test(generated.sha256), `Compatibility artifact ${artifact.id} generated digest is invalid at ${generated.path}`);
-      const actualDigest = await sha256(resolveAppFile(appRoot, generated.path));
-      assert(actualDigest === generated.sha256, `Compatibility artifact ${artifact.id} generated hash mismatch at ${generated.path}`);
+      const artifactPath = resolveAppFile(appRoot, generated.path);
+      if (!args.publicOnly) {
+        const actualDigest = await sha256(artifactPath);
+        assert(actualDigest === generated.sha256, `Compatibility artifact ${artifact.id} generated hash mismatch at ${generated.path}`);
+      }
       if (generated.path.startsWith("dist/")) distExcludes.push(generated.path);
     }
   }
@@ -140,9 +198,17 @@ async function main() {
 
   const result = {
     releaseId: manifest.releaseId,
+    appVersion,
     sourceTreeSha256,
     distTreeSha256,
     compatibilityArtifactCount: compatibilityArtifacts.length,
+    compatibilityArtifactVerification: {
+      schemaVersion: 1,
+      mode: args.publicOnly ? "public-only" : "full",
+      descriptorSchemaVerified: true,
+      privateCompatibilityArtifactsVerified: !args.publicOnly,
+    },
+    privateCompatibilityArtifactsVerified: !args.publicOnly,
     gitProvenanceVerification,
     runtimePolicyId,
     runtimePolicySha256,

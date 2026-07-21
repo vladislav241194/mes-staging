@@ -105,7 +105,8 @@ try {
   await writeFile(join(app, "scripts", "release-verify.mjs"), `
 const args = process.argv.slice(2);
 if (!args.some((arg) => arg.startsWith("--app-root="))
-  || !args.includes("--expected-release-id=${manifest.releaseId}")) process.exit(41);
+  || !args.includes("--expected-release-id=${manifest.releaseId}")
+  || !args.includes("--public-only")) process.exit(41);
 process.stdout.write("{}\\n");
 `);
   const verifyCli = fileURLToPath(new URL("./release-server-command-contract-verify.mjs", import.meta.url));
@@ -115,7 +116,7 @@ process.stdout.write("{}\\n");
     `--manifest=${releaseManifest}`,
     `--expected-release-id=${manifest.releaseId}`,
     "--contract=nomenclature",
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8", env: { ...process.env, MES_RELEASE_PUBLIC_VERIFIER_QA_PATH: join(app, "scripts", "release-verify.mjs") } });
   assert.equal(verified.status, 0, verified.stderr);
   await writeFile(join(app, NOMENCLATURE_COMMAND_MARKER_PATH), `${markerSource.trim()} `);
   const tampered = spawnSync(process.execPath, [
@@ -124,7 +125,7 @@ process.stdout.write("{}\\n");
     `--manifest=${releaseManifest}`,
     `--expected-release-id=${manifest.releaseId}`,
     "--contract=nomenclature",
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8", env: { ...process.env, MES_RELEASE_PUBLIC_VERIFIER_QA_PATH: join(app, "scripts", "release-verify.mjs") } });
   assert.notEqual(tampered.status, 0, "changed marker bytes must fail the manifest-bound verifier");
 
   const bin = join(root, "bin");

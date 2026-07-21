@@ -19,6 +19,10 @@ fi
 
 readonly SERVICE="mes-pilot.service"
 readonly DROPIN_DIR="/etc/systemd/system/${SERVICE}.d"
+readonly BOOTSTRAP_BIND_DROPIN="${DROPIN_DIR}/06-bootstrap-snapshot-bind.conf"
+readonly OPERATIONAL_BOOTSTRAP="/srv/mes/pilot/runtime/bootstrap-snapshot.json"
+readonly SEALED_BOOTSTRAP_DIR="/srv/mes/pilot/bootstrap-recovery"
+readonly SEALED_BOOTSTRAP="${SEALED_BOOTSTRAP_DIR}/bootstrap-snapshot.json"
 readonly DOMAIN_ENV="/etc/mes/mes-pilot-domain.env"
 readonly MIGRATOR_ENV="/etc/mes/mes-pilot-domain-migrator.env"
 readonly ADMIN_ENV="/etc/mes/mes-pilot-admin-auth.env"
@@ -180,6 +184,47 @@ fi
 [[ "$(stat -c '%U:%G:%a' /srv/mes/pilot/backups)" == mes-pilot:mes-pilot-data:2770 ]] || fail "backup ownership/mode does not permit only runtime plus controlled importer with setgid inheritance"
 [[ "$(stat -c '%U:%G:%a' /srv/mes/pilot/audit)" == mes-pilot:mes-pilot:750 ]] || fail "audit ownership/mode is too broad"
 [[ "$(stat -c '%U:%G:%a' /srv/mes/pilot/runtime)" == mes-pilot:mes-pilot:750 ]] || fail "runtime ownership/mode is too broad"
+[[ -f "$OPERATIONAL_BOOTSTRAP" && ! -L "$OPERATIONAL_BOOTSTRAP" \
+  && "$(readlink -f -- "$OPERATIONAL_BOOTSTRAP")" == "$OPERATIONAL_BOOTSTRAP" \
+  && "$(stat -c '%u:%g:%a:%h' "$OPERATIONAL_BOOTSTRAP")" == 0:0:444:1 ]] \
+  || fail "operational bootstrap snapshot is not root:root 0444 with one link"
+runuser -u mes-pilot -- test -r "$OPERATIONAL_BOOTSTRAP" \
+  || fail "mes-pilot cannot read the operational bootstrap snapshot"
+if runuser -u mes-stage -- test -r "$OPERATIONAL_BOOTSTRAP"; then
+  fail "mes-stage can read the live operational bootstrap snapshot"
+fi
+if runuser -u deploy -- test -r "$OPERATIONAL_BOOTSTRAP"; then
+  fail "deploy can read the post-cutover operational bootstrap snapshot"
+fi
+[[ -f "$BOOTSTRAP_BIND_DROPIN" && ! -L "$BOOTSTRAP_BIND_DROPIN" \
+  && "$(stat -c '%u:%g:%a:%h' "$BOOTSTRAP_BIND_DROPIN")" == 0:0:644:1 ]] \
+  || fail "bootstrap bind drop-in is not root-owned mode 0644"
+[[ -d "$SEALED_BOOTSTRAP_DIR" && ! -L "$SEALED_BOOTSTRAP_DIR" \
+  && "$(stat -c '%u:%g:%a' "$SEALED_BOOTSTRAP_DIR")" == 0:0:700 \
+  && -f "$SEALED_BOOTSTRAP" && ! -L "$SEALED_BOOTSTRAP" \
+  && "$(stat -c '%u:%g:%a:%h' "$SEALED_BOOTSTRAP")" == 0:0:444:1 ]] \
+  || fail "sealed bootstrap bind source is not root-only and immutable"
+cmp -s "$OPERATIONAL_BOOTSTRAP" "$SEALED_BOOTSTRAP" \
+  || fail "sealed bootstrap bind source differs from the operational snapshot"
+for identity in mes-pilot deploy mes-stage; do
+  if runuser -u "$identity" -- test -w "$SEALED_BOOTSTRAP_DIR" \
+    || runuser -u "$identity" -- test -w "$SEALED_BOOTSTRAP"; then
+    fail "$identity can unlink, replace or mutate the sealed bootstrap bind source"
+  fi
+done
+grep -Fxq 'BindReadOnlyPaths=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/bootstrap-snapshot.json' "$BOOTSTRAP_BIND_DROPIN" \
+  || fail "bootstrap bind drop-in omits the app-root target"
+grep -Fxq 'BindReadOnlyPaths=/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/dist/bootstrap-snapshot.json' "$BOOTSTRAP_BIND_DROPIN" \
+  || fail "bootstrap bind drop-in omits the preview-dist target"
+assert_systemd_word_property "$SERVICE" BindReadOnlyPaths \
+  /srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/bootstrap-snapshot.json
+assert_systemd_word_property "$SERVICE" BindReadOnlyPaths \
+  /srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json:/srv/mes/pilot/app/dist/bootstrap-snapshot.json
+expected_bootstrap_sha256="$(sha256sum "$SEALED_BOOTSTRAP" | awk '{print $1}')"
+served_bootstrap_sha256="$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+  -H 'Host: mes-internal' http://127.0.0.1:4175/bootstrap-snapshot.json | sha256sum | awk '{print $1}')"
+[[ "$served_bootstrap_sha256" == "$expected_bootstrap_sha256" ]] \
+  || fail "service bootstrap route differs from the bound operational snapshot"
 state_file=/srv/mes/pilot/shared-state/mes-pilot-shared-state-v1.json
 [[ -f "$state_file" ]] || fail "active shared-state snapshot is missing"
 runuser -u mes-pilot-migrator -- test -r "$state_file" || fail "migrator cannot read the controlled import source"

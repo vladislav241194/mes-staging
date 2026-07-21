@@ -47,6 +47,7 @@ try {
   const scriptPath = join(directory, "activation.sh");
   const binPath = join(directory, "bin");
   const rootSealHelperPath = join(directory, "trusted-root-seal-helper.mjs");
+  const publicVerifierPath = join(directory, "trusted-public-release-verifier.mjs");
   const journalHelperPath = join(directory, "trusted-switch-journal-helper.mjs");
   const activationShell = source.slice(start + startMarker.length, end)
     .replace('if [ "$(id -u)" -ne 0 ]; then', 'if [ "0" -ne 0 ]; then')
@@ -54,6 +55,7 @@ try {
     .replaceAll('/usr/bin/node "$root_seal_helper"', 'node "$root_seal_helper"')
     .replaceAll('/usr/bin/node "$journal_helper"', 'node "$journal_helper"')
     .replaceAll("/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs", rootSealHelperPath)
+    .replaceAll("/usr/local/libexec/mes/active-bundle/release-verify.mjs", publicVerifierPath)
     .replaceAll("/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs", journalHelperPath)
     .replace(/case "\$app_path:\$releases_path:\$service" in[\s\S]*?\nesac/, 'contour_name="staging"')
     .replace(/activation_phase="authority-rollout-lock"[\s\S]*?authority_lock_held=1\n/,
@@ -61,6 +63,7 @@ try {
     .replaceAll("/run/lock/mes", join(directory, "root-lock"));
   await writeFile(scriptPath, activationShell, "utf8");
   await writeFile(rootSealHelperPath, "// fixed helper modeled by node shim\n", "utf8");
+  await writeFile(publicVerifierPath, "// fixed public verifier modeled by node shim\n", "utf8");
   await writeFile(journalHelperPath, "// fixed journal helper modeled by node shim\n", "utf8");
 
   const syntax = spawnSync("bash", ["-n", scriptPath], { encoding: "utf8" });

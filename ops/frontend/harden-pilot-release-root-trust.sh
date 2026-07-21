@@ -11,7 +11,7 @@ if [[ "$(id -u)" != "0" ]]; then
 fi
 
 if [[ "${1:-}" != "--locked" ]]; then
-  lock_wrapper_source="${6:-}"
+  lock_wrapper_source="${9:-}"
   [[ -n "$lock_wrapper_source" ]] || { echo "SHA-verified lock wrapper source is required." >&2; exit 76; }
   exec env MES_RELEASE_BOOTSTRAP_SOURCE_VERIFIED=1 \
     /bin/bash "$lock_wrapper_source" \
@@ -93,19 +93,26 @@ ensure_reinode_state_directory /srv/mes/pilot/quarantine
 
 seal_verifier_source="${1:-}"
 reinode_helper_source="${2:-}"
-activate_runner_source="${3:-}"
-rollback_runner_source="${4:-}"
-switch_journal_source="${5:-}"
-lock_wrapper_source="${6:-}"
-recovery_gate_source="${7:-}"
-if [[ "$#" -ne 7 ]]; then
-  echo "Exactly seven SHA-verified root-uploaded helper paths are required." >&2
+public_verifier_source="${3:-}"
+tree_sha_source="${4:-}"
+runtime_policy_source="${5:-}"
+activate_runner_source="${6:-}"
+rollback_runner_source="${7:-}"
+switch_journal_source="${8:-}"
+lock_wrapper_source="${9:-}"
+recovery_gate_source="${10:-}"
+bootstrap_bind_source="${11:-}"
+if [[ "$#" -ne 11 ]]; then
+  echo "Exactly ten helper paths and one SHA-verified bootstrap bind drop-in are required." >&2
   exit 76
 fi
 
 source_paths=(
   "$seal_verifier_source"
   "$reinode_helper_source"
+  "$public_verifier_source"
+  "$tree_sha_source"
+  "$runtime_policy_source"
   "$activate_runner_source"
   "$rollback_runner_source"
   "$switch_journal_source"
@@ -115,14 +122,16 @@ source_paths=(
 installed_names=(
   release-root-seal-verify.mjs
   release-root-reinode-active.mjs
+  release-verify.mjs
+  release-tree-sha.mjs
+  react-runtime-policy.mjs
   release-activate-root.mjs
   release-rollback-root.mjs
   release-switch-journal.mjs
   with-pilot-release-authority-lock.sh
   recover-pilot-release-transitions.sh
 )
-digests=()
-for source_path in "${source_paths[@]}"; do
+for source_path in "${source_paths[@]}" "$bootstrap_bind_source"; do
   if [[ ! -f "$source_path" || -L "$source_path" || "$(stat -Lc '%u:%g:%a' -- "$source_path")" != "0:0:400" ]]; then
     echo "Untrusted root tool source: $source_path" >&2
     exit 76
@@ -131,6 +140,9 @@ for source_path in "${source_paths[@]}"; do
     /root/*) ;;
     *) echo "Root tool source must be uploaded beneath /root: $source_path" >&2; exit 76 ;;
   esac
+done
+digests=()
+for source_path in "${source_paths[@]}"; do
   digests+=("$(sha256sum "$source_path" | awk '{print $1}')")
 done
 
@@ -158,14 +170,11 @@ if [[ ! -d "$bundle_path" ]]; then
     [[ "$(sha256sum "$bundle_next/${installed_names[$index]}" | awk '{print $1}')" == "${digests[$index]}" ]]
     sync_path "$bundle_next/${installed_names[$index]}"
   done
-  /usr/bin/node --input-type=module - "$bundle_next/helper-bundle.manifest.json" "$bundle_id" \
-    "${installed_names[0]}" "${digests[0]}" \
-    "${installed_names[1]}" "${digests[1]}" \
-    "${installed_names[2]}" "${digests[2]}" \
-    "${installed_names[3]}" "${digests[3]}" \
-    "${installed_names[4]}" "${digests[4]}" \
-    "${installed_names[5]}" "${digests[5]}" \
-    "${installed_names[6]}" "${digests[6]}" <<'NODE'
+  manifest_arguments=("$bundle_next/helper-bundle.manifest.json" "$bundle_id")
+  for index in "${!installed_names[@]}"; do
+    manifest_arguments+=("${installed_names[$index]}" "${digests[$index]}")
+  done
+  /usr/bin/node --input-type=module - "${manifest_arguments[@]}" <<'NODE'
 import { open } from "node:fs/promises";
 const [path, bundleId, ...pairs] = process.argv.slice(2);
 const files = {};
@@ -191,14 +200,11 @@ done
 # Prevalidate the inactive target without executing any of its JavaScript.
 # Exact membership prevents an unmanifested helper from being smuggled into a
 # bundle that otherwise has valid hashes.
-/usr/bin/node --input-type=module - "$bundle_path" "$bundle_id" \
-  "${installed_names[0]}" "${digests[0]}" \
-  "${installed_names[1]}" "${digests[1]}" \
-  "${installed_names[2]}" "${digests[2]}" \
-  "${installed_names[3]}" "${digests[3]}" \
-  "${installed_names[4]}" "${digests[4]}" \
-  "${installed_names[5]}" "${digests[5]}" \
-  "${installed_names[6]}" "${digests[6]}" <<'NODE'
+prevalidation_arguments=("$bundle_path" "$bundle_id")
+for index in "${!installed_names[@]}"; do
+  prevalidation_arguments+=("${installed_names[$index]}" "${digests[$index]}")
+done
+/usr/bin/node --input-type=module - "${prevalidation_arguments[@]}" <<'NODE'
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { basename } from "node:path";
@@ -282,6 +288,67 @@ if ! getent passwd mes-stage >/dev/null; then
   /usr/sbin/useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin --user-group mes-stage
 fi
 
+runtime_dir="/srv/mes/pilot/runtime"
+operational_bootstrap="${runtime_dir}/bootstrap-snapshot.json"
+sealed_bootstrap_dir="/srv/mes/pilot/bootstrap-recovery"
+sealed_bootstrap="${sealed_bootstrap_dir}/bootstrap-snapshot.json"
+if [[ ! -d "$runtime_dir" || -L "$runtime_dir" || "$(readlink -f -- "$runtime_dir")" != "$runtime_dir" ]]; then
+  echo "Pilot operational runtime path is not a canonical real directory." >&2
+  exit 76
+fi
+if getent passwd mes-pilot >/dev/null \
+  && [[ "$(stat -Lc '%U:%G' -- "$runtime_dir")" == "mes-pilot:mes-pilot" ]]; then
+  chown mes-pilot:mes-pilot -- "$runtime_dir"
+  runtime_reader="mes-pilot"
+else
+  chown root:deploy -- "$runtime_dir"
+  runtime_reader="deploy"
+fi
+chmod 0750 -- "$runtime_dir"
+if [[ ! -f "$operational_bootstrap" || -L "$operational_bootstrap" \
+    || "$(readlink -f -- "$operational_bootstrap")" != "$operational_bootstrap" \
+    || "$(stat -Lc '%h' -- "$operational_bootstrap")" != "1" ]]; then
+  echo "Pilot operational bootstrap snapshot is not a canonical single-link regular file." >&2
+  exit 76
+fi
+chown root:root -- "$operational_bootstrap"
+chmod 0444 -- "$operational_bootstrap"
+[[ "$(stat -Lc '%u:%g:%a:%h' -- "$operational_bootstrap")" == "0:0:444:1" ]] \
+  || { echo "Pilot operational bootstrap snapshot hardening failed." >&2; exit 76; }
+/usr/sbin/runuser -u "$runtime_reader" -- test -r "$operational_bootstrap" \
+  || { echo "$runtime_reader cannot read the hardened operational bootstrap snapshot." >&2; exit 76; }
+if /usr/sbin/runuser -u mes-stage -- test -r "$operational_bootstrap"; then
+  echo "mes-stage must not read the live Pilot operational bootstrap snapshot." >&2
+  exit 76
+fi
+
+# This bootstrap step never manufactures the bind source from mutable runtime
+# bytes. Active re-inode is the first operation allowed to atomically seed manifest-bound mirror bytes.
+# On a first-run host the mandatory bind contract
+# therefore stays unpublished until that mirror exists: bootstrap may fail
+# safely, but it must never leave an otherwise healthy Pilot unable to restart.
+if [[ ! -e "$sealed_bootstrap_dir" && ! -L "$sealed_bootstrap_dir" ]]; then
+  install -d -o root -g root -m 0700 "$sealed_bootstrap_dir"
+fi
+[[ -d "$sealed_bootstrap_dir" && ! -L "$sealed_bootstrap_dir" \
+  && "$(readlink -f -- "$sealed_bootstrap_dir")" == "$sealed_bootstrap_dir" \
+  && "$(stat -Lc '%u:%g:%a' -- "$sealed_bootstrap_dir")" == "0:0:700" ]] \
+  || { echo "Pilot sealed bootstrap directory is unsafe." >&2; exit 76; }
+if [[ -e "$sealed_bootstrap" || -L "$sealed_bootstrap" ]]; then
+  [[ -f "$sealed_bootstrap" && ! -L "$sealed_bootstrap" \
+    && "$(stat -Lc '%u:%g:%a:%h' -- "$sealed_bootstrap")" == "0:0:444:1" ]] \
+    || { echo "Pilot sealed bootstrap artifact is unsafe." >&2; exit 76; }
+fi
+bootstrap_forbidden_identities=(deploy mes-stage)
+getent passwd mes-pilot >/dev/null && bootstrap_forbidden_identities+=(mes-pilot)
+for identity in "${bootstrap_forbidden_identities[@]}"; do
+  if /usr/sbin/runuser -u "$identity" -- test -r "$sealed_bootstrap" \
+    || /usr/sbin/runuser -u "$identity" -- test -w "$sealed_bootstrap_dir"; then
+    echo "$identity can access or replace the sealed bootstrap mirror." >&2
+    exit 76
+  fi
+done
+
 atomic_install_config() {
   local target="$1"
   local source="$2"
@@ -292,6 +359,26 @@ atomic_install_config() {
   mv -Tf "$next" "$target"
   sync_path "$(dirname "$target")"
 }
+
+bootstrap_bind_target=/etc/systemd/system/mes-pilot.service.d/06-bootstrap-snapshot-bind.conf
+bootstrap_bind_state=deferred-until-active-reinode
+if [[ -f "$sealed_bootstrap" && ! -L "$sealed_bootstrap" ]]; then
+  /usr/bin/node --input-type=module -e \
+    'JSON.parse(await (await import("node:fs/promises")).readFile(process.argv[1], "utf8"));' \
+    "$sealed_bootstrap"
+  atomic_install_config "$bootstrap_bind_target" "$bootstrap_bind_source"
+  bootstrap_bind_state=published-from-root-sealed-mirror
+elif [[ -e "$bootstrap_bind_target" || -L "$bootstrap_bind_target" ]]; then
+  # Recover only the exact managed first-run residue left by an older
+  # bootstrap. Never unlink an unknown or redirected systemd configuration.
+  [[ -f "$bootstrap_bind_target" && ! -L "$bootstrap_bind_target" \
+    && "$(readlink -f -- "$bootstrap_bind_target")" == "$bootstrap_bind_target" \
+    && "$(stat -Lc '%u:%g:%a:%h' -- "$bootstrap_bind_target")" == "0:0:644:1" \
+    && "$(sha256sum "$bootstrap_bind_target" | awk '{print $1}')" == "$(sha256sum "$bootstrap_bind_source" | awk '{print $1}')" ]] \
+    || { echo "Unsafe bootstrap bind residue while the sealed mirror is absent." >&2; exit 76; }
+  rm -f -- "$bootstrap_bind_target"
+  sync_path "$(dirname -- "$bootstrap_bind_target")"
+fi
 
 config_tmp="$(mktemp -d /root/.mes-release-recovery-config.XXXXXX)"
 trap 'rm -rf -- "$config_tmp"' EXIT
@@ -338,4 +425,6 @@ for unit in mes-pilot-domain-migrate.service mes-pilot-domain-import.service mes
 done
 systemctl daemon-reload
 
-printf '%s\n' "Pilot release trust bundle is root-owned, manifest-bound and crash-committed: ${bundle_id}"
+printf '%s\n' \
+  "Pilot release trust bundle is root-owned, manifest-bound and crash-committed: ${bundle_id}" \
+  "Pilot bootstrap bind contract: ${bootstrap_bind_state}"

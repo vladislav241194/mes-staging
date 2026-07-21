@@ -23,11 +23,12 @@ done
 [[ -z "$trusted_staged_release_id" || "$trusted_staged_release_id" =~ ^[A-Za-z0-9._-]{1,96}$ ]] || { echo "Unsafe staged release id." >&2; exit 2; }
 
 readonly ROOT_SEAL_HELPER="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"
+readonly PUBLIC_RELEASE_VERIFIER="/usr/local/libexec/mes/active-bundle/release-verify.mjs"
 readonly RELEASES_DIR="/srv/mes/pilot/releases"
 readonly ACTIVE_TARGET="$(readlink -f "$APP_DIR")"
 readonly ACTIVE_RELEASE_ID="$(basename "$(dirname "$ACTIVE_TARGET")")"
 readonly SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || true)"
-[[ "$ACTIVE_RELEASE_ID" =~ ^[A-Za-z0-9._-]{1,96}$ && "$ACTIVE_TARGET" == "${RELEASES_DIR}/${ACTIVE_RELEASE_ID}/app" && -f "$ROOT_SEAL_HELPER" ]] \
+[[ "$ACTIVE_RELEASE_ID" =~ ^[A-Za-z0-9._-]{1,96}$ && "$ACTIVE_TARGET" == "${RELEASES_DIR}/${ACTIVE_RELEASE_ID}/app" && -f "$ROOT_SEAL_HELPER" && -f "$PUBLIC_RELEASE_VERIFIER" ]] \
   || { echo "Active release trust anchor is unavailable." >&2; exit 1; }
 /usr/bin/node "$ROOT_SEAL_HELPER" release --releases-root="$RELEASES_DIR" --release-id="$ACTIVE_RELEASE_ID" --app="$ACTIVE_TARGET" >/dev/null
 /usr/bin/node "$ROOT_SEAL_HELPER" pointer --pointer="$APP_DIR" --expected-target="$ACTIVE_TARGET" >/dev/null
@@ -36,9 +37,12 @@ if [[ "$SCRIPT_PATH" != "${ACTIVE_TARGET}/ops/security/rotate-pilot-credentials.
   trusted_staged_app="${RELEASES_DIR}/${trusted_staged_release_id}/app"
   [[ "$SCRIPT_PATH" == "${trusted_staged_app}/ops/security/rotate-pilot-credentials.sh" ]] || { echo "Rotation script path does not match the staged release." >&2; exit 1; }
   /usr/bin/node "$ROOT_SEAL_HELPER" release --releases-root="$RELEASES_DIR" --release-id="$trusted_staged_release_id" --app="$trusted_staged_app" >/dev/null
-  /usr/bin/node "${trusted_staged_app}/scripts/release-verify.mjs" \
+  /usr/sbin/runuser -u mes-stage -- /usr/bin/env \
+    HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin \
+    /usr/bin/node "$PUBLIC_RELEASE_VERIFIER" \
     --manifest="${RELEASES_DIR}/${trusted_staged_release_id}/release-manifest.json" \
-    --app-root="$trusted_staged_app" --expected-release-id="$trusted_staged_release_id" >/dev/null
+    --app-root="$trusted_staged_app" --expected-release-id="$trusted_staged_release_id" \
+    --public-only >/dev/null
 elif [[ -n "$trusted_staged_release_id" ]]; then
   echo "Do not pass a staged release id when rotating from the active immutable release." >&2
   exit 1

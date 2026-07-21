@@ -14,6 +14,7 @@ const sshOptions = [
 ];
 const FIXED_ROOT_ACTIVATE_RUNNER = "/usr/local/libexec/mes/active-bundle/release-activate-root.mjs";
 const FIXED_ROOT_SEAL_HELPER = "/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs";
+const FIXED_PUBLIC_RELEASE_VERIFIER = "/usr/local/libexec/mes/active-bundle/release-verify.mjs";
 const FIXED_ROOT_SWITCH_JOURNAL_HELPER = "/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs";
 const FIXED_ROOT_AUTHORITY_WRAPPER = "/usr/local/libexec/mes/active-bundle/with-pilot-release-authority-lock.sh";
 
@@ -127,6 +128,7 @@ legacy_path=""
 failed_pointer_path="$release_path/failed-active-pointer-$timestamp"
 rollback_pointer_path="$app_path.rollback-$timestamp"
 health_body_path="$release_path/activation-health-$timestamp.json"
+bootstrap_body_path="$release_path/activation-bootstrap-$timestamp.json"
 activation_record_path="$release_path/activation.json"
 activation_record_backup_path="$release_path/activation.json.before-$timestamp"
 activation_phase="initializing"
@@ -151,6 +153,7 @@ target_directory_cluster_command_compatible=0
 previous_directory_cluster_command_compatible=0
 switch_operation="activation"
 root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"
+public_release_verifier="/usr/local/libexec/mes/active-bundle/release-verify.mjs"
 journal_helper="/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -184,6 +187,59 @@ write_release_app_verification_intent() {
   sync -f "$intent_next"
   mv -Tf "$intent_next" "$authority_app_intent_file"
   sync -f "$authority_lock_parent"
+}
+
+verify_pilot_bootstrap_recovery_invariant() {
+  [ "$contour_name" = "pilot" ] || { printf '%s' ""; return 0; }
+  local current_app="$1" current_manifest="$2" target_app="$3" target_manifest="$4"
+  local legacy_app="$5" legacy_manifest="$6"
+  local recovery_dir="/srv/mes/pilot/bootstrap-recovery"
+  local recovery_path="$recovery_dir/bootstrap-snapshot.json"
+  local current_sha target_sha legacy_sha app expected_sha actual_sha
+  bootstrap_digest_from_manifest() {
+    /usr/bin/node --input-type=module - "$1" <<'NODE'
+import { readFile } from "node:fs/promises";
+const [manifestPath] = process.argv.slice(2);
+const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+const artifacts = manifest?.compatibilityArtifacts;
+if (manifest?.schemaVersion !== 3 || !Array.isArray(artifacts) || artifacts.length !== 1) process.exit(76);
+const descriptor = artifacts[0];
+const expectedKeys = ["generatedPaths", "id", "operationalPath", "sha256", "stagedPaths"];
+if (JSON.stringify(Object.keys(descriptor || {}).sort()) !== JSON.stringify(expectedKeys)
+  || descriptor.id !== "bootstrap-snapshot"
+  || descriptor.operationalPath !== "/srv/mes/pilot/runtime/bootstrap-snapshot.json"
+  || !/^[a-f0-9]{64}$/i.test(String(descriptor.sha256 || ""))) process.exit(76);
+process.stdout.write(descriptor.sha256);
+NODE
+  }
+  current_sha="$(bootstrap_digest_from_manifest "$current_manifest")" || return 1
+  target_sha="$(bootstrap_digest_from_manifest "$target_manifest")" || return 1
+  legacy_sha="$(bootstrap_digest_from_manifest "$legacy_manifest")" || return 1
+  [ "$current_sha" = "$target_sha" ] && [ "$current_sha" = "$legacy_sha" ] || return 1
+  [ -d "$recovery_dir" ] && [ ! -L "$recovery_dir" ] \
+    && [ "$(readlink -f -- "$recovery_dir")" = "$recovery_dir" ] \
+    && [ "$(stat -Lc '%u:%g:%a' -- "$recovery_dir")" = "0:0:700" ] \
+    || return 1
+  for app in "$current_app" "$target_app" "$legacy_app"; do
+    if [ "$app" = "$current_app" ]; then expected_sha="$current_sha"
+    elif [ "$app" = "$target_app" ]; then expected_sha="$target_sha"
+    else expected_sha="$legacy_sha"
+    fi
+    [ -f "$app/bootstrap-snapshot.json" ] && [ ! -L "$app/bootstrap-snapshot.json" ] \
+      && [ "$(readlink -f -- "$app/bootstrap-snapshot.json")" = "$app/bootstrap-snapshot.json" ] \
+      && [ "$(stat -Lc '%u:%g:%h' -- "$app/bootstrap-snapshot.json")" = "0:0:1" ] \
+      || return 1
+    actual_sha="$(sha256sum "$app/bootstrap-snapshot.json" | awk '{print $1}')"
+    [ "$actual_sha" = "$expected_sha" ] || return 1
+  done
+  [ -f "$recovery_path" ] && [ ! -L "$recovery_path" ] \
+    && [ "$(readlink -f -- "$recovery_path")" = "$recovery_path" ] \
+    && [ "$(stat -Lc '%u:%g:%a:%h' -- "$recovery_path")" = "0:0:444:1" ] \
+    || return 1
+  [ "$(stat -Lc '%u:%g:%a:%h' -- "$recovery_path")" = "0:0:444:1" ] \
+    && [ "$(sha256sum "$recovery_path" | awk '{print $1}')" = "$target_sha" ] \
+    || return 1
+  printf '%s' "$target_sha"
 }
 
 clear_release_app_verification_intent() {
@@ -311,7 +367,7 @@ for command_name in node curl flock install runuser sha256sum sudo sync systemct
     fail_activation 1 "required_command_unavailable_$command_name"
   }
 done
-[ -x /usr/bin/node ] && [ -f "$root_seal_helper" ] || {
+[ -x /usr/bin/node ] && [ -f "$root_seal_helper" ] && [ -f "$public_release_verifier" ] || {
   echo "The fixed root-owned release seal verifier is unavailable." >&2
   fail_activation 1 "root_seal_verifier_unavailable"
 }
@@ -359,7 +415,6 @@ test -d "$release_app_path"
 test -f "$release_path/release-manifest.json"
 test -f "$release_app_path/dist/index.html"
 test -f "$release_app_path/package-lock.json"
-test -f "$release_app_path/scripts/release-verify.mjs"
 release_app_target="$(readlink -f "$release_app_path")"
 
 activation_phase="active-runtime-inspection"
@@ -388,21 +443,21 @@ else
 fi
 
 previous_manifest_verification='{}'
-run_candidate_node() {
+run_fixed_public_verifier() {
   runuser -u mes-stage -- /usr/bin/env \
     HOME=/nonexistent \
     PATH=/usr/sbin:/usr/bin:/sbin:/bin \
-    /usr/bin/node "$@"
+    /usr/bin/node "$public_release_verifier" "$@"
 }
 if [ "$previous_kind" = "release-pointer" ]; then
   [ "$previous_target" = "$releases_path/$previous_release_id/app" ] \
     || fail_activation 1 "active_release_pointer_outside_release_store"
   test -f "$previous_release_path/release-manifest.json"
-  test -f "$previous_target/scripts/release-verify.mjs"
-  previous_manifest_verification="$(cd "$previous_target" && run_candidate_node scripts/release-verify.mjs \
+  previous_manifest_verification="$(run_fixed_public_verifier \
+    --app-root="$previous_target" \
     --manifest="$previous_release_path/release-manifest.json" \
     --expected-release-id="$previous_release_id" \
-    --json)"
+    --json --public-only)"
 fi
 
 activation_phase="active-record-pointer-consistency"
@@ -432,10 +487,11 @@ fi
 # not executed before that complete two-sided trust boundary.
 cd "$release_app_path"
 activation_phase="manifest-verification"
-manifest_verification="$(run_candidate_node scripts/release-verify.mjs \
+manifest_verification="$(run_fixed_public_verifier \
+  --app-root="$release_app_path" \
   --manifest="$release_path/release-manifest.json" \
   --expected-release-id="$release_id" \
-  --json)"
+  --json --public-only)"
 printf '%s\n' "$manifest_verification"
 runtime_policy_sha="$(node --input-type=module -e '
   const verification = JSON.parse(process.argv[1]);
@@ -1039,6 +1095,41 @@ if [ "$dry_run" = "true" ]; then
   exit 0
 fi
 
+legacy_bootstrap_target="$previous_target"
+legacy_bootstrap_manifest="$previous_release_path/release-manifest.json"
+if [ "$contour_name" = "pilot" ]; then
+  legacy_bootstrap_target="$(node --input-type=module - \
+    "$releases_path/active-release.json" "$releases_path" "$previous_target" <<'NODE'
+import { readFile } from "node:fs/promises";
+const [recordPath, releasesPath, currentTarget] = process.argv.slice(2);
+const record = JSON.parse(await readFile(recordPath, "utf8"));
+const baseline = record?.legacyBaseline;
+if (!baseline) process.stdout.write(currentTarget);
+else if (baseline.kind === "release-pointer"
+  && /^[A-Za-z0-9._-]{1,96}$/.test(String(baseline.releaseId || ""))
+  && baseline.target === releasesPath + "/" + baseline.releaseId + "/app") process.stdout.write(baseline.target);
+else process.exit(76);
+NODE
+)" || fail_activation 1 "legacy_bootstrap_baseline_invalid"
+  legacy_bootstrap_release_path="$(dirname -- "$legacy_bootstrap_target")"
+  legacy_bootstrap_release_id="$(basename -- "$legacy_bootstrap_release_path")"
+  legacy_bootstrap_manifest="$legacy_bootstrap_release_path/release-manifest.json"
+  /usr/bin/node "$root_seal_helper" release \
+    --releases-root="$releases_path" --release-id="$legacy_bootstrap_release_id" \
+    --app="$legacy_bootstrap_target" >/dev/null \
+    || fail_activation 1 "legacy_bootstrap_release_root_seal_invalid"
+  run_fixed_public_verifier --app-root="$legacy_bootstrap_target" \
+    --manifest="$legacy_bootstrap_manifest" \
+    --expected-release-id="$legacy_bootstrap_release_id" --json --public-only >/dev/null \
+    || fail_activation 1 "legacy_bootstrap_release_manifest_invalid"
+fi
+activation_phase="verify-bootstrap-recovery-invariant"
+target_bootstrap_sha="$(verify_pilot_bootstrap_recovery_invariant \
+  "$previous_target" "$previous_release_path/release-manifest.json" \
+  "$release_app_path" "$release_path/release-manifest.json" \
+  "$legacy_bootstrap_target" "$legacy_bootstrap_manifest")" \
+  || fail_activation 1 "bootstrap_recovery_invariant_failed"
+
 activation_phase="prepare-switch-journal"
 /usr/bin/node "$journal_helper" prepare \
   --contour="$contour_name" \
@@ -1225,9 +1316,38 @@ check_health() {
   return 1
 }
 
+check_served_bootstrap() {
+  local expected_sha="$1" attempt http_code actual_sha
+  [ "$contour_name" = "pilot" ] || return 0
+  [ -n "$expected_sha" ] || return 1
+  for attempt in $(seq 1 12); do
+    if systemctl is-active --quiet "$service"; then
+      http_code="$(curl -sS --max-time 10 -o "$bootstrap_body_path" -w '%{http_code}' \
+        "http://localhost:$port/bootstrap-snapshot.json" || true)"
+      if [ "$http_code" = "200" ]; then
+        actual_sha="$(sha256sum "$bootstrap_body_path" | awk '{print $1}')"
+        if [ "$actual_sha" = "$expected_sha" ]; then
+          rm -f -- "$bootstrap_body_path"
+          return 0
+        fi
+      fi
+    fi
+    sleep "$attempt"
+  done
+  rm -f -- "$bootstrap_body_path"
+  return 1
+}
+
 activation_phase="local-healthcheck"
 if ! check_health "http://localhost:$port/healthz" "$runtime_policy_sha" "$release_app_version"; then
   emit_failure_diagnostics 1 "local_healthcheck_failed"
+  rollback
+  exit 1
+fi
+
+activation_phase="bootstrap-healthcheck"
+if ! check_served_bootstrap "$target_bootstrap_sha"; then
+  emit_failure_diagnostics 1 "manifest_bound_bootstrap_healthcheck_failed"
   rollback
   exit 1
 fi

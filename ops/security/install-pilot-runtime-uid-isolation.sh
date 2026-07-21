@@ -32,11 +32,16 @@ readonly CANDIDATE_RELEASE_DIR="${RELEASES_DIR}/${candidate_release_id}"
 readonly CANDIDATE_APP_DIR="${CANDIDATE_RELEASE_DIR}/app"
 readonly CANDIDATE_MANIFEST="${CANDIDATE_RELEASE_DIR}/release-manifest.json"
 readonly ROOT_SEAL_HELPER="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"
+readonly PUBLIC_RELEASE_VERIFIER="/usr/local/libexec/mes/active-bundle/release-verify.mjs"
 readonly SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || true)"
 readonly EXPECTED_SCRIPT="${CANDIDATE_APP_DIR}/ops/security/install-pilot-runtime-uid-isolation.sh"
 readonly SERVICE="mes-pilot.service"
 readonly SERVICE_FILE="/etc/systemd/system/${SERVICE}"
 readonly DROPIN_DIR="/etc/systemd/system/${SERVICE}.d"
+readonly BOOTSTRAP_BIND_DROPIN="${DROPIN_DIR}/06-bootstrap-snapshot-bind.conf"
+readonly OPERATIONAL_BOOTSTRAP="/srv/mes/pilot/runtime/bootstrap-snapshot.json"
+readonly SEALED_BOOTSTRAP_DIR="/srv/mes/pilot/bootstrap-recovery"
+readonly SEALED_BOOTSTRAP="${SEALED_BOOTSTRAP_DIR}/bootstrap-snapshot.json"
 readonly DOMAIN_ENV="/etc/mes/mes-pilot-domain.env"
 readonly MIGRATOR_ENV="/etc/mes/mes-pilot-domain-migrator.env"
 readonly ADMIN_ENV="/etc/mes/mes-pilot-admin-auth.env"
@@ -57,6 +62,7 @@ readonly UID_CUTOVER_JOURNAL="${UID_CUTOVER_JOURNAL_PARENT}/pilot-uid-cutover"
 readonly WRITER_QUIESCE_MARKER="/run/lock/mes/pilot-runtime-writers-quiesced"
 readonly SCRIPT_DIR="${CANDIDATE_APP_DIR}/ops/security"
 readonly REPO_ROOT="$CANDIDATE_APP_DIR"
+readonly BOOTSTRAP_BIND_SOURCE="${REPO_ROOT}/ops/frontend/mes-pilot-bootstrap-snapshot-bind.conf"
 readonly LIBEXEC_ROOT="/usr/local/libexec/mes"
 readonly RUNTIME_BUNDLES_ROOT="${LIBEXEC_ROOT}/runtime-security-bundles"
 readonly RUNTIME_ACTIVE_BUNDLE="${LIBEXEC_ROOT}/runtime-security-active"
@@ -71,7 +77,7 @@ readonly -a RUNTIME_BUNDLE_FILES=(
   recover-pilot-uid-cutover.sh
 )
 
-[[ -x /usr/bin/node && -f "$ROOT_SEAL_HELPER" ]] || { echo "Fixed root seal verifier is unavailable." >&2; exit 1; }
+[[ -x /usr/bin/node && -f "$ROOT_SEAL_HELPER" && -f "$PUBLIC_RELEASE_VERIFIER" ]] || { echo "Fixed release verifiers are unavailable." >&2; exit 1; }
 [[ "$ACTIVE_RELEASE_ID" =~ ^[A-Za-z0-9._-]{1,96}$ \
   && "$ACTIVE_TARGET" == "${RELEASES_DIR}/${ACTIVE_RELEASE_ID}/app" ]] || {
   echo "Active Pilot pointer does not select an exact canonical release." >&2
@@ -92,9 +98,11 @@ readonly -a RUNTIME_BUNDLE_FILES=(
   --pointer="$ACTIVE_APP_DIR" --expected-target="$ACTIVE_TARGET" >/dev/null
 /usr/bin/node "$ROOT_SEAL_HELPER" release \
   --releases-root="$RELEASES_DIR" --release-id="$candidate_release_id" --app="$CANDIDATE_APP_DIR" >/dev/null
-/usr/bin/node "${CANDIDATE_APP_DIR}/scripts/release-verify.mjs" \
+/usr/sbin/runuser -u mes-stage -- /usr/bin/env \
+  HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin \
+  /usr/bin/node "$PUBLIC_RELEASE_VERIFIER" \
   --manifest="$CANDIDATE_MANIFEST" --app-root="$CANDIDATE_APP_DIR" \
-  --expected-release-id="$candidate_release_id" >/dev/null
+  --expected-release-id="$candidate_release_id" --public-only >/dev/null
 
 if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
   exec "${CANDIDATE_APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
@@ -469,6 +477,25 @@ if [[ ! -e /srv/mes/pilot/runtime && ! -L /srv/mes/pilot/runtime ]]; then mkdir 
 assert_real_directory /srv/mes/pilot/runtime
 for path in /srv/mes/pilot/shared-state /srv/mes/pilot/backups /srv/mes/pilot/audit /srv/mes/pilot/runtime; do assert_plain_tree "$path"; done
 assert_real_file /srv/mes/pilot/shared-state/mes-pilot-shared-state-v1.json
+assert_real_file "$OPERATIONAL_BOOTSTRAP"
+assert_real_directory "$SEALED_BOOTSTRAP_DIR"
+assert_real_file "$SEALED_BOOTSTRAP"
+[[ "$(stat -c '%u:%g:%a:%h' "$OPERATIONAL_BOOTSTRAP")" == "0:0:444:1" ]] \
+  || { echo "Operational bootstrap snapshot must be root:root 0444 with one link." >&2; exit 1; }
+/usr/sbin/runuser -u deploy -- test -r "$OPERATIONAL_BOOTSTRAP" \
+  || { echo "deploy cannot read the pre-cutover operational bootstrap snapshot." >&2; exit 1; }
+[[ "$(stat -c '%u:%g:%a' "$SEALED_BOOTSTRAP_DIR")" == "0:0:700" \
+  && "$(stat -c '%u:%g:%a:%h' "$SEALED_BOOTSTRAP")" == "0:0:444:1" ]] \
+  || { echo "Sealed bootstrap bind source metadata is invalid." >&2; exit 1; }
+cmp -s "$OPERATIONAL_BOOTSTRAP" "$SEALED_BOOTSTRAP" \
+  || { echo "Sealed bootstrap bind source differs from the operational snapshot." >&2; exit 1; }
+for identity in deploy mes-stage; do
+  if /usr/sbin/runuser -u "$identity" -- test -r "$SEALED_BOOTSTRAP" \
+    || /usr/sbin/runuser -u "$identity" -- test -w "$SEALED_BOOTSTRAP_DIR"; then
+    echo "$identity can access or replace the sealed bootstrap bind source." >&2
+    exit 1
+  fi
+done
 assert_optional_real_file /srv/mes/pilot/backups/domain-export-initial.json
 assert_optional_real_file /srv/mes/pilot/audit/audit.log
 assert_optional_real_file /srv/mes/pilot/shared-state/.shift-execution-authority-rollback.json
@@ -492,6 +519,10 @@ for path in \
   "$RUNTIME_DISPATCHER"; do
   assert_optional_real_file "$path"
 done
+assert_real_file "$BOOTSTRAP_BIND_DROPIN"
+assert_real_file "$BOOTSTRAP_BIND_SOURCE"
+cmp -s "$BOOTSTRAP_BIND_SOURCE" "$BOOTSTRAP_BIND_DROPIN" \
+  || { echo "Installed bootstrap bind drop-in differs from the sealed candidate contract." >&2; exit 1; }
 
 # Defense in depth after the fixed helper's recursive release/pointer proof.
 if runuser -u deploy -- test -w /srv/mes/pilot \
@@ -531,6 +562,8 @@ for source in \
   "${SCRIPT_DIR}/rotate-pilot-credentials.sh"; do
   [[ -f "$source" && ! -L "$source" ]] || { echo "Missing trusted cutover artifact: $source" >&2; exit 1; }
 done
+[[ -f "$BOOTSTRAP_BIND_SOURCE" && ! -L "$BOOTSTRAP_BIND_SOURCE" ]] \
+  || { echo "Missing trusted bootstrap bind contract: $BOOTSTRAP_BIND_SOURCE" >&2; exit 1; }
 
 # The immutable bundle pointer, invariant dispatcher, recovery unit, persistent
 # release-recovery dependency bridges and every app/writer gate were installed
@@ -551,6 +584,7 @@ managed_paths=(
   "${DROPIN_DIR}/10-hardening.conf"
   "$ADMIN_DROPIN"
   "$PUBLIC_DROPIN"
+  "$BOOTSTRAP_BIND_DROPIN"
   "/etc/systemd/system/mes-pilot-domain-migrate.service"
   "/etc/systemd/system/mes-pilot-domain-import.service"
   "/etc/systemd/system/mes-pilot-domain-snapshot-sync.service"
@@ -751,6 +785,22 @@ install -d -o mes-pilot -g mes-pilot-data -m 2770 /srv/mes/pilot/backups
 install -d -o mes-pilot -g mes-pilot -m 0750 /srv/mes/pilot/audit /srv/mes/pilot/runtime
 chown_tree_from_to deploy deploy mes-pilot:mes-pilot-data /srv/mes/pilot/shared-state /srv/mes/pilot/backups
 chown_tree_from_to deploy deploy mes-pilot:mes-pilot /srv/mes/pilot/audit /srv/mes/pilot/runtime
+chown root:root "$OPERATIONAL_BOOTSTRAP"
+chmod 0444 "$OPERATIONAL_BOOTSTRAP"
+[[ "$(stat -c '%u:%g:%a:%h' "$OPERATIONAL_BOOTSTRAP")" == "0:0:444:1" ]] \
+  || { echo "Operational bootstrap snapshot metadata changed during UID cutover." >&2; false; }
+/usr/sbin/runuser -u mes-pilot -- test -r "$OPERATIONAL_BOOTSTRAP" \
+  || { echo "mes-pilot cannot read the operational bootstrap snapshot after UID cutover." >&2; false; }
+if /usr/sbin/runuser -u deploy -- test -r "$OPERATIONAL_BOOTSTRAP" \
+  || /usr/sbin/runuser -u mes-stage -- test -r "$OPERATIONAL_BOOTSTRAP"; then
+  echo "deploy or mes-stage can read the operational bootstrap snapshot after UID cutover." >&2
+  false
+fi
+if /usr/sbin/runuser -u mes-pilot -- test -w "$SEALED_BOOTSTRAP_DIR" \
+  || /usr/sbin/runuser -u mes-pilot -- test -w "$SEALED_BOOTSTRAP"; then
+  echo "mes-pilot can replace or mutate the sealed bootstrap bind source." >&2
+  false
+fi
 [[ -f "$state_file" ]] && chmod 0640 "$state_file"
 [[ -f "$import_export_file" ]] && chmod 0660 "$import_export_file"
 
@@ -759,6 +809,7 @@ install -d -o root -g root -m 0755 "$DROPIN_DIR"
 rm -f -- "${DROPIN_DIR}/10-hardening.conf"
 install_root_file_atomically "${SCRIPT_DIR}/mes-pilot-admin-auth.conf" "$ADMIN_DROPIN" 0644
 install_root_file_atomically "${SCRIPT_DIR}/mes-pilot-public-auth.conf" "$PUBLIC_DROPIN" 0644
+install_root_file_atomically "$BOOTSTRAP_BIND_SOURCE" "$BOOTSTRAP_BIND_DROPIN" 0644
 install_root_file_atomically "${REPO_ROOT}/ops/postgres/mes-pilot-domain-migrate.service" /etc/systemd/system/mes-pilot-domain-migrate.service 0644
 install_root_file_atomically "${REPO_ROOT}/ops/postgres/mes-pilot-domain-import.service" /etc/systemd/system/mes-pilot-domain-import.service 0644
 install_root_file_atomically "${REPO_ROOT}/ops/postgres/mes-pilot-domain-snapshot-sync.service" /etc/systemd/system/mes-pilot-domain-snapshot-sync.service 0644

@@ -23,6 +23,8 @@ import {
   validateDirectoryClusterCandidateManifest,
 } from "./release-directory-cluster-command-contract.mjs";
 
+const FIXED_PUBLIC_RELEASE_VERIFIER = "/usr/local/libexec/mes/active-bundle/release-verify.mjs";
+
 function parseArgs(argv) {
   const options = Object.fromEntries(argv.map((arg) => {
     if (!arg.startsWith("--")) throw new Error(`Unknown positional argument: ${arg}`);
@@ -41,6 +43,7 @@ function parseArgs(argv) {
     manifest: resolve(options.manifest),
     expectedReleaseId: String(options["expected-release-id"]),
     contract,
+    publicOnly: Object.prototype.hasOwnProperty.call(options, "public-only"),
   };
 }
 
@@ -49,13 +52,28 @@ if (!/^[A-Za-z0-9._-]{1,96}$/.test(args.expectedReleaseId)) {
   throw new Error("Expected release id is unsafe");
 }
 
-const verification = spawnSync(process.execPath, [
-  join(args.app, "scripts", "release-verify.mjs"),
+let publicVerifierPath = FIXED_PUBLIC_RELEASE_VERIFIER;
+if (process.env.MES_RELEASE_PUBLIC_VERIFIER_QA_PATH) {
+  if (args.app.startsWith("/srv/mes/") || args.manifest.startsWith("/srv/mes/")) {
+    throw new Error("A fixed public verifier QA override is forbidden for MES release paths");
+  }
+  publicVerifierPath = resolve(process.env.MES_RELEASE_PUBLIC_VERIFIER_QA_PATH);
+}
+const releaseVerificationArgs = [
+  publicVerifierPath,
   `--manifest=${args.manifest}`,
   `--app-root=${args.app}`,
   `--expected-release-id=${args.expectedReleaseId}`,
   "--json",
-], { encoding: "utf8" });
+  "--public-only",
+];
+const verification = typeof process.getuid === "function" && process.getuid() === 0
+  ? spawnSync("/usr/sbin/runuser", [
+    "-u", "mes-stage", "--", "/usr/bin/env",
+    "HOME=/nonexistent", "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+    "/usr/bin/node", ...releaseVerificationArgs,
+  ], { encoding: "utf8" })
+  : spawnSync(process.execPath, releaseVerificationArgs, { encoding: "utf8" });
 if (verification.status !== 0) {
   throw new Error(`Release artifact verification failed: ${String(verification.stderr || verification.stdout || "unknown error").trim()}`);
 }
@@ -97,4 +115,5 @@ process.stdout.write(`${JSON.stringify({
   releaseId: args.expectedReleaseId,
   contract: args.contract,
   manifestVerified: true,
+  privateCompatibilityArtifactsVerified: false,
 })}\n`);

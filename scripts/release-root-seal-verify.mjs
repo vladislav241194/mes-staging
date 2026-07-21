@@ -7,8 +7,10 @@ import {
   readlink,
   realpath,
 } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import {
   dirname,
+  basename,
   isAbsolute,
   join,
   normalize,
@@ -16,15 +18,19 @@ import {
   resolve,
   sep,
 } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 export const ROOT_HELPER_INSTALL_ROOT = "/usr/local/libexec/mes";
 export const ROOT_HELPER_ACTIVE_BUNDLE = `${ROOT_HELPER_INSTALL_ROOT}/active-bundle`;
 export const ROOT_SEAL_HELPER_PATH = `${ROOT_HELPER_ACTIVE_BUNDLE}/release-root-seal-verify.mjs`;
+export const ROOT_PUBLIC_RELEASE_VERIFIER_PATH = `${ROOT_HELPER_ACTIVE_BUNDLE}/release-verify.mjs`;
 export const ROOT_HELPER_BUNDLE_MANIFEST = `${ROOT_HELPER_ACTIVE_BUNDLE}/helper-bundle.manifest.json`;
 export const ROOT_HELPER_BUNDLE_FILES = Object.freeze([
   "release-root-seal-verify.mjs",
   "release-root-reinode-active.mjs",
+  "release-verify.mjs",
+  "release-tree-sha.mjs",
+  "react-runtime-policy.mjs",
   "release-activate-root.mjs",
   "release-rollback-root.mjs",
   "release-switch-journal.mjs",
@@ -32,6 +38,10 @@ export const ROOT_HELPER_BUNDLE_FILES = Object.freeze([
   "recover-pilot-release-transitions.sh",
 ]);
 export const ROOT_RELEASE_TRUST_ATTESTATION = "root-release-trust-attestation.json";
+export const ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS = Object.freeze([
+  "bootstrap-snapshot.json",
+  "dist/bootstrap-snapshot.json",
+]);
 export const ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS = Object.freeze([
   "dist/bootstrap-snapshot.json.gz",
   "dist/bootstrap-snapshot.json.br",
@@ -251,8 +261,28 @@ export async function verifyReleaseTrustAttestation({
   ]) {
     if (!isSha256(attestation[key])) fail(`release trust attestation ${key} is invalid`);
   }
-  const bootstrap = (Array.isArray(manifest?.compatibilityArtifacts) ? manifest.compatibilityArtifacts : [])
-    .find((artifact) => artifact?.id === "bootstrap-snapshot");
+  const compatibilityArtifacts = Array.isArray(manifest?.compatibilityArtifacts)
+    ? manifest.compatibilityArtifacts
+    : [];
+  if (manifest?.schemaVersion !== 3 || compatibilityArtifacts.length !== 1) {
+    fail("sealed manifest must bind exactly one schema-v3 compatibility artifact");
+  }
+  const [bootstrap] = compatibilityArtifacts;
+  if (!exactObjectKeys(bootstrap, ["id", "sha256", "operationalPath", "stagedPaths", "generatedPaths"])
+    || bootstrap.id !== "bootstrap-snapshot"
+    || bootstrap.operationalPath !== "/srv/mes/pilot/runtime/bootstrap-snapshot.json"
+    || !isSha256(bootstrap.sha256)) {
+    fail("sealed manifest compatibility artifact is not the canonical bootstrap snapshot");
+  }
+  const stagedPaths = bootstrap?.stagedPaths;
+  if (!Array.isArray(stagedPaths) || stagedPaths.length !== ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS.length) {
+    fail("sealed manifest must bind exactly the two staged bootstrap snapshots");
+  }
+  for (const [index, expectedPath] of ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS.entries()) {
+    if (stagedPaths[index] !== expectedPath) {
+      fail(`sealed manifest bootstrap path ${index} is not the exact trusted ${expectedPath} contract`);
+    }
+  }
   const generatedPaths = bootstrap?.generatedPaths;
   if (!Array.isArray(generatedPaths) || generatedPaths.length !== ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS.length) {
     fail("sealed manifest must bind exactly the gzip and Brotli bootstrap sidecars");
@@ -278,6 +308,20 @@ export async function verifyReleaseTrustAttestation({
   };
   for (const [key, value] of Object.entries(manifestContract)) {
     if (attestation[key] !== value) fail(`release trust attestation ${key} differs from the sealed manifest`);
+  }
+  const appPath = join(root, "app");
+  for (const stagedPath of ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS) {
+    const actualDigest = await fileSha256(join(appPath, stagedPath));
+    if (actualDigest !== attestation.bootstrapSha256) {
+      fail(`sealed bootstrap bytes differ from the origin attestation at ${stagedPath}`);
+    }
+  }
+  for (const [index, generatedPath] of ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS.entries()) {
+    const actualDigest = await fileSha256(join(appPath, generatedPath));
+    const attestationKey = index === 0 ? "bootstrapGzipSha256" : "bootstrapBrotliSha256";
+    if (actualDigest !== attestation[attestationKey]) {
+      fail(`sealed bootstrap sidecar bytes differ from the origin attestation at ${generatedPath}`);
+    }
   }
   return { path: attestationPath, ...attestation };
 }
@@ -468,9 +512,32 @@ async function main() {
   process.stdout.write("ROOT_SEAL_OK\n");
 }
 
-const invokedAsCli = process.argv[1]
-  && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
-if (invokedAsCli) {
+function isProductionCliEntrypoint() {
+  const declaredMain = process.env.MES_RELEASE_QA_FORCE_NODE20_ENTRYPOINT === "1"
+    ? undefined
+    : import.meta.main;
+  if (typeof declaredMain === "boolean") return declaredMain;
+  const invokedPath = process.argv[1];
+  if (!invokedPath) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  if (basename(invokedPath) !== basename(modulePath)) return false;
+  let invokedCanonical;
+  let moduleCanonical;
+  try {
+    invokedCanonical = realpathSync(invokedPath);
+    moduleCanonical = realpathSync(modulePath);
+  } catch (error) {
+    console.error(`Root seal verification failed: CLI entrypoint identity resolution failed: ${error?.message || error}`);
+    process.exit(1);
+  }
+  if (invokedCanonical !== moduleCanonical) {
+    console.error("Root seal verification failed: CLI entrypoint identity mismatch");
+    process.exit(1);
+  }
+  return true;
+}
+
+if (isProductionCliEntrypoint()) {
   main().catch((error) => {
     console.error(error?.message || error);
     process.exit(1);

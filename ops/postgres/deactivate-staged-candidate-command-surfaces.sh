@@ -51,11 +51,16 @@ ACTIVE_RELEASE_ID="$(basename "$ACTIVE_RELEASE_DIR")"
 # root-owned libexec path. It verifies its own trusted path, the complete
 # canonical store chain and both recursive release trees before this bridge
 # invokes any active or candidate release code.
+/usr/bin/node "$ROOT_SEAL_HELPER" bundle >/dev/null
 /usr/bin/node "$ROOT_SEAL_HELPER" release \
   --releases-root="$RELEASES_DIR" --release-id="$ACTIVE_RELEASE_ID" \
   --app="$ACTIVE_TARGET" >/dev/null
 /usr/bin/node "$ROOT_SEAL_HELPER" pointer \
   --pointer="$ACTIVE_APP_DIR" --expected-target="$ACTIVE_TARGET" >/dev/null
+/usr/bin/node "$ROOT_SEAL_HELPER" artifact \
+  --trusted-root="$RELEASES_DIR" --artifact="$RELEASES_DIR/active-release.json" >/dev/null
+/usr/bin/node --input-type=module -e 'import { readFile } from "node:fs/promises"; const [path, id] = process.argv.slice(1); const record = JSON.parse(await readFile(path, "utf8")); if (record?.releaseId !== id) process.exit(1);' \
+  "$RELEASES_DIR/active-release.json" "$ACTIVE_RELEASE_ID"
 /usr/bin/node "$ROOT_SEAL_HELPER" release \
   --releases-root="$RELEASES_DIR" --release-id="$RELEASE_ID" \
   --app="$CANDIDATE_APP_DIR" >/dev/null
@@ -71,9 +76,11 @@ ACTIVE_RELEASE_ID="$(basename "$ACTIVE_RELEASE_DIR")"
 # Candidate code is eligible only after the out-of-band fixed root-seal trust
 # boundary above. The candidate's manifest verifier now proves its content and
 # every versioned command contract.
-/usr/bin/node "${CANDIDATE_APP_DIR}/scripts/release-server-command-contract-verify.mjs" \
+/usr/sbin/runuser -u mes-stage -- /usr/bin/env \
+  HOME=/nonexistent PATH=/usr/sbin:/usr/bin:/sbin:/bin \
+  /usr/bin/node "${CANDIDATE_APP_DIR}/scripts/release-server-command-contract-verify.mjs" \
   --app="$CANDIDATE_APP_DIR" --manifest="$MANIFEST" \
-  --expected-release-id="$RELEASE_ID" --contract=all >/dev/null
+  --expected-release-id="$RELEASE_ID" --contract=all --public-only >/dev/null
 
 if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
   exec "${CANDIDATE_APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"

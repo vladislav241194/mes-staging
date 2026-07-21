@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   ROOT_RELEASE_TRUST_ATTESTATION,
+  ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS,
   ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS,
   ROOT_HELPER_BUNDLE_FILES,
   ROOT_SEAL_HELPER_PATH,
@@ -53,7 +54,14 @@ async function createRelease(releasesRoot, releaseId) {
   await mkdir(join(appPath, "node_modules", ".bin"), { recursive: true });
   await mkdir(join(appPath, "node_modules", "demo"), { recursive: true });
   const digest = "a".repeat(64);
+  const bootstrapSource = "sealed bootstrap fixture\n";
+  const bootstrapGzipSource = "sealed gzip fixture\n";
+  const bootstrapBrotliSource = "sealed Brotli fixture\n";
+  const bootstrapDigest = createHash("sha256").update(bootstrapSource).digest("hex");
+  const bootstrapGzipDigest = createHash("sha256").update(bootstrapGzipSource).digest("hex");
+  const bootstrapBrotliDigest = createHash("sha256").update(bootstrapBrotliSource).digest("hex");
   const manifest = {
+    schemaVersion: 3,
     releaseId,
     gitCommit: "b".repeat(40),
     sourceTreeSha256: digest,
@@ -62,8 +70,13 @@ async function createRelease(releasesRoot, releaseId) {
     runtimePolicy: { sha256: digest },
     compatibilityArtifacts: [{
       id: "bootstrap-snapshot",
-      sha256: digest,
-      generatedPaths: ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS.map((path) => ({ path, sha256: digest })),
+      sha256: bootstrapDigest,
+      operationalPath: "/srv/mes/pilot/runtime/bootstrap-snapshot.json",
+      stagedPaths: ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS,
+      generatedPaths: [
+        { path: ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS[0], sha256: bootstrapGzipDigest },
+        { path: ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS[1], sha256: bootstrapBrotliDigest },
+      ],
     }],
   };
   const attestation = {
@@ -74,9 +87,9 @@ async function createRelease(releasesRoot, releaseId) {
     distTreeSha256: digest,
     packageLockSha256: digest,
     runtimePolicySha256: digest,
-    bootstrapSha256: digest,
-    bootstrapGzipSha256: digest,
-    bootstrapBrotliSha256: digest,
+    bootstrapSha256: bootstrapDigest,
+    bootstrapGzipSha256: bootstrapGzipDigest,
+    bootstrapBrotliSha256: bootstrapBrotliDigest,
     method: "fresh-root-stage",
     installedBy: "root-ssh-clean-published-commit-new-inodes",
   };
@@ -84,6 +97,10 @@ async function createRelease(releasesRoot, releaseId) {
   await writeFile(join(releasePath, ROOT_RELEASE_TRUST_ATTESTATION), `${JSON.stringify(attestation)}\n`);
   await writeFile(join(appPath, "scripts", "release-verify.mjs"), "// verifier\n");
   await writeFile(join(appPath, "dist", "index.html"), "<!doctype html>\n");
+  await writeFile(join(appPath, ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS[0]), bootstrapSource);
+  await writeFile(join(appPath, ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS[1]), bootstrapSource);
+  await writeFile(join(appPath, ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS[0]), bootstrapGzipSource);
+  await writeFile(join(appPath, ROOT_RELEASE_BOOTSTRAP_GENERATED_PATHS[1]), bootstrapBrotliSource);
   await writeFile(join(appPath, "node_modules", "demo", "cli.js"), "// cli\n");
   await symlink("../demo/cli.js", join(appPath, "node_modules", ".bin", "demo"));
   return { releasePath, appPath };
@@ -171,6 +188,16 @@ try {
     expectedGid,
   });
 
+  const sealedBootstrapPath = join(release.appPath, ROOT_RELEASE_BOOTSTRAP_STAGED_PATHS[1]);
+  const sealedBootstrapSource = await readFile(sealedBootstrapPath);
+  await writeFile(sealedBootstrapPath, "tampered private bootstrap bytes\n");
+  await expectRejected(
+    () => verifyReleaseRootSeal({ releasesRoot, releaseId, appPath: release.appPath, ...options }),
+    /sealed bootstrap bytes differ from the origin attestation/,
+    "the fixed root seal must hash the actual private bootstrap bytes before candidate code runs",
+  );
+  await writeFile(sealedBootstrapPath, sealedBootstrapSource);
+
   const attestationPath = join(release.releasePath, ROOT_RELEASE_TRUST_ATTESTATION);
   const validAttestation = JSON.parse(await readFile(attestationPath, "utf8"));
   await writeFile(attestationPath, `${JSON.stringify({ ...validAttestation, method: "in-place-chown" })}\n`);
@@ -184,6 +211,47 @@ try {
   const manifestPath = join(release.releasePath, "release-manifest.json");
   const validManifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const bootstrapArtifact = validManifest.compatibilityArtifacts[0];
+  const missingOperationalPath = structuredClone(validManifest);
+  delete missingOperationalPath.compatibilityArtifacts[0].operationalPath;
+  await writeFile(manifestPath, `${JSON.stringify(missingOperationalPath)}\n`);
+  await expectRejected(
+    () => verifyReleaseRootSeal({ releasesRoot, releaseId, appPath: release.appPath, ...options }),
+    /canonical bootstrap snapshot/,
+    "the root seal must reject a missing bootstrap operationalPath",
+  );
+  await writeFile(manifestPath, `${JSON.stringify({
+    ...validManifest,
+    compatibilityArtifacts: [{
+      ...bootstrapArtifact,
+      operationalPath: "/srv/mes/pilot/bootstrap-recovery/bootstrap-snapshot.json",
+    }],
+  })}\n`);
+  await expectRejected(
+    () => verifyReleaseRootSeal({ releasesRoot, releaseId, appPath: release.appPath, ...options }),
+    /canonical bootstrap snapshot/,
+    "the root seal must reject a recovery implementation path as manifest operationalPath",
+  );
+  await writeFile(manifestPath, `${JSON.stringify({
+    ...validManifest,
+    compatibilityArtifacts: [{ ...bootstrapArtifact, unexpected: true }],
+  })}\n`);
+  await expectRejected(
+    () => verifyReleaseRootSeal({ releasesRoot, releaseId, appPath: release.appPath, ...options }),
+    /canonical bootstrap snapshot/,
+    "the root seal must reject extra top-level bootstrap descriptor keys",
+  );
+  await writeFile(manifestPath, `${JSON.stringify(validManifest)}\n`);
+  await writeFile(manifestPath, `${JSON.stringify({
+    ...validManifest,
+    compatibilityArtifacts: [bootstrapArtifact, { ...bootstrapArtifact, id: "extra-exclusion" }],
+  })}\n`);
+  await expectRejected(
+    () => verifyReleaseRootSeal({ releasesRoot, releaseId, appPath: release.appPath, ...options }),
+    /exactly one schema-v3 compatibility artifact/,
+    "an extra compatibility artifact must never extend fixed-root dist exclusions",
+  );
+  await writeFile(manifestPath, `${JSON.stringify(validManifest)}\n`);
+
   await writeFile(manifestPath, `${JSON.stringify({
     ...validManifest,
     compatibilityArtifacts: [{
