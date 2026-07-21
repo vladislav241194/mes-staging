@@ -355,3 +355,22 @@ viewport-safe presentation without reproducing aggregation or report logic.
 Pilot acceptance on `v.1.499.74-7784ab4` proved the current `25 x 11` matrix,
 all 25 normalized row projections, live deviation-note focus, clean console and
 rollback to the same legacy data. Both rollout flags are currently off.
+
+## Current Pilot parity addendum: `v.1.500.26-097d66c`
+
+The `.21` statements above remain verbatim historical evidence. Current Pilot
+is `v.1.500.26-097d66c`, immediate previous is
+`v.1.500.25-1f8369c`, and pinned legacy is
+`v.1.500.18-93d02ed`. Weekly remains intentionally commandless/read-only, but
+its normal production read-model is now runtime-independent from the legacy
+Weekly factory. Authenticated `.26` acceptance retained exact `25 x 11` row
+text parity with `.25`; the real immutable drill was `.26 -> .25 -> .26`.
+Legacy `.18` was verified by dry-run only and was not activated.
+
+The current accounting is therefore: historical reads `21/24`, fresh `.26`
+browser reads `1/24` (Weekly only), historical write lifecycles `1/22`
+(Nomenclature on `.25`), and two permanent read-only React surfaces.
+Diagnostics remains permanent but its browser evidence is historical `.21`,
+not a fresh `.26` read. The global evidence-weighted result is exactly `50%`;
+this addendum adds no invented Weekly command and preserves the immutable legacy
+rollback.

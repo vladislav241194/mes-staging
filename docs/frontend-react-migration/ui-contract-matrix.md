@@ -449,3 +449,23 @@ primitives without turning the five-part impact composition into a universal
 table variant. Its editor is deliberately narrower than the reader: it creates
 or edits only user-authority rows, while system lifecycle rows have no edit
 action and remain protected by the command owner.
+
+## Current Weekly contract evidence: `v.1.500.26-097d66c`
+
+All `.21` text above remains the historical Diagnostics/Weekly acceptance
+record. On the current immutable `.26` release the Weekly UI contract is still
+the same MES-owned dense planning composition: shared page/header/panel/table
+primitives, eleven columns, 25 resource rows, no inputs and no write actions.
+The material change is below the visual boundary: the production React route
+now builds its typed read-model without executing the legacy Weekly model
+factory in the normal path. Exact row text matched immediate previous `.25` in
+the authenticated desktop session, so the runtime consolidation introduced no
+new layout or content variant.
+
+The release keeps `structureMigrationDiagnostics` and
+`weeklyProductionControl` as the only two permanent React surfaces. Diagnostics
+was not freshly browser-rechecked on `.26`; its acceptance remains explicitly
+historical `.21` evidence. The verified drill was `.26 -> .25 -> .26`.
+Pinned legacy `.18` remains available and was checked by dry-run only, with zero
+React surfaces in its policy. No Blueprint UI dependency or second visual
+language was introduced.

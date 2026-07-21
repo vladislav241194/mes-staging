@@ -74,15 +74,16 @@ try {
 }
 
 const detectedWeeklyLegacyModelDependency = legacyPayloadDependency || !typedProductionPayload || !selectorProvesIsolation;
-assert.equal(weekly.candidateRuntimeLegacyModelDependency, detectedWeeklyLegacyModelDependency,
-  "Weekly local candidate ledger must fail closed when its import graph still reaches the legacy model factory");
-if (!detectedWeeklyLegacyModelDependency && weekly.runtimeLegacyModelDependency) {
-  assert.equal(weekly.candidateEvidence?.status, "local-verified-pilot-pending",
-    "local isolation must remain explicitly pending until the exact candidate has live Pilot evidence");
-  assert.equal(weekly.candidateEvidence?.pilotPublication, "pending");
-  assert.equal(weekly.candidateEvidence?.freshRead, "pending");
-  assert.equal(weekly.candidateEvidence?.rollbackReactivationDrill, "pending");
-}
+assert.equal(weekly.runtimeLegacyModelDependency, detectedWeeklyLegacyModelDependency,
+  "accepted Weekly ledger evidence must fail closed when its import graph reaches the legacy model factory");
+assert.equal(detectedWeeklyLegacyModelDependency, false,
+  "accepted-live Weekly must retain its typed payload and lazy legacy selector isolation");
+assert.equal(weekly.acceptedRuntimeEvidence?.status, "accepted-live");
+assert.equal(weekly.acceptedRuntimeEvidence?.release, "v.1.500.26-097d66c");
+assert.equal(weekly.acceptedRuntimeEvidence?.freshRead, "verified");
+assert.equal(weekly.acceptedRuntimeEvidence?.rollbackReactivationDrill, "verified");
+assert.equal(Object.hasOwn(weekly, "candidateRuntimeLegacyModelDependency"), false);
+assert.equal(Object.hasOwn(weekly, "candidateEvidence"), false);
 const expectedProgress = weekly.runtimeLegacyModelDependency ? 48 : 50;
 const computedProgress = ledger.criteria.reduce((sum, criterion) => sum + criterion.earned, 0);
 assert.equal(ledger.currentProgress, expectedProgress, "accepted-live mixed-runtime evidence must determine the honest cutover progress");
@@ -92,4 +93,4 @@ console.log(`React mixed-runtime QA: OK (${expectedProgress}% honest progress)`)
 console.log(`- active src: ${activeJavaScriptFiles.length} JavaScript files, ${activeJavaScriptLines} lines, ${activeTypeScriptFiles.length} TypeScript files`);
 console.log(`- requestLegacyRender definitions in app shell: ${requestLegacyRenderDefinitions}`);
 console.log(`- Weekly accepted live: visible legacy renderer=${weekly.visibleLegacyRendererPath}, runtime legacy model=${weekly.runtimeLegacyModelDependency}`);
-console.log(`- Weekly local candidate: runtime legacy model=${weekly.candidateRuntimeLegacyModelDependency}, status=${weekly.candidateEvidence?.status || "unrecorded"}`);
+console.log(`- Weekly evidence: ${weekly.acceptedRuntimeEvidence?.status} on ${weekly.acceptedRuntimeEvidence?.release}`);

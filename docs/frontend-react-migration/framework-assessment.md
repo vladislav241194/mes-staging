@@ -52,3 +52,26 @@
   Specifications 2.0 и Contour Admin остаются default-off;
 - удаление legacy возможно только после функциональной parity, Pilot-приёмки и
   проверенного rollback для каждого сценария.
+
+## Актуальное состояние Pilot после Weekly consolidation `.26`
+
+Строка состояния `.21` выше сохранена как историческая контрольная точка.
+Сейчас на Pilot активен immutable release `v.1.500.26-097d66c` от exact commit
+`097d66c416ef61e091099c63b8bc272841c364f5`; immediate previous —
+`v.1.500.25-1f8369c`, pinned legacy — `v.1.500.18-93d02ed`.
+
+React-стек и собственная MES design system не менялись. Weekly Production
+Control остаётся permanent read-only React-поверхностью, но теперь его typed
+production read-model не вызывает legacy Weekly factory в обычном пути.
+Аутентифицированная desktop-проверка `.26` сохранила точный `25 x 11` и
+эквивалентный текст строк относительно `.25`. Реальный rollback был
+`.26 -> .25 -> .26`; legacy `.18` проверен только dry-run и не активировался.
+Blueprint UI по-прежнему отсутствует.
+
+Честная текущая метрика полного cutover — `50%`: historical Pilot reads
+`21/24`, fresh `.26` read `1/24`, historical write lifecycles `1/22`, две
+permanent read-only React-поверхности и только один верхнеуровневый production
+route без normal legacy model dependency — Weekly. Diagnostics остаётся
+permanent, но его браузерное доказательство привязано к `.21`. Остальные
+маршруты, write lifecycle и вывод legacy из normal runtime остаются в плане и
+не переоценены этим релизом.

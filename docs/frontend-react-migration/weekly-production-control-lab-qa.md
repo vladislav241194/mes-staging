@@ -113,3 +113,30 @@ rendered the same `25 x 11` Weekly projection through legacy. Final reactivation
 restored `.21` with Weekly and Diagnostics as the only two permanent React
 surfaces, no evaluation drop-ins and no evaluation environment values. No
 application data was written during acceptance or rollback.
+
+## Current Pilot consolidation addendum: `v.1.500.26-097d66c`
+
+The `.21` acceptance text above is retained verbatim as historical evidence.
+The current immutable Pilot release is `v.1.500.26-097d66c` at exact commit
+`097d66c416ef61e091099c63b8bc272841c364f5`; immediate previous is
+`v.1.500.25-1f8369c`, and pinned legacy remains
+`v.1.500.18-93d02ed`.
+
+This release moves the Weekly production read-model out of the normal legacy
+runtime. React now receives the bounded Planning Period, System Domains and
+fact/report owner inputs through the typed production model. The old Weekly
+runtime remains lazy-loadable only through the explicit rollback selector.
+Authenticated desktop acceptance reached `ready`, cleared `aria-busy`, retained
+exactly `25 x 11`, and matched the text of every row against immutable `.25`.
+The live DOM/error state was clean. Query-isolation was not repeated on `.26`
+and live-console capture was unavailable, so neither is claimed as fresh `.26`
+evidence; both remain separately covered by local production-shell QA.
+
+The real release drill was `.26 -> .25 -> .26`, with exact Weekly row parity
+after rollback and reactivation. Legacy `.18` was resolved and inspected only
+through a dry-run: its pinned runtime policy contains zero React surfaces, but
+the release was not activated in this drill. No application data was written,
+all evaluation residue is absent, and command-owner hashes are unchanged from
+`.25`. This accepted consolidation contributes exactly two
+legacy-consolidation points, taking the global evidence-weighted result from
+`48%` to `50%`; it does not claim completion of the remaining MES migration.
