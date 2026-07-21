@@ -1,4 +1,4 @@
-import { STRUCTURE_REGISTRY_DEFINITIONS, type StructureEmployee, type StructureEmployeesReadModel, type StructureRegistryId } from "./adapter";
+import { STRUCTURE_REGISTRY_DEFINITIONS, type StructureEmployee, type StructureEmployeesReadModel, type StructureRegistryCount, type StructureRegistryId } from "./adapter";
 
 export const STRUCTURE_EMPLOYEE_READ_COLUMNS = ["Сотрудник", "Табельный номер", "Назначение", "Статус"] as const;
 
@@ -6,7 +6,7 @@ export interface StructureRegistryOption {
   id: StructureRegistryId;
   label: string;
   description: string;
-  count: number;
+  count: StructureRegistryCount;
   action: "employees" | "navigate";
 }
 

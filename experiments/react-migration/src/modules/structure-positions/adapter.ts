@@ -1,9 +1,9 @@
-import { STRUCTURE_REGISTRY_DEFINITIONS, type StructureRegistryId } from "../structure-employees/adapter";
+import { resolveStructureMigrationDiagnosticsCount, STRUCTURE_REGISTRY_DEFINITIONS, type StructureRegistryCount, type StructureRegistryId } from "../structure-employees/adapter";
 
 interface EntityDto { id?: unknown; name?: unknown; displayName?: unknown; code?: unknown; kind?: unknown; orgUnitId?: unknown; workCenterId?: unknown; defaultScheduleTemplateId?: unknown; isActive?: unknown }
 export interface StructurePosition { id: string; name: string; code: string; kind: string; kindLabel: string; orgUnitId: string; orgUnitLabel: string; workCenterId: string; workCenterLabel: string; scheduleTemplateId: string; scheduleTemplateLabel: string; statusLabel: string; statusTone: "success" | "warning"; isActive: boolean }
 export interface StructurePositionOption { id: string; label: string }
-export interface StructurePositionsReadModel { positions: StructurePosition[]; counts: Record<StructureRegistryId, number>; orgUnits: StructurePositionOption[]; workCenters: StructurePositionOption[]; scheduleTemplates: StructurePositionOption[]; canCreateEdit: boolean; canArchive: boolean; canElevate?: boolean; writeUnavailableReason?: string }
+export interface StructurePositionsReadModel { positions: StructurePosition[]; counts: Record<StructureRegistryId, StructureRegistryCount>; orgUnits: StructurePositionOption[]; workCenters: StructurePositionOption[]; scheduleTemplates: StructurePositionOption[]; canCreateEdit: boolean; canArchive: boolean; canElevate?: boolean; writeUnavailableReason?: string }
 
 const KIND_LABELS: Record<string, string> = { manager: "Руководитель", supervisor: "Мастер", worker: "Исполнитель" };
 const text = (value: unknown) => String(value ?? "").trim();
@@ -26,10 +26,10 @@ export function adaptStructurePositions(payload: unknown): StructurePositionsRea
     const kind = text(position.kind); const orgUnitId = text(position.orgUnitId); const workCenterId = text(position.workCenterId); const scheduleTemplateId = text(position.defaultScheduleTemplateId);
     return [{ id, name, code: text(position.code) || "—", kind, kindLabel: KIND_LABELS[kind] || kind || "—", orgUnitId, orgUnitLabel: reference(orgUnitIndex, orgUnitId), workCenterId, workCenterLabel: reference(workCenterIndex, workCenterId), scheduleTemplateId, scheduleTemplateLabel: reference(scheduleIndex, scheduleTemplateId), statusLabel: position.isActive === false ? "архив" : "активно", statusTone: position.isActive === false ? "warning" : "success", isActive: position.isActive !== false }];
   }).sort((left, right) => left.name.localeCompare(right.name, "ru") || left.id.localeCompare(right.id, "en"));
-  const diagnosticsCount = Math.max(0, Math.trunc(Number(payloadRecord.migrationDiagnosticsCount ?? item.migrationDiagnosticsCount ?? (Array.isArray(payloadRecord.legacyMatrixRows) ? payloadRecord.legacyMatrixRows.length : 0)) || 0));
+  const diagnosticsCount = resolveStructureMigrationDiagnosticsCount(payloadRecord, item);
   return {
     positions,
-    counts: Object.fromEntries(STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => [definition.id, definition.id === "migrationDiagnostics" ? diagnosticsCount : rows(registries[definition.id]).length])) as Record<StructureRegistryId, number>,
+    counts: Object.fromEntries(STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => [definition.id, definition.id === "migrationDiagnostics" ? diagnosticsCount : rows(registries[definition.id]).length])) as Record<StructureRegistryId, StructureRegistryCount>,
     orgUnits: options(orgUnits),
     workCenters: options(workCenters),
     scheduleTemplates: options(schedules),

@@ -27,8 +27,16 @@ export function createSystemDomainsCommands({ fetchImpl = globalThis.fetch, url 
         body: JSON.stringify({ domains, surface: commandSurface, expectedRevision: revision }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (response.status === 409) return { ok: false, conflict: Boolean(payload?.conflict), error: payload?.error || "System Domains revision conflict", revision: Number(payload?.revision || 0) };
-      if (!response.ok || !payload?.ok || !payload?.item) return { ok: false, conflict: false, error: payload?.error || `System Domains command returned ${response.status}` };
+      if (response.status === 409) return { ok: false, status: response.status, code: String(payload?.code || "revision-conflict"), conflict: Boolean(payload?.conflict), error: payload?.error || "System Domains revision conflict", revision: Number(payload?.revision || 0) };
+      if (!response.ok || !payload?.ok || !payload?.item) return {
+        ok: false,
+        conflict: false,
+        status: response.status,
+        code: String(payload?.code || "system-domains-command-rejected"),
+        authenticationRequired: response.status === 401,
+        authorizationDenied: response.status === 403,
+        error: payload?.error || `System Domains command returned ${response.status}`,
+      };
       return { ok: true, item: payload.item, revision: Number(payload.revision || 0), snapshotSync: payload.snapshotSync || null };
     } catch (error) { return { ok: false, conflict: false, error: error?.message || "System Domains command is unavailable" }; }
   }

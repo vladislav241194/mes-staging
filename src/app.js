@@ -81,6 +81,14 @@ import {
 } from "./modules/nomenclature_types/server_owner_client.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
+import {
+  createEmptySystemDomainsServerCommandState,
+  getProductionStructureElevationDecision,
+  getProductionStructureWriteDecision,
+  isSystemDomainsCapabilitiesResponseCurrent,
+  projectSystemDomainsServerCommandState,
+} from "./modules/production_structure_matrix/server_capabilities.js";
+import { endActivePrimaryEmploymentAssignments, isAssignmentActiveOnDate } from "./modules/production_structure_matrix/lifecycle.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
@@ -502,6 +510,16 @@ function resetEmployeeServerCapabilities() {
   planningCommandCapabilitiesPromise = null;
 }
 
+function forceRehydrateSystemDomainsServerCapabilities(moduleId = "", { refreshRead = false } = {}) {
+  const staleRequest = systemDomainsServerCapabilitiesPromise;
+  resetSystemDomainsServerCapabilities();
+  const capabilityRefresh = Promise.resolve(staleRequest)
+    .catch(() => null)
+    .then(() => hydrateSystemDomainsServerCommands());
+  if (!refreshRead) return capabilityRefresh;
+  return capabilityRefresh.then(() => hydrateSystemDomainsServerRead(moduleId, { fallbackToLegacy: false, force: true }));
+}
+
 function getEmployeeServerActor() {
   return employeeServerSessionState.authenticated === true
     ? employeeServerSessionState.actor
@@ -545,9 +563,12 @@ async function createEmployeeServerSession({ employeeId = "", pin = "" } = {}) {
     };
   }
   employeeServerSessionState = { status: "authenticated", authenticated: true, actor, error: "" };
+  // A capabilities response started while the PIN request was pending belongs
+  // to the pre-login cookie/session and must not authorize this actor.
+  resetEmployeeServerCapabilities();
   void ensureNomenclatureServerCapabilities({ force: true });
   void ensureNomenclatureTypesServerCapabilities({ force: true });
-  void hydrateSystemDomainsServerRead(ui?.activeModule || "", { fallbackToLegacy: false, force: true });
+  void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "", { refreshRead: true });
   return { ...result, ok: true, authenticated: true, actor };
 }
 
@@ -555,8 +576,15 @@ function deleteEmployeeServerSession() {
   nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature", returnStructureRegistry: "" };
   employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "" };
   resetEmployeeServerCapabilities();
-  if (!isEmployeeServerAuthAvailable()) return Promise.resolve({ ok: true, authenticated: false });
-  return nomenclatureServerOwnerClient.deleteEmployeeSession();
+  const deletion = isEmployeeServerAuthAvailable()
+    ? nomenclatureServerOwnerClient.deleteEmployeeSession()
+    : Promise.resolve({ ok: true, authenticated: false });
+  return Promise.resolve(deletion).finally(() => (
+    // Wait until the server has cleared the cookie before fetching nested
+    // productionStructureAuthorization again. This also invalidates a
+    // response that raced the logout request.
+    forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "")
+  ));
 }
 
 function reconcileEmployeeServerSession({ force = false } = {}) {
@@ -589,6 +617,8 @@ function reconcileEmployeeServerSession({ force = false } = {}) {
           actor: null,
           error: "Локальный сотрудник не совпадает с серверной сессией. Выполните вход повторно.",
         };
+        resetEmployeeServerCapabilities();
+        void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "");
       } else if (isEmployeeServerAuthRequired() && !actor) {
         lockAuthGate();
       } else if (isEmployeeServerAuthRequired() && !planningCoreService.isAuthGateUnlocked?.()) {
@@ -610,6 +640,8 @@ function reconcileEmployeeServerSession({ force = false } = {}) {
       actor: null,
       error: `Серверная сессия недоступна: ${error?.message || String(error)}`,
     };
+    resetEmployeeServerCapabilities();
+    void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "");
     return employeeServerSessionState;
   }).finally(() => { employeeServerSessionPromise = null; });
   return employeeServerSessionPromise;
@@ -883,8 +915,7 @@ function finishNomenclatureEmployeeElevation(actor = null) {
   persistUiState();
   void ensureNomenclatureServerCapabilities({ force: true });
   void ensureNomenclatureTypesServerCapabilities({ force: true });
-  resetSystemDomainsServerCapabilities();
-  void hydrateSystemDomainsServerRead(returnModule, { fallbackToLegacy: false, force: true }).finally(() => {
+  void forceRehydrateSystemDomainsServerCapabilities(returnModule, { refreshRead: true }).finally(() => {
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
   });
   render({ skipRememberScroll: true });
@@ -3608,6 +3639,7 @@ function resolveProductionStructureRegistryActivation({
     : systemDomainsServerReadState.status === "server" && !systemDomainsState
       ? "model-unavailable"
       : "";
+  if (runtimeActivation.accessMode === "react") void hydrateSystemDomainsServerCommands();
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "evaluation" && runtimeActivation.featureFlagEnabled && localQa?.writeEvaluation === true
@@ -3618,44 +3650,68 @@ function resolveProductionStructureRegistryActivation({
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
-function isProductionStructureRegistryCommandReady(surfaceId, registryId, localQa = {}) {
+function getProductionStructureRegistryWriteDecision(surfaceId, registryId, localQa = {}) {
   const signedRuntimeActivation = resolveReactRuntimeActivation({ surfaceId });
   const writeModeAllowed = signedRuntimeActivation.accessMode === "react"
     || (getReactRuntimeMode(surfaceId) === "evaluation" && localQa.writeEvaluation === true);
-  return writeModeAllowed
-    && systemDomainsServerReadState.status === "server"
-    && Boolean(systemDomainsState)
-    && systemDomainsServerCommandState.status === "ready"
-    && systemDomainsServerCommandState.configured === true
-    && systemDomainsServerCommandState.enabled === true
-    && systemDomainsServerCommandState.primaryAuthority === true
-    && systemDomainsServerCommandState.consistencyMatches === true
-    && systemDomainsServerCommandState.actorAuthorized === true
-    && systemDomainsServerCommandState.surfaces.includes("production-structure")
-    && canEditSystemDomainRegistry(registryId);
+  if (!writeModeAllowed) return { allowed: false, code: "write-mode-unavailable" };
+  if (systemDomainsServerReadState.status !== "server" || !systemDomainsState) {
+    return { allowed: false, code: "server-read-unavailable" };
+  }
+  const decision = getProductionStructureWriteDecision({
+    state: systemDomainsServerCommandState,
+    currentRevision: systemDomainsServerReadState.revision,
+    currentEmployeeId: String(getAuthenticatedAccessPerson()?.id || ""),
+    sessionActor: getEmployeeServerActor(),
+    localCanEdit: canEditSystemDomainRegistry(registryId),
+  });
+  if (decision.allowed) productionStructureAuthorizationRefreshKey = "";
+  if (decision.code === "authorization-revision-stale" && !systemDomainsServerCapabilitiesPromise) {
+    const refreshKey = `${systemDomainsServerCommandState.productionStructureAuthorization?.revision || 0}:${systemDomainsServerReadState.revision}:${getSystemDomainsCapabilitiesSessionIdentity()}`;
+    if (refreshKey !== productionStructureAuthorizationRefreshKey) {
+      productionStructureAuthorizationRefreshKey = refreshKey;
+      void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "", { refreshRead: true });
+    }
+  }
+  return decision;
+}
+function isProductionStructureRegistryCommandReady(surfaceId, registryId, localQa = {}) {
+  return getProductionStructureRegistryWriteDecision(surfaceId, registryId, localQa).allowed === true;
 }
 function canRequestProductionStructureEmployeeElevation(surfaceId) {
-  return getReactRuntimeMode(surfaceId) === "react"
-    && isEmployeeServerAuthAvailable()
-    && Boolean(getAuthenticatedAccessPerson()?.id)
-    && employeeServerSessionState.authenticated !== true
-    && systemDomainsServerCommandState.status === "ready"
-    && systemDomainsServerCommandState.configured === true
-    && systemDomainsServerCommandState.primaryAuthority === true
-    && systemDomainsServerCommandState.consistencyMatches === true
-    && systemDomainsServerCommandState.actorAuthorized !== true
-    && systemDomainsServerCommandState.actorAuthorizationReason === "authenticated-session-required";
+  if (getReactRuntimeMode(surfaceId) !== "react") return false;
+  return getProductionStructureElevationDecision({
+    state: systemDomainsServerCommandState,
+    currentRevision: systemDomainsServerReadState.revision,
+    currentEmployeeId: String(getAuthenticatedAccessPerson()?.id || ""),
+    sessionAuthenticated: employeeServerSessionState.authenticated === true,
+  }).allowed === true;
+}
+function getProductionStructureWriteUnavailableReason(code = "") {
+  if (code === "capabilities-pending") return "Проверяем серверную сессию и права сотрудника…";
+  if (code === "employee-session-required") return "Подтвердите PIN текущего сотрудника для изменения структуры.";
+  if (["rbac-denied", "local-rbac-denied"].includes(code)) return "У сотрудника нет права редактировать структуру производства.";
+  if (["employee-session-unconfirmed", "employee-actor-mismatch"].includes(code)) return "Серверная сессия не совпадает с выбранным сотрудником. Выполните вход повторно.";
+  if (code === "auth-infrastructure-unavailable") return "Серверная авторизация сотрудников временно недоступна.";
+  if (code === "authorization-revision-stale") return "Права проверены для другой ревизии System Domains. Обновляем данные…";
+  if (code === "public-perimeter-denied") return "Публичная серверная сессия не допущена к командам System Domains.";
+  if (["primary-unavailable", "consistency-unavailable", "server-read-unavailable"].includes(code)) return "Актуальная PostgreSQL-проекция структуры временно недоступна.";
+  return "Серверная команда структуры сейчас недоступна.";
 }
 function getProductionStructureRegistryCapabilities(surfaceId, registryId, localQa = {}) {
-  const commandReady = isProductionStructureRegistryCommandReady(surfaceId, registryId, localQa);
+  const decision = getProductionStructureRegistryWriteDecision(surfaceId, registryId, localQa);
+  const commandReady = decision.allowed === true;
   return {
     createEdit: commandReady,
     archive: commandReady,
     employeeElevation: !commandReady && canRequestProductionStructureEmployeeElevation(surfaceId),
-    writeUnavailableReason: commandReady ? "" : "Для изменений подтвердите PIN сотрудника и право System Domains.",
+    writeUnavailableReason: commandReady ? "" : getProductionStructureWriteUnavailableReason(decision.code),
   };
 }
-function beginProductionStructureEmployeeElevation(registryId) {
+function beginProductionStructureEmployeeElevation(surfaceId, registryId) {
+  if (!canRequestProductionStructureEmployeeElevation(surfaceId)) {
+    return { ok: false, message: "PIN-подтверждение недоступно: сервер не запросил новую сессию текущего сотрудника." };
+  }
   return beginNomenclatureEmployeeElevation("productionStructureMatrix", registryId);
 }
 function navigateProductionStructureRegistry(registryId) {
@@ -3690,7 +3746,7 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
   requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
-    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("employees");
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureEmployees", "employees");
     const localQa = getStructureEmployeesReactLocalQaOverrides();
     if (!["save", "archive", "reactivate"].includes(command.type)) {
       return { ok: false, message: "Команда редактирования сотрудников недоступна." };
@@ -3719,8 +3775,8 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
       const registries = getSystemDomainsRegistries();
       const employee = (registries.employees || []).find((row) => row.id === employeeId);
       if (!employee || employee.isActive === false) return { ok: false, message: "Активный сотрудник больше не существует." };
-      const hasActiveDependency = (registries.employmentAssignments || []).some((row) => row.employeeId === employeeId && row.isPrimary === false && !row.validTo)
-        || (registries.scheduleAssignments || []).some((row) => row.employeeId === employeeId && !row.validTo)
+      const hasActiveDependency = (registries.employmentAssignments || []).some((row) => row.employeeId === employeeId && row.isPrimary === false && isAssignmentActiveOnDate(row))
+        || (registries.scheduleAssignments || []).some((row) => row.employeeId === employeeId && isAssignmentActiveOnDate(row))
         || (registries.roleAssignments || []).some((row) => row.employeeId === employeeId)
         || (registries.responsibilityPolicies || []).some((row) => row.isActive !== false && (row.subjectEmployeeId === employeeId || (row.targetEmployeeIds || []).includes(employeeId)));
       if (hasActiveDependency) return { ok: false, message: "Нельзя архивировать сотрудника с действующими назначениями доступа, графика или ответственности." };
@@ -3797,7 +3853,7 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
   requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
-    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("positions");
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structurePositions", "positions");
     const localQa = getStructurePositionsReactLocalQaOverrides();
     if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда должностей недоступна." };
     if (!isProductionStructureRegistryCommandReady("structurePositions", "positions", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования должностей недоступны." };
@@ -3825,7 +3881,7 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
       const positionId = String(input.positionId || "").trim();
       const position = (getSystemDomainsRegistries().positions || []).find((row) => row.id === positionId);
       if (!position || position.isActive === false) return { ok: false, message: "Активная должность больше не существует." };
-      const activeAssignment = (getSystemDomainsRegistries().employmentAssignments || []).find((assignment) => assignment.positionId === positionId && assignment.isActive !== false && !assignment.validTo);
+      const activeAssignment = (getSystemDomainsRegistries().employmentAssignments || []).find((assignment) => assignment.positionId === positionId && isAssignmentActiveOnDate(assignment));
       if (activeAssignment) return { ok: false, message: "Нельзя архивировать должность с действующим назначением сотрудника." };
       try {
         const result = await archiveSystemDomainEntity("positions", positionId, { source: "react:structure-positions:archive", serverCommand: true, surface: "production-structure" });
@@ -3882,7 +3938,7 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
   requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
-    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("orgUnits");
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureOrgUnits", "orgUnits");
     const localQa = getStructureOrgUnitsReactLocalQaOverrides();
     if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда подразделений недоступна." };
     if (!isProductionStructureRegistryCommandReady("structureOrgUnits", "orgUnits", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования подразделений недоступны." };
@@ -3914,7 +3970,7 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
         || (registries.workCenters || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
         || (registries.positions || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
         || (registries.equipment || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false)
-        || (registries.employmentAssignments || []).some((row) => row.orgUnitId === orgUnitId && row.isActive !== false && !row.validTo);
+        || (registries.employmentAssignments || []).some((row) => row.orgUnitId === orgUnitId && isAssignmentActiveOnDate(row));
       if (hasActiveReference) return { ok: false, message: "Нельзя архивировать подразделение с действующими дочерними или производственными ссылками." };
       try {
         const result = await archiveSystemDomainEntity("orgUnits", orgUnitId, { source: "react:structure-org-units:archive", serverCommand: true, surface: "production-structure" });
@@ -3972,7 +4028,7 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
   requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
-    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("workCenters");
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureWorkCenters", "workCenters");
     const localQa = getStructureWorkCentersReactLocalQaOverrides();
     if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда рабочего центра недоступна." };
     if (!isProductionStructureRegistryCommandReady("structureWorkCenters", "workCenters", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования рабочих центров недоступны." };
@@ -4002,7 +4058,7 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
       const hasActiveReference = (registries.workCenters || []).some((row) => row.parentWorkCenterId === workCenterId && row.isActive !== false)
         || (registries.positions || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false)
         || (registries.equipment || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false)
-        || (registries.employmentAssignments || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false && !row.validTo);
+        || (registries.employmentAssignments || []).some((row) => row.workCenterId === workCenterId && isAssignmentActiveOnDate(row));
       if (hasActiveReference) return { ok: false, message: "Нельзя архивировать рабочий центр с действующими дочерними или производственными ссылками." };
       try {
         const result = await archiveSystemDomainEntity("workCenters", workCenterId, { source: "react:structure-work-centers:archive", serverCommand: true, surface: "production-structure" });
@@ -4054,7 +4110,7 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
   requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
-    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("equipment");
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureEquipment", "equipment");
     const localQa = getStructureEquipmentReactLocalQaOverrides();
     if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда оборудования недоступна." };
     if (!isProductionStructureRegistryCommandReady("structureEquipment", "equipment", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования оборудования недоступны." };
@@ -4136,7 +4192,7 @@ const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibi
   requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
-    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("responsibilityPolicies");
+    if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureResponsibilityPolicies", "responsibilityPolicies");
     const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides();
     if (!["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда жизненного цикла зон ответственности недоступна." };
     if (!isProductionStructureRegistryCommandReady("structureResponsibilityPolicies", "responsibilityPolicies", localQa)) return { ok: false, message: "PostgreSQL-команда или право редактирования зон ответственности недоступны." };
@@ -7672,10 +7728,11 @@ let shiftExecutionDomainApiModuleLoad = null;
 let shiftExecutionServerState = { status: "idle", primaryPostgres: false, schemaReady: false, commandsEnabled: false, coverageComplete: false, error: "" };
 let shiftExecutionOutboxFlushInFlight = false;
 let systemDomainsServerReadState = { status: "idle", error: "", revision: 0 };
-let systemDomainsServerCommandState = { status: "idle", configured: false, enabled: false, surfaces: [], primaryAuthority: false, consistencyMatches: false, actorAuthorized: false, actorAuthorizationReason: "", error: "" };
+let systemDomainsServerCommandState = createEmptySystemDomainsServerCommandState();
 let systemDomainsServerCapabilitiesPromise = null;
 let systemDomainsServerCapabilitiesFetchedAt = 0;
 let systemDomainsServerCapabilitiesEpoch = 0;
+let productionStructureAuthorizationRefreshKey = "";
 let systemDomainsServerReadRetryTimer = null;
 let systemDomainsServerReadRenderModuleId = "";
 let systemDomainsServerReadPromise = null;
@@ -7685,7 +7742,7 @@ const SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES = ["production-structure", "timeshe
 const SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS = 5_000;
 function resetSystemDomainsServerCapabilities() {
   systemDomainsServerCapabilitiesEpoch += 1;
-  systemDomainsServerCommandState = { status: "idle", configured: false, enabled: false, surfaces: [], primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(), consistencyMatches: false, actorAuthorized: false, actorAuthorizationReason: "", error: "" };
+  systemDomainsServerCommandState = createEmptySystemDomainsServerCommandState({ primaryAuthority: hasSystemDomainsPrimaryTombstoneHint() });
   systemDomainsServerCapabilitiesFetchedAt = 0;
 }
 function hasSystemDomainsPrimaryTombstoneHint() {
@@ -7738,38 +7795,65 @@ function hasSystemDomainsServerAuthority() {
   // durable PostgreSQL authority marker (or an already-received tombstone).
   return hasSystemDomainsServerCommandCoverage() && hasObservedSystemDomainsPrimaryAuthority();
 }
+function getSystemDomainsCapabilitiesSessionIdentity() {
+  const sessionActorId = String(employeeServerSessionState.actor?.id || "");
+  const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
+  return `${String(employeeServerSessionState.status || "idle")}|${employeeServerSessionState.authenticated === true ? "1" : "0"}|${sessionActorId}|${localEmployeeId}`;
+}
+function renderSystemDomainsCommandConsumer() {
+  if (!appBootstrapped || ui?.activeModule !== "productionStructureMatrix") return;
+  queueMicrotask(() => {
+    if (appBootstrapped && ui?.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  });
+}
 function hydrateSystemDomainsServerCommands() {
   if (systemDomainsServerCommandState.status === "ready"
     && Date.now() - systemDomainsServerCapabilitiesFetchedAt < SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS) return Promise.resolve(systemDomainsServerCommandState);
   if (systemDomainsServerCapabilitiesPromise) return systemDomainsServerCapabilitiesPromise;
   const requestEpoch = systemDomainsServerCapabilitiesEpoch;
+  const requestSessionIdentity = getSystemDomainsCapabilitiesSessionIdentity();
+  let staleResponse = false;
   systemDomainsServerCommandState = { ...systemDomainsServerCommandState, status: "loading", error: "" };
-  systemDomainsServerCapabilitiesPromise = systemDomainsCommands.getCapabilities().then((result) => {
-    if (requestEpoch !== systemDomainsServerCapabilitiesEpoch) return systemDomainsServerCommandState;
-    const capabilities = result.ok && result.capabilities && typeof result.capabilities === "object" ? result.capabilities : {};
-    systemDomainsServerCommandState = {
-      status: "ready",
-      configured: result.ok && capabilities.serverCommandsConfigured === true,
-      enabled: result.ok && result.enabled === true && capabilities.serverCommandsEnabled === true,
-      surfaces: result.ok && Array.isArray(capabilities.serverCommandSurfaces) ? capabilities.serverCommandSurfaces : [],
-      primaryAuthority: result.ok && capabilities.consistency?.details?.authority?.mode === "postgres-primary",
-      consistencyMatches: result.ok && capabilities.consistency?.matches === true,
-      actorAuthorized: result.ok && capabilities.actorAuthorization?.authorized === true,
-      actorAuthorizationReason: result.ok ? String(capabilities.actorAuthorization?.reason || "") : "capabilities-unavailable",
-      error: result.ok ? "" : (result.error || "System Domains command capabilities are unavailable"),
-    };
+  let requestPromise;
+  const discardStaleResponse = () => {
+    staleResponse = !isSystemDomainsCapabilitiesResponseCurrent({
+      requestEpoch,
+      currentEpoch: systemDomainsServerCapabilitiesEpoch,
+      requestSessionIdentity,
+      currentSessionIdentity: getSystemDomainsCapabilitiesSessionIdentity(),
+    });
+    if (staleResponse && requestEpoch === systemDomainsServerCapabilitiesEpoch) resetSystemDomainsServerCapabilities();
+    return staleResponse;
+  };
+  requestPromise = systemDomainsCommands.getCapabilities().then((result) => {
+    if (discardStaleResponse()) return systemDomainsServerCommandState;
+    systemDomainsServerCommandState = projectSystemDomainsServerCommandState(result, {
+      primaryAuthorityHint: hasSystemDomainsPrimaryTombstoneHint(),
+    });
     systemDomainsServerCapabilitiesFetchedAt = Date.now();
+    renderSystemDomainsCommandConsumer();
     return systemDomainsServerCommandState;
   }).catch(() => {
-    if (requestEpoch !== systemDomainsServerCapabilitiesEpoch) return systemDomainsServerCommandState;
-    systemDomainsServerCommandState = { status: "ready", configured: false, enabled: false, surfaces: [], primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(), consistencyMatches: false, actorAuthorized: false, actorAuthorizationReason: "capabilities-unavailable", error: "System Domains command capabilities are unavailable" };
+    if (discardStaleResponse()) return systemDomainsServerCommandState;
+    systemDomainsServerCommandState = {
+      ...createEmptySystemDomainsServerCommandState({
+        status: "ready",
+        primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(),
+        error: "System Domains command capabilities are unavailable",
+      }),
+      actorAuthorizationReason: "capabilities-unavailable",
+    };
     systemDomainsServerCapabilitiesFetchedAt = Date.now();
+    renderSystemDomainsCommandConsumer();
     return systemDomainsServerCommandState;
   }).finally(() => {
-    systemDomainsServerCapabilitiesPromise = null;
-    if (requestEpoch !== systemDomainsServerCapabilitiesEpoch) queueMicrotask(() => { void hydrateSystemDomainsServerCommands(); });
+    if (systemDomainsServerCapabilitiesPromise === requestPromise) systemDomainsServerCapabilitiesPromise = null;
+    if (staleResponse || requestEpoch !== systemDomainsServerCapabilitiesEpoch) {
+      queueMicrotask(() => { void hydrateSystemDomainsServerCommands(); });
+    }
   });
-  return systemDomainsServerCapabilitiesPromise;
+  systemDomainsServerCapabilitiesPromise = requestPromise;
+  return requestPromise;
 }
 function scheduleSystemDomainsServerReadRetry(moduleId = "") {
   if (systemDomainsServerReadRetryTimer) return;
@@ -8871,10 +8955,27 @@ function commitSystemDomainsCandidate(candidate, {
   push = true,
   serverCommand = false,
   surface = "",
+  registryName = "",
 } = {}) {
+  const productionStructureDecision = surface === "production-structure"
+    ? getProductionStructureWriteDecision({
+      state: systemDomainsServerCommandState,
+      currentRevision: systemDomainsServerReadState.revision,
+      currentEmployeeId: String(getAuthenticatedAccessPerson()?.id || ""),
+      sessionActor: getEmployeeServerActor(),
+      localCanEdit: canEditSystemDomainRegistry(registryName),
+    })
+    : null;
+  if (serverCommand && surface === "production-structure" && productionStructureDecision?.allowed !== true) {
+    void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "");
+    notifySaveSuccess(getProductionStructureWriteUnavailableReason(productionStructureDecision?.code));
+    return false;
+  }
   const canUseServerCommand = serverCommand
-    && systemDomainsServerCommandState.enabled === true
-    && systemDomainsServerCommandState.surfaces.includes(surface);
+    && (surface === "production-structure"
+      ? productionStructureDecision?.allowed === true
+      : systemDomainsServerCommandState.enabled === true
+        && systemDomainsServerCommandState.surfaces.includes(surface));
   if (!canUseServerCommand) {
     if (hasObservedSystemDomainsPrimaryAuthority()) {
       systemDomainsServerReadState = {
@@ -8898,6 +8999,19 @@ function commitSystemDomainsCandidate(candidate, {
     if (!current.ok || !current.item || !Number.isInteger(Number(current.revision)) || Number(current.revision) < 1) {
       throw new Error(current.error || "Не удалось проверить актуальную ревизию System Domains");
     }
+    if (surface === "production-structure") {
+      const currentAuthorization = getProductionStructureWriteDecision({
+        state: systemDomainsServerCommandState,
+        currentRevision: Number(current.revision),
+        currentEmployeeId: String(getAuthenticatedAccessPerson()?.id || ""),
+        sessionActor: getEmployeeServerActor(),
+        localCanEdit: canEditSystemDomainRegistry(registryName),
+      });
+      if (!currentAuthorization.allowed) {
+        void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "");
+        throw new Error(getProductionStructureWriteUnavailableReason(currentAuthorization.code));
+      }
+    }
     const currentLoaded = loadSystemDomains(current.item);
     if (!hasActivatableSystemDomains(currentLoaded.domains, currentLoaded.report)
       || serializeSystemDomains(systemDomainsState) !== serializeSystemDomains(currentLoaded.domains)) {
@@ -8906,6 +9020,13 @@ function commitSystemDomainsCandidate(candidate, {
     }
     const result = await systemDomainsCommands.replace(candidate, { expectedRevision: Number(current.revision), surface });
     if (!result.ok || !result.item) {
+      if (result.authenticationRequired) {
+        employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "Серверная сессия сотрудника завершена." };
+      }
+      if (surface === "production-structure" && (result.authenticationRequired || result.authorizationDenied)) {
+        resetEmployeeServerCapabilities();
+        void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "");
+      }
       const error = new Error(result.error || "Сервер не принял изменение System Domains");
       error.conflict = result.conflict === true;
       throw error;
@@ -8916,6 +9037,12 @@ function commitSystemDomainsCandidate(candidate, {
     }
     activateSystemDomains(authoritative.domains, { source: `${source}:server-command`, report: authoritative.report });
     systemDomainsServerReadState = { status: "server", error: "", revision: Number(result.revision || 0) };
+    if (surface === "production-structure") {
+      // The successful replace advanced the exact revision used by RBAC.
+      // Invalidate the old authorization immediately; the next command stays
+      // disabled until capabilities are reissued for the new revision.
+      void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "");
+    }
     // The command synchronizes the compatible snapshot through its server
     // outbox. Keep this tab responsive without scheduling a competing browser
     // snapshot push.
@@ -9007,6 +9134,7 @@ function updateSystemDomainRegistry(registryName, updater, { push = true, mutati
     reason: `system-domains:${registryName}`,
     serverCommand,
     surface,
+    registryName,
   });
 }
 
@@ -9085,6 +9213,7 @@ function upsertSystemDomainEntity(registryName = "", entity = {}, options = {}) 
       reason: "system-domains:employees+employmentAssignments",
       serverCommand: options.serverCommand !== false,
       surface: options.surface || "production-structure",
+      registryName: "employees",
     });
   }
   return updateSystemDomainRegistry(normalizedRegistryName, (rows) => {
@@ -9111,11 +9240,10 @@ function archiveSystemDomainEntity(registryName = "", entityId = "", options = {
         employees: (getSystemDomainsRegistries().employees || []).map((entity) => (
           entity.id === normalizedEntityId ? { ...entity, isActive: false, archivedAt } : entity
         )),
-        employmentAssignments: (getSystemDomainsRegistries().employmentAssignments || []).map((assignment) => (
-          assignment.employeeId === normalizedEntityId && assignment.isPrimary !== false && !assignment.validTo
-            ? { ...assignment, validTo: archiveDate, updatedAt: archivedAt }
-            : assignment
-        )),
+        employmentAssignments: endActivePrimaryEmploymentAssignments(
+          getSystemDomainsRegistries().employmentAssignments || [],
+          { employeeId: normalizedEntityId, archiveDate, updatedAt: archivedAt },
+        ),
       },
     });
     const validation = validateSystemDomains(candidate);
@@ -9126,6 +9254,7 @@ function archiveSystemDomainEntity(registryName = "", entityId = "", options = {
       reason: "system-domains:employees+employmentAssignments",
       serverCommand: options.serverCommand !== false,
       surface: options.surface || "production-structure",
+      registryName: "employees",
     });
   }
   return updateSystemDomainRegistry(normalizedRegistryName, (rows) => rows.map((entity) => (

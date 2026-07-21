@@ -482,6 +482,9 @@ try {
   assert.equal(structureAdapter.formatStructurePersonName("Иванов Иван Иванович"), "Иванов Иван", "employee display name must match the legacy formatter");
   assert.equal(structureAdapter.formatStructurePersonName("John Ronald Reuel Tolkien"), "John Ronald Reuel Tolkien", "non-Russian names must not be shortened");
   assert.deepEqual(structureAdapter.adaptStructureEmployees({ registries: { employees: {} } }).employees, [], "invalid employees registry must fail closed");
+  assert.equal(structureAdapter.adaptStructureEmployees({ registries: { employees: [] } }).counts.migrationDiagnostics, null, "unloaded diagnostics must not invent a zero badge");
+  assert.equal(structureAdapter.adaptStructureEmployees({ registries: { employees: [] }, migrationDiagnosticsCount: "" }).counts.migrationDiagnostics, null, "blank diagnostics metadata must remain unknown");
+  assert.equal(structureAdapter.adaptStructureEmployees({ registries: { employees: [] }, migrationDiagnosticsCount: 0 }).counts.migrationDiagnostics, 0, "an explicit authoritative zero must remain visible");
 
   const structureFixtureOutput = join(temporaryRoot, "structure-employees-fixture.mjs");
   await build({
@@ -2339,6 +2342,18 @@ try {
     "scripts/domain-system-domains-repository.mjs",
     "scripts/domain-system-domains-consistent-read-qa.mjs",
   ]);
+  const systemDomainsCommandClientContractPaths = new Set([
+    "src/modules/domain_api/system_domains_commands.js",
+    "scripts/system-domains-commands-client-qa.mjs",
+  ]);
+  if ([...systemDomainsCommandClientContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...systemDomainsCommandClientContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...systemDomainsCommandClientContractPaths].sort(),
+      "System Domains browser command errors must keep their focused executable client QA atomic",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/system-domains-commands-client-qa.mjs")], { cwd: repositoryRoot });
+  }
   if ([...systemDomainsConsistentReadContractPaths].some((path) => changedPaths.includes(path))) {
     assert.deepEqual(
       [...systemDomainsConsistentReadContractPaths].filter((path) => changedPaths.includes(path)).sort(),
@@ -2615,7 +2630,8 @@ try {
       && !shiftAuthoritySeparationContractPaths.has(path)
       && !planningCommandAuthorizationContractPaths.has(path)
       && !planningStartDatePersistenceContractPaths.has(path)
-      && !systemDomainsConsistentReadContractPaths.has(path));
+      && !systemDomainsConsistentReadContractPaths.has(path)
+      && !systemDomainsCommandClientContractPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([

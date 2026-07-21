@@ -9,6 +9,7 @@ export const STRUCTURE_REGISTRY_DEFINITIONS = [
 ] as const;
 
 export type StructureRegistryId = typeof STRUCTURE_REGISTRY_DEFINITIONS[number]["id"];
+export type StructureRegistryCount = number | null;
 
 interface RegistryEntityDto {
   id?: unknown;
@@ -51,7 +52,7 @@ export interface StructureReferenceOption {
 
 export interface StructureEmployeesReadModel {
   employees: StructureEmployee[];
-  counts: Record<StructureRegistryId, number>;
+  counts: Record<StructureRegistryId, StructureRegistryCount>;
   positions: StructureReferenceOption[];
   orgUnits: StructureReferenceOption[];
   workCenters: StructureReferenceOption[];
@@ -113,15 +114,26 @@ function referenceOptions(items: RegistryEntityDto[]): StructureReferenceOption[
   }).sort((left, right) => left.label.localeCompare(right.label, "ru") || left.id.localeCompare(right.id, "en"));
 }
 
-function getRegistries(payload: unknown): { registries: Record<string, unknown>; diagnosticsCount: number } {
+export function resolveStructureMigrationDiagnosticsCount(payloadRecord: Record<string, unknown>, item: Record<string, unknown>): StructureRegistryCount {
+  const explicit = payloadRecord.migrationDiagnosticsCount ?? item.migrationDiagnosticsCount;
+  const normalizedExplicit = typeof explicit === "number"
+    ? explicit
+    : typeof explicit === "string" && explicit.trim()
+      ? Number(explicit)
+      : Number.NaN;
+  if (Number.isFinite(normalizedExplicit) && normalizedExplicit >= 0) {
+    return Math.trunc(normalizedExplicit);
+  }
+  if (Array.isArray(payloadRecord.legacyMatrixRows)) return payloadRecord.legacyMatrixRows.length;
+  if (Array.isArray(item.legacyMatrixRows)) return item.legacyMatrixRows.length;
+  return null;
+}
+
+function getRegistries(payload: unknown): { registries: Record<string, unknown>; diagnosticsCount: StructureRegistryCount } {
   const payloadRecord = record(payload);
   const item = Object.keys(record(payloadRecord.item)).length ? record(payloadRecord.item) : payloadRecord;
   const registries = Object.keys(record(item.registries)).length ? record(item.registries) : item;
-  const diagnosticsCount = Math.max(0, Math.trunc(Number(
-    payloadRecord.migrationDiagnosticsCount
-      ?? item.migrationDiagnosticsCount
-      ?? (Array.isArray(payloadRecord.legacyMatrixRows) ? payloadRecord.legacyMatrixRows.length : 0),
-  ) || 0));
+  const diagnosticsCount = resolveStructureMigrationDiagnosticsCount(payloadRecord, item);
   return { registries, diagnosticsCount };
 }
 
