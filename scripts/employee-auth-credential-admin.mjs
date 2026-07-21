@@ -1,4 +1,4 @@
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import { createEmployeeAuthRepository } from "./domain-employee-auth-repository.mjs";
@@ -178,7 +178,8 @@ export async function runEmployeeAuthCredentialAdmin({
   }
 }
 
-const invokedAsScript = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedAsScript = process.argv[1]
+  && import.meta.url === pathToFileURL(await realpath(process.argv[1])).href;
 if (invokedAsScript) {
   runEmployeeAuthCredentialAdmin({ argv: process.argv.slice(2) }).catch((error) => {
     console.error(`Employee credential administration failed: ${error?.message || "unknown error"}`);

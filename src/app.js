@@ -186,7 +186,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.23";
+const APP_VERSION_FALLBACK = "v.1.500.24";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -499,7 +499,11 @@ function cancelNomenclatureEmployeeElevation() {
 async function executeNomenclatureServerCommand(intent = {}, expectedRevision = 0) {
   const kind = String(intent.kind || "");
   const action = kind === "create" ? "create" : kind === "delete" ? "delete" : "edit";
-  const decision = getNomenclatureReactWriteDecision(action);
+  let decision = getNomenclatureReactWriteDecision(action);
+  if (!decision.allowed && nomenclatureServerCapabilitiesState.status === "loading") {
+    await (nomenclatureServerCapabilitiesPromise || ensureNomenclatureServerCapabilities({ force: true }));
+    decision = getNomenclatureReactWriteDecision(action);
+  }
   if (!decision.allowed) {
     return { ok: false, failClosed: true, status: 0, code: "write-unavailable", category: "authorization", message: decision.reason };
   }

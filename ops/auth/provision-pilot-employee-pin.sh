@@ -7,7 +7,9 @@ if [[ ${EUID} -ne 0 ]]; then
   exit 1
 fi
 
-APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+APP_DIR_INPUT="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
+APP_DIR="$(readlink -f "$APP_DIR_INPUT" 2>/dev/null || true)"
+[[ -n "$APP_DIR" && -d "$APP_DIR" ]] || { echo "Cannot resolve the current immutable Pilot release." >&2; exit 1; }
 DATABASE_ENV_FILE="${MES_PILOT_DOMAIN_ENV_FILE:-/etc/mes/mes-pilot-domain.env}"
 ACTION="${1:-}"
 EMPLOYEE_ID="${2:-}"

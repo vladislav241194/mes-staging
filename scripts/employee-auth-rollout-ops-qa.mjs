@@ -72,6 +72,7 @@ assert.match(source.commandDropin, /Environment=MES_ENABLE_NOMENCLATURE_SERVER_C
 assert.doesNotMatch(source.commandDropin, /SESSION_SECRET|EnvironmentFile/);
 
 assert.match(source.provision, /read -r -s -p "Employee PIN:/);
+assert.match(source.provision, /APP_DIR="\$\(readlink -f "\$APP_DIR_INPUT"/);
 assert.match(source.provision, /--pin-stdin/);
 assert.match(source.provision, /employee-auth-credential-admin\.mjs/);
 assert.doesNotMatch(source.provision, /--pin=|export employee_pin|MES_EMPLOYEE_AUTH_PIN/);

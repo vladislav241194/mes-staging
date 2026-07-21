@@ -208,6 +208,7 @@ assert.match(writeDecisionSource, /canEditNomenclature\s*!==\s*true/, "all serve
 assert.match(writeDecisionSource, /normalizedAction\s*===\s*["']create["'][^]*canCreateNomenclature\s*!==\s*true/, "create must require its dedicated server capability");
 assert.match(writeDecisionSource, /normalizedAction\s*===\s*["']delete["'][^]*canDeleteNomenclature\s*!==\s*true/, "delete must require its dedicated server capability");
 assert.match(writeDecisionSource, /canEditDirectorySection\(["']nomenclature["']\)[^]*accessMode\s*!==\s*["']write-evaluation["']/, "local RBAC must remain confined to the non-primary evaluation rollback path");
+assert.match(appSource, /nomenclatureServerCapabilitiesState\.status\s*===\s*["']loading["'][^]*await\s*\(nomenclatureServerCapabilitiesPromise\s*\|\|\s*ensureNomenclatureServerCapabilities\(\{\s*force:\s*true\s*\}\)\)[^]*getNomenclatureReactWriteDecision\(action\)/, "a command must await an in-flight capability refresh before its final fail-closed decision");
 assert.match(appHostSource, /command\.type\s*===\s*["']delete["'][^]*getNomenclatureReactWriteDecision\(["']delete["']\)/, "delete dispatch must independently recheck its server capability");
 assert.match(appHostSource, /getNomenclatureReactWriteDecision\(input\.isNew\s*===\s*true\s*\?\s*["']create["']\s*:\s*["']edit["']\)/, "save dispatch must independently recheck create/edit server capability");
 assert.match(appHostSource, /requireDurable:\s*true/, "permanent Nomenclature saves must require durable server acknowledgement");

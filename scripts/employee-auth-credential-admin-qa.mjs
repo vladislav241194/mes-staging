@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Writable } from "node:stream";
+import { fileURLToPath } from "node:url";
 
 import { verifyEmployeePin } from "./employee-auth-crypto.mjs";
 import { runEmployeeAuthCredentialAdmin } from "./employee-auth-credential-admin.mjs";
@@ -13,10 +15,16 @@ const databaseEnvFile = join(qaRoot, "domain.env");
 const credentialFile = join(qaRoot, "employee.pin");
 const unsafeCredentialFile = join(qaRoot, "unsafe.pin");
 const credentialSymlink = join(qaRoot, "employee-pin-link");
+const adminEntrypointSymlink = join(qaRoot, "employee-auth-credential-admin.mjs");
 await writeFile(databaseEnvFile, "MES_DOMAIN_STORAGE=postgres\nMES_DOMAIN_DATABASE_URL=postgres://employee-auth-qa/not-used\n", { mode: 0o600 });
 await writeFile(credentialFile, "86420\n", { mode: 0o600 });
 await writeFile(unsafeCredentialFile, "97531\n", { mode: 0o644 });
 await symlink(credentialFile, credentialSymlink);
+await symlink(fileURLToPath(new URL("./employee-auth-credential-admin.mjs", import.meta.url)), adminEntrypointSymlink);
+
+const symlinkInvocation = spawnSync(process.execPath, [adminEntrypointSymlink, "--help"], { encoding: "utf8" });
+assert.equal(symlinkInvocation.status, 0, symlinkInvocation.stderr || "symlinked CLI invocation failed");
+assert.match(symlinkInvocation.stdout, /Usage:/, "symlinked CLI entrypoint must execute instead of silently returning");
 
 const employees = new Map([
   ["employee-active", { employeeId: "employee-active", displayName: "Активный", active: true }],
