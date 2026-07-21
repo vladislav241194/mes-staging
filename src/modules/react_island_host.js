@@ -168,6 +168,20 @@ export function createReactIslandHost({
         return false;
       }
     },
+    update() {
+      const activation = getActivation?.() || {};
+      if (!island || !getDecision().activateReact || getShellState?.(activation)) return false;
+      const root = getTargetRoot?.();
+      const target = root?.querySelector?.(targetSelector);
+      if (!(target instanceof HTMLElement) || !target.isConnected) return false;
+      try {
+        island.update?.(getPayload?.());
+        return true;
+      } catch (error) {
+        requestFallback("render-error", error, "", target);
+        return false;
+      }
+    },
     dispose,
     getFallbackReason: () => fallbackReason,
     getFailureReason: () => failureReason,

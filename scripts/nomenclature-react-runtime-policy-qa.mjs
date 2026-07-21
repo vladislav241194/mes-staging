@@ -10,36 +10,43 @@ const disabled = getPublicRuntimeConfig({ APP_ENV: "pilot" });
 assert(disabled.MES_REACT_NOMENCLATURE === false, "Nomenclature React rollout must be disabled by default");
 assert(disabled.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === false, "read-only evaluation must be disabled by default");
 assert(disabled.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === false, "write evaluation must be disabled by default");
+assert(disabled.MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY === false, "Nomenclature server commands must not become primary by default");
 
 const enabled = getPublicRuntimeConfig({
   APP_ENV: "pilot",
   MES_REACT_NOMENCLATURE: "1",
   MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: "1",
   MES_REACT_NOMENCLATURE_WRITE_EVALUATION: "1",
+  MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "1",
   DATABASE_URL: "must-not-leak",
 });
 assert(enabled.MES_REACT_NOMENCLATURE === true, "explicit Nomenclature React rollout must reach the browser bootstrap");
 assert(enabled.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true, "explicit read-only evaluation permission must reach the browser bootstrap");
 assert(enabled.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true, "explicit write evaluation permission must reach the browser bootstrap");
+assert(enabled.MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY === true, "explicit Nomenclature server-command ownership must reach the browser bootstrap");
 
 const nonExact = getPublicRuntimeConfig({
   MES_REACT_NOMENCLATURE: "true",
   MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: "yes",
   MES_REACT_NOMENCLATURE_WRITE_EVALUATION: "yes",
+  MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "true",
 });
 assert(nonExact.MES_REACT_NOMENCLATURE === false, "non-exact rollout values must fail closed");
 assert(nonExact.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === false, "non-exact evaluation values must fail closed");
 assert(nonExact.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === false, "non-exact write values must fail closed");
+assert(nonExact.MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY === false, "non-exact server-command ownership must fail closed");
 
 const script = renderRuntimeConfigScript({
   MES_REACT_NOMENCLATURE: "1",
   MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: "1",
   MES_REACT_NOMENCLATURE_WRITE_EVALUATION: "1",
+  MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS: "1",
   DATABASE_URL: "must-not-leak",
 });
 assert(script.includes('"MES_REACT_NOMENCLATURE":true'), "public runtime script must contain the rollout boolean");
 assert(script.includes('"MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION":true'), "public runtime script must contain the evaluation boolean");
 assert(script.includes('"MES_REACT_NOMENCLATURE_WRITE_EVALUATION":true'), "public runtime script must contain the write evaluation boolean");
+assert(script.includes('"MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY":true'), "public runtime script must contain the command-primary boolean");
 assert(!script.includes("must-not-leak"), "public runtime script must never expose deployment secrets");
 
 const [appSource, productsEventsSource, runtimeStateSource, sharedStateEndpointSource] = await Promise.all([
@@ -49,18 +56,27 @@ const [appSource, productsEventsSource, runtimeStateSource, sharedStateEndpointS
   readFile(join(root, "scripts/shared-state-endpoint.mjs"), "utf8"),
 ]);
 assert(appSource.includes("requireDurable: true"), "Pilot Nomenclature React saves must require a durable owner acknowledgement");
-assert(productsEventsSource.includes('persistDirectoryStateDurably("nomenclature-save")'), "Nomenclature owner must await the exact durable directory write");
+assert(productsEventsSource.includes("persistNomenclatureDirectoryMutationDurably({"), "Nomenclature owner must await the isolated durable mutation path");
 assert(productsEventsSource.includes('code: "persistence-unconfirmed"'), "Nomenclature save must fail closed when persistence is not confirmed");
-assert(productsEventsSource.includes("const previousDirectoryState = JSON.parse(JSON.stringify(directoryState))"), "Nomenclature commands must retain a rollback copy before a live mutation");
-assert(productsEventsSource.includes("persisted === true") && productsEventsSource.includes("replaceDirectoryState(previousDirectoryState)"), "Unconfirmed Nomenclature create/edit/delete commands must restore their local rollback copy");
-assert(runtimeStateSource.includes("sharedStateStatus.saveInFlight || sharedStateStatus.pollInFlight"), "Durable directory writes must serialize with both shared-state writes and polls");
-assert(runtimeStateSource.includes("attempt <= 6") && runtimeStateSource.includes(":durable-retry-"), "Durable directory writes must use bounded CAS retries under live shared-UI contention");
-assert(runtimeStateSource.includes('requestSharedState("GET", null, { emptyProjection: true })'), "Durable directory writes must refresh a compact CAS baseline before sending the Pilot snapshot");
-assert(runtimeStateSource.includes("if (hasSharedUiPatchChanges(sharedUiPatch)) writePayload.sharedUiPatch = sharedUiPatch"), "A full domain write must carry only its UI delta over the refreshed CAS baseline");
-assert(runtimeStateSource.includes("compactValueAcknowledgement: true"), "Durable directory writes must request a compact server acknowledgement");
-assert(runtimeStateSource.includes("DIRECTORY_DELETED_ENTITIES_STORAGE_KEY") && runtimeStateSource.includes("Object.fromEntries"), "Durable directory writes must send only the reviewed directory value keys");
+assert(productsEventsSource.includes("expectedRow: command.expectedRow"), "Durable commands must use the baseline captured by the open React draft");
+const serverCommandStart = runtimeStateSource.indexOf("async function persistNomenclatureServerCommandDurably");
+const durableMutationStart = runtimeStateSource.indexOf("async function persistNomenclatureDirectoryMutationDurably", serverCommandStart);
+const durableMutationEnd = runtimeStateSource.indexOf("async function persistDirectoryStateDurably", durableMutationStart);
+const serverCommandSource = runtimeStateSource.slice(serverCommandStart, durableMutationStart);
+const durableMutationSource = runtimeStateSource.slice(durableMutationStart, durableMutationEnd);
+assert(serverCommandStart >= 0 && durableMutationStart > serverCommandStart && durableMutationEnd > durableMutationStart, "command-primary and CAS rollback boundaries must be discoverable");
+assert(durableMutationSource.includes("if (isNomenclatureServerCommandsPrimary())") && durableMutationSource.includes("persistNomenclatureServerCommandDurably(intent)"), "command-primary mode must bypass generic shared-state writes");
+assert(serverCommandSource.includes("executeNomenclatureServerCommand(intent, attempt.revision)"), "command-primary writes must send the hydrated expected revision to the server owner");
+assert(serverCommandSource.includes("applyAuthoritativeNomenclatureProjection(result.projection)"), "command-primary writes must commit the authoritative server projection");
+assert(serverCommandSource.includes('code: "command-superseded"'), "superseded idempotent replays must not be reported as ordinary success");
+assert(durableMutationSource.includes('requestSharedState("GET", null, { valueKeys: [DIRECTORY_STORAGE_KEY] })'), "primary=false must retain the exact directory CAS read");
+assert(durableMutationSource.includes('responseMode: "ack"') && durableMutationSource.includes("values: { [DIRECTORY_STORAGE_KEY]: JSON.stringify(mutation.directory) }"), "primary=false must retain the narrow CAS acknowledgement payload");
+assert(durableMutationSource.includes('if (response.conflict === true)') && !durableMutationSource.includes('nomenclature-save:conflict-retry'), "CAS rollback conflicts must fail closed without stale automatic retry");
+assert(durableMutationSource.includes("directoryState = mutation.directory") && durableMutationSource.includes("commitRuntimeState()"), "CAS rollback state must commit only after server acknowledgement");
+assert(runtimeStateSource.includes("isNomenclatureServerCommandsPrimary = () => false"), "runtime command-primary dependency must default false so rollback remains available");
+assert(runtimeStateSource.includes("if (isDirectoryStateReason(reason) && !isNomenclatureServerCommandsPrimary()) return values"), "legacy directory snapshots must remain writable only when command-primary is off");
 assert(sharedStateEndpointSource.includes("isCompactDirectoryAcknowledgementRequest"), "The shared-state endpoint must recognize the narrow directory acknowledgement contract");
 assert(sharedStateEndpointSource.includes("compactDirectoryAcknowledgement ? projectSnapshotValues"), "Directory acknowledgement conflicts must not return the full compatibility snapshot");
 assert(sharedStateEndpointSource.includes("compactAcknowledgement") && sharedStateEndpointSource.includes("responseMode"), "Successful directory writes must return the compact acknowledgement envelope");
 
-console.log("Nomenclature React runtime policy QA: OK");
+console.log("Nomenclature React runtime policy QA: server-command primary and CAS rollback OK");

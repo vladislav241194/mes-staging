@@ -9,22 +9,30 @@ its rollback declaration, or is marked complete without an explicit status.
 
 Correction 2026-07-21: `local-complete` was renamed to `slice-complete` because
 it proves only the listed vertical slice, not whole-module cutover. Historical
-Pilot read evidence is `21/24` across multiple releases, but only Nomenclature
-has fresh read/write/cleanup evidence on the current audited `v.1.500.17`.
-Same-release acceptance is therefore `1/24`, write lifecycle is `1/22`, and
-permanent default-on remains `0/24`. The executable cross-route source of truth
-is `experiments/react-migration/cutover-ledger.json`.
+Pilot read evidence is `21/24` across multiple releases. On current audited
+release `v.1.500.21-8fb92d9`, Weekly Production Control and Structure Migration
+Diagnostics have fresh read acceptance and permanent default-on policy:
+same-release read and permanent coverage are therefore `2/24`. The only full
+Pilot write/read-back/cleanup lifecycle remains Nomenclature on the earlier
+`v.1.500.17`, so write coverage is still `1/22`. The executable cross-route
+source of truth is `experiments/react-migration/cutover-ledger.json`.
 
 All 24 scenarios have local production-shell read evidence and keep legacy
-rollback. The all-flags-off Pilot baseline is accepted. Authenticated Pilot
-read-only acceptance now covers Nomenclature empty-state plus five non-empty
+rollback. The historical all-flags-off Pilot baseline remains accepted; the
+current runtime is intentionally mixed, with exactly two permanent read-only
+React surfaces and no evaluation surface. Authenticated Pilot read-only evidence
+covers Nomenclature empty-state plus five non-empty
 System Domains registries: Employees `76/76`, Positions `49/49`, Org Units
 `19/19`, Work Centers `19/19` and Equipment `6/6`. Every evaluation was
 session-scoped, measured, returned to legacy and left all rollout flags off.
 The Directories cluster additionally has Component Types `8/8` and Operations
 `22/22` accepted with literal visible-cell and row-order parity. Weekly
-Production Control is accepted on its current `25 x 11` Pilot projection,
-including the deviation-note interaction and same-data legacy rollback.
+Production Control is permanently accepted on its current `25 x 11` Pilot
+projection. Structure Migration Diagnostics is permanently accepted in desktop
+with `152 x 5`, 51 source fields and query-isolated adjacent-registry navigation.
+Weekly narrow acceptance remains historical `.19` evidence; Diagnostics narrow
+is not claimed because the controlled platform could not resize the
+authenticated Pilot tab.
 Shift Master Board read-only acceptance now also covers the current three-lane,
 two-card scope, date/master controls, KPI, task passport and typed physical
 transfer on immutable release `.77`; evaluation was disabled after acceptance.
@@ -135,7 +143,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 1 | Nomenclature | Slice complete: create/edit/delete; authenticated Pilot lifecycle and zero-row cleanup accepted on `v.1.500.17` | Medium | Build the permanent runtime contract and repeat acceptance on the consolidated cutover release |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit/custom delete with Specifications and loaded-Planning cleanup; bundled rows protected | Medium | Separately gated Pilot create/edit/custom-delete evaluation with a disposable row and verified cleanup |
-| 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
+| 4 | Weekly Production Control | Not applicable: product module is read-only; permanent Pilot read accepted and desktop-rechecked on `.21` | Low | Keep the immutable legacy rollback and monitor the permanent read-only surface; `.19` retains the accepted narrow evidence |
 | 5 | Nomenclature Types | Local complete: create/edit/delete with fallback reference reassignment; Pilot read accepted | Medium | Keep default-off; separately gate write/delete evaluation with a disposable type, cancel safety and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit/delete; system rows protected | Medium | Keep read acceptance; any write evaluation requires one disposable user-authority status and verified cleanup |
 | 7 | Boards/BOM | Local complete: XLSX import, board metadata create/edit/delete, Nomenclature row add, all nine existing-row BOM cell edits and ID/table-bound row deletion with Specifications cleanup | Medium | Separately gated Pilot read-only evaluation, then a disposable XLSX/board full-lifecycle write with verified cleanup |
@@ -155,7 +163,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 21 | Gantt | Local complete: dependency inspection, target-slot selection and revision-checked start-time reschedule; Pilot read accepted | Critical | Keep default-off; dependency editing, drag, resize and optimization remain separate command scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |
-| — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
+| — | Structure Migration Diagnostics | Not applicable: product screen is read-only; permanent desktop Pilot acceptance completed on `.21` | Low | Keep immutable legacy rollback and monitor; narrow Pilot remains unclaimed because viewport resize was unavailable |
 
 The Directories cluster now has Component Types read parity accepted on Pilot
 and local command parity through the existing RBAC-protected directory owner.

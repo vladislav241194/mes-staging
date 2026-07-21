@@ -1,31 +1,67 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "updatedAt": "2026-07-21",
   "baselineProgress": 46,
-  "currentProgress": 49,
+  "currentProgress": 50,
   "designSystem": "mes-line",
-  "activePilotRelease": "v.1.500.19-53022a2",
+  "activePilotRelease": "v.1.500.21-8fb92d9",
+  "previousPilotRelease": "v.1.500.20-a4d8b2f",
   "legacyRollbackRelease": "v.1.500.18-93d02ed",
   "permanentPilotEvidence": {
-    "surfaceId": "weeklyProductionControl",
-    "release": "v.1.500.19-53022a2",
+    "release": "v.1.500.21-8fb92d9",
     "releaseQa": "passed",
     "releaseStage": "passed",
     "health": { "local": "ok", "public": "ok" },
-    "reactSurfaces": ["weeklyProductionControl"],
+    "runtimePolicySha256": "bf7af8065ad83206742725a003c5cc11f6eefaf21b314220f45f6c24480674b4",
+    "reactSurfaces": ["structureMigrationDiagnostics", "weeklyProductionControl"],
     "activeEvaluationSurfaces": [],
     "evaluationFlags": "absent",
     "evaluationDropins": 0,
     "authenticatedPilot": {
-      "tableRows": 25,
-      "tableHeaders": 11,
-      "viewports": ["desktop", "narrow"],
-      "queryIsolation": "verified",
-      "console": "clean"
+      "structureMigrationDiagnostics": {
+        "tableRows": 152,
+        "tableHeaders": 5,
+        "sourceFields": 51,
+        "metrics": [152, 76, 19, 49, 0, 0],
+        "issueGroups": 4,
+        "ignoredLegacyRows": 2,
+        "registryLinks": 7,
+        "viewports": ["desktop"],
+        "narrowViewport": "not-reverified-platform-limitation",
+        "queryIsolation": "verified",
+        "adjacentRegistryNavigation": "verified",
+        "inputCount": 0,
+        "writeControlCount": 0,
+        "islandState": "ready",
+        "ariaBusy": false,
+        "console": "clean"
+      },
+      "weeklyProductionControl": {
+        "tableRows": 25,
+        "tableHeaders": 11,
+        "viewports": ["desktop"],
+        "historicalNarrowAcceptanceRelease": "v.1.500.19-53022a2",
+        "queryIsolation": "verified",
+        "inputCount": 0,
+        "writeControlCount": 0,
+        "islandState": "ready",
+        "ariaBusy": false,
+        "console": "clean"
+      }
     },
     "rollbackDrill": {
       "status": "verified",
-      "target": "v.1.500.18-93d02ed",
+      "previous": {
+        "sequence": ["v.1.500.21-8fb92d9", "v.1.500.20-a4d8b2f", "v.1.500.21-8fb92d9"],
+        "status": "verified"
+      },
+      "legacyBaseline": {
+        "sequence": ["v.1.500.21-8fb92d9", "v.1.500.18-93d02ed", "v.1.500.19-53022a2", "v.1.500.20-a4d8b2f", "v.1.500.21-8fb92d9"],
+        "reactSurfacesAtBaseline": [],
+        "status": "verified"
+      },
+      "finalRelease": "v.1.500.21-8fb92d9",
+      "finalPreviousRelease": "v.1.500.20-a4d8b2f",
       "reactivation": "verified"
     }
   },
@@ -33,7 +69,7 @@
     { "id": "typed-scope", "label": "Complete scope and typed React surface", "maximum": 15, "earned": 14 },
     { "id": "functional-parity", "label": "Functional parity without normal legacy fallback", "maximum": 25, "earned": 18 },
     { "id": "pilot-acceptance", "label": "Real Pilot read and write acceptance", "maximum": 20, "earned": 9 },
-    { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 1 },
+    { "id": "permanent-runtime", "label": "Permanent default-on React runtime", "maximum": 20, "earned": 2 },
     { "id": "legacy-consolidation", "label": "Legacy removed from the normal runtime", "maximum": 15, "earned": 2 },
     { "id": "quality-controls", "label": "Strict QA, release and rollback controls", "maximum": 5, "earned": 5 }
   ],
@@ -50,9 +86,9 @@
     { "id": "structureWorkCenters", "historicalPilotRead": "accepted", "readEvidenceRelease": ".73", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "structureEquipment", "historicalPilotRead": "accepted", "readEvidenceRelease": ".73", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "structureResponsibilityPolicies", "historicalPilotRead": "pending", "readEvidenceRelease": null, "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
-    { "id": "structureMigrationDiagnostics", "historicalPilotRead": "accepted", "readEvidenceRelease": ".98", "currentReleaseRead": "pending", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": false },
+    { "id": "structureMigrationDiagnostics", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.21-8fb92d9", "currentReleaseRead": "accepted", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": true },
     { "id": "roles", "historicalPilotRead": "accepted", "readEvidenceRelease": ".91", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
-    { "id": "weeklyProductionControl", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.19-53022a2", "currentReleaseRead": "accepted", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": true },
+    { "id": "weeklyProductionControl", "historicalPilotRead": "accepted", "readEvidenceRelease": "v.1.500.21-8fb92d9", "currentReleaseRead": "accepted", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": true },
     { "id": "timesheet", "historicalPilotRead": "accepted", "readEvidenceRelease": ".93", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "planningWorkbench", "historicalPilotRead": "accepted", "readEvidenceRelease": ".95", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "shiftWorkOrders", "historicalPilotRead": "accepted", "readEvidenceRelease": ".79", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
@@ -95,7 +131,7 @@
     { "id": "statuses", "routeId": "directories", "entry": "experiments/react-migration/src/statuses-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save-custom", "delete-custom"], "missing": [] } },
     { "id": "structureEmployees", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-employees-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureEquipment", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-equipment-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": ["scheduling-impact-contract"] } },
-    { "id": "structureMigrationDiagnostics", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-migration-diagnostics-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": [], "missing": [] } },
+    { "id": "structureMigrationDiagnostics", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-migration-diagnostics-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": [], "missing": [] } },
     { "id": "structureOrgUnits", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-org-units-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structurePositions", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-positions-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": ["assignment-impact-contract"] } },
     { "id": "structureResponsibilityPolicies", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-responsibility-policies-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
@@ -201,7 +237,7 @@
       "runtimeMode": "legacy-default",
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["non-empty Responsibility Policies Pilot read", "all registry Pilot lifecycles", "assignment and scheduling impact contracts", "permanent React runtime"]
+      "remainingScopes": ["non-empty Responsibility Policies Pilot read", "six writable registry Pilot lifecycles", "assignment and scheduling impact contracts", "permanent React runtime for six writable registries"]
     },
     {
       "id": "timesheet",

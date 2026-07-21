@@ -77,6 +77,7 @@ export function createPlanningRoutesServiceModule(dependencies = {}) {
     icon,
     isGanttSlotCompleted,
     isManufacturingOutputReceiptRouteStep,
+    isLegacyDirectoryWriteBlocked = () => false,
     isPlanningWorkCenter,
     isSmtOperationWorkCenter,
     isWarehouseIssueRouteStep,
@@ -2382,6 +2383,10 @@ function syncPlanningBoardsPerPanel(routeId, sourceId, value, options = {}) {
 }
 
 function updatePlanningSupplyFulfillment(routeId, structureItemId, mode) {
+  if (isLegacyDirectoryWriteBlocked()) {
+    alert("Способ обеспечения доступен только для чтения: серверная команда состава изделия ещё не подключена.");
+    return false;
+  }
   const route = (planningState.routes || []).find((item) => item.id === routeId);
   const specification = getRouteSpecification(route);
   const nextMode = normalizeStructureFulfillmentMode(mode, "not_selected");
@@ -2420,7 +2425,7 @@ function updatePlanningSupplyFulfillment(routeId, structureItemId, mode) {
   if (!changed) return false;
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   ensureRouteTaskSeedSteps(route.id, getRouteSpecification(route) || specification);
-  persistDirectoryState();
+  if (persistDirectoryState() === false) return false;
   persistState();
   notifySaveSuccess("Способ обеспечения сохранен");
   render();

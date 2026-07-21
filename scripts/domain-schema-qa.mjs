@@ -49,6 +49,8 @@ const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/
 const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");
 const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
 const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
+const postgresPreflightPolicyPath = fileURLToPath(new URL("./domain-postgres-preflight-policy.mjs", import.meta.url));
+const postgresPreflightPolicySql = await readFile(postgresPreflightPolicyPath, "utf-8");
 
 [
   "CREATE TABLE IF NOT EXISTS work_orders",
@@ -196,7 +198,8 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(shiftExecutionCarryoverLifecycleS
 ].forEach((fragment) => assert(systemDomainsPrimaryAuthoritySql.includes(fragment), `System Domains PostgreSQL primary-authority migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(systemDomainsPrimaryAuthoritySql), "System Domains PostgreSQL primary-authority migration must not contain destructive statements");
 assert(
-  postgresPreflightSql.includes('"023_system_domains_postgres_primary_authority"'),
+  postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")
+    && postgresPreflightPolicySql.includes('"023_system_domains_postgres_primary_authority"'),
   "PostgreSQL domain preflight must require the System Domains primary-authority migration",
 );
 [
@@ -216,7 +219,8 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningSnapshotObservationSql), 
 ].forEach((fragment) => assert(responsibilityPolicyLifecycleSql.includes(fragment), `Responsibility-policy lifecycle migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(responsibilityPolicyLifecycleSql), "Responsibility-policy lifecycle migration must not contain destructive statements");
 assert(
-  postgresPreflightSql.includes('"026_system_responsibility_policy_lifecycle"'),
+  postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")
+    && postgresPreflightPolicySql.includes('"026_system_responsibility_policy_lifecycle"'),
   "PostgreSQL domain preflight must require the Responsibility Policy lifecycle migration",
 );
 console.log("Domain schema QA: OK");

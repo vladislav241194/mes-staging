@@ -28,10 +28,12 @@ export function createProductsRenderModule(dependencies = {}) {
     authPrototypePinFeedbackSequence,
     authPrototypePinFeedbackTimer,
     bindSpekiEvents,
+    createEmployeeSession = async () => ({ ok: false, authenticated: false, status: 0 }),
     dedupeProductionResources,
     escapeAttribute,
     escapeHtml,
     formatReportNumber,
+    finishEmployeeAuthElevation = () => ({ ok: false }),
     getAccessRoleById = () => ({ label: "роль" }),
     getAuthPrototypePinFeedbackSequence = () => authPrototypePinFeedbackSequence,
     getAuthPrototypePinFeedbackTimer = () => authPrototypePinFeedbackTimer,
@@ -63,6 +65,9 @@ export function createProductsRenderModule(dependencies = {}) {
     getWorkCenter,
     icon,
     inferStructureNomenclatureType,
+    isEmployeeAuthRequired = () => false,
+    isEmployeeAuthElevationActive = () => false,
+    isLegacyDirectoryWriteBlocked = () => false,
     makeFallbackProductionResource,
     makeId,
     mapLegacyWorkCenterId,
@@ -735,6 +740,10 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function syncNomenclatureTypesFromItems(options = {}) {
+    // This bootstrap helper used to backfill the monolithic Directory blob.
+    // Once Nomenclature has a command owner, even a harmless-looking type
+    // backfill would be an unowned generic Directory write.
+    if (options.persist && isLegacyDirectoryWriteBlocked()) return false;
     const existingKeys = new Set(getNomenclatureTypeRows({ includeInactive: true }).map((row) => normalizeLookupText(row.name)));
     const itemTypes = [...new Set((directoryState.nomenclature || [])
       .map((item) => normalizeNomenclatureType(item.type))
@@ -906,6 +915,10 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function updateBomImportRows(bomId, rows, options = {}) {
+    if (isLegacyDirectoryWriteBlocked()) {
+      alert("BOM доступен только для чтения: серверная команда этого раздела ещё не подключена.");
+      return null;
+    }
     const currentBom = getBomList(bomId);
     if (!currentBom) return null;
   
@@ -932,7 +945,7 @@ export function createProductsRenderModule(dependencies = {}) {
     }
   
     Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
-    persistDirectoryState();
+    if (persistDirectoryState() === false) return null;
     persistUiState();
     if (options.notify !== false) {
       notifySaveSuccess(options.message || "Таблица BOM сохранена");
@@ -984,6 +997,7 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function ensureBomResultsInNomenclature() {
+    if (isLegacyDirectoryWriteBlocked()) return;
     const bomLists = directoryState.bomLists || [];
     if (!bomLists.length) return;
   
@@ -1030,6 +1044,7 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function migrateSpecificationBomRowsToNomenclature() {
+    if (isLegacyDirectoryWriteBlocked()) return;
     const specifications = directoryState.specifications || [];
     if (!specifications.length) return;
   
@@ -1077,6 +1092,7 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function ensureImportedBomRowsInNomenclature() {
+    if (isLegacyDirectoryWriteBlocked()) return;
     const bomLists = directoryState.bomLists || [];
     if (!bomLists.some((bom) => getBomImportRows(bom).length)) return;
   
@@ -1174,6 +1190,9 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   async function importBomFromXlsxFile(file, productionId = "") {
+    if (isLegacyDirectoryWriteBlocked()) {
+      throw new Error("BOM доступен только для чтения: серверная команда импорта ещё не подключена.");
+    }
     const parsed = await parseXlsxBomFile(file);
     const name = getFileBaseName(file.name);
     const id = makeId("bom");
@@ -1205,7 +1224,9 @@ export function createProductsRenderModule(dependencies = {}) {
     Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
     ui.activeBomId = id;
     ui.activeProjectId = productionId || "";
-    persistDirectoryState();
+    if (persistDirectoryState() === false) {
+      throw new Error("BOM не импортирован: для этого раздела ещё не подключена серверная команда.");
+    }
     persistUiState();
     notifySaveSuccess("BOM импортирован");
   }
@@ -1763,26 +1784,75 @@ export function createProductsRenderModule(dependencies = {}) {
     const people = getAuthPrototypePeople();
     const selectedPerson = (people.employees || []).find((person) => person.id === selectedPersonId)
       || getAuthPrototypePinPerson(people);
-    const canLogin = Boolean(selectedPerson?.id && selectedPerson.id === selectedPersonId && isAuthPrototypePinCorrect(pin));
-    if (canLogin) {
-      completeAuthPrototypeLogin(successResult, { personId: selectedPerson.id });
-      return { ok: true, authenticated: true, personId: selectedPerson.id };
+    const exactPersonSelected = Boolean(selectedPerson?.id && selectedPerson.id === selectedPersonId);
+    const serverAuthRequired = isEmployeeAuthRequired() || isEmployeeAuthElevationActive();
+    if (!serverAuthRequired) {
+      const canLogin = Boolean(exactPersonSelected && isAuthPrototypePinCorrect(pin));
+      if (canLogin) {
+        completeAuthPrototypeLogin(successResult, { personId: selectedPerson.id });
+        return { ok: true, authenticated: true, personId: selectedPerson.id };
+      }
+
+      setAuthPrototypeAttemptsLeft(getAuthPrototypeAttemptsLeft() - 1);
+      const locked = getAuthPrototypeAttemptsLeft() <= 0;
+      ui.authPrototypeResult = locked ? `${errorResult}-locked` : errorResult;
+      resetAuthPrototypeKeypad();
+      persistUiState();
+      if (renderOnChange) render();
+      return {
+        ok: true,
+        authenticated: false,
+        attemptsLeft: getAuthPrototypeAttemptsLeft(),
+        locked,
+        result: ui.authPrototypeResult,
+        message: locked ? "Вход заблокирован: попытки исчерпаны." : "Неверный PIN.",
+      };
     }
-  
-    setAuthPrototypeAttemptsLeft(getAuthPrototypeAttemptsLeft() - 1);
-    const locked = getAuthPrototypeAttemptsLeft() <= 0;
-    ui.authPrototypeResult = locked ? `${errorResult}-locked` : errorResult;
-    resetAuthPrototypeKeypad();
+
+    if (!exactPersonSelected) {
+      ui.authPrototypeResult = errorResult;
+      resetAuthPrototypeKeypad();
+      persistUiState();
+      if (renderOnChange) render();
+      return Promise.resolve({ ok: false, authenticated: false, message: "Сотрудник больше не доступен для входа." });
+    }
+
+    ui.authPrototypeResult = "pin-checking";
     persistUiState();
     if (renderOnChange) render();
-    return {
-      ok: true,
-      authenticated: false,
-      attemptsLeft: getAuthPrototypeAttemptsLeft(),
-      locked,
-      result: ui.authPrototypeResult,
-      message: locked ? "Вход заблокирован: попытки исчерпаны." : "Неверный PIN.",
-    };
+    return Promise.resolve(createEmployeeSession({ employeeId: selectedPerson.id, pin: String(pin || "") }))
+      .then((result) => {
+        if (result?.ok === true
+          && result.authenticated === true
+          && String(result.actor?.employeeId || "") === selectedPerson.id) {
+          if (isEmployeeAuthElevationActive()) {
+            const completed = finishEmployeeAuthElevation(result.actor);
+            return completed?.ok === true
+              ? { ok: true, authenticated: true, personId: selectedPerson.id, actor: result.actor }
+              : { ok: false, authenticated: false, message: String(completed?.message || "Не удалось завершить подтверждение PIN.") };
+          }
+          completeAuthPrototypeLogin(successResult, { personId: selectedPerson.id });
+          return { ok: true, authenticated: true, personId: selectedPerson.id, actor: result.actor };
+        }
+        const credentialRejected = Number(result?.status || 0) === 401;
+        const rateLimited = Number(result?.status || 0) === 429;
+        if (credentialRejected) setAuthPrototypeAttemptsLeft(getAuthPrototypeAttemptsLeft() - 1);
+        if (rateLimited) setAuthPrototypeAttemptsLeft(0);
+        const locked = getAuthPrototypeAttemptsLeft() <= 0;
+        ui.authPrototypeResult = locked ? `${errorResult}-locked` : errorResult;
+        resetAuthPrototypeKeypad();
+        persistUiState();
+        if (renderOnChange) render();
+        return {
+          ...result,
+          ok: false,
+          authenticated: false,
+          attemptsLeft: getAuthPrototypeAttemptsLeft(),
+          locked,
+          result: ui.authPrototypeResult,
+          message: String(result?.message || (credentialRejected ? "Неверный PIN." : "Серверная авторизация временно недоступна.")),
+        };
+      });
   }
   
   function completeAuthPrototypeLogin(result = "pin-ok", options = {}) {
@@ -2111,6 +2181,10 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function createSpekiSpecification() {
+    if (isLegacyDirectoryWriteBlocked()) {
+      alert("Составы изделий доступны только для чтения: серверная команда этого раздела ещё не подключена.");
+      return false;
+    }
     const existingSpecifications = directoryState.specifications || [];
     const index = existingSpecifications.length + 1;
     const stamp = new Date().toISOString();
@@ -2147,10 +2221,11 @@ export function createProductsRenderModule(dependencies = {}) {
     ui.spekiEditingId = id;
     ui.spekiCheckedSpecificationId = "";
     ui.spekiStaleItemIds = [];
-    persistDirectoryState();
+    if (persistDirectoryState() === false) return false;
     persistUiState();
     notifySaveSuccess("Изделие создано");
     render();
+    return true;
   }
   
   function getActiveNomenclatureItem() {
@@ -2317,6 +2392,10 @@ export function createProductsRenderModule(dependencies = {}) {
   
   function ensureRouteModuleProjectForSpecification(specification) {
     if (!specification) return "";
+    if (isLegacyDirectoryWriteBlocked()) {
+      alert("Связь маршрута с составом изделия доступна только для чтения: серверная команда ещё не подключена.");
+      return "";
+    }
     const specificationId = ensureSpecificationPlanningUnit(specification);
     if (!specificationId) return "";
     if (!specification.projectId) return specificationId;
@@ -2328,7 +2407,7 @@ export function createProductsRenderModule(dependencies = {}) {
         : item
     ));
     Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
-    persistDirectoryState();
+    if (persistDirectoryState() === false) return "";
     return specificationId;
   }
   

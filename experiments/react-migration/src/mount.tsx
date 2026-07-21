@@ -65,7 +65,7 @@ function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftW
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "statuses") return <StatusesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  return <NomenclatureScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  return <NomenclatureScenario payload={payload} onRequestBoards={() => { location.search = "?scenario=boards"; }} />;
 }
 
 export function mountReactMigrationIsland(

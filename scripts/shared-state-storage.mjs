@@ -236,6 +236,19 @@ export function getPublicRuntimeConfig(env = process.env, { reactRuntimePolicy =
     MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION) === "1",
     MES_REACT_DIRECTORY_STATUSES: normalizeEnvValue(env.MES_REACT_DIRECTORY_STATUSES) === "1",
     MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION) === "1",
+    // These booleans publish rollout authority, never credentials or database
+    // configuration. Clients use them to fail closed onto the authenticated
+    // command path instead of attempting a legacy snapshot write.
+    MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY: normalizeEnvValue(env.MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS) === "1",
+    MES_EMPLOYEE_AUTH_AVAILABLE: [
+      env.MES_ENABLE_EMPLOYEE_AUTH,
+      env.MES_EMPLOYEE_AUTH_ENABLED,
+    ].some((value) => normalizeEnvValue(value) === "1")
+      && Boolean(normalizeEnvValue(env.MES_EMPLOYEE_AUTH_SESSION_SECRET))
+      && Boolean(normalizeEnvValue(env.MES_EMPLOYEE_AUTH_HOSTS || env.MES_PUBLIC_AUTH_HOSTS)),
+    // Employee auth may be available for a scoped command elevation without
+    // replacing the normal MES login gate. A global gate is opt-in only.
+    MES_EMPLOYEE_AUTH_REQUIRED: normalizeEnvValue(env.MES_REQUIRE_EMPLOYEE_AUTH_GATE) === "1",
     // Non-secret rollout policy.  A client must fail closed when publication
     // is configured as server-primary but cannot reach the capability API.
     MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: normalizeEnvValue(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS) === "1",

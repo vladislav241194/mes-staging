@@ -38,6 +38,7 @@ export function createProductsEventsModule(dependencies = {}) {
     importBomFromXlsxFile,
     input,
     isSchedulableFulfillmentMode,
+    isLegacyDirectoryWriteBlocked = () => false,
     items,
     makeId,
     mergeFallback,
@@ -59,6 +60,7 @@ export function createProductsEventsModule(dependencies = {}) {
     persistDirectoryState,
     persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
+    persistNomenclatureDirectoryMutationDurably,
     persistState,
     persistUiState,
     pickDefaultBomForSpecificationItem,
@@ -76,6 +78,7 @@ export function createProductsEventsModule(dependencies = {}) {
     syncSpecificationDerivedFields,
     toDateInput,
     unit,
+    updateModuleUrlParam = () => {},
     upsertBomResultToNomenclature,
     withDirectoryEntityRemovalAllowed,
     withPlanningEntityRemovalAllowed,
@@ -93,6 +96,13 @@ export function createProductsEventsModule(dependencies = {}) {
     get(_target, property) { return dependencies.getDirectoryState?.()?.[property]; },
     set(_target, property, value) { const state = dependencies.getDirectoryState?.(); if (state) state[property] = value; return true; },
   });
+
+  const legacyDirectoryWriteMessage = "Раздел доступен только для чтения: серверная команда ещё не подключена.";
+  function rejectLegacyDirectoryWrite() {
+    if (!isLegacyDirectoryWriteBlocked()) return false;
+    alert(legacyDirectoryWriteMessage);
+    return true;
+  }
 
   function replaceDirectoryState(nextState) {
     dependencies.setDirectoryState?.(nextState);
@@ -309,6 +319,7 @@ function bindSpekiEvents() {
 }
 
 function updateSpecificationStructure(updater) {
+  if (rejectLegacyDirectoryWrite()) return false;
   const activeSpecification = getActiveSpecificationForModule();
   if (!activeSpecification) {
     alert("Сначала сохраните карточку состава изделия.");
@@ -642,6 +653,7 @@ function changeSpekiStructureLevel(itemId, direction) {
 }
 
 function saveSpekiSpecification(specificationId, values = {}) {
+  if (rejectLegacyDirectoryWrite()) return false;
   if (!specificationId) return;
   const name = String(values.name || "").trim() || "Изделие без названия";
   const outputNomenclatureId = String(values.outputNomenclatureId || "").trim();
@@ -714,6 +726,7 @@ function getSpecificationDeleteUsage(specificationId) {
 }
 
 function deleteSpekiSpecification(specificationId) {
+  if (rejectLegacyDirectoryWrite()) return false;
   if (!specificationId) return;
   const usage = getSpecificationDeleteUsage(specificationId);
   recordDirectoryEntityDeletion("specifications", specificationId);
@@ -782,6 +795,7 @@ function bindNomenclatureEvents() {
       } else {
         ui.activeNomenclatureId = "";
       }
+      updateModuleUrlParam(pane === "boards" ? "bomLists" : "nomenclature");
       persistUiState();
       render();
     });
@@ -801,6 +815,7 @@ function bindNomenclatureEvents() {
       ui.activeNomenclaturePane = "items";
       ui.activeBomId = "";
       ui.nomenclatureTypeFilter = button.dataset.nomenclatureTypeFilter || "all";
+      updateModuleUrlParam("nomenclature");
       persistUiState();
       render();
     });
@@ -846,15 +861,12 @@ function bindNomenclatureEvents() {
 }
 
 function saveNomenclatureCommand(command = {}) {
-  const previousDirectoryState = JSON.parse(JSON.stringify(directoryState));
   const isNew = command.isNew === true;
-  const id = isNew ? makeId("nom") : String(command.itemId || makeId("nom"));
+  const id = String(command.itemId || makeId("nom"));
   const name = String(command.name || "").trim();
   if (!name) return { ok: false, code: "name-required", message: "Заполните наименование позиции номенклатуры." };
   const customType = String(command.customType || "").trim();
   const type = normalizeNomenclatureType(customType || command.type);
-  ensureNomenclatureTypeExists(type);
-
   const row = normalizeDirectoryRow("nomenclature", {
     id,
     name,
@@ -865,32 +877,50 @@ function saveNomenclatureCommand(command = {}) {
     manufacturer: String(command.manufacturer || "").trim(),
     description: String(command.description || "").trim(),
     status: String(command.status || "Активен").trim(),
-    updatedAt: new Date().toISOString(),
+    // React keeps this timestamp stable together with its Idempotency-Key so
+    // an unchanged retry after a lost response has the exact same payload.
+    updatedAt: /^\d{4}-\d{2}-\d{2}T/.test(String(command.updatedAt || ""))
+      ? String(command.updatedAt)
+      : new Date().toISOString(),
   });
-
-  directoryState.nomenclature = isNew
-    ? [...(directoryState.nomenclature || []), row]
-    : (directoryState.nomenclature || []).map((item) => item.id === id ? { ...item, ...row } : item);
-  replaceDirectoryState(normalizeDirectoryState(directoryState, { mergeFallback: false }));
-  const completeSave = () => {
+  const existingRow = isNew
+    ? null
+    : (directoryState.nomenclature || []).find((item) => String(item?.id || "") === id) || null;
+  if (!isNew && !existingRow) return { ok: false, id, isNew, code: "not-found", message: "Позиция номенклатуры не найдена." };
+  const completeSave = (savedRow = row) => {
     ui.activeNomenclatureId = id;
     ui.nomenclatureTypeFilter = type;
     persistUiState();
     notifySaveSuccess(isNew ? "Позиция номенклатуры создана" : "Позиция номенклатуры сохранена");
     render();
-    return { ok: true, id, isNew, row };
+    return { ok: true, id, isNew, row: savedRow };
   };
   if (command.requireDurable === true) {
-    return Promise.resolve(persistDirectoryStateDurably("nomenclature-save")).then((persisted) => (
-      persisted === true
-        ? completeSave()
-        : (() => {
-          replaceDirectoryState(previousDirectoryState);
-          persistDirectoryState();
-          return { ok: false, id, isNew, code: "persistence-unconfirmed", message: `Сервер не подтвердил сохранение номенклатуры. ${String(persisted || "Обновите данные и повторите.")}` };
-        })()
+    if (customType) {
+      return { ok: false, id, isNew, code: "type-owner-required", message: "Создание нового раздела выполняется отдельной командой владельца справочника. Сначала создайте раздел, затем обновите Номенклатуру." };
+    }
+    return Promise.resolve(persistNomenclatureDirectoryMutationDurably({
+      kind: isNew ? "create" : "update",
+      itemId: id,
+      row,
+      expectedRow: command.expectedRow && typeof command.expectedRow === "object" && !Array.isArray(command.expectedRow)
+        ? JSON.parse(JSON.stringify(command.expectedRow))
+        : null,
+      idempotencyKey: String(command.idempotencyKey || ""),
+    })).then((persisted) => (
+      persisted?.ok === true
+        ? completeSave(persisted.row || row)
+        : { ok: false, id, isNew, code: String(persisted?.code || "persistence-unconfirmed"), message: String(persisted?.message || "Сервер не подтвердил сохранение номенклатуры.") }
     ));
   }
+  if (isLegacyDirectoryWriteBlocked()) {
+    return { ok: false, id, isNew, code: "server-owner-required", message: legacyDirectoryWriteMessage };
+  }
+  ensureNomenclatureTypeExists(type);
+  directoryState.nomenclature = isNew
+    ? [...(directoryState.nomenclature || []), row]
+    : (directoryState.nomenclature || []).map((item) => item.id === id ? { ...item, ...row } : item);
+  replaceDirectoryState(normalizeDirectoryState(directoryState, { mergeFallback: false }));
   persistDirectoryState();
   return completeSave();
 }
@@ -919,6 +949,26 @@ async function deleteNomenclatureCommand(command = {}) {
   const item = getNomenclatureItem(itemId);
   if (!item) return { ok: false, code: "not-found", message: "Позиция номенклатуры не найдена." };
   const usage = getNomenclatureDeleteUsage(itemId);
+  if (command.requireDurable === true) {
+    const persisted = await persistNomenclatureDirectoryMutationDurably({
+      kind: "delete",
+      itemId,
+      expectedRow: command.expectedRow && typeof command.expectedRow === "object" && !Array.isArray(command.expectedRow)
+        ? JSON.parse(JSON.stringify(command.expectedRow))
+        : null,
+      idempotencyKey: String(command.idempotencyKey || ""),
+    });
+    if (persisted?.ok !== true) {
+      return { ok: false, id: itemId, code: String(persisted?.code || "persistence-unconfirmed"), message: String(persisted?.message || "Сервер не подтвердил удаление номенклатуры.") };
+    }
+    if (ui.activeNomenclatureId === itemId) ui.activeNomenclatureId = "";
+    persistUiState();
+    render();
+    return { ok: true, id: itemId, usage };
+  }
+  if (isLegacyDirectoryWriteBlocked()) {
+    return { ok: false, id: itemId, code: "server-owner-required", message: legacyDirectoryWriteMessage };
+  }
   const previousDirectoryState = JSON.parse(JSON.stringify(directoryState));
 
   const nextDirectoryState = deleteDirectoryStateRow("nomenclature", item);
@@ -1014,6 +1064,7 @@ function bindBomListsEvents() {
 }
 
 function saveSpecificationModuleForm(form) {
+  if (rejectLegacyDirectoryWrite()) return false;
   const data = new FormData(form);
   const isNew = data.get("isNew") === "yes";
   const id = isNew ? makeId("spec") : String(data.get("specificationId") || makeId("spec"));
@@ -1065,6 +1116,9 @@ function saveSpecificationModuleForm(form) {
 }
 
 function saveBomCommand(command = {}) {
+  if (isLegacyDirectoryWriteBlocked()) {
+    return { ok: false, code: "server-owner-required", message: "BOM доступен только для чтения: серверная команда ещё не подключена." };
+  }
   const isNew = command.isNew === true;
   const id = isNew ? makeId("bom") : String(command.bomId || "").trim();
   const previousBom = getBomList(id);
@@ -1136,6 +1190,9 @@ function saveBomModuleForm(form) {
 }
 
 function deleteBomCommand(command = {}) {
+  if (isLegacyDirectoryWriteBlocked()) {
+    return { ok: false, code: "server-owner-required", message: "BOM доступен только для чтения: серверная команда ещё не подключена." };
+  }
   const bomId = String(command.bomId || "").trim();
   const bom = getBomList(bomId);
   if (!bom) return { ok: false, code: "not-found", message: "Плата не найдена." };
@@ -1161,7 +1218,9 @@ function deleteBomCommand(command = {}) {
 }
 
 function deleteBomList(bomId) {
-  return deleteBomCommand({ bomId });
+  const result = deleteBomCommand({ bomId });
+  if (!result.ok) alert(result.message);
+  return result;
 }
 
 

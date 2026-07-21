@@ -8,11 +8,13 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
+APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
 PORT="${MES_PILOT_PORT:-4175}"
 DROPIN_FILE="/etc/systemd/system/${SERVICE}.service.d/71-react-nomenclature-write-evaluation.conf"
+SOURCE_FILE="${APP_DIR}/ops/frontend/mes-pilot-react-nomenclature-write-evaluation.conf"
 backup_dir="$(mktemp -d /root/.mes-react-nomenclature-write-deactivation.XXXXXX)"
 had_previous=0
-configuration_changed=0
+evaluation_permission_removed=0
 completed=0
 
 request_home() {
@@ -25,25 +27,30 @@ request_health() {
     -H 'Host: mes-internal' "http://127.0.0.1:${PORT}/healthz"
 }
 
-restore_on_failure() {
-  if [[ $completed -eq 1 || $configuration_changed -eq 0 ]]; then
+report_failure_backup() {
+  if [[ $completed -eq 1 ]]; then
     rm -rf "$backup_dir"
     return
   fi
-  if [[ $had_previous -eq 1 ]]; then
-    install -m 0644 "$backup_dir/previous.conf" "$DROPIN_FILE"
+  if [[ $evaluation_permission_removed -eq 1 && $had_previous -eq 1 ]]; then
+    echo "Managed React write-evaluation drop-in remains removed, but the OFF state was not proven. Exact former drop-in backup: $backup_dir/previous.conf" >&2
+    # Never restore a write-enabling evaluation permission during rollback.
+    trap - EXIT
+    return
   fi
-  systemctl daemon-reload
-  systemctl restart "$SERVICE" || true
   rm -rf "$backup_dir"
 }
-trap restore_on_failure EXIT
+trap report_failure_backup EXIT
 
 if [[ -f "$DROPIN_FILE" ]]; then
+  [[ -f "$SOURCE_FILE" ]] \
+    || { echo "Current release React Nomenclature write evaluation artifact is missing; refusing deletion." >&2; exit 1; }
+  cmp -s "$SOURCE_FILE" "$DROPIN_FILE" \
+    || { echo "Refusing to delete an unrecognized or operator-modified React Nomenclature write evaluation drop-in." >&2; exit 1; }
   cp -a "$DROPIN_FILE" "$backup_dir/previous.conf"
   had_previous=1
-  configuration_changed=1
   rm -f "$DROPIN_FILE"
+  evaluation_permission_removed=1
 fi
 systemctl daemon-reload
 systemctl restart "$SERVICE"
@@ -61,6 +68,8 @@ for attempt in $(seq 1 12); do
 done
 
 [[ $completed -eq 1 ]] \
-  || { echo "React Nomenclature write evaluation did not turn off cleanly; prior service configuration will be restored." >&2; exit 1; }
+  || { echo "React Nomenclature write evaluation permission was removed, but the OFF state was not proven. Do not roll back the release until service health is restored." >&2; exit 1; }
 
+rm -rf "$backup_dir"
+trap - EXIT
 echo "React Nomenclature write evaluation is disabled; every session uses legacy."

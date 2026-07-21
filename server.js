@@ -19,6 +19,10 @@ import {
 } from "./scripts/shared-state-storage.mjs";
 import { writeContourFavicon } from "./scripts/contour-favicon.mjs";
 import { handlePublicAuthRequest } from "./scripts/public-auth-guard.mjs";
+import { handleEmployeeAuthRequest } from "./scripts/employee-auth-endpoint.mjs";
+import { inspectEmployeeAuthSession } from "./scripts/employee-auth-guard.mjs";
+import { getCurrentNomenclatureAuthorization } from "./scripts/nomenclature-command-authorization.mjs";
+import { handleNomenclatureCommandRequest } from "./scripts/domain-nomenclature-command.mjs";
 import {
   assertSingleReactEvaluationPermission,
   getPublicReactRuntimePolicy,
@@ -192,6 +196,42 @@ createServer(async (req, res) => {
   }
 
   if (await handlePublicAuthRequest(req, res, url, noCacheHeaders)) {
+    return;
+  }
+
+  if (await handleEmployeeAuthRequest(req, res, url, {
+    headers: noCacheHeaders,
+  })) {
+    return;
+  }
+
+  if (await handleNomenclatureCommandRequest(req, res, url, {
+    env: process.env,
+    filePath: sharedStatePaths.filePath,
+    backupDir: sharedStatePaths.backupDir,
+    auditLogPath: sharedStatePaths.auditLogPath,
+    headers: noCacheHeaders,
+    getAuthorization: async () => {
+      const session = await inspectEmployeeAuthSession(req, process.env);
+      if (!session.principal) {
+        if ([
+          "employee-auth-not-configured",
+          "employee-auth-storage-not-configured",
+          "employee-auth-storage-unavailable",
+        ].includes(session.reason)) {
+          throw new Error("Employee authorization storage is unavailable");
+        }
+        return null;
+      }
+      const authorization = await getCurrentNomenclatureAuthorization(session.principal, {
+        databaseUrl: process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
+      });
+      if (!authorization.allowed && /(?:unavailable|not-configured)$/.test(String(authorization.reason || ""))) {
+        throw new Error("Current Nomenclature RBAC projection is unavailable");
+      }
+      return authorization;
+    },
+  })) {
     return;
   }
 

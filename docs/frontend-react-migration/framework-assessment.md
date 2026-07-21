@@ -1,12 +1,15 @@
 # Отчёт по фреймворкам и целевому стеку MES
 
 Дата: 2026-07-19
-Состояние: фактический код ветки `codex/frontend-react-migration`; на Pilot активен all-flags-off релиз `v.1.500.01-1a8a9a4`
+
+Актуализация: 2026-07-21
+
+Состояние: фактический код ветки `codex/frontend-react-migration`; на Pilot активен mixed-runtime релиз `v.1.500.21-8fb92d9` с двумя permanent read-only React-поверхностями
 
 | Компонент | Что используется сейчас | Статус | Что хорошо | Что плохо / риск | На что менять или как улучшить |
 | --- | --- | --- | --- | --- | --- |
-| Основной frontend | Vanilla JavaScript, ES modules, ручной HTML/DOM-рендеринг; рядом работают default-off React islands | 🟠 Переход идёт | Существующая бизнес-логика и legacy rollback сохранены; 24 read-сценария уже production-интегрированы и проверены локально в production shell | Legacy остаётся основным UI; состояние, DOM и события связаны вручную; соседние модули могут выглядеть по-разному | Переносить по одному вертикальному сценарию на React + TypeScript. Не делать big-bang rewrite |
-| React frontend | React 19.2.7 + React DOM 19.2.7 + TypeScript/TSX | 🟠 Встроен, выключен по умолчанию | Типизированные adapters, общий lifecycle, error fallback и переиспользуемые представления; Pilot уже принял 20 из 24 read-сценариев, а локальная command parity завершена для 22 сценариев | Четыре read-сценария ещё не приняты на Pilot: непустая Nomenclature, Boards/BOM, непустые Responsibility Policies и Contour Admin на mapped host; большинство экранов пока default-off/legacy | Оставить целевым frontend-стеком. Продолжать по одному пользовательскому сценарию, сохраняя session gate и мгновенный legacy rollback |
+| Основной frontend | Vanilla JavaScript, ES modules, ручной HTML/DOM-рендеринг; рядом работают evaluation React islands и две permanent read-only surfaces | 🟠 Переход идёт | Существующая бизнес-логика и immutable legacy rollback сохранены; 24 read-сценария production-интегрированы и проверены локально, два — постоянно на Pilot | Legacy остаётся основным UI для большинства маршрутов; состояние, DOM и события связаны вручную; соседние модули могут выглядеть по-разному | Переносить по одному вертикальному сценарию на React + TypeScript. Не делать big-bang rewrite |
+| React frontend | React 19.2.7 + React DOM 19.2.7 + TypeScript/TSX | 🟠 Встроен; mixed runtime | Типизированные adapters, общий lifecycle, error fallback и переиспользуемые представления; historical Pilot read acceptance — 21/24, current-release/permanent — 2/24, локальная command parity завершена для 22 сценариев | Historical read ещё не принят для Boards/BOM, непустых Responsibility Policies и Contour Admin на mapped host; 22 сценария ещё не permanent, большинство экранов legacy-default | Оставить React + TypeScript целевым frontend-стеком. Продолжать по одному пользовательскому сценарию, сохраняя owner contracts и immutable legacy rollback |
 | Модульная система | Собственный реестр MES-модулей и runtime-контракты | 🟠 Оставить на переходный период | Реестр хранит права, навигацию, lazy loading, владельцев runtime и rollback независимо от способа рендера | Самописный runtime требует поддержки; нельзя одновременно менять его, экран и бизнес-команды без роста риска | Сохранять реестр как конфигурационный слой, а рендер постепенно отдавать React. React Router сейчас не нужен и не внедрён |
 | UI Kit | Собственные React-примитивы `OperationalPage`, `ModuleHeader`, `Panel`, `MetricGrid`, `StatusToken`, `ActionButton` и MES CSS-контракты | 🟢 Выбран целевой подход | Сохраняет производственный язык интерфейса и уже унифицирует разнородные islands без внешней дизайн-системы; Pilot подтвердил контракт KPI, панели и действий на сложном Gantt-экране | Пока не покрывает все редакторы и сложные таблицы; возможны локальные исключения | Развивать собственную typed design system и токены. Не подключать MUI, Ant, Bootstrap или Blueprint как второй визуальный язык |
 | Blueprint UI | Не установлен и не используется; существующие в коде `module_blueprint` — внутренние контракты MES, а не библиотека Blueprint UI | ⚪ Закрыто: в системе не будет | Изолированный PoC позволил оценить готовые сложные компоненты | Чужой визуальный язык, дополнительная зависимость и отсутствие решения архитектурных проблем; смешение с legacy ухудшило бы согласованность | Не переносить PoC в продукт и исключить Blueprint UI из целевой архитектуры. Внутренний MES-термин `module_blueprint` не связан с этим решением |
@@ -38,8 +41,9 @@
 
 ## Что ещё не завершено
 
-- authenticated Pilot read-only QA четырёх оставшихся islands и отдельное
-  решение о default-on для уже принятых срезов;
+- historical authenticated Pilot read-only QA для Boards/BOM,
+  непустых Responsibility Policies и Contour Admin, fresh same-release
+  acceptance остальных сценариев и отдельные permanent-решения;
 - перенос оставшихся write-команд по указанным в command-parity matrix
   вертикальным срезам; Nomenclature, Component Types и Nomenclature Types уже
   имеют локальный create/edit/delete default-off контур;

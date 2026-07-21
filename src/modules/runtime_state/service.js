@@ -6,6 +6,10 @@ import {
   hasSharedUiPatchChanges,
   rebaseSharedUiAfterFullWrite,
 } from "./shared_ui_delta.js";
+import {
+  applyNomenclatureDirectoryMutation,
+  parseCompleteDirectoryProjection,
+} from "../nomenclature/durable_directory_mutation.js";
 
 export function createRuntimeStateServiceModule(dependencies = {}) {
   const {
@@ -45,12 +49,14 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     alignGanttWindowToPlan,
     appendLocalDataSafetyAudit,
     createDefaultPlanningState,
+    executeNomenclatureServerCommand = async () => ({ ok: false, status: 0, code: "owner-unavailable", error: "Nomenclature command owner is unavailable" }),
     getActiveInterfaceRole,
     getBootstrapSnapshotCountsFromState,
     isMeaningfulBootstrapSnapshotCounts,
     isUsableBootstrapSnapshotPayload,
     isShiftExecutionServerAuthoritative = () => false,
     isSystemDomainsServerAuthoritative = () => false,
+    isNomenclatureServerCommandsPrimary = () => false,
     loadUiState,
     measureBootStep,
     mergeMesWorkCenters,
@@ -79,6 +85,7 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     persistUiState,
     publishBootPerformance,
     reloadSystemDomainsState,
+    refreshNomenclatureReactProjection = () => false,
     render,
     sharedStateStatus,
     shouldPreferBundledBootstrapSnapshotPayload,
@@ -100,6 +107,9 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
   let planningEntityRemovalAllowed = dependencies.getPlanningEntityRemovalAllowed?.() ?? false;
   let planningSnapshotFallbackPromise = null;
   let sharedStateValueProjectionEpoch = 0;
+  let nomenclatureDurableMutationInFlight = false;
+  const nomenclatureCommandAttemptRevisions = new Map();
+  const LEGACY_DIRECTORY_WRITE_BLOCK_MESSAGE = "Изменение не сохранено: для этого раздела ещё не подключена серверная команда. Локальные данные восстановлены.";
 
   function syncRuntimeState() {
     ui = dependencies.getUi?.() ?? ui ?? {};
@@ -480,7 +490,14 @@ function getSharedStateValues() {
     ui.ganttDependencyRouteDrafts = null;
     ui.ganttDependencyDrag = null;
 
-    sharedStateStatus.version = Number(snapshot.version || 0);
+    // Requests with different projections can finish out of order. Never let
+    // a late metadata/full response move the global revision backwards; a
+    // regressed watermark suppresses the exact module re-fetch for the newer
+    // server revision.
+    sharedStateStatus.version = Math.max(
+      Number(sharedStateStatus.version || 0),
+      Number(snapshot.version || 0),
+    );
     // Retain the actual remote source even when a local pending UI write is
     // intentionally preserved. Its delta must later merge with this source,
     // not overwrite it with the entire stale local UI object.
@@ -492,7 +509,7 @@ function getSharedStateValues() {
     // Commit before rendering so the application renderer sees the fresh state.
     commitRuntimeState();
     if (appBootstrapped) {
-      render({ skipRememberScroll: true });
+      if (!refreshNomenclatureReactProjection()) render({ skipRememberScroll: true });
       if (options.notify === true && !options.silent) notifySaveSuccess("Общее состояние стейджа обновлено");
     }
     return true;
@@ -587,30 +604,57 @@ async function requestSharedState(method = "GET", payload = null, options = {}) 
   }
 }
 
-  async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false } = {}) {
-    const requestedKeys = [...new Set((valueKeys || []).filter((key) => SHARED_STATE_VALUE_KEYS.includes(key)))];
-    if (!requestedKeys.length || (!sharedStateStatus.enabled && !allowBeforeInitialSync)) return false;
-    try {
-      const snapshot = await requestSharedState("GET", null, { valueKeys: requestedKeys });
-      if (snapshot.configured === false || !snapshot.values) return false;
-      const systemDomainsSnapshotRetired = rememberSystemDomainsPrimaryTombstone(snapshot.values);
-      writeSharedStateValues(snapshot.values);
-      if (systemDomainsSnapshotRetired) onSystemDomainsSnapshotRetired(snapshot);
+function rememberSharedStateValueHydration(valueKeys = [], version = 0) {
+  const nextVersion = Number(version || 0);
+  if (!Number.isFinite(nextVersion) || nextVersion <= 0) return;
+  const versions = sharedStateStatus.valueHydrationVersions && typeof sharedStateStatus.valueHydrationVersions === "object"
+    ? sharedStateStatus.valueHydrationVersions
+    : {};
+  valueKeys.forEach((key) => { versions[key] = Math.max(Number(versions[key] || 0), nextVersion); });
+  sharedStateStatus.valueHydrationVersions = versions;
+}
+
+async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false, throwOnError = false } = {}) {
+  const requestedKeys = [...new Set((valueKeys || []).filter((key) => SHARED_STATE_VALUE_KEYS.includes(key)))];
+  if (!requestedKeys.length || (!sharedStateStatus.enabled && !allowBeforeInitialSync)) return false;
+  try {
+    const snapshot = await requestSharedState("GET", null, { valueKeys: requestedKeys });
+    if (snapshot.configured === false || !snapshot.values) return false;
+    if (allowBeforeInitialSync) {
+      // A targeted permanent-surface read can race the initial metadata
+      // handshake. Its successful response already proves the same shared
+      // owner is configured, so expose that authority before the surface is
+      // allowed to render or execute a durable command.
+      sharedStateStatus.configured = true;
+      sharedStateStatus.enabled = true;
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        Number(snapshot.version || 0),
+      );
+    }
+    const systemDomainsSnapshotRetired = rememberSystemDomainsPrimaryTombstone(snapshot.values);
+    writeSharedStateValues(snapshot.values);
+    if (systemDomainsSnapshotRetired) onSystemDomainsSnapshotRetired(snapshot);
     // This is intentionally not a revision acknowledgement: a projected read
     // may race with a complete snapshot update, which the next normal poll
     // must still reconcile in full.
     const hydrated = requestedKeys.some((key) => Object.prototype.hasOwnProperty.call(snapshot.values, key));
+    rememberSharedStateValueHydration(
+      requestedKeys.filter((key) => Object.prototype.hasOwnProperty.call(snapshot.values, key)),
+      snapshot.version,
+    );
     if (hydrated && requestedKeys.includes(SYSTEM_DOMAINS_STORAGE_KEY)) {
       sharedStateStatus.systemDomainsCompatibilityHydrated = true;
     }
     return hydrated;
   } catch (error) {
     console.warn("[MES] Deferred shared-state values are not available", error);
+    if (throwOnError) throw error;
     return false;
   }
 }
 
-  async function hydratePlanningSnapshotFallback() {
+async function hydratePlanningSnapshotFallback() {
     // A compact workbench aggregate can be unavailable during a mixed-version
     // deployment or an API outage. Promote the established compatibility
     // projection through the runtime service, rather than merely writing it
@@ -658,10 +702,36 @@ async function requestSharedState(method = "GET", payload = null, options = {}) 
       planningSnapshotFallbackPromise = null;
     });
     return planningSnapshotFallbackPromise;
-  }
+}
 
 function isCompactSharedUiReason(reason = "") {
   return reason === "shared-ui" || reason === "local-shared-ui";
+}
+
+function isDirectoryStateReason(reason = "") {
+  const value = String(reason || "");
+  return value === "snapshot"
+    || value === "initial-state"
+    || value === "initial-bootstrap-snapshot"
+    || value === "startup-local-mutation"
+    || value.startsWith("directory-state")
+    || value.startsWith("directory-removal")
+    || value.startsWith("nomenclature-save")
+    || value.startsWith("nomenclature-delete");
+}
+
+function getSharedStateValuesForReason(reason = "snapshot") {
+  const values = getSharedStateValues();
+  if (isDirectoryStateReason(reason) && !isNomenclatureServerCommandsPrimary()) return values;
+  // An unrelated generic write (Planning, System Domains, shared module
+  // state) must not carry the last locally hydrated directory projection. A
+  // Nomenclature server-command primary must also strip it from explicit
+  // directory reasons: otherwise a generic shared-state POST could overwrite
+  // an acknowledged command projection with a stale browser copy.
+  delete values[DIRECTORY_STORAGE_KEY];
+  delete values[DIRECTORY_DEFAULTS_STORAGE_KEY];
+  delete values[DIRECTORY_DELETED_ENTITIES_STORAGE_KEY];
+  return values;
 }
 
 function scheduleSharedStatePush(reason = "snapshot") {
@@ -672,6 +742,10 @@ function scheduleSharedStatePush(reason = "snapshot") {
   // available only after boot, while the initial GET completes first.
   if (!sharedStateStatus.configured && !sharedStateStatus.enabled) return;
   const requestedReason = String(reason || "").trim() || sharedStateStatus.pendingReason || "snapshot";
+  if (nomenclatureDurableMutationInFlight) {
+    sharedStateStatus.pendingReason = requestedReason;
+    return;
+  }
   const pendingReason = String(sharedStateStatus.pendingReason || "");
   // A UI preference must never downgrade a real domain mutation that is
   // already queued for persistence.  The reverse is safe: the full snapshot
@@ -679,7 +753,11 @@ function scheduleSharedStatePush(reason = "snapshot") {
   const keepsQueuedFullWrite = isCompactSharedUiReason(requestedReason)
     && pendingReason
     && (sharedStateStatus.pendingWriteMode === "full" || !isCompactSharedUiReason(pendingReason));
-  sharedStateStatus.pendingReason = keepsQueuedFullWrite ? pendingReason : requestedReason;
+  const keepsQueuedDirectoryWrite = isDirectoryStateReason(pendingReason)
+    && !isDirectoryStateReason(requestedReason);
+  sharedStateStatus.pendingReason = keepsQueuedFullWrite || keepsQueuedDirectoryWrite
+    ? pendingReason
+    : requestedReason;
   const compactSharedUi = isCompactSharedUiReason(sharedStateStatus.pendingReason)
     && sharedStateStatus.sharedUiBase !== null;
   sharedStateStatus.pendingWriteMode = compactSharedUi ? "shared-ui" : "full";
@@ -687,7 +765,9 @@ function scheduleSharedStatePush(reason = "snapshot") {
   // preference used to serialize the whole multi-megabyte compatibility
   // snapshot on every interaction despite changing none of those values.
   const pendingSharedUiFull = getSharedUiSnapshot();
-  sharedStateStatus.pendingValues = compactSharedUi ? null : getSharedStateValues();
+  sharedStateStatus.pendingValues = compactSharedUi
+    ? null
+    : getSharedStateValuesForReason(sharedStateStatus.pendingReason);
   sharedStateStatus.pendingSharedUi = compactSharedUi
     ? getSharedUiPatch(sharedStateStatus.sharedUiBase, pendingSharedUiFull)
     : pendingSharedUiFull;
@@ -795,6 +875,10 @@ function mergeSharedStateConflictValues(remoteValues = {}, localValues = {}) {
 
 async function pushSharedState(reason = "snapshot", options = {}) {
   if (!sharedStateStatus.enabled || sharedStateApplyingRemote) return false;
+  if (nomenclatureDurableMutationInFlight) {
+    sharedStateStatus.pendingReason = String(reason || "snapshot");
+    return false;
+  }
   if (sharedStateStatus.saveInFlight) {
     sharedStateStatus.pendingReason = reason;
     return false;
@@ -808,7 +892,9 @@ async function pushSharedState(reason = "snapshot", options = {}) {
   sharedStateStatus.pendingWriteMode = "";
   let compactSharedUi = pendingWriteMode === "shared-ui" && isCompactSharedUiReason(reason);
   const compactValueAcknowledgement = options.compactValueAcknowledgement === true && !compactSharedUi;
-  let pendingValues = compactSharedUi ? {} : (sharedStateStatus.pendingValues || getSharedStateValues());
+  let pendingValues = compactSharedUi
+    ? {}
+    : (sharedStateStatus.pendingValues || getSharedStateValuesForReason(reason));
   let pendingSharedUi = sharedStateStatus.pendingSharedUi || getSharedUiSnapshot();
   const pendingSharedUiFull = sharedStateStatus.pendingSharedUiFull || (compactSharedUi ? getSharedUiSnapshot() : pendingSharedUi);
 
@@ -858,9 +944,12 @@ async function pushSharedState(reason = "snapshot", options = {}) {
     // an empty compact request into.  Fall back once to the established full
     // snapshot path instead of dropping the UI preference.
     if (compactSharedUi && response.compactAckUnavailable === true) {
-      sharedStateStatus.version = Number(response.current?.version || sharedStateStatus.version);
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        Number(response.current?.version || 0),
+      );
       compactSharedUi = false;
-      pendingValues = getSharedStateValues();
+      pendingValues = getSharedStateValuesForReason(reason);
       pendingSharedUi = pendingSharedUiFull;
       response = await requestSharedState("POST", {
         baseVersion: sharedStateStatus.version,
@@ -880,7 +969,10 @@ async function pushSharedState(reason = "snapshot", options = {}) {
         silent: true,
         allowSharedUiOnly: true,
       });
-      sharedStateStatus.version = Number(response.current.version || sharedStateStatus.version);
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        Number(response.current.version || 0),
+      );
       return false;
     }
 
@@ -888,12 +980,20 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       // The local payload was captured before debounce and is still the user's
       // intended mutation. Retry once against the server's current version
       // instead of immediately replacing it with the older remote snapshot.
-      sharedStateStatus.version = Number(response.current.version || sharedStateStatus.version);
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        Number(response.current.version || 0),
+      );
       const retryValues = compactSharedUi
         ? {}
         : compactValueAcknowledgement
           ? pendingValues
           : mergeSharedStateConflictValues(response.current.values || {}, pendingValues);
+      if (!Object.prototype.hasOwnProperty.call(pendingValues, DIRECTORY_STORAGE_KEY)) {
+        delete retryValues[DIRECTORY_STORAGE_KEY];
+        delete retryValues[DIRECTORY_DEFAULTS_STORAGE_KEY];
+        delete retryValues[DIRECTORY_DELETED_ENTITIES_STORAGE_KEY];
+      }
       // A domain write still carries the legacy complete UI projection for
       // compatibility. On conflict, however, turn its local UI change into
       // the same entry-level patch used by a compact UI write. Otherwise a
@@ -926,9 +1026,12 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       // the missing domain baseline on this retry. Recover it through the
       // complete legacy write instead of abandoning the user preference.
       if (compactSharedUi && response.compactAckUnavailable === true) {
-        sharedStateStatus.version = Number(response.current?.version || sharedStateStatus.version);
+        sharedStateStatus.version = Math.max(
+          Number(sharedStateStatus.version || 0),
+          Number(response.current?.version || 0),
+        );
         compactSharedUi = false;
-        pendingValues = getSharedStateValues();
+        pendingValues = getSharedStateValuesForReason(reason);
         pendingSharedUi = pendingSharedUiFull;
         response = await requestSharedState("POST", {
           baseVersion: sharedStateStatus.version,
@@ -983,7 +1086,22 @@ async function pushSharedState(reason = "snapshot", options = {}) {
 
     if (response.ok) {
       sharedStateStatus.configured = true;
-      sharedStateStatus.version = Number(response.version || sharedStateStatus.version);
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        Number(response.version || 0),
+      );
+      const acknowledgedDirectory = Object.prototype.hasOwnProperty.call(pendingValues, DIRECTORY_STORAGE_KEY);
+      if (acknowledgedDirectory) {
+        rememberSharedStateValueHydration([DIRECTORY_STORAGE_KEY], sharedStateStatus.version);
+      } else if (Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0) < sharedStateStatus.version) {
+        // The metadata/global revision moved without a Directory payload.
+        // Re-render after this write releases its in-flight guard; permanent
+        // Nomenclature will detect the stale watermark and issue an exact GET.
+        window.setTimeout(() => {
+          syncRuntimeState();
+          if (appBootstrapped && !refreshNomenclatureReactProjection()) render({ skipRememberScroll: true });
+        }, 0);
+      }
       let hasUnsavedSharedUiChanges = false;
       if (compactSharedUi || compactValueAcknowledgement) {
         sharedStateStatus.sharedUiBase = acknowledgeSharedUiPatch(
@@ -1037,6 +1155,7 @@ async function pollSharedState() {
   const onlySharedUiPending = pendingReason === "shared-ui" || pendingReason === "local-shared-ui";
   if (
     !sharedStateStatus.enabled
+    || nomenclatureDurableMutationInFlight
     || sharedStateStatus.pollInFlight
     || sharedStateStatus.saveInFlight
     || (sharedStateStatus.saveTimer && !onlySharedUiPending)
@@ -1055,13 +1174,38 @@ async function pollSharedState() {
       systemDomainsCompatibilityStatus: true,
       ...(metadataOnly ? { emptyProjection: true } : {}),
     });
+    const version = Number(snapshot.version || 0);
+    sharedStateStatus.latestObservedVersion = Math.max(
+      Number(sharedStateStatus.latestObservedVersion || 0),
+      version,
+    );
     await observeSystemDomainsCompatibilityStatus(snapshot);
+    if (appBootstrapped
+      && ui?.activeModule === "nomenclature"
+      && version > Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0)
+      && version <= Number(sharedStateStatus.version || 0)) {
+      // Another projected read performed while observing this metadata may
+      // already have advanced the global revision. The normal `version >`
+      // branch below will then be skipped, so explicitly publish a render for
+      // the still-stale Directory watermark.
+      if (!refreshNomenclatureReactProjection()) render({ skipRememberScroll: true });
+    }
     // A metadata-only request may have started just before Planning promoted
     // itself to a full compatibility projection. Its late response has no
     // route/step/slot values, so it must never advance the version after the
     // full snapshot was applied; otherwise the next full poll could receive
     // 304 and retain stale planning data.
-    if (metadataOnly && valueProjectionEpoch !== sharedStateValueProjectionEpoch) return;
+    if (metadataOnly && valueProjectionEpoch !== sharedStateValueProjectionEpoch) {
+      // Keep Planning's full-projection version gate intact, but do not lose
+      // the independent Directory watermark observed by an active permanent
+      // Nomenclature surface while the projection mode changed in flight.
+      if (appBootstrapped
+        && ui?.activeModule === "nomenclature"
+        && version > Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0)) {
+        if (!refreshNomenclatureReactProjection()) render({ skipRememberScroll: true });
+      }
+      return;
+    }
     if (snapshot.configured === false) {
       sharedStateStatus.enabled = false;
       sharedStateStatus.configured = false;
@@ -1069,7 +1213,6 @@ async function pollSharedState() {
       window.clearInterval(sharedStateStatus.pollTimer);
       return;
     }
-    const version = Number(snapshot.version || 0);
     if (!snapshot.unchanged && version > sharedStateStatus.version) {
       const preserveLocalSharedUi = shouldPreserveLocalSharedUi();
       applySharedStateSnapshot(snapshot, {
@@ -1177,7 +1320,10 @@ async function startSharedStateSync() {
     forgetSharedStateDisabled();
     sharedStateStatus.configured = true;
     sharedStateStatus.enabled = true;
-    sharedStateStatus.version = Number(snapshot.version || 0);
+    sharedStateStatus.version = Math.max(
+      Number(sharedStateStatus.version || 0),
+      Number(snapshot.version || 0),
+    );
 
     if (snapshot.version > 0 && snapshot.values) {
       const preserveLocalSharedUi = shouldPreserveLocalSharedUi();
@@ -1412,6 +1558,11 @@ function startRuntimeApplication() {
     }
   }
   appBootstrapped = true;
+  // Publish the boot flag before starting the asynchronous shared-state
+  // bootstrap. Its first syncRuntimeState() reads through the application
+  // facade; without this commit it observes the old false value and can keep
+  // all later remote renders disabled even though the first frame is visible.
+  commitRuntimeState();
   const bootOverlay = document.querySelector("[data-mes-boot-overlay]");
   if (bootOverlay) {
     bootOverlay.classList.remove("is-visible");
@@ -1918,8 +2069,192 @@ function withPlanningEntityRemovalAllowed(callback) {
   }
 }
 
+function applyAuthoritativeNomenclatureProjection(projection = null) {
+  const revision = Number(projection?.revision);
+  if (!Number.isSafeInteger(revision) || revision <= 0) {
+    return { ok: false, code: "invalid-directory-projection", message: "Серверная команда не вернула действующую ревизию Номенклатуры." };
+  }
+  const currentHydrationRevision = Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0);
+  if (revision < currentHydrationRevision) {
+    return { ok: false, code: "stale-directory-projection", message: "Серверная команда вернула устаревшую проекцию Номенклатуры." };
+  }
+  let rawDirectory;
+  try { rawDirectory = JSON.stringify(projection.directory); }
+  catch { return { ok: false, code: "invalid-directory-projection", message: "Серверная проекция Номенклатуры не сериализуется." }; }
+  const parsed = parseCompleteDirectoryProjection(rawDirectory, Object.keys(createDefaultDirectoryState()));
+  if (!parsed.ok) return parsed;
+
+  directoryState = parsed.directory;
+  localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryState));
+  sharedStateStatus.configured = true;
+  sharedStateStatus.enabled = true;
+  sharedStateStatus.version = Math.max(Number(sharedStateStatus.version || 0), revision);
+  sharedStateStatus.latestObservedVersion = Math.max(
+    Number(sharedStateStatus.latestObservedVersion || 0),
+    revision,
+  );
+  rememberSharedStateValueHydration([DIRECTORY_STORAGE_KEY], revision);
+  commitRuntimeState();
+  return { ok: true, version: revision, directoryState };
+}
+
+function getNomenclatureCommandExpectedRevision(intent = {}) {
+  const idempotencyKey = String(intent.idempotencyKey || "").trim();
+  if (!idempotencyKey) {
+    return { ok: false, code: "idempotency-key-required", message: "Повторяемая серверная команда требует ключ идемпотентности." };
+  }
+  if (nomenclatureCommandAttemptRevisions.has(idempotencyKey)) {
+    return { ok: true, idempotencyKey, revision: nomenclatureCommandAttemptRevisions.get(idempotencyKey) };
+  }
+  const revision = Number(sharedStateStatus.valueHydrationVersions?.[DIRECTORY_STORAGE_KEY] || 0);
+  if (!Number.isSafeInteger(revision) || revision <= 0) {
+    return { ok: false, code: "invalid-directory-projection", message: "Нет подтверждённой серверной ревизии Номенклатуры. Обновите модуль." };
+  }
+  nomenclatureCommandAttemptRevisions.set(idempotencyKey, revision);
+  return { ok: true, idempotencyKey, revision };
+}
+
+function getNomenclatureServerCommandFailure(result = null) {
+  if (result?.conflict) {
+    return { ok: false, code: "version-conflict", message: "Номенклатура изменилась в другом сеансе. Экран обновлён; повторите команду." };
+  }
+  if (result?.authenticationRequired) {
+    return { ok: false, code: "employee-session-required", message: "Серверная сессия сотрудника завершена. Выполните вход повторно." };
+  }
+  if (result?.authorizationDenied || result?.category === "authorization") {
+    return { ok: false, code: String(result?.code || "write-forbidden"), message: String(result?.message || result?.error || "У сотрудника нет права изменить Номенклатуру.") };
+  }
+  if (result?.unavailable || Number(result?.status || 0) === 0) {
+    return { ok: false, code: String(result?.code || "owner-unavailable"), message: String(result?.message || result?.error || "Сервер Номенклатуры временно недоступен. Локальные данные не изменены.") };
+  }
+  return { ok: false, code: String(result?.code || "persistence-unconfirmed"), message: String(result?.message || result?.error || "Сервер не подтвердил команду Номенклатуры.") };
+}
+
+async function persistNomenclatureServerCommandDurably(intent = {}) {
+  const attempt = getNomenclatureCommandExpectedRevision(intent);
+  if (!attempt.ok) return attempt;
+  const result = await executeNomenclatureServerCommand(intent, attempt.revision);
+  // A transport failure may mean that the command reached the server but its
+  // response was lost. Preserve both Idempotency-Key and If-Match revision for
+  // an unchanged retry. Any actual HTTP response is definitive and lets the
+  // next edited draft start from the latest hydrated revision.
+  if (Number(result?.status || 0) > 0) {
+    nomenclatureCommandAttemptRevisions.delete(attempt.idempotencyKey);
+  }
+  if (result?.ok === true) {
+    const applied = applyAuthoritativeNomenclatureProjection(result.projection);
+    if (!applied.ok) return applied;
+    if (result.superseded === true) {
+      return {
+        ok: false,
+        code: "command-superseded",
+        message: "Команда была подтверждена ранее, но эта позиция уже снова изменилась. Показано текущее серверное состояние; проверьте его перед новой командой.",
+      };
+    }
+    const row = intent.kind === "delete"
+      ? null
+      : (applied.directoryState.nomenclature || []).find((entry) => String(entry?.id || "") === String(intent.itemId || intent.row?.id || "")) || null;
+    return { ...applied, row, replayed: result.replayed === true, superseded: result.superseded === true };
+  }
+  if (result?.conflict && result.projection) {
+    // The trusted strong-ETag projection may safely refresh the UI, but the
+    // command itself remains failed and must never be reported as success.
+    const applied = applyAuthoritativeNomenclatureProjection(result.projection);
+    if (!applied.ok) return applied;
+  }
+  return getNomenclatureServerCommandFailure(result);
+}
+
+async function persistNomenclatureDirectoryMutationDurably(intent = {}) {
+  if (nomenclatureDurableMutationInFlight) {
+    return { ok: false, code: "mutation-busy", message: "Другая защищённая команда номенклатуры ещё выполняется." };
+  }
+  const waitDeadline = Date.now() + 5_000;
+  while ((sharedStateStatus.saveInFlight
+    || sharedStateStatus.pollInFlight
+    || sharedStateStatus.saveTimer
+    || sharedStateStatus.pendingReason) && Date.now() < waitDeadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 25));
+  }
+  if (sharedStateStatus.saveInFlight
+    || sharedStateStatus.pollInFlight
+    || sharedStateStatus.saveTimer
+    || sharedStateStatus.pendingReason) {
+    return { ok: false, code: "mutation-busy", message: "Фоновая синхронизация не завершилась за 5 секунд. Повторите команду." };
+  }
+
+  nomenclatureDurableMutationInFlight = true;
+  try {
+    if (isNomenclatureServerCommandsPrimary()) {
+      return await persistNomenclatureServerCommandDurably(intent);
+    }
+    const snapshot = await requestSharedState("GET", null, { valueKeys: [DIRECTORY_STORAGE_KEY] });
+    if (snapshot.configured === false) {
+      return { ok: false, code: "owner-unavailable", message: "Общее хранилище не настроено." };
+    }
+    const baseVersion = Number(snapshot.version || 0);
+    if (!Number.isFinite(baseVersion) || baseVersion <= 0) {
+      return { ok: false, code: "invalid-directory-projection", message: "Сервер не вернул действующую ревизию справочников." };
+    }
+    const rawDirectory = snapshot.values?.[DIRECTORY_STORAGE_KEY];
+    const projection = parseCompleteDirectoryProjection(rawDirectory, Object.keys(createDefaultDirectoryState()));
+    if (!projection.ok) return projection;
+    const mutation = applyNomenclatureDirectoryMutation(projection.directory, intent);
+    if (!mutation.ok) return mutation;
+
+    const response = await requestSharedState("POST", {
+      baseVersion,
+      clientId: getSharedStateClientId(),
+      actor: getSharedStateActorLabel(),
+      action: intent.kind === "delete" ? "nomenclature-delete" : "nomenclature-save",
+      responseMode: "ack",
+      values: { [DIRECTORY_STORAGE_KEY]: JSON.stringify(mutation.directory) },
+      sharedUiPatch: { maps: {}, replace: {} },
+    });
+    if (response.conflict === true) {
+      return { ok: false, code: "version-conflict", message: "Справочники изменились во время сохранения. Данные не записаны; обновите модуль и повторите команду." };
+    }
+    if (response.ok !== true) {
+      return { ok: false, code: "persistence-unconfirmed", message: String(response.error || "Сервер не подтвердил запись номенклатуры.") };
+    }
+    const acknowledgedVersion = Number(response.version || 0);
+    if (!Number.isFinite(acknowledgedVersion) || acknowledgedVersion <= baseVersion) {
+      return { ok: false, code: "persistence-unconfirmed", message: "Сервер не подтвердил новую ревизию номенклатуры." };
+    }
+
+    // The acknowledged projection is already the strictly validated fresh
+    // server snapshot plus one intent. Do not run backup restoration,
+    // fallback/default merging or deletion tombstones across that authority.
+    directoryState = mutation.directory;
+    localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryState));
+    sharedStateStatus.configured = true;
+    sharedStateStatus.enabled = true;
+    sharedStateStatus.version = Math.max(
+      Number(sharedStateStatus.version || 0),
+      acknowledgedVersion,
+    );
+    rememberSharedStateValueHydration([DIRECTORY_STORAGE_KEY], acknowledgedVersion);
+    commitRuntimeState();
+    return { ok: true, version: acknowledgedVersion, directoryState, row: mutation.row };
+  } catch (error) {
+    return { ok: false, code: "persistence-unconfirmed", message: `Серверная запись недоступна: ${error?.message || String(error)}` };
+  } finally {
+    nomenclatureDurableMutationInFlight = false;
+    const deferredReason = String(sharedStateStatus.pendingReason || "");
+    if (deferredReason) {
+      sharedStateStatus.pendingReason = "";
+      // A generic write scheduled while the protected command was in flight
+      // may still carry a snapshot captured before the acknowledgement. Drop
+      // that payload and let scheduleSharedStatePush recapture the now-current
+      // acknowledged state instead of replaying stale Nomenclature data.
+      sharedStateStatus.pendingValues = null;
+      scheduleSharedStatePush(deferredReason);
+    }
+  }
+}
+
 async function persistDirectoryStateDurably(reason = "directory-state") {
-  persistDirectoryState();
+  if (persistDirectoryState() === false) return LEGACY_DIRECTORY_WRITE_BLOCK_MESSAGE;
   // A compact UI acknowledgement or a poll may already be using the shared
   // state transport. Wait for that read/write to settle, then push the exact
   // directory projection immediately. React command surfaces must not report
@@ -1943,7 +2278,10 @@ async function persistDirectoryStateDurably(reason = "directory-state") {
       if (!Number.isFinite(baselineVersion) || baselineVersion <= 0) {
         return "Сервер не вернул действующую ревизию общего состояния.";
       }
-      sharedStateStatus.version = baselineVersion;
+      sharedStateStatus.version = Math.max(
+        Number(sharedStateStatus.version || 0),
+        baselineVersion,
+      );
       if (sharedStateStatus.sharedUiBase === null) {
         sharedStateStatus.sharedUiBase = cloneSharedUiSnapshot(baseline.sharedUi || {});
       }
@@ -2042,6 +2380,19 @@ function isSameNumericValue(left, right, precision = 0.000001) {
 function persistDirectoryState() {
   const previousRaw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
   const previousState = parseDirectoryStateSnapshot(previousRaw);
+  if (isNomenclatureServerCommandsPrimary()) {
+    // Directory is still a monolithic compatibility blob. Once Nomenclature
+    // commands are primary, a generic save cannot prove that its local copy
+    // includes the latest command-owned rows (or unlink side effects in BOM
+    // and specifications). Roll back the in-memory mutation and fail visibly
+    // until that section has its own owner command; never report a local-only
+    // success or overwrite a newer Nomenclature projection.
+    if (previousState) {
+      directoryState = previousState;
+      commitRuntimeState();
+    }
+    return false;
+  }
   if (previousRaw) backupRawDirectoryState("before-directory-persist", previousRaw);
   if (previousState && !directoryEntityRemovalAllowed) {
     directoryState = preserveCriticalDirectoryEntities(previousState, directoryState);
@@ -2049,6 +2400,7 @@ function persistDirectoryState() {
   directoryState = omitDeletedCriticalDirectoryEntities(directoryState);
   localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryState));
   scheduleSharedStatePush("directory-state");
+  return true;
 }
 
 let planningCoreService = {};
@@ -2117,6 +2469,7 @@ let planningCoreService = {};
     withPlanningEntityRemovalAllowed,
     persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
+    persistNomenclatureDirectoryMutationDurably,
     loadDirectoryState,
     ensureStatusDirectoryDefaults,
     isSameNumericValue,

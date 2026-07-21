@@ -22,6 +22,11 @@ const sourcePolicyText = await readFile(policyPath, "utf8");
 const ledger = JSON.parse(await readFile(join(projectRoot, "experiments", "react-migration", "cutover-ledger.json"), "utf8"));
 const commandScenarioIds = ledger.scenarioAcceptance.map((scenario) => scenario.id).sort();
 assert.deepEqual([...REACT_RUNTIME_SURFACE_IDS].sort(), commandScenarioIds, "runtime policy must cover the same 24 production scenarios as the cutover ledger");
+const acceptedSurfaceIds = ledger.scenarioAcceptance.filter((scenario) => scenario.defaultOn).map((scenario) => scenario.id).sort();
+const evidenceAcceptedSurfaceIds = [...(ledger.permanentPilotEvidence?.reactSurfaces || [])].sort();
+assert.deepEqual(acceptedSurfaceIds, evidenceAcceptedSurfaceIds, "accepted IDs must come from matching scenario default-on and permanent Pilot evidence");
+const candidatePolicy = ledger.candidatePolicy ?? null;
+const candidateSurfaceIds = candidatePolicy ? [...candidatePolicy.surfaceIds].sort() : [];
 
 const policy = await loadReactRuntimePolicy({ projectRoot, env: { APP_ENV: "local" } });
 assert.equal(policy.schemaVersion, 1);
@@ -30,13 +35,43 @@ assert.match(policy.sha256 || "", /^[a-f0-9]{64}$/);
 assert.equal(policy.source, "react-runtime-policy.json");
 assert.equal(Object.keys(policy.surfaces).length, 24);
 assert(REACT_RUNTIME_SURFACE_IDS.every((id) => ["legacy", "evaluation", "react"].includes(policy.surfaces[id])));
-assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, ["structureMigrationDiagnostics", "weeklyProductionControl"], "permanent allowlist must stay explicit and minimal");
-assert.deepEqual(summarizeReactRuntimePolicy(policy).reactSurfaces, ["structureMigrationDiagnostics", "weeklyProductionControl"], "release policy must permanently enable only accepted read-only surfaces");
+assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, ["nomenclature", "structureMigrationDiagnostics", "weeklyProductionControl"], "permanent allowlist must stay explicit and minimal");
+const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
+assert.deepEqual(
+  summarizeReactRuntimePolicy(policy).reactSurfaces,
+  expectedReactSurfaceIds,
+  candidatePolicy
+    ? "candidate release policy React IDs must equal accepted IDs plus the declared awaiting-acceptance candidate IDs"
+    : "release policy React IDs must equal accepted IDs when no candidate policy is declared",
+);
 assert(
   summarizeReactRuntimePolicy(policy).reactSurfaces.every((id) => REACT_RUNTIME_PERMANENT_CONSUMERS.includes(id)),
-  "only explicitly wired permanent consumers may use react mode",
+  "only explicitly wired permanent consumers, including a declared candidate, may use react mode",
 );
 assert.deepEqual(summarizeReactRuntimePolicy(policy).activeEvaluationSurfaces, []);
+if (candidatePolicy) {
+  assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate policy must stay explicitly unaccepted");
+  assert.deepEqual(candidateSurfaceIds, ["nomenclature"], "this candidate policy must contain only Nomenclature");
+  assert.equal(candidatePolicy.runtimePolicySha256, policy.sha256, "candidate evidence contract must bind the exact current policy bytes");
+  assert.equal(candidatePolicy.baseAcceptedRelease, ledger.activePilotRelease, "candidate must name the accepted release it extends");
+  assert.deepEqual(candidatePolicy.requiredEvidence, [
+    "current-release-read",
+    "create-edit-readback-delete-cleanup",
+    "rollback-reactivation",
+  ], "candidate acceptance must require the complete read/write/cleanup/rollback evidence set");
+  assert.equal(Object.hasOwn(candidatePolicy, "pilotEvidence"), false, "candidate may not claim Pilot evidence before acceptance");
+  assert.equal(ledger.currentProgress, 50, "an awaiting candidate must not increase audited progress");
+  for (const surfaceId of candidateSurfaceIds) {
+    const acceptance = ledger.scenarioAcceptance.find((scenario) => scenario.id === surfaceId);
+    assert(acceptance, `${surfaceId}: candidate must map to a scenario acceptance row`);
+    assert.equal(acceptance.defaultOn, false, `${surfaceId}: candidate is not accepted default-on yet`);
+    assert.equal(acceptance.currentReleaseRead, "pending", `${surfaceId}: candidate current-release read must remain pending`);
+    assert(!acceptedSurfaceIds.includes(surfaceId), `${surfaceId}: candidate may not already be in accepted IDs`);
+    assert.equal(ledger.permanentPilotEvidence?.authenticatedPilot?.[surfaceId], undefined, `${surfaceId}: candidate must be absent from permanent Pilot evidence`);
+  }
+} else {
+  assert.equal(policy.sha256, ledger.permanentPilotEvidence?.runtimePolicySha256, "without a candidate, current policy bytes must equal the accepted permanent policy evidence");
+}
 
 const allEvaluationSurfaces = Object.fromEntries(REACT_RUNTIME_SURFACE_IDS.map((id) => [id, "evaluation"]));
 const evaluationPolicy = normalizeReactRuntimePolicy({
@@ -54,10 +89,10 @@ const weeklyLegacyPolicy = normalizeReactRuntimePolicy({
   policyId: "qa-weekly-legacy",
   surfaces: { ...allEvaluationSurfaces, weeklyProductionControl: "legacy" },
 });
-const acceptedPermanentPolicy = normalizeReactRuntimePolicy({
+const wiredReactPolicy = normalizeReactRuntimePolicy({
   schemaVersion: 1,
-  policyId: "qa-accepted-permanent",
-  surfaces: { ...allEvaluationSurfaces, structureMigrationDiagnostics: "react", weeklyProductionControl: "react" },
+  policyId: "qa-wired-react",
+  surfaces: { ...allEvaluationSurfaces, nomenclature: "react", structureMigrationDiagnostics: "react", weeklyProductionControl: "react" },
 });
 
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 2, policyId: "bad", surfaces: {} }), /schema/);
@@ -101,12 +136,12 @@ assert.throws(() => assertReactRuntimeEnvironment({ MES_REACT_UNKNOWN_SURFACE: "
 assert.throws(() => assertReactRuntimeEnvironment({ MES_REACT_WEEKLY_PRODUCTION_CONTROL: "true" }, evaluationPolicy), /exact value 1/);
 assert.throws(() => assertReactRuntimeEnvironment(weeklyEvaluationEnv, weeklyReactPolicy), /flags are forbidden.*mode is react/);
 assert.throws(() => assertReactRuntimeEnvironment(weeklyEvaluationEnv, weeklyLegacyPolicy), /flags are forbidden.*mode is legacy/);
-assert.throws(() => assertReactRuntimeEnvironment(diagnosticsEvaluationEnv, acceptedPermanentPolicy), /flags are forbidden.*mode is react/);
+assert.throws(() => assertReactRuntimeEnvironment(diagnosticsEvaluationEnv, wiredReactPolicy), /flags are forbidden.*mode is react/);
 
 const evaluationPublicPolicy = getPublicReactRuntimePolicy(evaluationPolicy);
 const weeklyReactPublicPolicy = getPublicReactRuntimePolicy(weeklyReactPolicy);
 const weeklyLegacyPublicPolicy = getPublicReactRuntimePolicy(weeklyLegacyPolicy);
-const acceptedPermanentPublicPolicy = getPublicReactRuntimePolicy(acceptedPermanentPolicy);
+const wiredReactPublicPolicy = getPublicReactRuntimePolicy(wiredReactPolicy);
 const maskedEnvironment = {
   APP_ENV: "pilot",
   DATABASE_URL: "must-not-leak",
@@ -125,9 +160,12 @@ assert.equal(reactConfig.MES_REACT_NOMENCLATURE, true, "another surface may reta
 const legacyConfig = getPublicRuntimeConfig(maskedEnvironment, { reactRuntimePolicy: weeklyLegacyPublicPolicy });
 assert.equal(legacyConfig.MES_REACT_WEEKLY_PRODUCTION_CONTROL, false, "legacy mode must mask its evaluation feature flag");
 assert.equal(legacyConfig.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION, false, "legacy mode must mask its evaluation permission");
-const acceptedPermanentConfig = getPublicRuntimeConfig(maskedEnvironment, { reactRuntimePolicy: acceptedPermanentPublicPolicy });
-assert.equal(acceptedPermanentConfig.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS, false, "permanent Diagnostics must mask its obsolete evaluation feature flag");
-assert.equal(acceptedPermanentConfig.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION, false, "permanent Diagnostics must mask its obsolete evaluation permission");
+const wiredReactConfig = getPublicRuntimeConfig(maskedEnvironment, { reactRuntimePolicy: wiredReactPublicPolicy });
+assert.equal(wiredReactConfig.MES_REACT_NOMENCLATURE, false, "wired React Nomenclature candidate must mask its obsolete evaluation feature flag");
+assert.equal(wiredReactConfig.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION, false, "wired React Nomenclature candidate must mask its obsolete read evaluation permission");
+assert.equal(wiredReactConfig.MES_REACT_NOMENCLATURE_WRITE_EVALUATION, false, "wired React Nomenclature candidate must mask its obsolete write evaluation permission");
+assert.equal(wiredReactConfig.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS, false, "permanent Diagnostics must mask its obsolete evaluation feature flag");
+assert.equal(wiredReactConfig.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION, false, "permanent Diagnostics must mask its obsolete evaluation permission");
 
 const runtimeScript = renderRuntimeConfigScript(maskedEnvironment, { reactRuntimePolicy: weeklyReactPublicPolicy });
 assert.match(runtimeScript, /"MES_REACT_RUNTIME_POLICY"/);
@@ -154,8 +192,15 @@ assert.deepEqual(resolveReactRuntimeActivation({
   localQaEnabled: true,
 }), { runtimeMode: "react", featureFlagEnabled: true, accessMode: "react" }, "query and evaluation flags must not downgrade permanent React");
 assert.deepEqual(resolveReactRuntimeActivation({
+  surfaceId: "nomenclature",
+  runtimeConfig: wiredReactConfig,
+  evaluationFeatureEnabled: true,
+  evaluationRequested: true,
+  localQaEnabled: true,
+}), { runtimeMode: "react", featureFlagEnabled: true, accessMode: "react" }, "query and evaluation flags must not downgrade a wired Nomenclature candidate policy");
+assert.deepEqual(resolveReactRuntimeActivation({
   surfaceId: "structureMigrationDiagnostics",
-  runtimeConfig: acceptedPermanentConfig,
+  runtimeConfig: wiredReactConfig,
   evaluationFeatureEnabled: true,
   evaluationRequested: true,
   localQaEnabled: true,
@@ -215,4 +260,4 @@ if (distPolicyText !== null) {
 }
 if (requireDist) assert.notEqual(distPolicyText, null, "--require-dist needs a completed build artifact");
 
-console.log("React runtime policy QA passed: protected fail-closed, exact evaluation env, policy masking, permanent-consumer allowlist, and immutable delivery identity.");
+console.log(`React runtime policy QA passed: protected fail-closed, exact evaluation env, policy masking, permanent-consumer allowlist, and immutable delivery identity; ${candidatePolicy ? `${candidateSurfaceIds.join(", ")} acceptance pending` : "no candidate policy"}.`);

@@ -5,7 +5,9 @@ export function createAuthEventsModule(dependencies = {}) {
     bindGenericModalCloseEvents,
     button,
     cancelAuthPrototypePinFeedback = () => {},
+    cancelEmployeeAuthElevation = () => false,
     completeAuthPrototypeLogin = () => {},
+    deleteEmployeeSession = () => Promise.resolve({ ok: true }),
     doesAuthSessionFactNeedDeviationComment = () => false,
     employeeId,
     formatShiftWorkOrderPersonName = (value = "") => String(value || ""),
@@ -19,6 +21,8 @@ export function createAuthEventsModule(dependencies = {}) {
     getAuthSessionTaskGoodQuantity = () => 0,
     item,
     isAuthPrototypePinFeedbackLocked = () => false,
+    isEmployeeAuthRequired = () => false,
+    isEmployeeAuthElevationActive = () => false,
     lockAuthGate,
     normalizeAuthSessionFactField = (field = "") => (field === "defect" ? "defect" : "actual"),
     normalizePlainRecord,
@@ -106,6 +110,10 @@ function bindAuthPrototypeEvents() {
 
   app.querySelectorAll("[data-auth-back-people]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (isEmployeeAuthElevationActive()) {
+        cancelEmployeeAuthElevation();
+        return;
+      }
       cancelAuthPrototypePinFeedback();
       ui.authPrototypePersonId = "";
       ui.authPrototypeResult = "";
@@ -151,7 +159,7 @@ function bindAuthPrototypeEvents() {
       ui.authPrototypeResult = "";
       resetAuthPrototypePinEntry();
       resetAuthPrototypeAttempts();
-      if (AUTH_PIN_TEMPORARILY_DISABLED && ui.authPrototypePersonId) {
+      if (AUTH_PIN_TEMPORARILY_DISABLED && !isEmployeeAuthRequired() && ui.authPrototypePersonId) {
         completeAuthPrototypeLogin("pin-ok", { personId: ui.authPrototypePersonId });
         return;
       }
@@ -175,7 +183,7 @@ function bindAuthPrototypeEvents() {
       const people = getAuthPrototypePeople();
       const selectedPerson = getAuthPrototypePinPerson(people);
       if (nextPinDraft.length === 5) {
-        scheduleAuthPrototypePinValidation(nextPinDraft, selectedPerson?.id || "");
+        void Promise.resolve(scheduleAuthPrototypePinValidation(nextPinDraft, selectedPerson?.id || ""));
         return;
       }
       ui.authPrototypeResult = "";
@@ -194,6 +202,7 @@ function bindAuthPrototypeEvents() {
   app.querySelectorAll("[data-auth-logout]").forEach((button) => {
     button.addEventListener("click", () => {
       cancelAuthPrototypePinFeedback();
+      void Promise.resolve(deleteEmployeeSession()).catch(() => {});
       lockAuthGate();
       ui.activeModule = "authPrototype";
       updateModuleUrlParam(ui.activeModule);

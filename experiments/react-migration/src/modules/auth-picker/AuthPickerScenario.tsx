@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, Panel, StatusToken } from "../../ui/components";
 import { adaptAuthPickerPayload, type AuthPickerPerson } from "./adapter";
 
-export type AuthPickerReactCommand = { type: "submit-pin"; personId: string; pin: string };
+export type AuthPickerReactCommand =
+  | { type: "submit-pin"; personId: string; pin: string }
+  | { type: "cancel-elevation" };
 interface AuthPickerCommandResult { ok?: boolean; authenticated?: boolean; attemptsLeft?: number; locked?: boolean; message?: string; }
 
 const shuffleDigits = () => {
@@ -16,10 +18,14 @@ const shuffleDigits = () => {
 
 export function AuthPickerScenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: AuthPickerReactCommand): Promise<AuthPickerCommandResult | void>; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptAuthPickerPayload(payload), [payload]);
+  const forcedPerson = useMemo(() => model.departments.flatMap((department) => [
+    ...department.directPeople,
+    ...department.units.flatMap((unit) => unit.people),
+  ]).find((person) => person.id === model.forcedPersonId) || null, [model]);
   const [departmentId, setDepartmentId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [search, setSearch] = useState("");
-  const [selectedPerson, setSelectedPerson] = useState<AuthPickerPerson | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<AuthPickerPerson | null>(forcedPerson);
   const [pin, setPin] = useState("");
   const [digits, setDigits] = useState(shuffleDigits);
   const [attemptsLeft, setAttemptsLeft] = useState(model.attemptsLeft || 5);
@@ -58,10 +64,10 @@ export function AuthPickerScenario({ payload, onCommand, onRequestLegacy }: { pa
     if (next.length === 5) void submitPin(next);
   };
   const step = selectedPerson ? 4 : department ? unit || !department.units.length ? 3 : 2 : 1;
-  return <ModulePage header={<ModuleHeader eyebrow="Вход в систему" title="Авторизация" badge={<span className="lab-badge">{model.canEnterPin ? "React · PIN evaluation" : "PostgreSQL · React picker"}</span>} />}>
-    <section className="auth-picker-react-security"><StatusToken label={model.canEnterPin ? "PIN проверяет существующий владелец" : "PIN остаётся в защищённом legacy-контуре"} tone="success" /><span>{model.canEnterPin ? "React хранит ввод только в памяти компонента. Проверку и создание сессии выполняет действующий auth-владелец." : "React получает только имена, должности и оргструктуру. PIN, попытки и сессия сюда не передаются."}</span></section>
-    <MetricGrid label="Структура входа"><MetricCard label="Отделы" value={model.departments.length} /><MetricCard label="Сотрудники" value={model.employeeCount} /><MetricCard label="PIN в React" value={model.canEnterPin ? "локальная проверка" : "нет"} /></MetricGrid>
-    <Panel heading={<div className="panel-heading"><div><p>Шаг {step} из {model.canEnterPin ? "4" : "3"}</p><h2>{selectedPerson ? "Введите PIN" : !department ? "Выберите отдел" : unit || !department.units.length ? "Выберите сотрудника" : "Выберите участок"}</h2></div>{department ? <ActionButton variant="secondary" onClick={() => selectedPerson ? (setSelectedPerson(null), setPin(""), setFeedback("")) : unit ? setUnitId("") : setDepartmentId("")}>Назад</ActionButton> : null}</div>}>
+  return <ModulePage header={<ModuleHeader eyebrow={model.elevation ? "Номенклатура" : "Вход в систему"} title={model.elevation ? "Подтверждение изменений" : "Авторизация"} badge={<span className="lab-badge">{model.elevation ? "PIN elevation" : model.canEnterPin ? "React · PIN evaluation" : "PostgreSQL · React picker"}</span>} />}>
+    <section className="auth-picker-react-security"><StatusToken label={model.elevation ? "Только текущий сотрудник" : model.canEnterPin ? "PIN проверяет сервер" : "PIN остаётся в защищённом legacy-контуре"} tone="success" /><span>{model.elevation ? "Подтверждение временно разрешит серверные команды Номенклатуры. Обычный вход в MES не изменяется." : model.canEnterPin ? "React хранит ввод только в памяти компонента. Проверку и создание подписанной сессии выполняет серверный auth-владелец." : "React получает только имена, должности и оргструктуру. PIN, попытки и сессия сюда не передаются."}</span></section>
+    <MetricGrid label="Структура входа"><MetricCard label="Отделы" value={model.departments.length} /><MetricCard label="Сотрудники" value={model.employeeCount} /><MetricCard label="PIN в React" value={model.canEnterPin ? "серверная проверка" : "нет"} /></MetricGrid>
+    <Panel heading={<div className="panel-heading"><div><p>{model.elevation ? "Подтверждение права" : `Шаг ${step} из ${model.canEnterPin ? "4" : "3"}`}</p><h2>{selectedPerson ? "Введите PIN" : !department ? "Выберите отдел" : unit || !department.units.length ? "Выберите сотрудника" : "Выберите участок"}</h2></div>{model.elevation ? <ActionButton variant="secondary" onClick={() => { void onCommand?.({ type: "cancel-elevation" }); }}>Отмена</ActionButton> : department ? <ActionButton variant="secondary" onClick={() => selectedPerson ? (setSelectedPerson(null), setPin(""), setFeedback("")) : unit ? setUnitId("") : setDepartmentId("")}>Назад</ActionButton> : null}</div>}>
       {selectedPerson ? <div className="auth-picker-react-pin" data-auth-picker-pin-step>
         <div><strong>{selectedPerson.name}</strong><small>{selectedPerson.role}</small></div>
         <div aria-label="Введённый PIN" className={`auth-picker-react-pin-display${feedback ? " is-error" : ""}`}>{Array.from({ length: 5 }, (_, index) => <span className={index < pin.length ? "is-filled" : ""} key={index} />)}</div>

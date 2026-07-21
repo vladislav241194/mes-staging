@@ -96,6 +96,7 @@ try {
     description: "",
     statusLabel: "Активен",
     statusTone: "success",
+    baseline: { id: "ok", name: "Valid", type: "РЭА компоненты", article: "A-1" },
   });
   assert.deepEqual(adaptNomenclatureItems({}), [], "non-array payload must fail closed");
   const readModel = adaptNomenclatureReadModel({
@@ -106,7 +107,8 @@ try {
     ],
   });
   assert.equal(readModel.items[0]?.type, "РЭА компоненты", "legacy REA alias must normalize");
-  assert.equal(readModel.canCreateEdit, false, "write capability must fail closed");
+  assert.equal(readModel.canCreate, false, "create capability must fail closed");
+  assert.equal(readModel.canEdit, false, "edit capability must fail closed");
   assert.equal(readModel.canDelete, false, "delete capability must fail closed");
   assert.deepEqual(readModel.deleteUsageById.ok, { specificationsCount: 0, bomRowsCount: 0 }, "missing delete usage must fail closed to zero counts");
   assert.deepEqual(readModel.types.map((entry) => entry.label), ["РЭА компоненты"], "inactive types must be hidden");
@@ -132,6 +134,7 @@ try {
   assert.deepEqual(viewModel.buildNomenclatureFilters(readModel).map((entry) => [entry.label, entry.count]), [
     ["Вся номенклатура", 1],
     ["РЭА компоненты", 1],
+    ["Печатные платы", 0],
   ]);
   const boardReadModel = adaptNomenclatureReadModel({
     nomenclature: [{ id: "pcb", name: "Плата", type: "Печатные платы" }],
@@ -144,8 +147,8 @@ try {
     label: "Печатные платы",
     count: 2,
     description: "",
-    action: "legacy",
-  }, "Boards sidebar entry must preserve the legacy BOM pane semantics");
+    action: "boards",
+  }, "Boards sidebar entry must navigate to the separately owned BOM surface");
 
   const fixtureOutput = join(temporaryRoot, "nomenclature-fixture.mjs");
   await build({
@@ -1098,7 +1101,8 @@ try {
 
   const nomenclatureIslandSource = await readFile(join(sourceRoot, "nomenclature-island.tsx"), "utf8");
   assert.match(nomenclatureIslandSource, /export function mountNomenclatureReactIsland/);
-  assert.match(nomenclatureIslandSource, /onRequestLegacy/);
+  assert.match(nomenclatureIslandSource, /onRequestBoards/);
+  assert.doesNotMatch(nomenclatureIslandSource, /onRequestLegacy/, "Nomenclature user navigation must not request a generic legacy fallback");
 
   const boardsIslandSource = await readFile(join(sourceRoot, "boards-island.tsx"), "utf8");
   assert.match(boardsIslandSource, /export function mountBoardsReactIsland/);
@@ -1111,6 +1115,13 @@ try {
   const appEventsSource = await readFile(join(repositoryRoot, "src/modules/app_events/service.js"), "utf8");
   assert.match(appEventsSource, /function getRoutesEventsDependencies\(\)[\s\S]*getBomImportRows,/, "App Events must pass the BOM row owner into the lazy Routes bridge");
   assert.match(appEventsSource, /getFallbackNomenclatureType = \(\) => ""/, "App Events must receive the Nomenclature Type fallback owner explicitly");
+  assert.match(appEventsSource, /deleteEmployeeSession = async \(\) => \(\{ ok: true, authenticated: false \}\),/, "App Events must fail closed to an inert signed-employee-session cleanup dependency");
+  assert.match(appEventsSource, /createAppInteractionsModule\(\{[\s\S]*deleteEmployeeSession,/, "App Events must pass signed employee-session cleanup to the canonical global-navigation owner");
+  const appInteractionsSource = await readFile(join(repositoryRoot, "src/modules/app_interactions/render.js"), "utf8");
+  assert.match(appInteractionsSource, /function performAuthLogout\(\)[\s\S]*Promise\.resolve\(deleteEmployeeSession\(\)\)\.catch\(\(\) => \{\}\);[\s\S]*lockAuthGate\(\)/, "canonical global logout must clear server command authority before locking the local gate");
+  const authEventsSource = await readFile(join(repositoryRoot, "src/modules/auth_render/events.js"), "utf8");
+  assert.match(authEventsSource, /AUTH_PIN_TEMPORARILY_DISABLED\s*&&\s*!isEmployeeAuthRequired\(\)/, "the local no-PIN compatibility path must never bypass required server employee auth");
+  assert.match(authEventsSource, /Promise\.resolve\(deleteEmployeeSession\(\)\)\.catch\(\(\) => \{\}\)/, "module-local logout must also clear the signed employee session when it owns the event");
   assert.match(productsEventsSource, /getSpecificationStructureItems\(specification\)\.some\(\(item\) => item\.bomListId === bomId\)/, "Board delete command must report structure references before cleanup");
   assert.match(productsEventsSource, /withDirectoryEntityRemovalAllowed\(\(\) => persistDirectoryState\(\)\)/, "Board delete command must use the existing removal owner");
   assert.match(productsEventsSource, /\.\.\.\(previousBom \|\| \{\}\)/, "Board edit must retain hidden metadata before applying typed fields");
@@ -1185,7 +1196,7 @@ try {
   assert.deepEqual(
     makeProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" }).prepareRender(),
     { activateReact: false, reason: "unsupported-scope" },
-    "Boards must remain in legacy",
+    "Boards must remain a separately owned surface",
   );
   assert.deepEqual(
     makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "editor" }).prepareRender(),
@@ -1195,6 +1206,9 @@ try {
   const eligibleProductionHost = makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleProductionHost.renderTarget(), /data-react-nomenclature-island/);
+  const permanentProductionHost = makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "react", runtimeMode: "react", serverReadReady: false, serverReadFailure: "" });
+  assert.deepEqual(permanentProductionHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Nomenclature must own the route before shared-state readiness");
+  assert.match(permanentProductionHost.renderTarget(), /data-react-island-state="loading"/, "permanent Nomenclature must show its bounded loading shell");
 
   const boardsProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js")).href}?qa=${Date.now()}`);
   const makeBoardsProductionHost = (activation) => boardsProductionHostModule.createBoardsReactIslandHost({
@@ -1448,8 +1462,9 @@ try {
   assert.match(productionAppSource, /params\.get\("react-nomenclature-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /params\.get\("qa-auth-bypass"\) === "1" \|\| Boolean\(getAuthenticatedAccessPerson\(\)\)/);
   assert.match(productionAppSource, /serverEvaluationAllowed && isNomenclatureReactEvaluationRequested\(\)/);
+  assert.match(productionAppSource, /resolveReactRuntimeActivation\(\{[\s\S]*?surfaceId: "nomenclature"/, "Nomenclature permanent activation must come from the immutable runtime policy");
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /reason === "unsupported-scope".*activeNomenclaturePane = "boards"/s);
+  assert.match(productionAppSource, /navigateBoards:[\s\S]*?activeNomenclaturePane = "boards"[\s\S]*?updateModuleUrlParam\("bomLists"\)/, "Boards must be a separate navigation target, not a Nomenclature legacy fallback");
   assert.match(productionAppSource, /MES_REACT_BOARDS === true/);
   assert.match(productionAppSource, /MES_REACT_BOARDS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-boards"\) === "1"/);
@@ -1606,6 +1621,9 @@ try {
   assert.match(productionHostSource, /requestLegacyRender\?\.\(fallbackReason, String\(scope \|\| ""\)\)/);
   const nomenclatureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/react_island_host.js"), "utf8");
   assert.match(nomenclatureProductionHostSource, /createReactIslandHost/);
+  assert.match(nomenclatureProductionHostSource, /canFallbackToLegacy:[\s\S]*?accessMode !== "react"/, "permanent Nomenclature failures must stay fail-closed");
+  assert.match(nomenclatureProductionHostSource, /getShellState:[\s\S]*?serverReadFailure/, "permanent Nomenclature must own loading and read-error shells");
+  assert.match(nomenclatureProductionHostSource, /onRequestBoards:[\s\S]*?navigateBoards/, "Boards navigation must bypass generic legacy fallback telemetry");
   const structureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js"), "utf8");
   assert.match(structureProductionHostSource, /createReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructurePositionsReactIslandHost/);
@@ -1742,6 +1760,56 @@ try {
   ]);
   const specificationsAuthorityQaPath = "scripts/domain-specifications2-publication-authority-qa.mjs";
   const changedPaths = [...new Set(`${changedPathsOutput}\n${untrackedPathsOutput}`.split("\n").filter(Boolean))];
+  const employeeAuthSchemaContractPaths = new Set([
+    "db/migrations/027_employee_auth_credentials.sql",
+    "scripts/domain-employee-auth-repository.mjs",
+    "scripts/domain-postgres-preflight-policy.mjs",
+    "scripts/domain-postgres-preflight-policy-qa.mjs",
+    "scripts/employee-auth-schema-contract-qa.mjs",
+  ]);
+  if ([...employeeAuthSchemaContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...employeeAuthSchemaContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...employeeAuthSchemaContractPaths].sort(),
+      "Employee-auth schema/preflight policy must remain an atomic, separately executable contract",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-postgres-preflight-policy-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/employee-auth-schema-contract-qa.mjs")], { cwd: repositoryRoot });
+
+    const preflightPolicy = await import(`${pathToFileURL(join(repositoryRoot, "scripts/domain-postgres-preflight-policy.mjs")).href}?qa=${Date.now()}`);
+    const frozenFoundationMigrations = [
+      "009_specifications2_revision_read_model",
+      "014_shift_execution_command_idempotency",
+      "022_shift_execution_carryover_lifecycle",
+      "023_system_domains_postgres_primary_authority",
+      "026_system_responsibility_policy_lifecycle",
+    ];
+    assert.deepEqual(
+      [...preflightPolicy.FOUNDATION_REQUIRED_DOMAIN_MIGRATIONS],
+      frozenFoundationMigrations,
+      "Employee-auth preflight policy must not rewrite the accepted foundation migration contract",
+    );
+    assert.deepEqual(
+      preflightPolicy.getRequiredDomainMigrations({}),
+      frozenFoundationMigrations,
+      "Foundation preflight must continue to require migration 026 without conditionally enabling employee auth",
+    );
+  }
+  const nomenclatureCommandContractPaths = new Set([
+    "scripts/domain-nomenclature-command.mjs",
+    "scripts/domain-nomenclature-command-qa.mjs",
+    "scripts/nomenclature-command-authorization.mjs",
+    "scripts/nomenclature-command-server-wiring-qa.mjs",
+  ]);
+  if ([...nomenclatureCommandContractPaths].some((path) => changedPaths.includes(path))) {
+    assert.deepEqual(
+      [...nomenclatureCommandContractPaths].filter((path) => changedPaths.includes(path)).sort(),
+      [...nomenclatureCommandContractPaths].sort(),
+      "Nomenclature command owner must remain an atomic, separately executable backend contract",
+    );
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/domain-nomenclature-command-qa.mjs")], { cwd: repositoryRoot });
+    await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/nomenclature-command-server-wiring-qa.mjs")], { cwd: repositoryRoot });
+  }
   if (changedPaths.includes(specificationsAuthorityQaPath)) {
     const { stdout: authorityQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", specificationsAuthorityQaPath], { cwd: repositoryRoot });
     const assertionChanges = authorityQaDiff
@@ -1775,13 +1843,39 @@ try {
     const { stdout: preflightDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-postgres-preflight.mjs"], { cwd: repositoryRoot });
     const preflightChanges = preflightDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
     assert.deepEqual(preflightChanges, [
-      '+    "026_system_responsibility_policy_lifecycle",',
-    ], "Responsibility-policy preflight exception may only require migration 026");
+      '+import { getRequiredDomainMigrations } from "./domain-postgres-preflight-policy.mjs";',
+      "+",
+      "-  const requiredMigrations = [",
+      '-    "009_specifications2_revision_read_model",',
+      '-    "014_shift_execution_command_idempotency",',
+      '-    "022_shift_execution_carryover_lifecycle",',
+      '-    "023_system_domains_postgres_primary_authority",',
+      "-  ];",
+      "+  const requiredMigrations = getRequiredDomainMigrations(process.env);",
+    ], "PostgreSQL preflight may only delegate the frozen foundation list to its separately tested policy");
     const { stdout: schemaQaDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "scripts/domain-schema-qa.mjs"], { cwd: repositoryRoot });
     const schemaQaChanges = schemaQaDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
-    assert.equal(schemaQaChanges.filter((line) => line.startsWith("-")).length, 0, "Responsibility-policy schema QA exception must not remove assertions");
-    assert.equal(schemaQaChanges.filter((line) => line.startsWith("+")).length, 13, "Responsibility-policy schema QA exception must remain the exact additive lifecycle gate");
-    assert(schemaQaChanges.every((line) => /responsibilityPolicyLifecycle|Responsibility-policy lifecycle|Responsibility Policy lifecycle|ALTER TABLE system_responsibility_policies|ADD COLUMN IF NOT EXISTS (?:is_active|archived_at)|026_system_responsibility_policy_lifecycle|PostgreSQL domain preflight|^\+\[$|^\+\]\.forEach|^\+assert\($|^\+  |^\+\);/.test(line)), "Responsibility-policy schema QA exception contains an unrelated change");
+    assert.deepEqual(schemaQaChanges, [
+      '+const responsibilityPolicyLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/026_system_responsibility_policy_lifecycle.sql", import.meta.url));',
+      '+const responsibilityPolicyLifecycleSql = await readFile(responsibilityPolicyLifecycleMigrationPath, "utf-8");',
+      '+const postgresPreflightPolicyPath = fileURLToPath(new URL("./domain-postgres-preflight-policy.mjs", import.meta.url));',
+      '+const postgresPreflightPolicySql = await readFile(postgresPreflightPolicyPath, "utf-8");',
+      '-  postgresPreflightSql.includes(\'"023_system_domains_postgres_primary_authority"\'),',
+      '+  postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")',
+      '+    && postgresPreflightPolicySql.includes(\'"023_system_domains_postgres_primary_authority"\'),',
+      "+[",
+      '+  "ALTER TABLE system_responsibility_policies",',
+      '+  "ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",',
+      '+  "ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",',
+      '+  "VALUES (\'026_system_responsibility_policy_lifecycle\')",',
+      "+].forEach((fragment) => assert(responsibilityPolicyLifecycleSql.includes(fragment), `Responsibility-policy lifecycle migration is missing: ${fragment}`));",
+      '+assert(!/DROP\\s+(TABLE|DATABASE|SCHEMA)/i.test(responsibilityPolicyLifecycleSql), "Responsibility-policy lifecycle migration must not contain destructive statements");',
+      "+assert(",
+      '+  postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")',
+      '+    && postgresPreflightPolicySql.includes(\'"026_system_responsibility_policy_lifecycle"\'),',
+      '+  "PostgreSQL domain preflight must require the Responsibility Policy lifecycle migration",',
+      "+);",
+    ], "Responsibility-policy schema QA exception must remain the exact lifecycle gate plus policy delegation");
   }
   const reactRuntimePolicyDeliveryPaths = new Set([
     "server.js",
@@ -1797,6 +1891,10 @@ try {
     const { stdout: serverPolicyDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "server.js"], { cwd: repositoryRoot });
     const serverPolicyChanges = serverPolicyDiff.split("\n").filter((line) => /^[+-]/.test(line) && !/^(---|\+\+\+)/.test(line));
     assert.deepEqual(serverPolicyChanges, [
+      '+import { handleEmployeeAuthRequest } from "./scripts/employee-auth-endpoint.mjs";',
+      '+import { inspectEmployeeAuthSession } from "./scripts/employee-auth-guard.mjs";',
+      '+import { getCurrentNomenclatureAuthorization } from "./scripts/nomenclature-command-authorization.mjs";',
+      '+import { handleNomenclatureCommandRequest } from "./scripts/domain-nomenclature-command.mjs";',
       '+import {',
       '+  assertSingleReactEvaluationPermission,',
       '+  getPublicReactRuntimePolicy,',
@@ -1813,14 +1911,66 @@ try {
       '+    .replace("</head>", `${renderRuntimeConfigScript(process.env, { reactRuntimePolicy: publicReactRuntimePolicy })}\\n  </head>`)',
       '-  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState }));',
       '+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState, reactRuntime: reactRuntimeSummary }));',
-    ], "React migration may publish only the reviewed non-secret policy and health summary through server.js");
+      '+  if (await handleEmployeeAuthRequest(req, res, url, {',
+      '+    headers: noCacheHeaders,',
+      '+  })) {',
+      '+    return;',
+      '+  }',
+      '+',
+      '+  if (await handleNomenclatureCommandRequest(req, res, url, {',
+      '+    env: process.env,',
+      '+    filePath: sharedStatePaths.filePath,',
+      '+    backupDir: sharedStatePaths.backupDir,',
+      '+    auditLogPath: sharedStatePaths.auditLogPath,',
+      '+    headers: noCacheHeaders,',
+      '+    getAuthorization: async () => {',
+      '+      const session = await inspectEmployeeAuthSession(req, process.env);',
+      '+      if (!session.principal) {',
+      '+        if ([',
+      '+          "employee-auth-not-configured",',
+      '+          "employee-auth-storage-not-configured",',
+      '+          "employee-auth-storage-unavailable",',
+      '+        ].includes(session.reason)) {',
+      '+          throw new Error("Employee authorization storage is unavailable");',
+      '+        }',
+      '+        return null;',
+      '+      }',
+      '+      const authorization = await getCurrentNomenclatureAuthorization(session.principal, {',
+      '+        databaseUrl: process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",',
+      '+      });',
+      '+      if (!authorization.allowed && /(?:unavailable|not-configured)$/.test(String(authorization.reason || ""))) {',
+      '+        throw new Error("Current Nomenclature RBAC projection is unavailable");',
+      '+      }',
+      '+      return authorization;',
+      '+    },',
+      '+  })) {',
+      '+    return;',
+      '+  }',
+      '+',
+    ], "server.js may contain only the reviewed runtime-policy delivery and separately QA-gated employee-auth/Nomenclature command route");
   }
   const frozenBackendDiff = changedPaths
     .filter(isFrozenBackendPath)
-    .filter((path) => path !== specificationsAuthorityQaPath && !responsibilityLifecyclePaths.has(path) && !reactRuntimePolicyDeliveryPaths.has(path));
+    .filter((path) => path !== specificationsAuthorityQaPath
+      && !responsibilityLifecyclePaths.has(path)
+      && !reactRuntimePolicyDeliveryPaths.has(path)
+      && !employeeAuthSchemaContractPaths.has(path)
+      && !nomenclatureCommandContractPaths.has(path));
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
   const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
   const allowedRuntimeStateAdditions = new Set([
+    "+  async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false, throwOnError = false } = {}) {",
+    "+      if (allowBeforeInitialSync) {",
+    "+        // A targeted permanent-surface read can race the initial metadata",
+    "+        // handshake. Its successful response already proves the same shared",
+    "+        // owner is configured, so expose that authority before the surface is",
+    "+        // allowed to render or execute a durable command.",
+    "+        sharedStateStatus.configured = true;",
+    "+        sharedStateStatus.enabled = true;",
+    "+        sharedStateStatus.version = Math.max(",
+    "+          Number(sharedStateStatus.version || 0),",
+    "+          Number(snapshot.version || 0),",
+    "+    if (throwOnError) throw error;",
     "+  acknowledgeSharedUiPatch,",
     "+  if (sharedStateStatus.valueProjection === \"metadata\") {",
     "+    // A non-Planning module has not hydrated the authoritative Planning",
@@ -1939,17 +2089,138 @@ try {
     "+    })) return true;",
   ]);
   const allowedRuntimeStateRemovals = new Set([
+    "-  async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false } = {}) {",
     "-  if (hasMeaningfulPlanningState(planningState)) {",
     "-        sharedStateStatus.sharedUiBase = applySharedUiPatch(sharedStateStatus.sharedUiBase || {}, pendingSharedUi);",
     "-      const retryValues = compactSharedUi ? {} : mergeSharedStateConflictValues(response.current.values || {}, pendingValues);",
     "-      if (compactSharedUi) {",
     "-        transport: compactSharedUi ? \"shared-ui-ack\" : \"snapshot\",",
   ]);
-  const unexpectedRuntimeStateLines = runtimeStateDiff.split("\n").filter((line) => (
-    (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line))
-    || (line.startsWith("-") && !line.startsWith("---") && !allowedRuntimeStateRemovals.has(line))
+  const reviewedNomenclatureRuntimeAdditions = new Set([
+    "+import {",
+    "+  applyNomenclatureDirectoryMutation,",
+    "+  parseCompleteDirectoryProjection,",
+    "+} from \"../nomenclature/durable_directory_mutation.js\";",
+    "+  let nomenclatureDurableMutationInFlight = false;",
+    "+    || nomenclatureDurableMutationInFlight",
+    "+    persistNomenclatureDirectoryMutationDurably,",
+  ]);
+  const reviewedNomenclatureRuntimeHunkSignatures = new Set([
+    "+    executeNomenclatureServerCommand = async () => ({ ok: false, status: 0, code: \"owner-unavailable\", error: \"Nomenclature command owner is unavailable\" }),",
+    "+    isNomenclatureServerCommandsPrimary = () => false,",
+    "+    refreshNomenclatureReactProjection = () => false,",
+    "+  const nomenclatureCommandAttemptRevisions = new Map();",
+    "+    // Requests with different projections can finish out of order. Never let",
+    "+      if (!refreshNomenclatureReactProjection()) render({ skipRememberScroll: true });",
+    "+function rememberSharedStateValueHydration(valueKeys = [], version = 0) {",
+    "+    rememberSharedStateValueHydration(",
+    "+    if (throwOnError) throw error;",
+    "+async function hydratePlanningSnapshotFallback() {",
+    "+function isDirectoryStateReason(reason = \"\") {",
+    "+  if (nomenclatureDurableMutationInFlight) {",
+    "+  const keepsQueuedDirectoryWrite = isDirectoryStateReason(pendingReason)",
+    "+    : getSharedStateValuesForReason(sharedStateStatus.pendingReason);",
+    "+    : (sharedStateStatus.pendingValues || getSharedStateValuesForReason(reason));",
+    "+      pendingValues = getSharedStateValuesForReason(reason);",
+    "+      if (!Object.prototype.hasOwnProperty.call(pendingValues, DIRECTORY_STORAGE_KEY)) {",
+    "+        pendingValues = getSharedStateValuesForReason(reason);",
+    "+      const acknowledgedDirectory = Object.prototype.hasOwnProperty.call(pendingValues, DIRECTORY_STORAGE_KEY);",
+    "+    const version = Number(snapshot.version || 0);",
+    "+    if (metadataOnly && valueProjectionEpoch !== sharedStateValueProjectionEpoch) {",
+    "+  // Publish the boot flag before starting the asynchronous shared-state",
+    "+function applyAuthoritativeNomenclatureProjection(projection = null) {",
+    "+    persistNomenclatureDirectoryMutationDurably,",
+  ]);
+  const reviewedNomenclatureRuntimeExactHunkChanges = new Set([
+    [
+      "+  if (isNomenclatureServerCommandsPrimary()) {",
+      "+    // Directory is still a monolithic compatibility blob. Once Nomenclature",
+      "+    // commands are primary, a generic save cannot prove that its local copy",
+      "+    // includes the latest command-owned rows (or unlink side effects in BOM",
+      "+    // and specifications). Roll back the in-memory mutation and fail visibly",
+      "+    // until that section has its own owner command; never report a local-only",
+      "+    // success or overwrite a newer Nomenclature projection.",
+      "+    if (previousState) {",
+      "+      directoryState = previousState;",
+      "+      commitRuntimeState();",
+      "+    }",
+      "+    return false;",
+      "+  }",
+    ],
+    [
+      "+  return true;",
+    ],
+    [
+      "-  }",
+      "+}",
+    ],
+    [
+      "-      sharedStateStatus.version = Number(response.current?.version || sharedStateStatus.version);",
+      "+      sharedStateStatus.version = Math.max(",
+      "+        Number(sharedStateStatus.version || 0),",
+      "+        Number(response.current?.version || 0),",
+      "+      );",
+    ],
+    [
+      "-      sharedStateStatus.version = Number(response.current.version || sharedStateStatus.version);",
+      "+      sharedStateStatus.version = Math.max(",
+      "+        Number(sharedStateStatus.version || 0),",
+      "+        Number(response.current.version || 0),",
+      "+      );",
+    ],
+    [
+      "-        sharedStateStatus.version = Number(response.current?.version || sharedStateStatus.version);",
+      "+        sharedStateStatus.version = Math.max(",
+      "+          Number(sharedStateStatus.version || 0),",
+      "+          Number(response.current?.version || 0),",
+      "+        );",
+    ],
+    [
+      "-    const version = Number(snapshot.version || 0);",
+    ],
+    [
+      "-    sharedStateStatus.version = Number(snapshot.version || 0);",
+      "+    sharedStateStatus.version = Math.max(",
+      "+      Number(sharedStateStatus.version || 0),",
+      "+      Number(snapshot.version || 0),",
+      "+    );",
+    ],
+  ].map((lines) => JSON.stringify(lines)));
+  const runtimeStateDiffLines = runtimeStateDiff.split("\n");
+  const reviewedNomenclatureRuntimeLineIndexes = new Set();
+  let runtimeHunkStart = -1;
+  const reviewRuntimeHunk = (endIndex) => {
+    if (runtimeHunkStart < 0) return;
+    const hunkLines = runtimeStateDiffLines.slice(runtimeHunkStart, endIndex);
+    const hunkChanges = hunkLines.filter((line) => (
+      (line.startsWith("+") && !line.startsWith("+++"))
+      || (line.startsWith("-") && !line.startsWith("---"))
+    ));
+    if (!hunkLines.some((line) => reviewedNomenclatureRuntimeHunkSignatures.has(line))
+      && !reviewedNomenclatureRuntimeExactHunkChanges.has(JSON.stringify(hunkChanges))) return;
+    for (let index = runtimeHunkStart; index < endIndex; index += 1) {
+      reviewedNomenclatureRuntimeLineIndexes.add(index);
+    }
+  };
+  runtimeStateDiffLines.forEach((line, index) => {
+    if (!line.startsWith("@@")) return;
+    reviewRuntimeHunk(index);
+    runtimeHunkStart = index;
+  });
+  reviewRuntimeHunk(runtimeStateDiffLines.length);
+  const unexpectedRuntimeStateLines = runtimeStateDiffLines.filter((line, index) => (
+    (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line) && !reviewedNomenclatureRuntimeAdditions.has(line) && !reviewedNomenclatureRuntimeLineIndexes.has(index))
+    || (line.startsWith("-") && !line.startsWith("---") && !allowedRuntimeStateRemovals.has(line) && !reviewedNomenclatureRuntimeLineIndexes.has(index))
   ));
   assert.deepEqual(unexpectedRuntimeStateLines, [], `frontend migration changed runtime state outside the reviewed directory-removal flush:\n${unexpectedRuntimeStateLines.join("\n")}`);
+  const runtimeStateContractSource = await readFile(join(repositoryRoot, "src/modules/runtime_state/service.js"), "utf8");
+  assert.match(runtimeStateContractSource, /isNomenclatureServerCommandsPrimary = \(\) => false/, "Nomenclature command-primary dependency must default off so the CAS rollback remains selectable");
+  assert.match(runtimeStateContractSource, /function persistDirectoryState\(\)[\s\S]*if \(isNomenclatureServerCommandsPrimary\(\)\)[\s\S]*directoryState = previousState;[\s\S]*return false;[\s\S]*localStorage\.setItem\(DIRECTORY_STORAGE_KEY[\s\S]*return true;/, "command-primary must reject monolithic Directory writes while the unchanged rollback path remains selectable");
+  assert.match(runtimeStateContractSource, /function getSharedStateValuesForReason\(reason = "snapshot"\)[\s\S]*isDirectoryStateReason\(reason\) && !isNomenclatureServerCommandsPrimary\(\)[\s\S]*delete values\[DIRECTORY_STORAGE_KEY\]/, "generic snapshots must retain Directory only in the command-primary-off rollback path");
+  assert.match(runtimeStateContractSource, /async function persistNomenclatureDirectoryMutationDurably\(intent = \{\}\)[\s\S]*if \(isNomenclatureServerCommandsPrimary\(\)\)[\s\S]*persistNomenclatureServerCommandDurably\(intent\)[\s\S]*requestSharedState\("GET", null, \{ valueKeys: \[DIRECTORY_STORAGE_KEY\] \}\)/, "durable Nomenclature writes must split exactly between server-command primary and CAS rollback");
+  assert.match(runtimeStateContractSource, /executeNomenclatureServerCommand\(intent, attempt\.revision\)[\s\S]*applyAuthoritativeNomenclatureProjection\(result\.projection\)[\s\S]*code: "command-superseded"/, "command-primary writes must use the hydrated revision and reject superseded replay as user success");
+  assert.match(runtimeStateContractSource, /if \(result\?\.conflict && result\.projection\)[\s\S]*applyAuthoritativeNomenclatureProjection\(result\.projection\)[\s\S]*return getNomenclatureServerCommandFailure\(result\)/, "trusted conflict projection may refresh state but the command must remain failed");
+  assert.match(runtimeStateContractSource, /requestSharedState\("POST", \{[\s\S]*responseMode: "ack",[\s\S]*values: \{ \[DIRECTORY_STORAGE_KEY\]: JSON\.stringify\(mutation\.directory\) \}[\s\S]*if \(response\.conflict === true\)/, "command-primary-off rollback must retain the narrow fail-closed CAS acknowledgement");
 
   const commandParityMatrix = JSON.parse(await readFile(join(labRoot, "command-parity-matrix.json"), "utf8"));
   const expectedCommandScenarioIds = [
@@ -1960,7 +2231,8 @@ try {
     "structureResponsibilityPolicies", "structureWorkCenters", "timesheet", "weeklyProductionControl",
   ];
   assert.equal(commandParityMatrix.schemaVersion, 2, "command-parity matrix schema must be explicit");
-  assert.equal(commandParityMatrix.pilotAcceptance, "all-flags-off-baseline-accepted", "command parity must distinguish the accepted legacy baseline from pending React-island acceptance");
+  assert.equal(commandParityMatrix.updatedAt, "2026-07-21", "command parity evidence date must match the permanent Pilot acceptance checkpoint");
+  assert.equal(commandParityMatrix.pilotAcceptance, "mixed-runtime-permanent-read-only-accepted", "command parity must distinguish two permanent read-only surfaces from the remaining legacy-default scenarios");
   assert.deepEqual(
     commandParityMatrix.scenarios.map((scenario) => scenario.id).sort(),
     expectedCommandScenarioIds,
@@ -1973,6 +2245,10 @@ try {
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "slice-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders", "shiftMasterBoard", "employeeDesktop", "specifications2", "gantt", "authPicker", "contourAdmin"], "twenty-two scenarios must retain locally complete vertical slices without claiming whole-module completion");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "pending").length, 0, "no registered command slice may remain implicit or pending");
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "structureMigrationDiagnostics")?.nextVerticalScope || "", /permanent Pilot acceptance is complete on v\.1\.500\.21.*monitoring.*rollback evidence/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "weeklyProductionControl")?.nextVerticalScope || "", /permanent Pilot acceptance is current on v\.1\.500\.21.*monitoring.*rollback evidence/);
+  assert.doesNotMatch(commandParityMatrix.scenarios.find((scenario) => scenario.id === "structureMigrationDiagnostics")?.nextVerticalScope || "", /default-off/i, "permanent Diagnostics may not regress to default-off wording");
+  assert.doesNotMatch(commandParityMatrix.scenarios.find((scenario) => scenario.id === "weeklyProductionControl")?.nextVerticalScope || "", /default-off/i, "permanent Weekly may not regress to default-off wording");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /assignment, fact\/correction and typed Workshop source\/date navigation are locally complete.*Shift Execution and module owners.*Pilot write acceptance.*disposable cleanup/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /accepted Pilot read baseline.*manual lane movement.*write acceptance.*cleanup approval/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /accepted Pilot read baseline.*task start.*fact.*Report write acceptance/);
@@ -2050,7 +2326,7 @@ try {
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
-  console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
+  console.log(`React migration QA passed: ${sources.length} typed sources, mixed immutable runtime policy, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

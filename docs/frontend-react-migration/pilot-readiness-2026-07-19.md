@@ -593,3 +593,62 @@ next acceptance must use a normal browser that permits the same-origin API; it
 must not replay the write through localhost, curl or an unauthenticated API.
 Default-on remains rejected until the complete create/edit/legacy-read/delete
 and zero-row cleanup evidence exists.
+
+## Permanent read-only cutover `.21` and immutable rollback drill
+
+The earlier Nomenclature write-evaluation decision above remains historical and
+does not describe the two read-only surfaces accepted later. Release
+`v.1.500.21-8fb92d9` is active from exact commit
+`8fb92d9df3208505684f4f832df6e01896127909`. Its clean staged artifact records
+source SHA-256 `f66471170458fd5b584e8b42c9273161ec8583fc92d365d3a2ee6fb4a7450c41`
+and dist SHA-256 `63ea2b81c5246dbfb7e75ea4a9ac3515d5791e8ce43c6f1ff29a4200913e3206`.
+Local and public health are `ok`, shared state is `ready`, the service is active,
+the immediate previous release is `v.1.500.20-a4d8b2f`, and the pinned legacy
+baseline remains `v.1.500.18-93d02ed`.
+
+Runtime policy SHA-256
+`bf7af8065ad83206742725a003c5cc11f6eefaf21b314220f45f6c24480674b4`
+declares exactly `structureMigrationDiagnostics` and
+`weeklyProductionControl` as permanent React surfaces. Active evaluation
+surfaces are empty, no evaluation drop-in exists, and the effective service
+environment contains no `MES_REACT_*` evaluation value.
+
+Authenticated `.21` desktop evidence:
+
+- Structure Migration Diagnostics reached `ready` in React mode with
+  `aria-busy=false`, `152` rows, `5` headers, `51` source fields, metrics
+  `152 / 76 / 19 / 49 / 0 / 0`, four issue groups including two ignored rows,
+  and seven registry links;
+- Diagnostics exposed zero inputs or write controls, did not overflow the page,
+  ignored query attempts to select evaluation/legacy mode, and produced no
+  accessible browser warning or error;
+- Employees opened the 76-row legacy registry, Org Units opened the canonical
+  19-row legacy registry, an invalid registry canonicalized to Org Units, and
+  returning to Diagnostics restored the ready React root;
+- Weekly Production Control reached `ready` in React mode with
+  `aria-busy=false`, retained its `25 x 11` table, exposed zero inputs or write
+  controls, did not overflow, preserved query isolation and produced no
+  accessible browser warning or error.
+
+The controlled platform could not resize the authenticated Pilot tab, so no
+narrow `.21` claim is made for Diagnostics. Weekly narrow acceptance remains
+valid historical evidence from `.19`; `.21` repeated the Weekly check in desktop
+only.
+
+The release rollback proof used the exact sequence
+`v.1.500.21-8fb92d9 -> v.1.500.20-a4d8b2f -> v.1.500.21-8fb92d9 ->
+v.1.500.18-93d02ed -> v.1.500.19-53022a2 -> v.1.500.20-a4d8b2f ->
+v.1.500.21-8fb92d9`. The immutable `.20` artifact reproduced its known
+historical Diagnostics `aria-busy=true` state. The pinned `.18` policy exposed
+zero React surfaces: the Diagnostics deep link canonicalized to the 19-row
+legacy Org Units registry and Weekly rendered its legacy `25 x 11` table.
+Reactivating the immutable chain restored final `.21`, previous `.20`, pinned
+legacy `.18`, both permanent surfaces, local/public health `ok`, and no
+evaluation residue. No Pilot record or schema was changed by this read-only
+acceptance or rollback drill.
+
+This closes two of 24 permanent/current-release read scenarios, not the whole
+MES React migration. The evidence-weighted global cutover ledger therefore moves
+from `49%` to an honest `50%`: typed scope `14`, functional parity `18`, Pilot
+acceptance `9`, permanent runtime `2`, legacy consolidation `2`, quality controls
+`5`.

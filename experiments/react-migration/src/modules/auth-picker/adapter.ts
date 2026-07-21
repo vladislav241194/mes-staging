@@ -21,5 +21,7 @@ export function adaptAuthPickerPayload(payload: unknown) {
     canEnterPin: Boolean(capabilities.pinEntry),
     attemptsLeft: Math.max(0, number(authState.attemptsLeft)),
     result: text(authState.result),
+    forcedPersonId: text(model.forcedPersonId),
+    elevation: model.elevation === true,
   };
 }

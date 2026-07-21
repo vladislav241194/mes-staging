@@ -1,4 +1,5 @@
 export interface NomenclatureItemDto {
+  [key: string]: unknown;
   id?: unknown;
   article?: unknown;
   name?: unknown;
@@ -32,6 +33,7 @@ export interface NomenclatureItem {
   description: string;
   statusLabel: string;
   statusTone: "success" | "neutral";
+  baseline: Record<string, unknown>;
 }
 
 export interface NomenclatureTypeOption {
@@ -45,8 +47,14 @@ export interface NomenclatureReadModel {
   items: NomenclatureItem[];
   types: NomenclatureTypeOption[];
   boardCount: number;
-  canCreateEdit: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
   canDelete: boolean;
+  canElevate: boolean;
+  unavailableReason: string;
+  createReason: string;
+  editReason: string;
+  deleteReason: string;
   deleteUsageById: Record<string, NomenclatureDeleteUsage>;
 }
 
@@ -98,6 +106,7 @@ export function adaptNomenclatureItems(payload: unknown): NomenclatureItem[] {
       description: text(dto.description),
       statusLabel,
       statusTone: lookup(statusLabel).includes("актив") ? "success" : "neutral",
+      baseline: { ...dto },
     }];
   });
 }
@@ -149,8 +158,14 @@ export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadMo
     items,
     types: [...declaredTypes, ...inferredTypes],
     boardCount,
-    canCreateEdit: capabilities.createEdit === true,
+    canCreate: capabilities.create === true || capabilities.createEdit === true,
+    canEdit: capabilities.edit === true || capabilities.createEdit === true,
     canDelete: capabilities.delete === true,
+    canElevate: capabilities.employeeElevation === true,
+    unavailableReason: text(capabilities.writeUnavailableReason),
+    createReason: text(capabilities.createUnavailableReason),
+    editReason: text(capabilities.editUnavailableReason),
+    deleteReason: text(capabilities.deleteUnavailableReason),
     deleteUsageById,
   };
 }

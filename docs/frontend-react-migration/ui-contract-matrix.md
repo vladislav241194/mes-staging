@@ -211,6 +211,17 @@ Diagnostics deliberately reuses panels, metrics, empty states, status tokens and
 the table wrapper without adopting CRUD/detail contracts. It preserves 152 source
 rows, six metrics and four issue groups while keeping the legacy matrix read-only.
 
+Permanent desktop Pilot acceptance on `v.1.500.21-8fb92d9` proves the same MES
+contract in the normal user path: React is `ready` with `aria-busy=false`, all
+152 rows, five headers and 51 source fields are present, metrics are
+`152 / 76 / 19 / 49 / 0 / 0`, and four issue groups include the two ignored
+rows. Seven registry links remain available; Employees and Org Units continue
+through their canonical legacy registries without changing the Diagnostics
+island contract. The page has no horizontal overflow, input or write control,
+and the accessible browser log has no warning or error. Query isolation is
+verified. Narrow Pilot is not claimed because the controlled platform could not
+resize the authenticated tab.
+
 ## Weekly Production Control production evidence
 
 Weekly Control is the first dense planning-family proof. It reuses the shared
@@ -222,6 +233,13 @@ The production-shell comparison proves 25 completed groups and eleven columns
 in identical order and text. The shared React `TableWrap` now emits the actual
 `ui-table-wrap` class plus `horizontal-only` scroll contract, closing a common
 production overflow gap for every island without scenario-specific CSS.
+
+Weekly is permanently React under the same immutable policy. Current desktop
+recheck on `v.1.500.21-8fb92d9` reached `ready`, cleared `aria-busy`, retained
+all 25 rows and eleven headers, exposed no input or write control, kept page
+overflow bounded and passed query isolation with no accessible browser warning
+or error. Its narrow UI acceptance remains historical evidence from
+`v.1.500.19-53022a2`; it was not rerun as narrow on `.21`.
 
 ## Timesheet production evidence
 

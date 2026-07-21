@@ -28,6 +28,22 @@ request_health() {
     -H 'Host: mes-internal' "http://127.0.0.1:${PORT}/healthz"
 }
 
+request_capabilities() {
+  curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+    -H 'Host: mes-internal' "http://127.0.0.1:${PORT}/api/v1/nomenclature/capabilities"
+}
+
+assert_command_owner_readiness() {
+  /usr/bin/node -e '
+    const value = JSON.parse(process.argv[1]);
+    if (value.ok !== true || value.operatorReadiness !== true) throw new Error("Internal Nomenclature operator readiness is unavailable");
+    if (value.employeeAuthStorageConfigured !== true || value.employeeAuthSchemaReady !== true) throw new Error("Migration 027 or employee-auth storage readiness is missing");
+    if (value.employeeAuthConfigured !== true) throw new Error("Pilot employee authentication Stage 1 is not configured");
+    if (value.capabilities?.serverCommandsConfigured !== true) throw new Error("Nomenclature command owner Stage 2 is not configured");
+    if (value.capabilities?.serverCommandsEnabled !== false) throw new Error("Internal unauthenticated readiness must not receive write authority");
+  ' "$1"
+}
+
 restore_on_failure() {
   if [[ $completed -eq 1 || $configuration_changed -eq 0 ]]; then
     rm -rf "$backup_dir"
@@ -67,8 +83,14 @@ if [[ -n "$unexpected_flags" ]]; then
   exit 1
 fi
 
+pre_capabilities="$(request_capabilities)"
+assert_command_owner_readiness "$pre_capabilities" \
+  || { echo "Nomenclature write evaluation requires migration 027, employee-auth Stage 1 and command-owner Stage 2 readiness." >&2; exit 1; }
+
 install -d -m 0755 "$DROPIN_DIR"
 if [[ -f "$DROPIN_FILE" ]]; then
+  cmp -s "$SOURCE_FILE" "$DROPIN_FILE" \
+    || { echo "Refusing to overwrite an unrecognized or operator-modified React Nomenclature write evaluation drop-in." >&2; exit 1; }
   cp -a "$DROPIN_FILE" "$backup_dir/previous.conf"
   had_previous=1
 fi
@@ -80,10 +102,12 @@ systemctl restart "$SERVICE"
 for attempt in $(seq 1 12); do
   health="$(request_health 2>/dev/null || true)"
   home="$(request_home 2>/dev/null || true)"
+  capabilities="$(request_capabilities 2>/dev/null || true)"
   if grep -Fq '"status":"ok"' <<<"$health" \
     && grep -Fq '"MES_REACT_NOMENCLATURE":true' <<<"$home" \
     && grep -Fq '"MES_REACT_NOMENCLATURE_WRITE_EVALUATION":true' <<<"$home" \
-    && grep -Fq '"MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION":false' <<<"$home"; then
+    && grep -Fq '"MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION":false' <<<"$home" \
+    && assert_command_owner_readiness "$capabilities" 2>/dev/null; then
     completed=1
     break
   fi

@@ -23,7 +23,7 @@ assert(runtimeState.includes("const hasPlanningState = Object.prototype.hasOwnPr
 assert(runtimeState.includes("options.allowSharedUiOnly !== true"), "An empty projection must be rejected unless it is the explicit shared-UI-only bootstrap path.");
 assert(runtimeState.includes("if (hasDirectoryState)"), "Directory state must be applied only when it was requested.");
 assert(runtimeState.includes("if (hasPlanningState)"), "Planning state must be applied only when it was requested.");
-assert(app.includes("function hydrateSharedStateForModule(moduleId, valueKeys = [])"), "Module-scoped shared-state hydration is missing.");
+assert(app.includes("function hydrateSharedStateForModule(moduleId, valueKeys = [], { allowBeforeInitialSync = false, failClosed = false } = {})"), "Module-scoped shared-state hydration must expose the explicit cold-read and fail-closed policy.");
 assert(app.includes("sharedStateModuleHydrations.delete(hydrationKey);"), "A deferred module hydration must retry after an early shared-state miss.");
 assert(app.includes('hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY])'), "Directories must hydrate their own projection.");
 assert(!app.includes('hydrateSharedStateForModule("planning", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Planning must not hydrate System Domains before the explicit scheduling action.");
@@ -49,7 +49,7 @@ assert(app.includes("async function handleSystemDomainsCompatibilityStatus"), "C
 assert(app.includes('["active", "unknown"].includes(systemDomainsCompatibilityState)'), "Active and mixed-version compatibility states must hydrate the exact remote value before fallback.");
 assert(app.includes('systemDomainsCompatibilityState === "absent"'), "Legacy fallback must require a confirmed absent compatibility state.");
 assert(!app.includes('source: "startup-shared-tombstone"'), "The removed standalone cold System Domains request must not return.");
-assert(runtimeState.includes("async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false } = {})"), "Projected System Domains hydration must support the explicit cold-boot path.");
+assert(runtimeState.includes("async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false, throwOnError = false } = {})"), "Projected hydration must support explicit cold-boot reads and fail-closed callers.");
 assert(runtimeState.includes("onSystemDomainsSnapshotRetired = () => {}"), "Runtime state must notify the app when it observes a new System Domains tombstone.");
 const reloadSystemDomainsState = app.match(/function reloadSystemDomainsState\([\s\S]*?\n}\n\nfunction updateSystemDomainRegistry/);
 assert(reloadSystemDomainsState, "System Domains reload path is missing.");
@@ -57,14 +57,15 @@ assert((reloadSystemDomainsState[0].match(/hasObservedSystemDomainsPrimaryAuthor
 assert(app.includes("PLANNING_STARTUP_PROJECTION_MODULE_IDS"), "Modules that still render the legacy Planning graph must have an explicit bootstrap compatibility guard.");
 assert(app.includes("getInitialPlanningBootstrapMode: () => ("), "App must select the initial Planning bootstrap policy by active module.");
 assert(app.includes("onPlanningBootstrap: () => hydrateInitialPlanningServerBootstrap()"), "Runtime startup must choose the correct Planning server bootstrap by active module.");
-assert(/if \(ui\?\.activeModule === "gantt"\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(app), "Direct Gantt startup must prefer PostgreSQL projection over the full shared-state snapshot.");
+assert(/if \(\["gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"\]\.includes\(ui\?\.activeModule\)\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(app), "Direct production-execution startup must prefer the PostgreSQL planning projection over the full shared-state snapshot.");
 assert(app.includes("onPlanningSnapshotSynchronized: () => hydratePlanningAfterSharedSync()"), "Post-sync hydration must resolve a deferred Gantt fallback.");
 assert(/shouldHydratePlanningAfterSharedSync: \(\) => \(\s*ui\?\.activeModule === "planning" \|\| ui\?\.activeModule === "gantt"\s*\)/.test(app), "A Gantt navigation during metadata sync must re-check its fallback after synchronization.");
 assert(runtimeState.includes("onPlanningSnapshotSynchronized({\n          serverPlanningApplied,\n          requestedPlanningBootstrapMode,\n          metadataOnly,"), "Runtime state must pass the applied snapshot mode to the Gantt fallback gate.");
 assert(app.includes("async function hydratePlanningAfterSharedSync({ metadataOnly = true } = {})"), "Gantt must distinguish a full applied snapshot from metadata-only synchronization.");
 assert(runtimeState.includes("function isCompactSharedUiReason(reason = \"\")"), "Shared UI writes must have an explicit compact transport gate.");
 assert(runtimeState.includes("responseMode = \"ack\""), "Shared UI writes must request the compact acknowledgement.");
-assert(runtimeState.includes("pendingValues = compactSharedUi ? null : getSharedStateValues()"), "Shared UI writes must not capture every compatibility value.");
+assert(runtimeState.includes("getSharedStateValuesForReason(sharedStateStatus.pendingReason)"), "Queued shared-state writes must capture only the domain values owned by their reason.");
+assert(runtimeState.includes("getSharedStateValuesForReason(reason)"), "Immediate shared-state writes must preserve the same reason-scoped value contract.");
 assert(runtimeState.includes("sharedUiPatch = pendingSharedUi"), "Compact UI writes must carry an entry-level patch.");
 assert((runtimeState.match(/compactAckUnavailable/g) || []).length >= 2, "Compact UI writes must recover when a reset exposes an empty shared-state baseline after a conflict.");
 assert(runtimeState.includes("function reconcileSharedUiAfterFullWrite"), "A full shared-state retry must reconcile the merged UI response locally.");

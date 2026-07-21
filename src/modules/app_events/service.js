@@ -40,6 +40,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     createSpekiSpecification,
     cancelAuthPrototypePinFeedback,
     completeAuthPrototypeLogin,
+    deleteEmployeeSession = async () => ({ ok: true, authenticated: false }),
     deleteRouteMapConfirmed,
     doesAuthSessionFactNeedDeviationComment,
     directorySections,
@@ -140,6 +141,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     importHeaders = [],
     importRows = [],
     importBomFromXlsxFile,
+    isLegacyDirectoryWriteBlocked = () => false,
     input = null,
     isGanttSlotCompleted,
     isUserManagedDirectoryStatus = () => false,
@@ -192,6 +194,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     persistDirectoryState,
     persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
+    persistNomenclatureDirectoryMutationDurably,
     persistState,
     persistUiState,
     pickDefaultBomForSpecificationItem,
@@ -992,6 +995,7 @@ const {
   config,
   count,
   deleteDirectoryRow,
+  deleteEmployeeSession,
   deleteOperationMapItem,
   deleteRouteMapConfirmed,
   deleteRouteStepConfirmed,
@@ -1430,7 +1434,7 @@ function deleteOperationMapItem(operationId, { deferDirectoryPersist = false } =
     };
   });
   if (ui.activeOperationId === operationId) ui.activeOperationId = "";
-  if (!deferDirectoryPersist) persistDirectoryState();
+  if (!deferDirectoryPersist && persistDirectoryState() === false) return false;
   persistState();
   persistUiState();
   notifySaveSuccess("Операция удалена");
@@ -1451,7 +1455,7 @@ async function deleteUserManagedDirectoryStatus(statusId, { deferDirectoryPersis
   ui.directoryEditor = null;
   const nextRows = directoryState.statuses || [];
   ui.selectedDirectoryRows.statuses = nextRows.length ? Math.min(rowIndex, nextRows.length - 1) : 0;
-  if (!deferDirectoryPersist) await persistDirectoryStateWithRemoval();
+  if (!deferDirectoryPersist && await persistDirectoryStateWithRemoval() !== true) return false;
   persistState();
   persistUiState();
   notifySaveSuccess("Пользовательский статус удалён");
@@ -1539,6 +1543,7 @@ function getRoutesEventsDependencies() {
     importHeaders,
     importRows,
     importBomFromXlsxFile,
+    isLegacyDirectoryWriteBlocked,
     ensureNomenclatureTypeExists,
     input,
     isGanttSlotCompleted,
@@ -1575,6 +1580,7 @@ function getRoutesEventsDependencies() {
     persistDirectoryState,
     persistDirectoryStateDurably,
     persistDirectoryStateWithRemoval,
+    persistNomenclatureDirectoryMutationDurably,
     persistState,
     persistUiState,
     pickDefaultBomForSpecificationItem,
@@ -1597,6 +1603,7 @@ function getRoutesEventsDependencies() {
     syncSpecificationDerivedFields,
     syncPlanningRouteQuantity,
     toDateInput,
+    updateModuleUrlParam,
     unitsPerHour,
     upsertBomResultToNomenclature,
     withDirectoryEntityRemovalAllowed,
@@ -1734,7 +1741,10 @@ function bindDirectoryForm() {
       return;
     }
 
-    saveDirectoryRow(sectionId, rowIndex, nextRow);
+    if (saveDirectoryRow(sectionId, rowIndex, nextRow) === false) {
+      alert("Справочник доступен только для чтения: серверная команда ещё не подключена.");
+      return;
+    }
     const nextIndex = rowIndex >= 0 ? rowIndex : getDirectoryData(sectionId).rows.length - 1;
     ui.selectedDirectoryRows[sectionId] = Math.max(0, nextIndex);
     ui.directoryEditor = null;
@@ -1766,7 +1776,7 @@ function saveDirectoryRow(sectionId, rowIndex, row, options = {}) {
       ? (directoryState.operationMap || []).map((item) => item.id === normalizedOperation.id ? normalizedOperation : item)
       : [...(directoryState.operationMap || []), normalizedOperation];
     applyOperationMapChangesToRoutes(normalizedOperation);
-    persistDirectoryState();
+    if (persistDirectoryState() === false) return false;
     persistState();
     notifySaveSuccess(rowIndex >= 0 ? "Операция сохранена" : "Операция создана");
     return;
@@ -1791,8 +1801,9 @@ function saveDirectoryRow(sectionId, rowIndex, row, options = {}) {
     directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   }
 
-  persistDirectoryState();
+  if (persistDirectoryState() === false) return false;
   notifySaveSuccess(rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана");
+  return true;
 }
 
 function syncNomenclatureTypeRenameInCurrentDirectoryState(previousName, nextName) {
@@ -1822,7 +1833,10 @@ function syncNomenclatureTypeRenameInCurrentDirectoryState(previousName, nextNam
 function deleteDirectoryRow(sectionId, rowIndex) {
   sectionId = normalizeDirectorySectionId(sectionId);
   const directoryData = getDirectoryData(sectionId);
-  if (directoryData.readOnly || !canEditDirectorySection(sectionId)) return false;
+  if (directoryData.readOnly || !canEditDirectorySection(sectionId)) {
+    if (isLegacyDirectoryWriteBlocked()) alert("Справочник доступен только для чтения: серверная команда ещё не подключена.");
+    return false;
+  }
   const index = Number(rowIndex);
   const row = Number.isFinite(index) ? directoryData.rows[index] : null;
   if (!row) return;
@@ -1840,13 +1854,14 @@ function deleteDirectoryRow(sectionId, rowIndex) {
   const nextRows = getDirectoryData(sectionId).rows;
   ui.selectedDirectoryRows[sectionId] = nextRows.length ? Math.min(index, nextRows.length - 1) : 0;
   if (sectionId === "bomLists" || sectionId === "specifications") {
-    withDirectoryEntityRemovalAllowed(() => persistDirectoryState());
+    if (withDirectoryEntityRemovalAllowed(() => persistDirectoryState()) === false) return false;
   } else {
-    persistDirectoryState();
+    if (persistDirectoryState() === false) return false;
   }
   persistState();
   persistUiState();
   render();
+  return true;
 }
 
 function deleteDirectoryStateRow(sectionId, row) {

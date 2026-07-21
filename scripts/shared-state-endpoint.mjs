@@ -22,6 +22,7 @@ const DEFAULT_SHARED_STATE_KEY = "mes:staging:shared-state:v1";
 const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 const SPECIFICATIONS2_STORAGE_KEY = "mes-specifications-2-registry-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
+export const NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY = "mes-nomenclature-command-receipts-v1";
 const DIRECTORY_VALUE_KEYS = new Set([
   DIRECTORY_STORAGE_KEY,
   "mes-planning-prototype-directories-defaults-restored-v1",
@@ -350,7 +351,80 @@ function sanitizeValues(values, currentValues = {}) {
     const currentValue = currentValues?.[key];
     if (typeof currentValue === "string" || currentValue === null) sanitized[key] = currentValue;
   });
+  // Idempotency receipts are owned exclusively by the server-side
+  // Nomenclature command handler. A legacy full-snapshot POST must preserve
+  // them, but may neither create nor overwrite them from browser payload.
+  const nomenclatureReceipts = currentValues?.[NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY];
+  if (typeof nomenclatureReceipts === "string") {
+    sanitized[NOMENCLATURE_COMMAND_RECEIPTS_STORAGE_KEY] = nomenclatureReceipts;
+  }
   return sanitized;
+}
+
+function stableJsonValue(value) {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableJsonValue(value[key])]));
+}
+
+function sameJsonValue(left, right) {
+  return JSON.stringify(stableJsonValue(left)) === JSON.stringify(stableJsonValue(right));
+}
+
+function collectDanglingNomenclatureReferences(value, validIds, path = "", result = []) {
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => collectDanglingNomenclatureReferences(entry, validIds, `${path}[${index}]`, result));
+    return result;
+  }
+  if (!value || typeof value !== "object") return result;
+  Object.entries(value).forEach(([key, entry]) => {
+    const entryPath = path ? `${path}.${key}` : key;
+    if (["nomenclatureId", "outputNomenclatureId"].includes(key)) {
+      const itemId = String(entry || "").trim();
+      if (itemId && !validIds.has(itemId)) result.push({ path: entryPath, itemId });
+      return;
+    }
+    collectDanglingNomenclatureReferences(entry, validIds, entryPath, result);
+  });
+  return result;
+}
+
+export function validateNomenclatureServerAuthorityWrite(current, next, env = process.env) {
+  if (String(env.MES_ENABLE_NOMENCLATURE_SERVER_COMMANDS || "") !== "1") return { ok: true };
+  const currentDirectory = parseJsonRecord(current?.values?.[DIRECTORY_STORAGE_KEY]);
+  const nextDirectory = parseJsonRecord(next?.values?.[DIRECTORY_STORAGE_KEY]);
+  if (!currentDirectory || !nextDirectory
+    || !Array.isArray(currentDirectory.nomenclature)
+    || !Array.isArray(nextDirectory.nomenclature)
+    || !Array.isArray(nextDirectory.bomLists)
+    || !Array.isArray(nextDirectory.specifications)) {
+    return {
+      ok: false,
+      code: "invalid-directory-projection",
+      error: "Nomenclature server authority requires a complete directory projection",
+    };
+  }
+  if (!sameJsonValue(currentDirectory.nomenclature, nextDirectory.nomenclature)) {
+    return {
+      ok: false,
+      code: "nomenclature-command-required",
+      error: "Nomenclature rows can only be changed through the server command endpoint",
+    };
+  }
+  const validIds = new Set(nextDirectory.nomenclature.map((row) => String(row?.id || "").trim()).filter(Boolean));
+  const danglingReferences = [
+    ...collectDanglingNomenclatureReferences(nextDirectory.bomLists, validIds, "bomLists"),
+    ...collectDanglingNomenclatureReferences(nextDirectory.specifications, validIds, "specifications"),
+  ];
+  if (danglingReferences.length) {
+    return {
+      ok: false,
+      code: "dangling-nomenclature-reference",
+      error: "BOM or Specifications contains a Nomenclature reference that does not exist",
+      danglingReferences: danglingReferences.slice(0, 50),
+    };
+  }
+  return { ok: true };
 }
 
 function hasRetiredSystemDomainsSnapshot(values) {
@@ -1188,6 +1262,22 @@ export async function handleSharedStateRequest(req, res, {
       }
 
       let snapshot = buildClientSnapshot(current, payload);
+      const nomenclatureAuthority = validateNomenclatureServerAuthorityWrite(current, snapshot, env);
+      if (!nomenclatureAuthority.ok) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          nomenclatureServerAuthority: true,
+          code: nomenclatureAuthority.code,
+          error: nomenclatureAuthority.error,
+          ...(nomenclatureAuthority.danglingReferences
+            ? { danglingReferences: nomenclatureAuthority.danglingReferences }
+            : {}),
+          current: compactDirectoryAcknowledgement ? projectSnapshotValues(current, []) : current,
+        });
+        return;
+      }
       const specifications2Authority = reconcileSpecifications2PublicationAuthority(current, snapshot);
       if (!specifications2Authority.ok) {
         sendJson(res, headers, 409, {

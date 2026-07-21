@@ -570,8 +570,8 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Nomenclature Types, Board metadata and custom Operations have local create/edit/delete evaluations, user-managed Statuses and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies have local create/edit evaluations, Employees, Positions, Org Units, Work Centers and Equipment additionally have explicit archive, Timesheet has local single-day attendance and permanent-schedule save/remove, Roles passport metadata/grant toggles/default scope/immediate assignment/unassigned-role lifecycle and Employee Desktop task start have local owner- and RBAC-gated evaluations, and every unsupported/write/security scope falls back to legacy.**
-6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot read acceptance is complete for 20 of 24 scenarios, most recently the pre-PIN Authorization picker on `.500.01-1a8a9a4`. A live audit confirms Nomenclature `0`, Boards/BOM `0` and Responsibility Policies `0`, so their non-empty parity remains unclaimable. Contour Admin is the only measurable remaining projection. Its isolated read-only rollout (`91`) passes locally and release `v.1.500.01-16e0e86` is active/healthy with both flags still off. Root activation is pending because the deploy sudo policy permits restart/status but not installation into the root-owned systemd drop-in directory. No Ops or data write occurred.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; evaluation-only read slices require two explicit runtime flags plus a session request, while Weekly Production Control and Structure Migration Diagnostics are now permanent policy surfaces without query/session activation. Nomenclature has an independent server write permission, Component Types, Nomenclature Types, Board metadata and custom Operations have local create/edit/delete evaluations, user-managed Statuses and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies have local create/edit evaluations, Employees, Positions, Org Units, Work Centers and Equipment additionally have explicit archive, Timesheet has local single-day attendance and permanent-schedule save/remove, Roles passport metadata/grant toggles/default scope/immediate assignment/unassigned-role lifecycle and Employee Desktop task start have local owner- and RBAC-gated evaluations, and every unsupported/write/security scope falls back to legacy.**
+6. Run legacy parity, functional, visual, performance, and pilot checks. **Historical all-flags-off checkpoint: local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets passed; authenticated Pilot read acceptance had reached 20 of 24 scenarios, most recently the pre-PIN Authorization picker on `.500.01-1a8a9a4`. A live audit found Nomenclature `0`, Boards/BOM `0` and Responsibility Policies `0`; Contour Admin was the only measurable remaining projection. Its isolated read-only rollout (`91`) passed locally while release `v.1.500.01-16e0e86` remained active/healthy with both flags off. Root activation was then pending because the deploy sudo policy permitted restart/status but not installation into the root-owned systemd drop-in directory. No Ops or data write occurred. Current `.21` acceptance is recorded in the permanent read-only checkpoint below.**
 7. Migrate commands one vertical scope at a time. **Nomenclature, Component
    Types and Nomenclature Types create/edit/delete are locally complete
    default-off write evaluations; Nomenclature Types additionally proves
@@ -798,3 +798,35 @@ Nomenclature Types destructive functional suites remain green. The standalone
 Statuses island is `213,503 B` raw / `65,173 B` gzip; production output is
 `207,032 B` raw / `64,632 B` gzip / `55,697 B` Brotli. Pilot write activation
 does not exist and no real Pilot data was mutated.
+
+## Permanent read-only cutover checkpoint 2026-07-21
+
+The global cutover percentage is evidence-weighted rather than inferred from
+the number of completed island labs. Current honest progress is `50%`:
+`14 + 18 + 9 + 2 + 2 + 5`. Historical Pilot reads cover `21/24` scenarios;
+current-release read and permanent default-on coverage on
+`v.1.500.21-8fb92d9` are `2/24`; full Pilot write/cleanup coverage remains
+`1/22`.
+
+The `.21` immutable runtime policy permanently enables exactly Weekly
+Production Control and Structure Migration Diagnostics. No evaluation drop-in
+or effective `MES_REACT_*` evaluation value remains. Weekly was desktop-rechecked
+on `.21` at `25 x 11`, ready/react, `aria-busy=false`, with query isolation,
+bounded overflow and no accessible warning/error; its narrow acceptance remains
+historical `.19` evidence. Diagnostics desktop acceptance proved ready/react,
+`aria-busy=false`, `152 x 5`, 51 source fields, metrics
+`152 / 76 / 19 / 49 / 0 / 0`, four issue groups including two ignored rows,
+seven registry links, zero inputs/write controls, bounded overflow, query
+isolation, canonical adjacent-registry navigation and no accessible
+warning/error. Diagnostics narrow is not claimed because the controlled Pilot
+platform could not resize the authenticated tab.
+
+The exact release drill was
+`.21 -> .20 -> .21 -> .18 -> .19 -> .20 -> .21`. Exact `.20` reproduced its
+known Diagnostics `aria-busy=true`; pinned `.18` exposed zero React surfaces,
+canonical 19-row legacy Org Units for the Diagnostics deep link and legacy
+Weekly `25 x 11`. Final state is `.21` active, `.20` immediate previous and
+`.18` pinned legacy, with health `ok`, no evaluation residue and no Pilot write.
+The top-level Structure module remains mixed and not production-ready because
+its six writable registries still use legacy normal paths. Legacy rollback is
+therefore preserved, and Blueprint UI remains excluded.

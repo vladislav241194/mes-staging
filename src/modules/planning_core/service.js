@@ -1615,6 +1615,8 @@ function applyAuthGateSession(state = {}) {
 
 function isAuthGateQaBypassEnabled() {
   try {
+    const hostname = String(window.location.hostname || "").trim().toLowerCase();
+    if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)) return false;
     const params = new URLSearchParams(window.location.search || "");
     return params.get("qa-auth-bypass") === "1";
   } catch {
@@ -1676,7 +1678,8 @@ function getUrlUiOverrides() {
   const moduleId = normalizeDeepLinkModuleId(rawModuleId);
   const directoryId = String(params.get("directory") || params.get("dir") || "").trim();
   if (moduleId) overrides.activeModule = moduleId;
-  if (rawModuleId === "bomLists") overrides.activeNomenclaturePane = "boards";
+  if (rawModuleId === "nomenclature") overrides.activeNomenclaturePane = "items";
+  else if (rawModuleId === "bomLists") overrides.activeNomenclaturePane = "boards";
   if (directoryId && isDeepLinkDirectorySectionId(directoryId)) {
     overrides.activeDirectory = directoryId;
     if (!overrides.activeModule) overrides.activeModule = "directories";
@@ -1752,6 +1755,7 @@ function syncUiWithUrlParams() {
   const overrides = getUrlUiOverrides();
   if (overrides.activeModule) ui.activeModule = overrides.activeModule;
   if (overrides.activeDirectory) ui.activeDirectory = overrides.activeDirectory;
+  if (overrides.activeNomenclaturePane) ui.activeNomenclaturePane = overrides.activeNomenclaturePane;
 }
 
 function updateModuleUrlParam(moduleId = "") {

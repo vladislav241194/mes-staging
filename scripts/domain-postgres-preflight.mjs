@@ -1,3 +1,5 @@
+import { getRequiredDomainMigrations } from "./domain-postgres-preflight-policy.mjs";
+
 const requireDatabase = process.argv.includes("--require");
 const databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "";
 
@@ -12,13 +14,7 @@ const postgres = (await import("postgres")).default;
 const sql = postgres(databaseUrl, { max: 1, connect_timeout: 5, prepare: false });
 try {
   const version = await sql`SELECT current_setting('server_version_num') AS version`;
-  const requiredMigrations = [
-    "009_specifications2_revision_read_model",
-    "014_shift_execution_command_idempotency",
-    "022_shift_execution_carryover_lifecycle",
-    "023_system_domains_postgres_primary_authority",
-    "026_system_responsibility_policy_lifecycle",
-  ];
+  const requiredMigrations = getRequiredDomainMigrations(process.env);
   const migrations = await sql`SELECT version FROM mes_schema_migrations WHERE version = ANY(${requiredMigrations})`;
   const applied = new Set(migrations.map((row) => row.version));
   const missing = requiredMigrations.filter((migration) => !applied.has(migration));

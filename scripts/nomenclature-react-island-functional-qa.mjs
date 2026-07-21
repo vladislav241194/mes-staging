@@ -69,6 +69,8 @@ async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-nomenclature-react-functional-"));
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
   const writeSharedStateFile = join(temporaryRoot, "write-shared-state.json");
+  const evaluationPolicyFile = join(temporaryRoot, "nomenclature-evaluation-policy.json");
+  const legacyPolicyFile = join(temporaryRoot, "nomenclature-legacy-policy.json");
   const directoryFixture = createDirectoryFixture();
   const snapshot = {
     version: 1,
@@ -83,6 +85,17 @@ async function main() {
   };
   await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
   await writeFile(writeSharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+  const releasePolicy = JSON.parse(await readFile(join(process.cwd(), "react-runtime-policy.json"), "utf8"));
+  await writeFile(evaluationPolicyFile, `${JSON.stringify({
+    ...releasePolicy,
+    policyId: "qa-nomenclature-evaluation",
+    surfaces: { ...releasePolicy.surfaces, nomenclature: "evaluation", boards: "evaluation" },
+  }, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(legacyPolicyFile, `${JSON.stringify({
+    ...releasePolicy,
+    policyId: "qa-nomenclature-legacy",
+    surfaces: { ...releasePolicy.surfaces, nomenclature: "legacy", boards: "legacy" },
+  }, null, 2)}\n`, { mode: 0o600 });
   assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary shared-state file must be owner-readable only");
   assert(((await stat(writeSharedStateFile)).mode & 0o777) === 0o600, "temporary write shared-state file must be owner-readable only");
   const originalSnapshot = await readFile(sharedStateFile, "utf8");
@@ -104,6 +117,7 @@ async function main() {
       APP_ENV: "local",
       MES_ADMIN_HOSTS: "admin.mes-line.ru",
       MES_SHARED_STATE_FILE: sharedStateFile,
+      MES_REACT_RUNTIME_POLICY_PATH: evaluationPolicyFile,
       MES_REACT_NOMENCLATURE: "1",
       MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: "1",
     },
@@ -120,6 +134,7 @@ async function main() {
       APP_ENV: "local",
       MES_ADMIN_HOSTS: "admin.mes-line.ru",
       MES_SHARED_STATE_FILE: sharedStateFile,
+      MES_REACT_RUNTIME_POLICY_PATH: legacyPolicyFile,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -134,6 +149,7 @@ async function main() {
       APP_ENV: "local",
       MES_ADMIN_HOSTS: "admin.mes-line.ru",
       MES_SHARED_STATE_FILE: writeSharedStateFile,
+      MES_REACT_RUNTIME_POLICY_PATH: evaluationPolicyFile,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -237,16 +253,16 @@ async function main() {
     await waitForCondition(client, () => (
       !document.querySelector("[data-react-nomenclature-island]")
       && document.querySelectorAll(".bom-lists-page.is-boards-pane").length === 1
-    ), { message: "Boards request did not restore the single legacy Boards/BOM pane" });
+    ), { message: "Boards navigation did not open the separately governed Boards/BOM pane" });
     const fallback = await evaluate(client, () => ({
       reactTargets: document.querySelectorAll("[data-react-nomenclature-island]").length,
       boardsPanes: document.querySelectorAll(".bom-lists-page.is-boards-pane").length,
       boardButtons: document.querySelectorAll("[data-bom-open]").length,
       pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     }));
-    assert(fallback.reactTargets === 0 && fallback.boardsPanes === 1, "fallback must unmount React and render one legacy Boards pane");
+    assert(fallback.reactTargets === 0 && fallback.boardsPanes === 1, "Boards navigation must unmount Nomenclature React and render one Boards pane");
     assert(fallback.boardButtons === 2, "legacy Boards pane must receive both fixture boards");
-    assert(!fallback.pageOverflow, "legacy fallback must not create page-level overflow");
+    assert(!fallback.pageOverflow, "Boards navigation must not create page-level overflow");
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
 
     const finalSnapshot = await readFile(sharedStateFile, "utf8");
@@ -457,7 +473,7 @@ async function main() {
     console.log("- filters, selection and detail: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
-    console.log("- legacy Boards fallback with 2 boards: pass");
+    console.log("- separately governed Boards navigation with 2 boards: pass");
     console.log("- React create + edit through the legacy command owner: pass");
     console.log("- legacy default opens the exact row created by React: pass");
     console.log("- React delete confirmation, cancel and exact one-row removal: pass");

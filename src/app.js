@@ -73,6 +73,7 @@ import { createAppInteractionsModule } from "./modules/app_interactions/render.j
 import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
+import { createNomenclatureServerOwnerClient } from "./modules/nomenclature/server_owner_client.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
@@ -185,7 +186,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.21";
+const APP_VERSION_FALLBACK = "v.1.500.22";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -243,6 +244,306 @@ const sharedStateStatus = {
   sharedUiBase: null,
   lastSharedUiSignature: "",
 };
+
+const nomenclatureServerOwnerClient = createNomenclatureServerOwnerClient();
+const NOMENCLATURE_CAPABILITIES_RECHECK_MS = 5_000;
+let employeeServerSessionState = { status: "idle", authenticated: false, actor: null, error: "" };
+let employeeServerSessionPromise = null;
+let nomenclatureServerCapabilitiesState = { status: "idle", result: null, error: "" };
+let nomenclatureServerCapabilitiesPromise = null;
+let nomenclatureServerCapabilitiesFetchedAt = 0;
+let nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+
+function isEmployeeServerAuthRequired() {
+  return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_REQUIRED === true;
+}
+
+function isEmployeeServerAuthAvailable() {
+  return MES_RUNTIME_CONFIG.MES_EMPLOYEE_AUTH_AVAILABLE === true
+    || isNomenclatureServerCommandsPrimary();
+}
+
+function isNomenclatureEmployeeElevationActive() {
+  return nomenclatureEmployeeElevationState.active === true;
+}
+
+function isNomenclatureServerCommandsPrimary() {
+  return MES_RUNTIME_CONFIG.MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY === true;
+}
+
+function isLegacyDirectoryWriteBlocked() {
+  return isNomenclatureServerCommandsPrimary();
+}
+
+function resetNomenclatureServerCapabilities() {
+  nomenclatureServerCapabilitiesState = { status: "idle", result: null, error: "" };
+  nomenclatureServerCapabilitiesFetchedAt = 0;
+}
+
+function getEmployeeServerActor() {
+  return employeeServerSessionState.authenticated === true
+    ? employeeServerSessionState.actor
+    : null;
+}
+
+function getNomenclatureServerFailureMessage(result = null, fallback = "Серверная проверка недоступна.") {
+  if (result?.authenticationRequired) return "Серверная сессия сотрудника не подтверждена. Выполните вход повторно.";
+  if (result?.authorizationDenied) return "У сотрудника нет права изменять Номенклатуру.";
+  if (result?.conflict) return "Номенклатура уже изменилась в другом сеансе. Экран обновлён; повторите команду.";
+  if (result?.category === "rate-limit") return "Слишком много попыток. Подождите и повторите вход.";
+  if (result?.unavailable || Number(result?.status || 0) === 0) return "Сервер Номенклатуры временно недоступен. Локальные данные не изменены.";
+  return String(result?.error || result?.message || fallback);
+}
+
+async function createEmployeeServerSession({ employeeId = "", pin = "" } = {}) {
+  if (!isEmployeeServerAuthAvailable()) {
+    return { ok: false, code: "server-auth-disabled", message: "Серверная авторизация сотрудников отключена." };
+  }
+  employeeServerSessionState = { status: "loading", authenticated: false, actor: null, error: "" };
+  resetNomenclatureServerCapabilities();
+  const result = await nomenclatureServerOwnerClient.createEmployeeSession({ employeeId, pin });
+  const actor = result?.ok === true && result.authenticated === true ? result.actor : null;
+  if (!actor || String(actor.employeeId || "") !== String(employeeId || "")) {
+    if (actor) void nomenclatureServerOwnerClient.deleteEmployeeSession().catch(() => {});
+    employeeServerSessionState = {
+      status: result?.ok === true ? "error" : "unauthenticated",
+      authenticated: false,
+      actor: null,
+      error: actor
+        ? "Сервер подтвердил другого сотрудника. Сессия закрыта."
+        : getNomenclatureServerFailureMessage(result, "Не удалось подтвердить PIN на сервере."),
+    };
+    return {
+      ...result,
+      ok: false,
+      authenticated: false,
+      actor: null,
+      code: actor ? "employee-actor-mismatch" : String(result?.code || "employee-session-rejected"),
+      message: employeeServerSessionState.error,
+    };
+  }
+  employeeServerSessionState = { status: "authenticated", authenticated: true, actor, error: "" };
+  void ensureNomenclatureServerCapabilities({ force: true });
+  return { ...result, ok: true, authenticated: true, actor };
+}
+
+function deleteEmployeeServerSession() {
+  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+  employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "" };
+  resetNomenclatureServerCapabilities();
+  if (!isEmployeeServerAuthAvailable()) return Promise.resolve({ ok: true, authenticated: false });
+  return nomenclatureServerOwnerClient.deleteEmployeeSession();
+}
+
+function reconcileEmployeeServerSession({ force = false } = {}) {
+  if (!isEmployeeServerAuthAvailable()) return Promise.resolve(employeeServerSessionState);
+  if (!force && employeeServerSessionState.status === "authenticated") return Promise.resolve(employeeServerSessionState);
+  if (employeeServerSessionPromise) return employeeServerSessionPromise;
+  employeeServerSessionState = { status: "loading", authenticated: false, actor: null, error: "" };
+  employeeServerSessionPromise = nomenclatureServerOwnerClient.getEmployeeSession().then((result) => {
+    const actor = result?.ok === true && result.authenticated === true ? result.actor : null;
+    employeeServerSessionState = actor
+      ? { status: "authenticated", authenticated: true, actor, error: "" }
+      : {
+        status: result?.ok === true ? "unauthenticated" : "error",
+        authenticated: false,
+        actor: null,
+        error: result?.ok === true ? "" : getNomenclatureServerFailureMessage(result),
+      };
+    resetNomenclatureServerCapabilities();
+    if (ui && !isAuthGateQaBypassEnabled()) {
+      const localEmployeeId = String(ui.authCurrentUserId || "");
+      if (actor && (!localEmployeeId || localEmployeeId !== actor.employeeId)) {
+        if (isEmployeeServerAuthRequired()) lockAuthGate();
+        void nomenclatureServerOwnerClient.deleteEmployeeSession().catch(() => {});
+        employeeServerSessionState = {
+          status: "error",
+          authenticated: false,
+          actor: null,
+          error: "Локальный сотрудник не совпадает с серверной сессией. Выполните вход повторно.",
+        };
+      } else if (isEmployeeServerAuthRequired() && !actor) {
+        lockAuthGate();
+      } else if (isEmployeeServerAuthRequired() && !planningCoreService.isAuthGateUnlocked?.()) {
+        const people = typeof getAuthPrototypePeople === "function" ? getAuthPrototypePeople() : null;
+        const person = (people?.employees || []).find((entry) => entry.id === actor.employeeId) || null;
+        if (person) unlockAuthGate({ personId: person.id, roleId: inferAccessRoleIdForPerson(person) });
+      }
+      if (appBootstrapped) render({ skipRememberScroll: true });
+    }
+    if (actor) void ensureNomenclatureServerCapabilities({ force: true });
+    return employeeServerSessionState;
+  }).catch((error) => {
+    employeeServerSessionState = {
+      status: "error",
+      authenticated: false,
+      actor: null,
+      error: `Серверная сессия недоступна: ${error?.message || String(error)}`,
+    };
+    return employeeServerSessionState;
+  }).finally(() => { employeeServerSessionPromise = null; });
+  return employeeServerSessionPromise;
+}
+
+function ensureNomenclatureServerCapabilities({ force = false } = {}) {
+  const fresh = nomenclatureServerCapabilitiesState.status === "ready"
+    && Date.now() - nomenclatureServerCapabilitiesFetchedAt < NOMENCLATURE_CAPABILITIES_RECHECK_MS;
+  if (!force && fresh) return Promise.resolve(nomenclatureServerCapabilitiesState);
+  if (nomenclatureServerCapabilitiesPromise) return nomenclatureServerCapabilitiesPromise;
+  nomenclatureServerCapabilitiesState = { status: "loading", result: null, error: "" };
+  nomenclatureServerCapabilitiesPromise = nomenclatureServerOwnerClient.getCapabilities().then((result) => {
+    nomenclatureServerCapabilitiesState = {
+      status: "ready",
+      result: result?.ok === true ? result : null,
+      error: result?.ok === true ? "" : getNomenclatureServerFailureMessage(result),
+    };
+    nomenclatureServerCapabilitiesFetchedAt = Date.now();
+    if (appBootstrapped && ui?.activeModule === "nomenclature") {
+      const updated = nomenclatureReactIslandHost?.update?.();
+      if (!updated) render({ skipRememberScroll: true });
+    }
+    return nomenclatureServerCapabilitiesState;
+  }).catch((error) => {
+    nomenclatureServerCapabilitiesState = {
+      status: "ready",
+      result: null,
+      error: `Права Номенклатуры недоступны: ${error?.message || String(error)}`,
+    };
+    nomenclatureServerCapabilitiesFetchedAt = Date.now();
+    return nomenclatureServerCapabilitiesState;
+  }).finally(() => { nomenclatureServerCapabilitiesPromise = null; });
+  return nomenclatureServerCapabilitiesPromise;
+}
+
+function getNomenclatureElevationAuthModel() {
+  const employeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
+  const model = getAuthPrototypeReactModel();
+  const departments = (model.departments || []).flatMap((department) => {
+    const directPeople = (department.directPeople || []).filter((person) => person.id === employeeId);
+    const units = (department.units || []).flatMap((unit) => {
+      const people = (unit.people || []).filter((person) => person.id === employeeId);
+      return people.length ? [{ ...unit, people, employeeCount: people.length }] : [];
+    });
+    if (!directPeople.length && !units.length) return [];
+    return [{ ...department, directPeople, units, employeeCount: directPeople.length + units.reduce((total, unit) => total + unit.people.length, 0) }];
+  });
+  return { ...model, departments, forcedPersonId: employeeId, elevation: true };
+}
+
+async function beginNomenclatureEmployeeElevation() {
+  const person = getAuthenticatedAccessPerson();
+  if (!person?.id || !isEmployeeServerAuthAvailable()) {
+    return { ok: false, message: "Подтверждение PIN для текущего сотрудника недоступно." };
+  }
+  await deleteEmployeeServerSession().catch(() => {});
+  nomenclatureEmployeeElevationState = { active: true, employeeId: person.id, returnModule: "nomenclature" };
+  const authModel = getAuthPrototypeReactModel();
+  const department = (authModel.departments || []).find((entry) => (
+    (entry.directPeople || []).some((candidate) => candidate.id === person.id)
+    || (entry.units || []).some((unit) => (unit.people || []).some((candidate) => candidate.id === person.id))
+  )) || null;
+  const unit = (department?.units || []).find((entry) => (entry.people || []).some((candidate) => candidate.id === person.id)) || null;
+  cancelAuthPrototypePinFeedback();
+  authPrototypePinDraft = "";
+  authPrototypeKeypadDigits = [];
+  ui.authPrototypeResult = "";
+  ui.authPrototypeAttemptsLeft = AUTH_GATE_MAX_ATTEMPTS;
+  ui.authPrototypeDepartment = String(department?.id || "");
+  ui.authPrototypeUnit = String(unit?.id || "");
+  ui.authPrototypePersonId = person.id;
+  ui.activeModule = "authPrototype";
+  updateModuleUrlParam(ui.activeModule);
+  persistUiState();
+  render({ skipRememberScroll: true });
+  return { ok: true, id: person.id };
+}
+
+function finishNomenclatureEmployeeElevation(actor = null) {
+  const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
+  const expectedEmployeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
+  if (!localEmployeeId
+    || localEmployeeId !== expectedEmployeeId
+    || String(actor?.employeeId || "") !== expectedEmployeeId) {
+    void deleteEmployeeServerSession().catch(() => {});
+    return { ok: false, message: "Сервер подтвердил не текущего сотрудника. Сессия закрыта." };
+  }
+  const returnModule = nomenclatureEmployeeElevationState.returnModule || "nomenclature";
+  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+  authPrototypePinDraft = "";
+  authPrototypeKeypadDigits = [];
+  ui.authPrototypeResult = "";
+  ui.activeModule = returnModule;
+  updateModuleUrlParam(returnModule);
+  persistUiState();
+  void ensureNomenclatureServerCapabilities({ force: true });
+  render({ skipRememberScroll: true });
+  return { ok: true, authenticated: true, personId: localEmployeeId };
+}
+
+function cancelNomenclatureEmployeeElevation() {
+  if (!isNomenclatureEmployeeElevationActive()) return false;
+  const returnModule = nomenclatureEmployeeElevationState.returnModule || "nomenclature";
+  nomenclatureEmployeeElevationState = { active: false, employeeId: "", returnModule: "nomenclature" };
+  void deleteEmployeeServerSession().catch(() => {});
+  cancelAuthPrototypePinFeedback();
+  authPrototypePinDraft = "";
+  authPrototypeKeypadDigits = [];
+  ui.authPrototypeResult = "";
+  ui.activeModule = returnModule;
+  updateModuleUrlParam(returnModule);
+  persistUiState();
+  render({ skipRememberScroll: true });
+  return true;
+}
+
+async function executeNomenclatureServerCommand(intent = {}, expectedRevision = 0) {
+  const kind = String(intent.kind || "");
+  const action = kind === "create" ? "create" : kind === "delete" ? "delete" : "edit";
+  const decision = getNomenclatureReactWriteDecision(action);
+  if (!decision.allowed) {
+    return { ok: false, failClosed: true, status: 0, code: "write-unavailable", category: "authorization", message: decision.reason };
+  }
+  const commandInput = {
+    itemId: String(intent.itemId || intent.row?.id || ""),
+    row: intent.row,
+    expectedRow: intent.expectedRow,
+    expectedRevision,
+    idempotencyKey: String(intent.idempotencyKey || ""),
+  };
+  const result = kind === "create"
+    ? await nomenclatureServerOwnerClient.createNomenclature(commandInput)
+    : kind === "update"
+      ? await nomenclatureServerOwnerClient.updateNomenclature(commandInput)
+      : kind === "delete"
+        ? await nomenclatureServerOwnerClient.deleteNomenclature(commandInput)
+        : { ok: false, status: 0, code: "invalid-command", category: "validation", error: "Unsupported Nomenclature command" };
+  if (result?.authenticationRequired) {
+    employeeServerSessionState = { status: "unauthenticated", authenticated: false, actor: null, error: "Серверная сессия сотрудника завершена." };
+    resetNomenclatureServerCapabilities();
+  }
+  if (result?.ok === true) {
+    const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
+    if (!localEmployeeId || String(result.actorId || "") !== `employee:${localEmployeeId}`) {
+      void nomenclatureServerOwnerClient.deleteEmployeeSession().catch(() => {});
+      employeeServerSessionState = {
+        status: "error",
+        authenticated: false,
+        actor: null,
+        error: "Команду подтвердил другой серверный сотрудник. Сессия закрыта.",
+      };
+      resetNomenclatureServerCapabilities();
+      return {
+        ok: false,
+        failClosed: true,
+        status: Number(result.status || 0),
+        code: "employee-actor-mismatch",
+        category: "security",
+        error: employeeServerSessionState.error,
+      };
+    }
+  }
+  return result;
+}
 
 let planningRoutesService = {};
 function makeRouteOperationId(...args) { return planningRoutesService.makeRouteOperationId(...args); }
@@ -468,6 +769,7 @@ function initializePlanningRoutesServiceModule() {
   icon,
   isGanttSlotCompleted: (slot = {}) => slot?.status === "completed" || slot?.completed === true,
   isManufacturingOutputReceiptRouteStep,
+  isLegacyDirectoryWriteBlocked,
   isPlanningWorkCenter,
   isSmtOperationWorkCenter,
   isWarehouseIssueRouteStep,
@@ -2264,6 +2566,9 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
     };
   };
   const commitSpecifications2Publication = (entry, acknowledgedPublication = null) => {
+    if (isLegacyDirectoryWriteBlocked()) {
+      throw new Error("Публикация недоступна: серверная команда совместимого состава изделия ещё не подключена.");
+    }
     const result = buildSpecifications2Publication(entry, {
       directoryState,
       planningState,
@@ -2272,7 +2577,9 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
     directoryState = normalizeDirectoryState(result.directoryState);
     planningState = normalizePlanningState(result.planningState);
     invalidateWeeklyPlanningPeriod();
-    persistDirectoryState();
+    if (persistDirectoryState() === false) {
+      throw new Error("Публикация не сохранена: серверная команда совместимого состава изделия ещё не подключена.");
+    }
     persistState();
     return result.publication;
   };
@@ -2303,7 +2610,9 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
     prepareSpecifications2Publication,
     commitSpecifications2Publication,
     publishSpecifications2Entry: (entry) => commitSpecifications2Publication(entry),
-    publishServerRevision: (entry, { expectedPreviousRevision } = {}) => specifications2PublishCommands?.publishRevision?.({ entry, expectedPreviousRevision }) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
+    publishServerRevision: (entry, { expectedPreviousRevision } = {}) => isLegacyDirectoryWriteBlocked()
+      ? Promise.resolve({ ok: false, disabled: true, error: "Публикация доступна только для чтения: серверная команда совместимого состава изделия ещё не подключена." })
+      : specifications2PublishCommands?.publishRevision?.({ entry, expectedPreviousRevision }) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
     getServerPublicationCapability: (options) => specifications2PublishCommands?.refreshCapability?.(options) || Promise.resolve({
       ok: false,
       enabled: false,
@@ -2395,52 +2704,163 @@ function isNomenclatureReactWriteEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
   return params.get("react-nomenclature-write-evaluation") === "1" && Boolean(getAuthenticatedAccessPerson());
 }
-const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
-  getActivation: () => {
-    const localQa = getNomenclatureReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true;
-    const serverWriteEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true;
-    const writeEvaluation = localQa.writeEvaluation || (serverWriteEvaluationAllowed && isNomenclatureReactWriteEvaluationRequested());
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true || localQa.featureFlagEnabled,
-      activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
-      accessMode: writeEvaluation
+function getNomenclatureReactReadState() {
+  const hydrationState = getSharedStateModuleHydrationState("nomenclature", [DIRECTORY_STORAGE_KEY]);
+  const ownerReady = hydrationState.status === "ready"
+    && sharedStateStatus.configured === true
+    && sharedStateStatus.enabled === true;
+  return {
+    ownerReady,
+    serverReadReady: ownerReady,
+    serverReadFailure: hydrationState.status === "error"
+      ? String(hydrationState.reason || "read-unavailable")
+      : "",
+  };
+}
+function getNomenclatureReactActivation() {
+  const localQa = getNomenclatureReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true;
+  const serverWriteEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true;
+  const readEvaluationRequested = serverEvaluationAllowed && isNomenclatureReactEvaluationRequested();
+  const writeEvaluationRequested = serverWriteEvaluationAllowed && isNomenclatureReactWriteEvaluationRequested();
+  const localEvaluationEnabled = localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation);
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "nomenclature",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true,
+    evaluationRequested: readEvaluationRequested || writeEvaluationRequested,
+    localQaEnabled: localEvaluationEnabled,
+  });
+  const activation = {
+    ...runtimeActivation,
+    ...getNomenclatureReactReadState(),
+    activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && (localQa.writeEvaluation || writeEvaluationRequested)
         ? "write-evaluation"
-        : (serverEvaluationAllowed && isNomenclatureReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
-    };
-  },
+        : runtimeActivation.accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+  if (activation.accessMode === "react" || isNomenclatureServerCommandsPrimary()) {
+    void ensureNomenclatureServerCapabilities();
+  }
+  return activation;
+}
+function getNomenclatureReactWriteDecision(action = "edit", activation = getNomenclatureReactActivation()) {
+  const normalizedAction = ["create", "delete"].includes(action) ? action : "edit";
+  const serverAuthorityRequired = activation.accessMode === "react" || isNomenclatureServerCommandsPrimary();
+  // Permanent ownership may never inherit the loopback QA bypass. The
+  // temporary local write-evaluation contour keeps that bypass so its
+  // isolated browser contract can still be exercised without weakening the
+  // signed permanent policy (server evaluation already requires real auth).
+  if (serverAuthorityRequired) {
+    if (activation.ownerReady !== true) return { allowed: false, reason: "Актуальная серверная проекция Номенклатуры ещё не загружена." };
+    if (nomenclatureServerCapabilitiesState.status !== "ready") {
+      return { allowed: false, reason: "Проверяем серверную сессию и права сотрудника…" };
+    }
+    const result = nomenclatureServerCapabilitiesState.result;
+    if (!result?.authenticated || !result.actor?.employeeId) {
+      return { allowed: false, reason: nomenclatureServerCapabilitiesState.error || "Выполните вход под сотрудником, чтобы редактировать Номенклатуру." };
+    }
+    const localPerson = getAuthenticatedAccessPerson();
+    if (!localPerson?.id || String(result.actor.employeeId) !== String(localPerson.id)) {
+      return { allowed: false, reason: "Серверная сессия не совпадает с выбранным сотрудником. Выполните вход повторно." };
+    }
+    const sessionActor = getEmployeeServerActor();
+    if (!sessionActor?.employeeId || String(sessionActor.employeeId) !== String(localPerson.id)) {
+      return { allowed: false, reason: employeeServerSessionState.error || "Подписанная серверная сессия сотрудника не подтверждена." };
+    }
+    const capabilities = result.capabilities || {};
+    if (capabilities.serverCommandsConfigured !== true || capabilities.serverCommandsEnabled !== true) {
+      return { allowed: false, reason: "Серверные команды Номенклатуры сейчас отключены оператором." };
+    }
+    if (capabilities.canEditNomenclature !== true) {
+      return { allowed: false, reason: "У сотрудника нет права редактировать Номенклатуру." };
+    }
+    if (normalizedAction === "create" && capabilities.canCreateNomenclature !== true) {
+      return { allowed: false, reason: "У сотрудника нет права создавать позиции Номенклатуры." };
+    }
+    if (normalizedAction === "delete" && capabilities.canDeleteNomenclature !== true) {
+      return { allowed: false, reason: "У сотрудника нет права удалять позиции Номенклатуры." };
+    }
+    return { allowed: true, reason: "" };
+  }
+  if (!canEditDirectorySection("nomenclature")) return { allowed: false, reason: "У текущей локальной роли нет права редактирования." };
+  if (activation.accessMode !== "write-evaluation") return { allowed: false, reason: "Редактирование доступно только в разрешённом evaluation-контуре." };
+  return { allowed: true, reason: "" };
+}
+function canRequestNomenclatureEmployeeElevation(activation = getNomenclatureReactActivation()) {
+  if (!(activation.accessMode === "react" || isNomenclatureServerCommandsPrimary())) return false;
+  if (!isEmployeeServerAuthAvailable() || activation.ownerReady !== true) return false;
+  if (!getAuthenticatedAccessPerson()?.id) return false;
+  const result = nomenclatureServerCapabilitiesState.status === "ready"
+    ? nomenclatureServerCapabilitiesState.result
+    : null;
+  // Elevation solves only a missing employee session. It must not disguise an
+  // authenticated RBAC denial, a disabled command owner or infrastructure
+  // failure as a PIN problem.
+  return Boolean(
+    result
+    && result.authenticated === false
+    && !result.actor
+    && result.capabilities?.serverCommandsConfigured === true
+    && employeeServerSessionState.authenticated !== true
+  );
+}
+function canNomenclatureReactWrite(activation = getNomenclatureReactActivation(), action = "edit") {
+  return getNomenclatureReactWriteDecision(action, activation).allowed === true;
+}
+const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
+  getActivation: getNomenclatureReactActivation,
   getPayload: () => {
-    const localQa = getNomenclatureReactLocalQaOverrides();
-    const canCreateEdit = (localQa.writeEvaluation
-      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested()))
-      && canEditDirectorySection("nomenclature");
+    const activation = getNomenclatureReactActivation();
+    const createDecision = getNomenclatureReactWriteDecision("create", activation);
+    const editDecision = getNomenclatureReactWriteDecision("edit", activation);
+    const deleteDecision = getNomenclatureReactWriteDecision("delete", activation);
     const deleteUsageById = Object.fromEntries((directoryState.nomenclature || []).map((item) => [
       String(item.id || ""),
       getNomenclatureDeleteUsage(item.id),
     ]));
-    return { ...directoryState, capabilities: { createEdit: canCreateEdit, delete: canCreateEdit, deleteUsageById } };
+    return {
+      ...directoryState,
+      capabilities: {
+        create: createDecision.allowed,
+        edit: editDecision.allowed,
+        createEdit: createDecision.allowed && editDecision.allowed,
+        delete: deleteDecision.allowed,
+        employeeElevation: !editDecision.allowed && canRequestNomenclatureEmployeeElevation(activation),
+        writeUnavailableReason: editDecision.reason || createDecision.reason || deleteDecision.reason,
+        createUnavailableReason: createDecision.reason,
+        editUnavailableReason: editDecision.reason,
+        deleteUnavailableReason: deleteDecision.reason,
+        deleteUsageById,
+      },
+    };
   },
   getTargetRoot: () => app,
-  requestLegacyRender: (reason, scope = "") => {
-    if (reason === "unsupported-scope" && !String(scope).startsWith("write:")) ui.activeNomenclaturePane = "boards";
-    if (reason === "unsupported-scope" && String(scope).startsWith("write:")) {
-      ui.activeNomenclaturePane = "items";
-      ui.activeNomenclatureId = scope === "write:create" ? "__new__" : decodeURIComponent(String(scope).replace(/^write:edit:/, ""));
-      persistUiState();
-    }
+  requestLegacyRender: () => {
+    if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
+  },
+  navigateBoards: () => {
+    ui.activeNomenclaturePane = "boards";
+    updateModuleUrlParam("bomLists");
+    persistUiState();
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
   },
   executeCommand: async (command = {}) => {
-    const localQa = getNomenclatureReactLocalQaOverrides();
-    const writeAllowed = (localQa.writeEvaluation
-      || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested()))
-      && canEditDirectorySection("nomenclature");
-    if (!writeAllowed) throw new Error("Nomenclature React write evaluation is disabled");
+    if (command.type === "request-elevation") return beginNomenclatureEmployeeElevation();
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "delete") {
-      const result = await deleteNomenclatureCommand({ itemId: String(input.itemId || "") });
+      const decision = getNomenclatureReactWriteDecision("delete");
+      if (!decision.allowed) return { ok: false, code: "write-unavailable", message: decision.reason };
+      const result = await deleteNomenclatureCommand({
+        requireDurable: true,
+        itemId: String(input.itemId || ""),
+        idempotencyKey: String(input.idempotencyKey || ""),
+        expectedRow: input.expectedRow && typeof input.expectedRow === "object" && !Array.isArray(input.expectedRow)
+          ? input.expectedRow
+          : null,
+      });
       return {
         ok: result?.ok === true,
         id: String(result?.id || ""),
@@ -2449,6 +2869,8 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
       };
     }
     if (command.type !== "save") throw new Error("Unsupported Nomenclature React command");
+    const decision = getNomenclatureReactWriteDecision(input.isNew === true ? "create" : "edit");
+    if (!decision.allowed) return { ok: false, code: "write-unavailable", message: decision.reason };
     const result = await saveNomenclatureCommand({
       requireDurable: true,
       isNew: input.isNew === true,
@@ -2456,12 +2878,16 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
       name: String(input.name || ""),
       article: String(input.article || ""),
       type: String(input.type || ""),
-      customType: String(input.customType || ""),
       package: String(input.package || ""),
       unit: String(input.unit || ""),
       manufacturer: String(input.manufacturer || ""),
       description: String(input.description || ""),
       status: String(input.status || ""),
+      updatedAt: String(input.updatedAt || ""),
+      idempotencyKey: String(input.idempotencyKey || input.saveIdempotencyKey || ""),
+      expectedRow: input.expectedRow && typeof input.expectedRow === "object" && !Array.isArray(input.expectedRow)
+        ? input.expectedRow
+        : null,
     });
     return {
       ok: result?.ok === true,
@@ -2472,6 +2898,21 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     };
   },
 });
+function refreshMountedNomenclatureReactProjection() {
+  if (ui?.activeModule !== "nomenclature" || ui?.activeNomenclaturePane === "boards") return false;
+  const activation = getNomenclatureReactActivation();
+  if (activation.runtimeMode !== "react") return false;
+  // Capture whether the current island can be refreshed before the exact GET
+  // transitions its hydration state to loading. A mounted permanent editor
+  // must stay alive while the newer projection is fetched so its opening
+  // baseline can still reject a concurrent same-row update.
+  const updatedMountedIsland = nomenclatureReactIslandHost.update();
+  hydrateSharedStateForModule("nomenclature", [DIRECTORY_STORAGE_KEY], {
+    allowBeforeInitialSync: true,
+    failClosed: true,
+  });
+  return updatedMountedIsland;
+}
 function getBoardsReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -2525,18 +2966,20 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
         .filter((item) => item.id),
       deleteUsageById,
       capabilities: {
-        createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        delete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomImport: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomRowAdd: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomRowEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomRowDelete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        createEdit: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        delete: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomImport: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomRowAdd: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomRowEdit: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomRowDelete: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
       },
     };
   },
   getTargetRoot: () => app,
   requestItemsRender: () => {
     ui.activeNomenclaturePane = "items";
+    updateModuleUrlParam("nomenclature");
+    persistUiState();
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
   },
   requestLegacyRender: () => {
@@ -2546,6 +2989,9 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
   onSelectionChange: (boardId) => { ui.activeBomId = String(boardId || ""); },
   executeCommand: async (command = {}) => {
     const localQa = getBoardsReactLocalQaOverrides();
+    if (isLegacyDirectoryWriteBlocked()) {
+      return { ok: false, message: "Платы доступны только для чтения: серверная команда этого раздела ещё не подключена." };
+    }
     if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
@@ -3780,6 +4226,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     if (command.type === "select-person") {
       if (command.personId === null) {
         cancelAuthPrototypePinFeedback();
+        void deleteEmployeeServerSession().catch(() => {});
         lockAuthGate();
         ui.activeModule = "authPrototype";
         updateModuleUrlParam(ui.activeModule);
@@ -3879,8 +4326,11 @@ function isAuthPickerReactEvaluationRequested() {
 const authPickerReactIslandHost = createAuthPickerReactIslandHost({
   getActivation: () => {
     const localQa = getAuthPickerReactLocalQaOverrides();
+    const elevation = isNomenclatureEmployeeElevationActive();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION === true;
-    const accessMode = localQa.writeEvaluation
+    const accessMode = elevation
+      ? "write-evaluation"
+      : localQa.writeEvaluation
       ? "write-evaluation"
       : (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
@@ -3892,12 +4342,12 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
     const preAuthPrimaryProjectionReady = accessMode === "read-only-evaluation"
       && serverEvaluationAllowed;
     const activation = {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true || localQa.featureFlagEnabled,
+      featureFlagEnabled: elevation || MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true || localQa.featureFlagEnabled,
       moduleReady: authModulesReady,
-      systemDomainsReady: systemDomainsServerReadState.status === "server"
+      systemDomainsReady: elevation || systemDomainsServerReadState.status === "server"
         || preAuthPrimaryProjectionReady,
-      authGateReady: !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
-      pickerReady: !ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult),
+      authGateReady: elevation || !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
+      pickerReady: elevation || (!ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult)),
       accessMode,
     };
     if (localQa.featureFlagEnabled) window.__MES_AUTH_PICKER_ACTIVATION__ = activation;
@@ -3905,25 +4355,32 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
   },
   getPayload: () => {
     const localQa = getAuthPickerReactLocalQaOverrides();
+    const elevation = isNomenclatureEmployeeElevationActive();
     return {
-      model: getAuthPrototypeReactModel(),
-      capabilities: { pinEntry: localQa.writeEvaluation },
-      authState: localQa.writeEvaluation ? { attemptsLeft: getAuthPrototypeAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
+      model: elevation ? getNomenclatureElevationAuthModel() : getAuthPrototypeReactModel(),
+      capabilities: { pinEntry: elevation || localQa.writeEvaluation },
+      authState: elevation || localQa.writeEvaluation ? { attemptsLeft: getAuthPrototypeAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
     };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getAuthPickerReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "submit-pin") return { ok: false, message: "Ввод PIN в React недоступен." };
-    if (isAuthGateUnlocked()) return { ok: false, message: "Сессия уже авторизована." };
+    const elevation = isNomenclatureEmployeeElevationActive();
+    if (elevation && command.type === "cancel-elevation") {
+      cancelNomenclatureEmployeeElevation();
+      return { ok: true, authenticated: false, message: "Подтверждение отменено." };
+    }
+    if ((!localQa.writeEvaluation && !elevation) || command.type !== "submit-pin") return { ok: false, message: "Ввод PIN в React недоступен." };
+    if (isAuthGateUnlocked() && !elevation) return { ok: false, message: "Сессия уже авторизована." };
     const personId = String(command.personId || "").trim();
     const pin = String(command.pin || "");
-    const model = getAuthPrototypeReactModel();
+    const model = elevation ? getNomenclatureElevationAuthModel() : getAuthPrototypeReactModel();
     const people = (model.departments || []).flatMap((department) => [
       ...(department.directPeople || []),
       ...(department.units || []).flatMap((unit) => unit.people || []),
     ]);
     if (!people.some((person) => person.id === personId)) return { ok: false, message: "Сотрудник больше не доступен для входа." };
+    if (elevation && personId !== nomenclatureEmployeeElevationState.employeeId) return { ok: false, message: "Подтвердить изменения может только текущий сотрудник." };
     if (!/^\d{5}$/.test(pin)) return { ok: false, message: "PIN должен состоять из пяти цифр." };
     if (getAuthPrototypeAttemptsLeft() <= 0) return { ok: false, locked: true, message: "Вход заблокирован: попытки исчерпаны." };
     return scheduleAuthPrototypePinValidation(pin, personId, { renderOnChange: false });
@@ -4348,7 +4805,8 @@ const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReac
       const row = directoryState.componentTypes[rowIndex];
       const nextDirectoryState = deleteDirectoryStateRow("componentTypes", row);
       if (!nextDirectoryState) return { ok: false, message: "Не удалось удалить тип компонента." };
-      await persistDirectoryStateWithRemoval();
+      const persisted = await persistDirectoryStateWithRemoval();
+      if (persisted !== true) return { ok: false, message: String(persisted || "Не удалось сохранить удаление типа компонента.") };
       ui.selectedDirectoryRows.componentTypes = Math.max(0, Math.min(rowIndex, (directoryState.componentTypes || []).length - 1));
       persistUiState();
       render({ skipRememberScroll: true });
@@ -4456,7 +4914,8 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
       const nextCount = Math.max(0, getOperationMapRows().length - 1);
       ui.selectedDirectoryRows.operations = nextCount ? Math.min(rowIndex, nextCount - 1) : 0;
       if (deleteOperationMapItem(itemId, { deferDirectoryPersist: true }) !== true) return { ok: false, message: "Не удалось удалить операцию." };
-      await persistDirectoryStateWithRemoval();
+      const persisted = await persistDirectoryStateWithRemoval();
+      if (persisted !== true) return { ok: false, message: String(persisted || "Не удалось сохранить удаление операции.") };
       return { ok: true, id: itemId };
     }
     if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда операций." };
@@ -4550,7 +5009,8 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
       if (rowIndex < 0) return { ok: false, message: "Тип номенклатуры уже отсутствует." };
       const nextDirectoryState = deleteDirectoryStateRow("nomenclatureTypes", directoryState.nomenclatureTypes[rowIndex]);
       if (!nextDirectoryState) return { ok: false, message: "Не удалось удалить тип номенклатуры." };
-      await persistDirectoryStateWithRemoval();
+      const persisted = await persistDirectoryStateWithRemoval();
+      if (persisted !== true) return { ok: false, message: String(persisted || "Не удалось сохранить удаление типа номенклатуры.") };
       ui.selectedDirectoryRows.nomenclatureTypes = Math.max(0, Math.min(rowIndex, (directoryState.nomenclatureTypes || []).length - 1));
       persistUiState();
       render({ skipRememberScroll: true });
@@ -4642,7 +5102,8 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
       if (await deleteUserManagedDirectoryStatus(itemId, { deferDirectoryPersist: true }) !== true) {
         return { ok: false, message: "Не удалось удалить пользовательский статус." };
       }
-      await persistDirectoryStateWithRemoval();
+      const persisted = await persistDirectoryStateWithRemoval();
+      if (persisted !== true) return { ok: false, message: String(persisted || "Не удалось сохранить удаление пользовательского статуса.") };
       return { ok: true, id: itemId };
     }
     if (command.type !== "save-custom") return { ok: false, message: "Неподдерживаемая команда реестра статусов." };
@@ -4812,6 +5273,7 @@ function initializeProductsRenderModule() {
   addMs,
   authPrototypePinFeedbackSequence,
   authPrototypePinFeedbackTimer,
+  createEmployeeSession: (...args) => createEmployeeServerSession(...args),
   getAuthPrototypePinFeedbackSequence: () => authPrototypePinFeedbackSequence,
   getAuthPrototypePinFeedbackTimer: () => authPrototypePinFeedbackTimer,
   setAuthPrototypePinFeedbackSequence: (nextValue) => { authPrototypePinFeedbackSequence = nextValue; },
@@ -4821,6 +5283,7 @@ function initializeProductsRenderModule() {
   escapeAttribute,
   escapeHtml,
   formatReportNumber,
+  finishEmployeeAuthElevation: (actor) => finishNomenclatureEmployeeElevation(actor),
   getAccessRoleById: (...args) => getAccessRoleById(...args),
   getAuthPrototypeSelectedExecutor: (...args) => getAuthPrototypeSelectedExecutor(...args),
   getComponentTypes,
@@ -4850,6 +5313,9 @@ function initializeProductsRenderModule() {
   getWorkCenter,
   icon,
   inferStructureNomenclatureType,
+  isEmployeeAuthRequired: () => isEmployeeServerAuthRequired(),
+  isEmployeeAuthElevationActive: () => isNomenclatureEmployeeElevationActive(),
+  isLegacyDirectoryWriteBlocked,
   makeFallbackProductionResource,
   makeId,
   mapLegacyWorkCenterId,
@@ -5079,7 +5545,9 @@ function initializeAuthEventsModule(factory) {
     bindGenericModalCloseEvents,
     button: null,
     cancelAuthPrototypePinFeedback,
+    cancelEmployeeAuthElevation: () => cancelNomenclatureEmployeeElevation(),
     completeAuthPrototypeLogin,
+    deleteEmployeeSession: () => deleteEmployeeServerSession(),
     doesAuthSessionFactNeedDeviationComment: (...args) => doesAuthSessionFactNeedDeviationComment(...args),
     employeeId: "",
     formatShiftWorkOrderPersonName: (...args) => formatShiftWorkOrderPersonName(...args),
@@ -5093,6 +5561,8 @@ function initializeAuthEventsModule(factory) {
     getAuthSessionTaskGoodQuantity: (...args) => getAuthSessionTaskGoodQuantity(...args),
     item: null,
     isAuthPrototypePinFeedbackLocked,
+    isEmployeeAuthRequired: () => isEmployeeServerAuthRequired(),
+    isEmployeeAuthElevationActive: () => isNomenclatureEmployeeElevationActive(),
     lockAuthGate,
     normalizeAuthSessionFactField,
     normalizePlainRecord,
@@ -5931,23 +6401,66 @@ let planningState = null;
 let ui = null;
 let runtimeStateService = {};
 const sharedStateModuleHydrations = new Set();
-function hydrateSharedStateForModule(moduleId, valueKeys = []) {
+const sharedStateModuleHydrationStates = new Map();
+function getSharedStateModuleHydrationKey(moduleId, valueKeys = []) {
+  const keys = [...new Set(valueKeys.filter(Boolean))].sort();
+  return moduleId && keys.length ? `${moduleId}:${keys.join(",")}` : "";
+}
+function getSharedStateModuleHydrationState(moduleId, valueKeys = []) {
+  const hydrationKey = getSharedStateModuleHydrationKey(moduleId, valueKeys);
+  if (!hydrationKey) return { status: "error", reason: "read-unavailable", message: "Shared-state projection is not declared." };
+  if (!sharedStateModuleHydrationStates.has(hydrationKey)) {
+    sharedStateModuleHydrationStates.set(hydrationKey, { status: "idle", reason: "", message: "", version: 0, retryAt: 0 });
+  }
+  const state = sharedStateModuleHydrationStates.get(hydrationKey);
+  const versions = sharedStateStatus.valueHydrationVersions || {};
+  const hydratedVersion = Math.min(...valueKeys.map((key) => Number(versions[key] || 0)));
+  if (Number.isFinite(hydratedVersion) && hydratedVersion > Number(state.version || 0)) state.version = hydratedVersion;
+  return state;
+}
+function hydrateSharedStateForModule(moduleId, valueKeys = [], { allowBeforeInitialSync = false, failClosed = false } = {}) {
   const keys = [...new Set(valueKeys.filter(Boolean))];
-  if (!moduleId || !keys.length) return;
-  const hydrationKey = `${moduleId}:${keys.slice().sort().join(",")}`;
-  if (sharedStateModuleHydrations.has(hydrationKey)) return;
+  if (!moduleId || !keys.length) return null;
+  const hydrationKey = getSharedStateModuleHydrationKey(moduleId, keys);
+  const hydrationState = getSharedStateModuleHydrationState(moduleId, keys);
+  const observedOwnerVersion = Math.max(
+    Number(sharedStateStatus.version || 0),
+    Number(sharedStateStatus.latestObservedVersion || 0),
+  );
+  const stale = failClosed
+    && hydrationState.status === "ready"
+    && observedOwnerVersion > Number(hydrationState.version || 0);
+  if (stale) sharedStateModuleHydrations.delete(hydrationKey);
+  const retryCoolingDown = failClosed
+    && hydrationState.status === "error"
+    && Date.now() < Number(hydrationState.retryAt || 0);
+  if (sharedStateModuleHydrations.has(hydrationKey) || retryCoolingDown) return hydrationState;
   sharedStateModuleHydrations.add(hydrationKey);
-  void runtimeStateService?.hydrateSharedStateValues?.(keys).then((hydrated) => {
+  hydrationState.status = "loading";
+  hydrationState.reason = "";
+  hydrationState.message = "";
+  hydrationState.retryAt = 0;
+  void runtimeStateService?.hydrateSharedStateValues?.(keys, { allowBeforeInitialSync, throwOnError: failClosed }).then((hydrated) => {
     // A user can switch modules while the initial shared-state handshake is
     // still running.  Do not cache that temporary miss: the render triggered
     // after bootstrap must be able to request the deferred projection again.
     if (!hydrated) {
       sharedStateModuleHydrations.delete(hydrationKey);
+      hydrationState.status = failClosed ? "error" : "idle";
+      hydrationState.reason = failClosed
+        ? (sharedStateStatus.configured ? "read-unavailable" : "shared-state-unconfigured")
+        : "";
+      hydrationState.message = failClosed ? "Shared-state projection was not returned." : "";
+      hydrationState.retryAt = failClosed ? Date.now() + 3_000 : 0;
+      if (failClosed && ui.activeModule === moduleId) render({ skipRememberScroll: true });
       return;
     }
     if (keys.includes(DIRECTORY_STORAGE_KEY)) {
       directoryState = loadDirectoryState();
-      ensureStatusDirectoryDefaults();
+      // A fail-closed permanent read must stay read-only. Missing compatibility
+      // defaults are a data-quality condition, not permission to write them
+      // back while the user is merely opening Nomenclature.
+      if (!failClosed) ensureStatusDirectoryDefaults();
     }
     if (keys.includes(SYSTEM_DOMAINS_STORAGE_KEY)) {
       // Do not eagerly recreate the legacy matrix when the remote value is a
@@ -5961,10 +6474,29 @@ function hydrateSharedStateForModule(moduleId, valueKeys = []) {
         fallbackToLegacy: !systemDomainsState && !hasObservedSystemDomainsPrimaryAuthority(),
       });
     }
-    if (ui.activeModule === moduleId) render({ skipRememberScroll: true });
-  }).catch(() => {
-    // A local projection remains usable if a deferred remote read fails.
+    hydrationState.status = "ready";
+    hydrationState.reason = "";
+    hydrationState.message = "";
+    hydrationState.version = Math.min(...keys.map((key) => Number(sharedStateStatus.valueHydrationVersions?.[key] || 0)));
+    hydrationState.retryAt = 0;
+    if (ui.activeModule === moduleId) {
+      const updatedMountedNomenclature = moduleId === "nomenclature"
+        && ui.activeNomenclaturePane !== "boards"
+        && getNomenclatureReactActivation().runtimeMode === "react"
+        && nomenclatureReactIslandHost.update();
+      if (!updatedMountedNomenclature) render({ skipRememberScroll: true });
+    }
+  }).catch((error) => {
+    sharedStateModuleHydrations.delete(hydrationKey);
+    hydrationState.status = failClosed ? "error" : "idle";
+    hydrationState.reason = failClosed ? "read-unavailable" : "";
+    hydrationState.message = failClosed ? String(error?.message || error || "Shared-state read failed.") : "";
+    hydrationState.retryAt = failClosed ? Date.now() + 3_000 : 0;
+    // Evaluation/legacy surfaces retain their local projection. Permanent
+    // surfaces render their bounded error shell instead of silently using it.
+    if (failClosed && ui.activeModule === moduleId) render({ skipRememberScroll: true });
   });
+  return hydrationState;
 }
 
 // The planning workbench already reads its list and active order from the
@@ -6071,11 +6603,16 @@ async function handleSystemDomainsCompatibilityStatus({ state = "unknown" } = {}
       reloadSystemDomainsState({ source: "startup-active-compatibility", migrateLegacy: false });
     }
   }
-  return hydrateSystemDomainsServerRead("startup", {
+  // PostgreSQL capability/read-model refresh is independent from the
+  // shared-state revision gate. Start it, but do not hold every metadata poll
+  // (and therefore Nomenclature's exact re-hydration) behind that potentially
+  // slow network request.
+  void hydrateSystemDomainsServerRead("startup", {
     fallbackToLegacy: systemDomainsCompatibilityState === "absent"
       && startupDataMigrationRequired
       && !systemDomainsState,
   });
+  return systemDomainsCompatibilityState;
 }
 function hasSystemDomainsServerAuthority() {
   // Complete command coverage is needed for writes, but must not be confused
@@ -7602,10 +8139,15 @@ function authorizeSystemDomainAction(moduleId = "", action = "view", resourceCon
 function canEditDirectorySection(sectionId = "") {
   const normalizedSectionId = normalizeDirectorySectionId(sectionId);
   if (normalizedSectionId === "statuses") return false;
+  // Until every legacy Directory editor has a server owner, command-primary
+  // Nomenclature must not expose controls whose monolithic snapshot write is
+  // deliberately rejected by the runtime safety boundary.
+  if (isNomenclatureServerCommandsPrimary()) return false;
   return authorizeSystemDomainAction("directories", "edit", { resourceId: normalizedSectionId });
 }
 
 function canEditCustomStatusDirectorySection() {
+  if (isNomenclatureServerCommandsPrimary()) return false;
   return authorizeSystemDomainAction("directories", "edit", { resourceId: "statuses" });
 }
 
@@ -7957,6 +8499,7 @@ function isSameNumericValue(...args) { return runtimeStateService.isSameNumericV
 function persistDirectoryState(...args) { return runtimeStateService.persistDirectoryState(...args); }
 function persistDirectoryStateDurably(...args) { return runtimeStateService.persistDirectoryStateDurably(...args); }
 function persistDirectoryStateWithRemoval(...args) { return runtimeStateService.persistDirectoryStateWithRemoval(...args); }
+function persistNomenclatureDirectoryMutationDurably(...args) { return runtimeStateService.persistNomenclatureDirectoryMutationDurably(...args); }
 function initializeRuntimeStateServiceModule() {
   runtimeStateService = createRuntimeStateServiceModule({
   APP_VERSION,
@@ -7995,12 +8538,14 @@ function initializeRuntimeStateServiceModule() {
   alignGanttWindowToPlan,
   appendLocalDataSafetyAudit,
   createDefaultPlanningState,
+  executeNomenclatureServerCommand: (...args) => executeNomenclatureServerCommand(...args),
   getActiveInterfaceRole,
   getBootstrapSnapshotCountsFromState,
   isMeaningfulBootstrapSnapshotCounts,
   isUsableBootstrapSnapshotPayload,
   isShiftExecutionServerAuthoritative,
   isSystemDomainsServerAuthoritative: () => hasObservedSystemDomainsPrimaryAuthority(),
+  isNomenclatureServerCommandsPrimary: () => isNomenclatureServerCommandsPrimary(),
   loadUiState,
   measureBootStep,
   mergeMesWorkCenters,
@@ -8038,6 +8583,7 @@ function initializeRuntimeStateServiceModule() {
   persistUiState,
   publishBootPerformance,
   reloadSystemDomainsState,
+  refreshNomenclatureReactProjection: () => refreshMountedNomenclatureReactProjection(),
   render,
   sharedStateStatus,
   shouldPreferBundledBootstrapSnapshotPayload,
@@ -8650,7 +9196,11 @@ function initializeModuleRuntime() {
     },
     nomenclature: {
       render: () => {
-        hydrateSharedStateForModule("nomenclature", [DIRECTORY_STORAGE_KEY]);
+        const permanentNomenclatureRuntime = getReactRuntimeMode("nomenclature") === "react";
+        hydrateSharedStateForModule("nomenclature", [DIRECTORY_STORAGE_KEY], {
+          allowBeforeInitialSync: permanentNomenclatureRuntime,
+          failClosed: permanentNomenclatureRuntime,
+        });
         void ensureNomenclatureRenderModule();
         const useBoardsHost = ui.activeNomenclaturePane === "boards";
         const activeReactHost = useBoardsHost ? boardsReactIslandHost : nomenclatureReactIslandHost;
@@ -9620,6 +10170,8 @@ appEventsService = createAppEventsServiceModule({
   createSpekiSpecification,
   cancelAuthPrototypePinFeedback,
   completeAuthPrototypeLogin,
+  deleteEmployeeSession: () => deleteEmployeeServerSession(),
+  isLegacyDirectoryWriteBlocked,
   deleteRouteMapConfirmed,
   closeModals: () => closeAppModals(),
   doesAuthSessionFactNeedDeviationComment: (...args) => doesAuthSessionFactNeedDeviationComment(...args),
@@ -9745,6 +10297,7 @@ appEventsService = createAppEventsServiceModule({
   persistDirectoryState,
   persistDirectoryStateDurably,
   persistDirectoryStateWithRemoval,
+  persistNomenclatureDirectoryMutationDurably,
   persistState,
   persistUiState,
   pickDefaultBomForSpecificationItem,
@@ -10262,6 +10815,7 @@ const {
 initializeModuleRuntime();
 rememberSharedUiSignature();
 startRuntimeApplication();
+if (isEmployeeServerAuthAvailable()) void reconcileEmployeeServerSession();
 
 function getProject(id) {
   // Production context facade. The name stays for compatibility with the older

@@ -5,6 +5,7 @@ import { isAbsolute, join, resolve } from "node:path";
 export const REACT_RUNTIME_POLICY_FILE = "react-runtime-policy.json";
 export const REACT_RUNTIME_POLICY_MODES = Object.freeze(["legacy", "evaluation", "react"]);
 export const REACT_RUNTIME_PERMANENT_CONSUMERS = Object.freeze([
+  "nomenclature",
   "structureMigrationDiagnostics",
   "weeklyProductionControl",
 ]);

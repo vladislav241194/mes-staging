@@ -16,6 +16,7 @@ export function createAppInteractionsModule(dependencies = {}) {
     config,
     count,
     deleteDirectoryRow,
+    deleteEmployeeSession = async () => ({ ok: true, authenticated: false }),
     deleteOperationMapItem,
     deleteRouteMapConfirmed,
     deleteRouteStepConfirmed = () => {},
@@ -679,6 +680,11 @@ function bindGlobalNavigation() {
 
 function performAuthLogout() {
   cancelAuthPrototypePinFeedback();
+  // The global navigation owner binds before module-local auth events and
+  // stops their duplicate click listener. Clear the signed employee session
+  // here as part of the canonical logout so a locally locked screen cannot
+  // leave Nomenclature command authority alive on the server.
+  void Promise.resolve(deleteEmployeeSession()).catch(() => {});
   lockAuthGate();
   ui.activeModule = "authPrototype";
   updateModuleUrlParam(ui.activeModule);
