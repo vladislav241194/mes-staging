@@ -6,34 +6,37 @@ import {
   renderRuntimeConfigScript,
 } from "./shared-state-storage.mjs";
 
-const [serverSource, commandSource, authorizationSource] = await Promise.all([
+const [serverSource, previewSource, commandSource, authorizationSource] = await Promise.all([
   readFile(new URL("../server.js", import.meta.url), "utf8"),
+  readFile(new URL("./preview-dist.mjs", import.meta.url), "utf8"),
   readFile(new URL("./domain-nomenclature-command.mjs", import.meta.url), "utf8"),
   readFile(new URL("./nomenclature-command-authorization.mjs", import.meta.url), "utf8"),
 ]);
 
-const publicAuthIndex = serverSource.indexOf("handlePublicAuthRequest(req");
-const employeeAuthIndex = serverSource.indexOf("handleEmployeeAuthRequest(req");
-const commandIndex = serverSource.indexOf("handleNomenclatureCommandRequest(req");
-const domainApiIndex = serverSource.indexOf("handleDomainApiRequest(req");
-assert(publicAuthIndex >= 0, "public authentication must remain the Pilot perimeter");
-assert(employeeAuthIndex > publicAuthIndex, "employee auth routes must run after the public perimeter");
-assert(commandIndex > employeeAuthIndex, "Nomenclature commands must run after employee auth routes");
-assert(domainApiIndex > commandIndex, "the narrow command owner must run before the generic domain API");
+for (const [entrypoint, source] of [["source server", serverSource], ["production preview", previewSource]]) {
+  const publicAuthIndex = source.indexOf("handlePublicAuthRequest(req");
+  const employeeAuthIndex = source.indexOf("handleEmployeeAuthRequest(req");
+  const commandIndex = source.indexOf("handleNomenclatureCommandRequest(req");
+  const domainApiIndex = source.indexOf("handleDomainApiRequest(req");
+  assert(publicAuthIndex >= 0, `${entrypoint}: public authentication must remain the Pilot perimeter`);
+  assert(employeeAuthIndex > publicAuthIndex, `${entrypoint}: employee auth routes must run after the public perimeter`);
+  assert(commandIndex > employeeAuthIndex, `${entrypoint}: Nomenclature commands must run after employee auth routes`);
+  assert(domainApiIndex > commandIndex, `${entrypoint}: the narrow command owner must run before the generic domain API`);
 
-const commandWiring = serverSource.slice(commandIndex, domainApiIndex);
-assert.match(commandWiring, /env:\s*process\.env/);
-assert.match(commandWiring, /filePath:\s*sharedStatePaths\.filePath/);
-assert.match(commandWiring, /backupDir:\s*sharedStatePaths\.backupDir/);
-assert.match(commandWiring, /auditLogPath:\s*sharedStatePaths\.auditLogPath/);
-assert.match(commandWiring, /inspectEmployeeAuthSession\(req, process\.env\)/);
-assert.match(commandWiring, /getCurrentNomenclatureAuthorization\(session\.principal/);
-assert.match(commandWiring, /employee-auth-storage-unavailable/);
-assert.match(commandWiring, /\(\?:unavailable\|not-configured\)\$/);
+  const commandWiring = source.slice(commandIndex, domainApiIndex);
+  assert.match(commandWiring, /env:\s*process\.env/, `${entrypoint}: command env`);
+  assert.match(commandWiring, /filePath:\s*sharedStatePaths\.filePath/, `${entrypoint}: shared-state path`);
+  assert.match(commandWiring, /backupDir:\s*sharedStatePaths\.backupDir/, `${entrypoint}: backup path`);
+  assert.match(commandWiring, /auditLogPath:\s*sharedStatePaths\.auditLogPath/, `${entrypoint}: audit path`);
+  assert.match(commandWiring, /inspectEmployeeAuthSession\(req, process\.env\)/, `${entrypoint}: signed employee session`);
+  assert.match(commandWiring, /getCurrentNomenclatureAuthorization\(session\.principal/, `${entrypoint}: current RBAC`);
+  assert.match(commandWiring, /employee-auth-storage-unavailable/, `${entrypoint}: auth storage failure`);
+  assert.match(commandWiring, /\(\?:unavailable\|not-configured\)\$/, `${entrypoint}: RBAC infrastructure failure`);
+  assert.match(commandWiring, /throw new Error\("(?:Employee authorization storage|Current Nomenclature RBAC projection) is unavailable"\)/, `${entrypoint}: fail-closed infrastructure error`);
+  assert.doesNotMatch(commandWiring, /(?:payload|body)\.(?:actor|role|employeeId)/i, `${entrypoint}: server wiring must never derive command authority from request payload`);
+}
 assert.match(authorizationSource, /system-domains-storage-not-configured/);
 assert.match(authorizationSource, /system-domains-storage-unavailable/);
-assert.match(commandWiring, /throw new Error\("(?:Employee authorization storage|Current Nomenclature RBAC projection) is unavailable"\)/);
-assert.doesNotMatch(commandWiring, /(?:payload|body)\.(?:actor|role|employeeId)/i, "server wiring must never derive command authority from request payload");
 assert.match(commandSource, /nomenclature-authorization-unavailable/);
 assert.match(commandSource, /sendJson\(res, 503,/, "authorization callback/storage failures must fail closed with HTTP 503");
 
