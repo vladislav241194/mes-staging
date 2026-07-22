@@ -15,6 +15,7 @@ export interface GanttScaleOptionModel { id: GanttScale; label: string; }
 export interface GanttSlotModel { id: string; rowId: string; routeId: string; operationId: string; title: string; meta: string; status: string; statusLabel: string; quantity: number; plannedStart: string; plannedEnd: string; x: number; width: number; top: number; height: number; aggregate: boolean; locked: boolean; canReschedule: boolean; }
 export interface GanttRowModel { id: string; type: string; label: string; meta: string; top: number; height: number; slots: GanttSlotModel[]; }
 export interface GanttDependencyModel { id: string; fromSlotId: string; toSlotId: string; fromTitle: string; toTitle: string; fromRowLabel: string; toRowLabel: string; fromEnd: string; toStart: string; gapMinutes: number; kind: "finish-start" | "transfer"; }
+export interface GanttCapabilityModel { canEditSchedule: boolean; canRefresh: boolean; canDrag: boolean; canResize: boolean; }
 
 const ganttScale = (value: unknown): GanttScale => GANTT_SCALES.includes(value as GanttScale) ? value as GanttScale : "days";
 const dateInput = (value: unknown, fallback = ""): string => {
@@ -56,6 +57,9 @@ export function adaptGanttPayload(payload: unknown) {
   });
   return {
     canEditSchedule: capabilities.scheduleEdit === true,
+    canRefresh: capabilities.refresh === true,
+    canDrag: capabilities.scheduleEdit === true && capabilities.slotDrag !== false,
+    canResize: capabilities.slotResize === true,
     projectionSource: text(source.projectionSource, "server"), scale,
     scaleOptions: scaleOptions.length === GANTT_SCALES.length ? scaleOptions : GANTT_SCALES.map((id) => ({ id, label: id === "hours" ? "Часы" : id === "days" ? "Дни" : "Недели" })),
     zoom: Math.max(0.75, number(source.zoom) || 1), zoomLabel: text(source.zoomLabel, `${Math.round((number(source.zoom) || 1) * 100)}%`),

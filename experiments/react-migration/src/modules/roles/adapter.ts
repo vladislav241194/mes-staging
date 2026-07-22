@@ -1,3 +1,5 @@
+import { adaptRolesDeferredCapabilities, ROLE_RESPONSIBILITY_SCOPE_TYPES, type RoleResponsibilityScopeDraft, type RoleResponsibilityScopeType, type RolesDeferredCapabilities } from "./ports";
+
 export const ROLE_ACTIONS = [
   { id: "view", label: "Видит" },
   { id: "edit", label: "Правит" },
@@ -36,6 +38,13 @@ interface EntityDto {
   validTo?: unknown;
   effectiveFrom?: unknown;
   effectiveTo?: unknown;
+  assignmentId?: unknown;
+  responsibilityScope?: unknown;
+  responsibilityScopeType?: unknown;
+  responsibilityScopeId?: unknown;
+  scopeType?: unknown;
+  scopeId?: unknown;
+  targetId?: unknown;
 }
 
 export interface RolesModuleDefinition {
@@ -46,15 +55,28 @@ export interface RolesModuleDefinition {
 
 export interface RoleAssignedEmployee {
   id: string;
+  assignmentId: string;
+  roleId: string;
   name: string;
   personnelNumber: string;
   positionLabel: string;
   orgUnitLabel: string;
+  validFrom: string;
+  validTo: string;
+  responsibilityScope: RoleResponsibilityScopeDraft | null;
 }
 
 export interface RoleEmployeeOption extends RoleAssignedEmployee {
   currentRoleId: string;
   assignmentBlockedReason: string;
+  assignments: Array<{
+    id: string;
+    roleId: string;
+    validFrom: string;
+    validTo: string;
+    responsibilityScope: RoleResponsibilityScopeDraft | null;
+  }>;
+  subjectResponsibilityScope: RoleResponsibilityScopeDraft | null;
 }
 
 export interface RoleBlockedOperation {
@@ -88,6 +110,7 @@ export interface RolesReadModel {
   canEditDefaultScope: boolean;
   canEditLifecycle: boolean;
   canEditAssignments: boolean;
+  deferredCapabilities: RolesDeferredCapabilities;
   writableEmployeeCount: number;
   blockedOperations: RoleBlockedOperation[];
 }
@@ -155,6 +178,24 @@ function actionId(value: unknown): RoleActionId | "" {
   return ROLE_ACTIONS.some((action) => action.id === normalized) ? normalized as RoleActionId : "";
 }
 
+function responsibilityScopeType(value: unknown): RoleResponsibilityScopeType | "" {
+  const normalized = text(value);
+  return ROLE_RESPONSIBILITY_SCOPE_TYPES.some((scopeType) => scopeType === normalized)
+    ? normalized as RoleResponsibilityScopeType
+    : "";
+}
+
+function readResponsibilityScope(entity: EntityDto | undefined): RoleResponsibilityScopeDraft | null {
+  if (!entity) return null;
+  const nested = record(entity.responsibilityScope);
+  const type = responsibilityScopeType(entity.responsibilityScopeType || entity.scopeType || nested.type);
+  if (!type) return null;
+  return {
+    type,
+    targetId: text(entity.responsibilityScopeId || entity.scopeId || entity.targetId || nested.targetId || nested.id),
+  };
+}
+
 export function roleAllows(role: AccessRoleReadItem, moduleId: string, action: RoleActionId): boolean {
   if (!role.active) return false;
   const grants = role.grants[moduleId] || role.grants["*"] || {};
@@ -204,10 +245,15 @@ export function adaptRoles(payload: unknown): RolesReadModel {
       const orgUnit = orgUnits.get(text(employment?.orgUnitId));
       return [{
         id: employeeId,
+        assignmentId: text(assignment.id || assignment.assignmentId),
+        roleId: id,
         name: text(employee.displayName || employee.name) || employeeId,
         personnelNumber: text(employee.personnelNumber) || "—",
         positionLabel: text(position?.name || position?.label || position?.id) || "—",
         orgUnitLabel: text(orgUnit?.name || orgUnit?.label || orgUnit?.id) || "—",
+        validFrom: text(assignment.validFrom || assignment.effectiveFrom),
+        validTo: text(assignment.validTo || assignment.effectiveTo),
+        responsibilityScope: readResponsibilityScope(assignment),
       }];
     }).sort((left, right) => left.name.localeCompare(right.name, "ru") || left.id.localeCompare(right.id, "en"));
     const item: AccessRoleReadItem = {
@@ -243,14 +289,28 @@ export function adaptRoles(payload: unknown): RolesReadModel {
       : hasEffectiveWindow
         ? "Назначение с периодом действия: изменение заблокировано до серверной поддержки effective window."
         : "";
+    const assignments = employeeAssignments.map((assignment) => ({
+      id: text(assignment.id || assignment.assignmentId),
+      roleId: text(assignment.roleId),
+      validFrom: text(assignment.validFrom || assignment.effectiveFrom),
+      validTo: text(assignment.validTo || assignment.effectiveTo),
+      responsibilityScope: readResponsibilityScope(assignment),
+    }));
     return [{
       id,
+      assignmentId: assignments.length === 1 ? assignments[0]?.id || "" : "",
+      roleId: assignments.length === 1 ? assignments[0]?.roleId || "" : "",
       name: text(employee.displayName || employee.name) || id,
       personnelNumber: text(employee.personnelNumber) || "—",
       positionLabel: text(position?.name || position?.label || position?.id) || "—",
       orgUnitLabel: text(orgUnit?.name || orgUnit?.label || orgUnit?.id) || "—",
+      validFrom: assignments.length === 1 ? assignments[0]?.validFrom || "" : "",
+      validTo: assignments.length === 1 ? assignments[0]?.validTo || "" : "",
+      responsibilityScope: assignments.length === 1 ? assignments[0]?.responsibilityScope || null : null,
       currentRoleId: employeeAssignments.length === 1 ? text(employeeAssignments[0]?.roleId) : "",
       assignmentBlockedReason,
+      assignments,
+      subjectResponsibilityScope: readResponsibilityScope(employee),
     }];
   }).sort((left, right) => left.name.localeCompare(right.name, "ru") || left.id.localeCompare(right.id, "en"));
 
@@ -270,6 +330,7 @@ export function adaptRoles(payload: unknown): RolesReadModel {
     canEditDefaultScope: capabilities.defaultScopeEdit === true,
     canEditLifecycle: capabilities.lifecycleEdit === true,
     canEditAssignments: capabilities.assignmentEdit === true,
+    deferredCapabilities: adaptRolesDeferredCapabilities(capabilities),
     writableEmployeeCount: employeeOptions.filter((employee) => !employee.assignmentBlockedReason).length,
     blockedOperations,
   };

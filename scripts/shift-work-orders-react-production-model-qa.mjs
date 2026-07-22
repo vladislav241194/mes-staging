@@ -9,7 +9,7 @@ const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-shift-work-orders-model-
 try {
   const output = join(temporaryRoot, "adapter.mjs");
   const adapterPath = new URL("../experiments/react-migration/src/modules/shift-work-orders/adapter.ts", import.meta.url);
-  const productionModelPath = new URL("../experiments/react-migration/src/modules/shift-work-orders/production-model.ts", import.meta.url);
+  const productionModelPath = new URL("../src/modules/shift_work_orders/production_model.ts", import.meta.url);
   await build({ entryPoints: [adapterPath.pathname], outfile: output, bundle: true, platform: "node", format: "esm", target: "node20" });
   const { adaptShiftWorkOrders } = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
 

@@ -31,6 +31,14 @@ try {
       { id: "board", parentId: "root", order: 0, label: "Плата управления", designation: "АБВГ.468332.002", type: "Сборочная единица", quantity: "1", unitOfMeasure: "шт." },
       { id: "resistor", parentId: "board", order: 0, label: "Резистор 10 кОм", designation: "RC0603-10K", type: "Покупное", quantity: "8", unitOfMeasure: "шт." },
     ],
+    routeDrafts: [{
+      id: "route-controller",
+      productKey: "root",
+      productLabel: "Контроллер КТ-7",
+      designation: "АБВГ.469659.001",
+      status: "draft",
+      operations: [{ id: "operation-assembly", operationId: "OP-ASSEMBLY", name: "Сборка", workCenterId: "D3", productionFiles: {} }],
+    }],
     publication: { revision: 7, fingerprint: "fingerprint-v6", releasedAt: "2026-07-22T07:00:00.000Z" },
   };
   const secondEntry = { id: "spec-sensor", title: "Датчик", importedAt: "2026-07-21T06:00:00.000Z", treeRows: [], errors: [] };
@@ -55,6 +63,7 @@ try {
   let store = { selectedId: entry.id, registry: [entry, secondEntry] };
   const writes = [];
   const workOrderRequests = [];
+  const publicationRequests = [];
   const owner = createSpecifications2ProductionOwner({
     getStore: () => store,
     writeStore: (next) => { store = next; writes.push(next); return true; },
@@ -63,6 +72,16 @@ try {
     getWorkOrderCapability: () => ({ enabled: true, primaryPostgres: true }),
     createIdempotencyKey: () => "specifications2-work-order:qa",
     createWorkOrder: async (request) => { workOrderRequests.push(request); return { ok: true, created: true, item: { id: "work-order-1" } }; },
+    createPublicationIdempotencyKey: () => "specifications2-publish:qa",
+    publishCommands: {
+      getCapability: () => ({ enabled: true, serverPrimary: true }),
+      refreshCapability: async () => ({ enabled: true, serverPrimary: true }),
+      publishRevision: async (request) => {
+        publicationRequests.push(request);
+        return { ok: true, created: true, item: { id: "revision-controller-8", revisionNo: 8 }, publication: { revision: 8, releasedAt: "2026-07-22T08:00:00.000Z", fingerprint: "fingerprint-v8", status: "released" }, snapshotSync: { applied: 1 } };
+      },
+    },
+    now: () => "2026-07-22T07:20:00.000Z",
   });
 
   const payload = owner.getPayload();
@@ -81,7 +100,11 @@ try {
   assert.equal(model.selectedEntry?.serverRevision?.operationCount, 2);
   assert.equal(model.canCreateWorkOrder, true);
   assert.equal(model.canEditDraft, false);
-  assert.equal(model.canPublish, false);
+  assert.equal(model.canPublish, true);
+  assert.equal(model.canEditStructure, false);
+  assert.equal(model.canEditRoutes, false);
+  assert.equal(model.canBindAttachments, false);
+  assert.equal(model.selectedEntry?.routeDrafts[0]?.operations[0]?.id, "operation-assembly");
   assert.equal(model.readModelCoverage?.contract, "postgres-specifications2-read-v1");
   assert(model.readModelCoverage?.deferred.some((item) => item.includes("reparent")));
   assert(model.readModelCoverage?.deferred.some((item) => item.includes("attachment")));
@@ -98,13 +121,34 @@ try {
   });
   assert.equal((await staleOwner.execute({ type: "create-work-order", payload: { entryId: entry.id, revisionId: revision.id, confirmRevisionId: revision.id, routeSourceDraftId: "route-controller", quantity: 1 } })).ok, false);
   assert.equal(staleWorkOrderCalls, 0, "a stale PostgreSQL revision must fail before the server command");
-  assert.equal((await owner.execute({ type: "save-draft-row", payload: {} })).deferred, true);
-  assert(SPECIFICATIONS2_PRODUCTION_DEFERRED_COMMANDS.includes("edit-route"));
+  for (const command of ["save-draft-row", "add-row", "remove-row", "reparent-row", "edit-route", "bind-attachment"]) {
+    const result = await owner.execute({ type: command, payload: { entryId: entry.id } });
+    assert.equal(result.ok, false);
+    assert.equal(result.deferred, true, `${command} must stay fail-closed until a PostgreSQL mutation owner exists`);
+  }
+  assert.equal((await owner.execute({ type: "publish-draft", payload: { entryId: entry.id, confirmEntryId: entry.id, expectedPreviousRevision: 7 } })).ok, true);
+  assert.equal(store.registry[0].publication.revision, 8);
+  assert.equal(publicationRequests[0].expectedPreviousRevision, 7);
+  assert.equal(publicationRequests[0].idempotencyKey, "specifications2-publish:qa");
+  assert(SPECIFICATIONS2_PRODUCTION_DEFERRED_COMMANDS.includes("edit-route-operation"));
 
   assert.deepEqual(owner.selectEntry(secondEntry.id), { ok: true, id: secondEntry.id, changed: true });
   assert.equal(store.selectedId, secondEntry.id);
-  assert.equal(writes.length, 1);
+  assert.equal(writes.length, 2, "only PostgreSQL publication acknowledgement and UI selection may touch the compatibility snapshot");
   assert.equal(owner.selectEntry("missing").ok, false);
+
+  let blockedPublishCalls = 0;
+  const blockedPublishOwner = createSpecifications2ProductionOwner({
+    getStore: () => ({ selectedId: entry.id, registry: [entry] }),
+    publishCommands: {
+      getCapability: () => ({ enabled: false, serverPrimary: true, error: "disabled by server" }),
+      refreshCapability: async () => ({ enabled: false, serverPrimary: true, error: "disabled by server" }),
+      publishRevision: async () => { blockedPublishCalls += 1; return { ok: true }; },
+    },
+  });
+  assert.equal(blockedPublishOwner.getPayload().capabilities.publication, false);
+  assert.equal((await blockedPublishOwner.execute({ type: "publish-draft", payload: { entryId: entry.id, confirmEntryId: entry.id, expectedPreviousRevision: 7 } })).ok, false);
+  assert.equal(blockedPublishCalls, 0, "a disabled server publication capability must fail before the server mutation");
 
   const changed = adaptSpecifications2Payload({
     productionModel: {
@@ -140,21 +184,29 @@ try {
   assert.equal(legacy.selectedEntry?.id, "legacy", "existing {model} fixtures must remain compatible");
   assert.equal(legacy.readModelCoverage, null);
 
-  const [adapterSource, productionSource, ownerSource] = await Promise.all([
+  const [adapterSource, productionSource, ownerSource, appSource] = await Promise.all([
     readFile(adapterPath, "utf8"),
     readFile(modelPath, "utf8"),
     readFile(ownerPath, "utf8"),
+    readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(
     `${adapterSource}\n${productionSource}\n${ownerSource}`,
     /getSpecifications2ReactModel\s*\(|from\s+["'][^"']*specifications2\/render|import\s*\(["'][^"']*specifications2\/render/,
     "production read/command foundation must not import or call the legacy renderer",
   );
+  const productionPayloadGate = appSource.match(/if \(activation\.accessMode === "react"\) \{\s+const productionPayload = getSpecifications2ProductionPayload\(\);[\s\S]*?\n\s+\}/)?.[0] || "";
+  assert.match(productionPayloadGate, /const canWrite = canEditSpecifications2WithSignedRole\(\)/);
+  for (const capability of ["draftEdit", "publication", "rowStructure", "routeEdit", "attachmentBinding", "workOrder"]) {
+    assert.match(productionPayloadGate, new RegExp(`${capability}: canWrite && productionPayload\\.capabilities\\?\\.${capability} === true`));
+  }
+  assert.match(appSource, /command\.type !== "select-entry" && !canEditSpecifications2WithSignedRole\(\)/);
 
   console.log("Specifications 2.0 React production foundation QA: OK");
   console.log("- raw registry + immutable PostgreSQL revision + typed tree/routes: pass");
   console.log("- selection + PostgreSQL work-order owner: pass");
-  console.log("- draft structure/publication/routes/attachments are explicit deferred prototype scope");
+  console.log("- signed-role gate + PostgreSQL publication owner: pass");
+  console.log("- mutable draft/structure/route/attachment binding: fail-closed without server owner");
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

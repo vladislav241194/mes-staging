@@ -52,6 +52,22 @@ export interface Specifications2DraftRow {
   unitOfMeasure: string;
 }
 
+export interface Specifications2DraftOperation {
+  id: string;
+  operationId: string;
+  name: string;
+  workCenterId: string;
+  attachmentCount: number;
+}
+
+export interface Specifications2DraftRoute {
+  id: string;
+  productLabel: string;
+  designation: string;
+  status: "draft" | "ready-for-norming";
+  operations: Specifications2DraftOperation[];
+}
+
 function adaptTreeItems(value: unknown): Specifications2TreeItem[] {
   const source = list(value).map((raw, index) => {
     const item = record(raw);
@@ -137,6 +153,27 @@ export function adaptSpecifications2Payload(payload: unknown) {
       unitOfMeasure: text(item.unitOfMeasure),
     };
   }).filter((item, index, items) => item.id && items.findIndex((candidate) => candidate.id === item.id) === index);
+  const routeDrafts = list(selected.routeDrafts).map((raw, index): Specifications2DraftRoute => {
+    const item = record(raw);
+    const operations = list(item.operations).map((operationRaw, operationIndex): Specifications2DraftOperation => {
+      const operation = record(operationRaw);
+      const files = record(operation.productionFiles);
+      return {
+        id: text(operation.id, `operation-${operationIndex + 1}`),
+        operationId: text(operation.operationId),
+        name: text(operation.name || operation.operationName, "Операция"),
+        workCenterId: text(operation.workCenterId),
+        attachmentCount: Object.values(files).filter((file) => text(record(file).serverAttachmentId)).length,
+      };
+    }).filter((operation) => operation.id);
+    return {
+      id: text(item.id, `route-draft-${index + 1}`),
+      productLabel: text(item.productLabel || item.title, "Маршрут"),
+      designation: text(item.designation),
+      status: item.status === "ready-for-norming" ? "ready-for-norming" : "draft",
+      operations,
+    };
+  }).filter((route) => route.id);
   const coverage = record(model.readModelCoverage);
   const readModelCoverage: Specifications2ProductionCoverage | null = text(coverage.contract) === "postgres-specifications2-read-v1"
     ? {
@@ -149,6 +186,9 @@ export function adaptSpecifications2Payload(payload: unknown) {
     registry,
     canEditDraft: Boolean(capabilities.draftEdit),
     canPublish: Boolean(capabilities.publication),
+    canEditStructure: Boolean(capabilities.rowStructure),
+    canEditRoutes: Boolean(capabilities.routeEdit),
+    canBindAttachments: Boolean(capabilities.attachmentBinding),
     canCreateWorkOrder: Boolean(capabilities.workOrder),
     serverStatus: text(model.serverStatus, "empty"),
     serverError: text(model.serverError),
@@ -163,6 +203,7 @@ export function adaptSpecifications2Payload(payload: unknown) {
       publicationRevision: number(selected.publicationRevision),
       publishedAt: text(selected.publishedAt),
       draftRows,
+      routeDrafts,
       serverRevision: serverRevision.id ? {
         id: text(serverRevision.id),
         sourceEntryId: text(serverRevision.sourceEntryId),

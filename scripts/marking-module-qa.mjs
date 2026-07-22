@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => readFile(join(root, relativePath), "utf8");
-const [scenario, model, apiAdapter, transport, host, app, registry, contracts, features, build, styles, previewServer, legacyServer, endpoint, repository, migration] = await Promise.all([
+const [scenario, model, apiAdapter, transport, host, app, registry, contracts, features, build, styles, previewServer, legacyServer, endpoint, repository, migration, cleanup] = await Promise.all([
   read("experiments/react-migration/src/modules/marking/MarkingScenario.tsx"),
   read("experiments/react-migration/src/modules/marking/model.ts"),
   read("experiments/react-migration/src/modules/marking/api.ts"),
@@ -23,6 +23,7 @@ const [scenario, model, apiAdapter, transport, host, app, registry, contracts, f
   read("scripts/domain-marking-phase1-endpoint.mjs"),
   read("scripts/domain-marking-phase1-repository.mjs"),
   read("db/migrations/035_marking_phase1_prototype.sql"),
+  read("scripts/marking-phase1-cleanup.mjs"),
 ]);
 
 const reactSource = `${scenario}\n${model}\n${apiAdapter}`;
@@ -44,6 +45,7 @@ assert(previewServer.includes("handleMarkingPhase1Request") && previewServer.inc
 assert(endpoint.includes('const BASE_PATH = "/api/v1/marking"') && endpoint.includes('testData: true'), "Marking endpoint must label every response as Phase 1 test data");
 assert(repository.includes("marking_phase1_tasks") && repository.includes("MOK-MARKING-"), "Repository must use isolated durable tables and visibly marked seed data");
 assert(migration.includes("035_marking_phase1_prototype") && migration.includes("prototype_scope = 'isolated-test'"), "Additive migration must enforce the isolated test scope");
+assert(cleanup.includes("DELETE-ALL-MARKING-PHASE1-TEST-DATA") && cleanup.includes('mode: "dry-run"') && cleanup.includes("process.getuid() !== 0"), "Test-state cleanup must default to dry-run and require root plus explicit confirmation");
 assert(!/UPDATE\s+(?:shift_|work_orders|production_)/i.test(`${repository}\n${migration}`), "Marking Phase 1 must not mutate production owners");
 
 assert(host.includes("data-react-marking-island") && host.includes("react-islands/marking.js"), "Marking host must provide an isolated React mount and versioned bundle");

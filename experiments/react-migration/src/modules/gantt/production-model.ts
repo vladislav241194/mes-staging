@@ -10,6 +10,9 @@ type UnknownRecord = Record<string, unknown>;
 
 export interface GanttProductionModel {
   canEditSchedule: boolean;
+  canRefresh: boolean;
+  canDrag: boolean;
+  canResize: boolean;
   projectionSource: string;
   scale: GanttScale;
   scaleOptions: GanttScaleOptionModel[];
@@ -94,14 +97,14 @@ export const GANTT_SUPPORTED_READ_FIELDS = [
   "PostgreSQL work-order routes, route steps and scheduled slots",
   "route/resource rows and bounded timeline geometry built by strict TypeScript",
   "safe UI period, scale, zoom, expansion and quantity state",
-  "adjacent operation dependency inspection and owner-backed start reschedule capability",
+  "adjacent operation dependency inspection and owner-backed form/drag start reschedule capability",
 ] as const;
 
 export const GANTT_DEFERRED_READ_FIELDS = [
   "working-calendar gaps, non-working overlays and capacity lanes from the legacy runtime",
   "physical split slots beyond the current global runtime projection",
   "operational fact, warning, transfer-batch and optimization overlays",
-  "legacy filters, dependency routing geometry, drag, resize and dependency editing",
+  "legacy filters, dependency routing geometry, resize and dependency editing",
 ] as const;
 
 const asRecord = (value: unknown): UnknownRecord => value && typeof value === "object" && !Array.isArray(value)
@@ -406,12 +409,18 @@ export function buildGanttProductionModel(input: unknown, capabilityInput: unkno
   });
 
   const canEditSchedule = capabilities.scheduleEdit === true;
+  const canRefresh = capabilities.refresh === true;
+  const canDrag = canEditSchedule && capabilities.slotDrag !== false;
+  const canResize = capabilities.slotResize === true;
   rowModels.forEach((row) => row.slots.forEach((slot) => {
     slot.canReschedule = canEditSchedule && !slot.aggregate && !slot.locked && Boolean(slot.routeId && slot.operationId);
   }));
 
   return {
     canEditSchedule,
+    canRefresh,
+    canDrag,
+    canResize,
     projectionSource: "server",
     scale: scaleId,
     scaleOptions: SCALE_OPTIONS,

@@ -1,7 +1,7 @@
 import { createReactIslandHost } from "../react_island_host.js";
 const CONTOUR_ADMIN_REACT_TARGET = "[data-react-contour-admin-island]";
 const CONTOUR_ADMIN_REACT_BUNDLE_VERSION = "__MES_CONTOUR_ADMIN_REACT_BUNDLE_VERSION__";
-const CONTOUR_ADMIN_FAILURE_REASONS = new Set(["model-unavailable", "mount-error", "render-error"]);
+const CONTOUR_ADMIN_FAILURE_REASONS = new Set(["admin-host-required", "evaluation-disabled", "model-unavailable", "mount-error", "render-error"]);
 
 function normalizeFailureReason(value) {
   const reason = String(value || "");
@@ -10,26 +10,26 @@ function normalizeFailureReason(value) {
 
 function renderContourAdminTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
   const runtimeMode = activation.runtimeMode === "react" ? "react" : "evaluation";
-  const state = failureReason || shellState?.state === "error" ? "error" : "loading";
-  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+  const inactiveReason = activation.featureFlagEnabled === true ? "" : "evaluation-disabled";
+  const state = failureReason || inactiveReason || shellState?.state === "error" ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || inactiveReason || "");
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>Администрирование временно недоступно</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем контуры</strong><p>Получаем карту окружений и защищённые Ops-сценарии…</p></section>';
   return `<div class="mes-react-contour-admin-island" data-react-contour-admin-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite">${content}</div>`;
 }
 
-export function createContourAdminReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Contour Admin React island failed", error) } = {}) {
+export function createContourAdminReactIslandHost({ getActivation, getPayload, getTargetRoot, executeCommand, reportError = (error) => console.error("[MES] Contour Admin React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
     reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
+      if (!activation.adminHostReady) return { state: "error", stage: "read", reason: "admin-host-required" };
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
-      if (!activation.adminHostReady) return { state: "loading", stage: "read", reason: "admin-module-pending" };
       return null;
     },
     getTelemetryContext: (activation) => ({ surfaceId: "contourAdmin", runtimeMode: activation.runtimeMode, policyId: activation.policyId }),
@@ -49,10 +49,9 @@ export function createContourAdminReactIslandHost({ getActivation, getPayload, g
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountContourAdminReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountContourAdminReactIsland(target, payload, {
       onError,
       onReady,
-      onRequestLegacy: getActivation?.().accessMode === "react" ? undefined : onRequestLegacy,
       onCommand: (command) => executeCommand?.(command),
     }),
   });

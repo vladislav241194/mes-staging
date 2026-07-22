@@ -22,6 +22,12 @@ export interface PlanningMetric { id: string; label: string; value: string; meta
 export interface PlanningStructureRow { id: string; kind: "task" | "step"; routeId: string; operationId: string; slotId: string; plannedStart: string; plannedEnd: string; locked: boolean; level: number; title: string; meta: string; labor: string; laborMeta: string; context: string; contextMeta: string; quantity: number; unit: string; statusLabel: string; statusTone: "success" | "warning" | "neutral"; selected: boolean }
 export interface PlanningStartDateReconciliation { routeId: string; planningStartDate: string | null; intent: "set" | "clear"; expectedRevision: number; idempotencyKey: string; status: "submitting" | "transport-unknown" | "readback-pending" | "rollback-pending"; message: string }
 
+export const PLANNING_WORKBENCH_COMMAND_OWNER_BLOCKERS = Object.freeze({
+  laborEdit: "Нет PostgreSQL owner/API/capability для изменения трудозатрат операции.",
+  transferToGantt: "Нет PostgreSQL owner/API/capability для первичного размещения заказ-наряда в Ганте.",
+  cancel: "Нет PostgreSQL owner/API/capability для отмены заказ-наряда и снятия его слотов.",
+});
+
 export function adaptPlanningWorkbench(payload: unknown) {
   const root = record(payload);
   const productionInput = record(root.productionModel);
@@ -100,11 +106,19 @@ export function adaptPlanningWorkbench(payload: unknown) {
     rows,
     quantity: number(overview.planningQuantity || source.activeQuantity),
     concurrencyRevision: number(source.concurrencyRevision),
-    decision: { title: text(decision.title, "Заказ-наряд не выбран"), subtitle: text(decision.subtitle), tone: tone(decision.tone), isReady: decision.isReady === true },
+    decision: { title: text(decision.title, "Заказ-наряд не выбран"), subtitle: text(decision.subtitle), tone: tone(decision.tone), isReady: decision.isReady === true, isPlanned: decision.isPlanned === true },
     canActivate: Boolean(activeRouteId && queue.length && metrics.length === 5 && rows.length),
     canEditQuantity: capabilities.quantityEdit === true,
     canEditStartDate: capabilities.startDateEdit === true,
     canEditSlotSchedule: capabilities.slotScheduleEdit === true,
+    canEditLabor: capabilities.laborEdit === true,
+    canTransferToGantt: capabilities.transferToGantt === true,
+    canCancel: capabilities.cancel === true,
+    commandOwnerBlockers: [
+      ...(capabilities.laborEdit === true ? [] : [PLANNING_WORKBENCH_COMMAND_OWNER_BLOCKERS.laborEdit]),
+      ...(capabilities.transferToGantt === true ? [] : [PLANNING_WORKBENCH_COMMAND_OWNER_BLOCKERS.transferToGantt]),
+      ...(capabilities.cancel === true ? [] : [PLANNING_WORKBENCH_COMMAND_OWNER_BLOCKERS.cancel]),
+    ],
     employeeElevationAvailable: capabilities.employeeElevation === true,
     employeeAuthStatus: text(employeeAuth.status, "idle"),
     employeeCapabilityStatus: text(employeeAuth.capabilityStatus, "idle"),

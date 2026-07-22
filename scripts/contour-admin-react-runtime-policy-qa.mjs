@@ -26,7 +26,7 @@ const script = renderRuntimeConfigScript({ MES_REACT_CONTOUR_ADMIN: "1", MES_REA
 assert.match(script, /"MES_REACT_CONTOUR_ADMIN":true/);
 assert.match(script, /"MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak/);
-const [app, host, owner, commandContract, productionModel, endpoint, scenario] = await Promise.all([
+const [app, host, owner, commandContract, productionModel, endpoint, scenario, runtimePolicy] = await Promise.all([
   readFile("src/app.js", "utf8"),
   readFile("src/modules/contour_admin/react_island_host.js", "utf8"),
   readFile("src/modules/contour_admin/server_owner_client.js", "utf8"),
@@ -34,17 +34,28 @@ const [app, host, owner, commandContract, productionModel, endpoint, scenario] =
   readFile("experiments/react-migration/src/modules/contour-admin/production-model.ts", "utf8"),
   readFile("scripts/contour-admin-endpoint.mjs", "utf8"),
   readFile("experiments/react-migration/src/modules/contour-admin/ContourAdminScenario.tsx", "utf8"),
+  readFile("react-runtime-policy.json", "utf8").then(JSON.parse),
 ]);
+assert.equal(runtimePolicy.surfaces.contourAdmin, "react", "current Contour Admin runtime must be permanent React");
 assert.match(app, /react-contour-admin-write/);
 assert.match(app, /surfaceId: "contourAdmin"/);
 assert.match(app, /return \{ capabilities: \{ executeOps: activation\.accessMode === "react" \|\| getContourAdminReactLocalQaOverrides\(\)\.writeEvaluation \} \}/);
 assert.match(app, /command\.confirmed !== true/);
 assert.match(app, /isContourAdminCommandAllowed\(scenarioId, actionId\)/);
-assert.match(app, /if \(!permanentReact\) ensureContourAdminModule\(\)/);
+assert.doesNotMatch(app, /modules\/contour_admin\/render\.js|ensureContourAdminModule|initializeContourAdminModule|renderContourAdminPage|bindContourAdminEvents|contourAdminModuleReady|contourAdminModuleError/);
+assert.match(app, /contourAdminReactIslandHost\.prepareRender\(\);\s*return contourAdminReactIslandHost\.renderTarget\(\)/);
+assert.match(app, /adminHostReady: isAdminRuntimeHost\(\)/);
+assert.match(app, /if \(!isAdminRuntimeHost\(\)\) return \{ featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false \}/);
+assert.match(app, /evaluationFeatureEnabled: MES_RUNTIME_CONFIG\.MES_REACT_CONTOUR_ADMIN === true && serverEvaluationAllowed/);
+assert.match(app, /evaluationRequested: isContourAdminReactEvaluationRequested\(\)/);
+assert.match(app, /contourAdmin:\s*\{[\s\S]{0,500}bind: \(\) => \{\}/);
 assert.doesNotMatch(app, /getPayload:\s*\(\)\s*=>\s*\{[\s\S]{0,300}getContourAdminModel/);
 assert.match(host, /write-evaluation/);
-assert.match(host, /canFallbackToLegacy: \(activation\) => activation\.accessMode !== "react"/);
+assert.match(host, /canFallbackToLegacy: \(\) => false/);
 assert.match(host, /if \(activation\.accessMode === "react"\) return ""/);
+assert.match(host, /admin-host-required/);
+assert.match(host, /evaluation-disabled/);
+assert.doesNotMatch(host, /requestLegacyRender|onRequestLegacy/);
 assert.match(host, /executeCommand/);
 assert.match(owner, /executeContourAdminServerAction/);
 assert.match(owner, /fetchImpl\("\/api\/contour-admin\/action"/);

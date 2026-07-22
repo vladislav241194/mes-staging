@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, DragEvent } from "react";
 import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, Panel, StatusToken } from "../../ui/components";
 import { adaptGanttPayload, type GanttDependencyModel, type GanttSlotModel } from "./adapter";
 import type { GanttScale } from "./adapter";
 
-export type GanttReactCommand = { type: "reschedule-slot"; slotId: string; routeId: string; operationId: string; plannedStart: string };
+export type GanttReactCommand = { type: "reschedule-slot"; slotId: string; routeId: string; operationId: string; plannedStart: string; source?: "form" | "drag" };
 export type GanttReactNavigation =
+  | { type: "refresh" }
   | { type: "set-window-start"; value: string }
   | { type: "set-scale"; scale: GanttScale }
   | { type: "set-zoom"; action: "out" | "reset" | "in" }
@@ -20,12 +21,15 @@ const dateTimeInput = (value: string) => {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 };
 const gapLabel = (dependency: GanttDependencyModel) => dependency.gapMinutes < 0 ? `Пересечение ${Math.abs(dependency.gapMinutes)} мин` : dependency.gapMinutes === 0 ? "Без разрыва" : `Разрыв ${dependency.gapMinutes} мин`;
+const GANTT_SLOT_DRAG_MIME = "application/x-mes-gantt-slot";
+const dragSnapMs = (scale: GanttScale) => scale === "hours" ? 15 * 60_000 : scale === "days" ? 60 * 60_000 : 4 * 60 * 60_000;
 
 export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unknown; onCommand?(command: GanttReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onNavigate?(navigation: GanttReactNavigation): Promise<{ ok?: boolean; message?: string } | void> }) {
   const model = useMemo(() => adaptGanttPayload(payload), [payload]);
-  const initialSelectedId = model.rows.flatMap((row) => row.slots).find((slot) => !slot.aggregate)?.id || model.rows[0]?.slots[0]?.id || "";
+  const slots = model.rows.flatMap((row) => row.slots);
+  const initialSelectedId = slots.find((slot) => !slot.aggregate)?.id || model.rows[0]?.slots[0]?.id || "";
   const [selectedId, setSelectedId] = useState(initialSelectedId);
-  const selected = model.rows.flatMap((row) => row.slots).find((slot) => slot.id === selectedId) || null;
+  const selected = slots.find((slot) => slot.id === selectedId) || null;
   const [dependencyMode, setDependencyMode] = useState(false);
   const [selectedDependencyId, setSelectedDependencyId] = useState(model.dependencies[0]?.id || "");
   const [plannedStartDraft, setPlannedStartDraft] = useState(() => dateTimeInput(selected?.plannedStart || ""));
@@ -62,17 +66,35 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
       setNavigating(false);
     }
   };
-  const reschedule = async () => {
-    if (!onCommand || !selected?.canReschedule || saving) return;
+  const commitSchedule = async (slot: GanttSlotModel, plannedStart: string, source: "form" | "drag") => {
+    if (!onCommand || !slot.canReschedule || saving) return;
     setSaving(true); setCommandError("");
     try {
-      const result = await onCommand({ type: "reschedule-slot", slotId: selected.id, routeId: selected.routeId, operationId: selected.operationId, plannedStart: plannedStartDraft });
+      const result = await onCommand({ type: "reschedule-slot", slotId: slot.id, routeId: slot.routeId, operationId: slot.operationId, plannedStart, source });
       if (result && result.ok === false) setCommandError(result.message || "Начало операции не сохранено.");
     } catch (error) {
       setCommandError(error instanceof Error ? error.message : "Начало операции не сохранено.");
     } finally {
       setSaving(false);
     }
+  };
+  const reschedule = async () => { if (selected) await commitSchedule(selected, plannedStartDraft, "form"); };
+  const dropSlot = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!model.canDrag || saving) return;
+    let dragData: { slotId?: string; grabOffsetPx?: number } = {};
+    try { dragData = JSON.parse(event.dataTransfer.getData(GANTT_SLOT_DRAG_MIME) || "{}"); } catch { return; }
+    const slot = slots.find((candidate) => candidate.id === dragData.slotId && !candidate.aggregate);
+    if (!slot || slot.rowId !== event.currentTarget.dataset.ganttReactDropLane) return;
+    const windowStart = Date.parse(model.windowStart); const windowEnd = Date.parse(model.windowEnd);
+    if (!slot?.canReschedule || !Number.isFinite(windowStart) || !Number.isFinite(windowEnd) || windowEnd <= windowStart) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const rawX = event.clientX - rect.left - Math.max(0, Number(dragData.grabOffsetPx) || 0);
+    const x = Math.max(0, Math.min(model.timelineWidth, rawX));
+    const rawStart = windowStart + (x / model.timelineWidth) * (windowEnd - windowStart);
+    const snap = dragSnapMs(model.scale); const plannedStart = new Date(Math.round(rawStart / snap) * snap).toISOString();
+    setSelectedId(slot.id); setPlannedStartDraft(dateTimeInput(plannedStart));
+    void commitSchedule(slot, plannedStart, "drag");
   };
 
   return <ModulePage header={<ModuleHeader eyebrow="Планирование" title="Диаграмма Ганта" badge={<><span className="lab-badge" data-react-prototype-marker title="Обычный интерфейс переведён на React + TypeScript; точная геометрия и отложенные команды ещё не приняты">React TS · прототип</span><span className="lab-badge">PostgreSQL · {model.canEditSchedule ? "command" : "read-only"}</span></>} />}>
@@ -81,14 +103,14 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
       <div className="gantt-react-scale" data-gantt-react-scale-group role="group" aria-label="Масштаб времени">{model.scaleOptions.map((option) => <button aria-pressed={model.scale === option.id} className={model.scale === option.id ? "is-active" : ""} data-gantt-react-scale={option.id} disabled={!onNavigate || navigating} key={option.id} onClick={() => void navigate({ type: "set-scale", scale: option.id })} type="button">{option.label}</button>)}</div>
       <div className="gantt-react-zoom" data-gantt-react-zoom-group role="group" aria-label="Масштаб Ганта"><button aria-label="Уменьшить масштаб Ганта" data-gantt-react-zoom="out" disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "set-zoom", action: "out" })} type="button">−</button><button aria-label="Сбросить масштаб Ганта" data-gantt-react-zoom="reset" disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "set-zoom", action: "reset" })} type="button">{model.zoomLabel}</button><button aria-label="Увеличить масштаб Ганта" data-gantt-react-zoom="in" disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "set-zoom", action: "in" })} type="button">+</button></div>
       <StatusToken label={model.projectionSource === "server" ? "PostgreSQL projection" : model.projectionSource} tone={model.projectionSource === "server" ? "success" : "warning"} />
-      <div className="gantt-react-scale gantt-react-toolbar-actions" role="group" aria-label="Действия отображения"><button aria-pressed={model.allRoutesExpanded} data-gantt-react-toggle-expanded-routes disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-expanded-routes" })} type="button">{model.allRoutesExpanded ? "Свернуть" : "Развернуть"}</button><button aria-pressed={model.showQuantity} data-gantt-react-toggle-quantity disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-quantity" })} type="button">Кол-во</button><button data-gantt-react-jump-today disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "jump-today" })} type="button">Сегодня</button><ActionButton variant="secondary" onClick={() => setDependencyMode((current) => !current)}>Зависимости ({model.dependencyCount})</ActionButton></div>
+      <div className="gantt-react-scale gantt-react-toolbar-actions" role="group" aria-label="Действия отображения"><button data-gantt-react-refresh disabled={!model.canRefresh || !onNavigate || navigating} onClick={() => void navigate({ type: "refresh" })} title={model.canRefresh ? "Обновить PostgreSQL-проекцию" : "Owner обновления не подключён"} type="button">Обновить</button><button aria-pressed={model.allRoutesExpanded} data-gantt-react-toggle-expanded-routes disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-expanded-routes" })} type="button">{model.allRoutesExpanded ? "Свернуть" : "Развернуть"}</button><button aria-pressed={model.showQuantity} data-gantt-react-toggle-quantity disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-quantity" })} type="button">Кол-во</button><button data-gantt-react-jump-today disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "jump-today" })} type="button">Сегодня</button><ActionButton variant="secondary" onClick={() => setDependencyMode((current) => !current)}>Зависимости ({model.dependencyCount})</ActionButton></div>
     </section>
     {navigationError ? <p className="react-nomenclature-command-error gantt-react-navigation-error" role="alert">{navigationError}</p> : null}
     <section aria-label="Команды без серверного владельца" className="gantt-react-blocked-actions" data-gantt-react-blocked-actions>
       <p>Пока недоступно без подтверждённого серверного владельца:</p>
-      <ActionButton disabled title="Требуется серверный владелец пересчёта календарей" variant="secondary"><span data-gantt-react-blocked-action="refresh">Обновить по календарям</span></ActionButton>
+      <ActionButton disabled title="Требуется серверный владелец пересчёта производственных календарей" variant="secondary"><span data-gantt-react-blocked-action="refresh">Пересчитать по календарям</span></ActionButton>
       <ActionButton disabled title="Требуется серверный владелец маршрутов зависимостей" variant="secondary"><span data-gantt-react-blocked-action="edit-dependency">Редактировать связи</span></ActionButton>
-      <ActionButton disabled title="Требуется серверный владелец перемещения слота" variant="secondary"><span data-gantt-react-blocked-action="drag">Перетаскивание</span></ActionButton>
+      {!model.canDrag ? <ActionButton disabled title="Требуется серверный владелец перемещения слота" variant="secondary"><span data-gantt-react-blocked-action="drag">Перетаскивание</span></ActionButton> : null}
       <ActionButton disabled title="Требуется серверный владелец длительности слота" variant="secondary"><span data-gantt-react-blocked-action="resize">Изменить длительность</span></ActionButton>
       <ActionButton disabled title="Требуется серверный владелец оптимизации плана" variant="secondary"><span data-gantt-react-blocked-action="optimize">Оптимизировать</span></ActionButton>
     </section>
@@ -98,7 +120,7 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
         <div className="gantt-react-scroll" data-ui-component="GanttRuntime">
           <div className="gantt-react-canvas" data-ui-component="GanttCanvas" style={{ "--gantt-left": `${model.leftWidth}px`, "--gantt-width": `${model.timelineWidth}px`, "--gantt-height": `${model.totalHeight}px`, "--gantt-timeline-height": `${model.timelineHeight}px` } as CSSProperties}>
             <div className="gantt-react-timeline" data-ui-component="GanttTimeline"><div className="gantt-react-corner">Маршруты и ресурсы</div><div className="gantt-react-ticks">{model.ticks.map((tick) => <div className={tick.weekend ? "is-weekend" : ""} key={tick.id} style={{ left: tick.left, width: tick.width }}><strong>{tick.label}</strong><small>{tick.sublabel}</small></div>)}</div></div>
-            <div className="gantt-react-rows" data-ui-component="GanttRowsLayer">{model.rows.map((row) => <div className={`gantt-react-row is-${row.type}`} data-row-id={row.id} key={row.id} style={{ top: row.top, height: row.height }}><div className="gantt-react-label"><strong>{row.label}</strong><small>{row.meta}</small></div><div className="gantt-react-lane">{row.slots.map((slot) => <button aria-pressed={selected?.id === slot.id} className={slot.aggregate ? "is-aggregate" : ""} data-slot-id={slot.id} data-ui-component="GanttSlot" key={slot.id} onClick={() => setSelectedId(slot.id)} style={{ left: slot.x, top: slot.top, width: slot.width, height: slot.height }} title={`${slot.title} · ${dateTime(slot.plannedStart)} — ${dateTime(slot.plannedEnd)}`} type="button">{model.showQuantity ? <span data-gantt-react-slot-quantity>{slot.quantity.toLocaleString("ru-RU")}</span> : null}</button>)}</div></div>)}</div>
+            <div className="gantt-react-rows" data-ui-component="GanttRowsLayer">{model.rows.map((row) => <div className={`gantt-react-row is-${row.type}`} data-row-id={row.id} key={row.id} style={{ top: row.top, height: row.height }}><div className="gantt-react-label"><strong>{row.label}</strong><small>{row.meta}</small></div><div className="gantt-react-lane" data-gantt-react-drop-lane={row.id} onDragOver={(event) => { if (model.canDrag) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={dropSlot}>{row.slots.map((slot) => <button aria-pressed={selected?.id === slot.id} className={slot.aggregate ? "is-aggregate" : ""} data-slot-id={slot.id} data-ui-component="GanttSlot" draggable={model.canDrag && slot.canReschedule && !saving} key={slot.id} onClick={() => setSelectedId(slot.id)} onDragStart={(event) => { const rect = event.currentTarget.getBoundingClientRect(); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData(GANTT_SLOT_DRAG_MIME, JSON.stringify({ slotId: slot.id, grabOffsetPx: event.clientX - rect.left })); event.dataTransfer.setData("text/plain", slot.id); }} style={{ left: slot.x, top: slot.top, width: slot.width, height: slot.height }} title={`${slot.title} · ${dateTime(slot.plannedStart)} — ${dateTime(slot.plannedEnd)}`} type="button">{model.showQuantity ? <span data-gantt-react-slot-quantity>{slot.quantity.toLocaleString("ru-RU")}</span> : null}</button>)}</div></div>)}</div>
           </div>
         </div>
       </Panel>

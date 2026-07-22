@@ -213,7 +213,7 @@
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["execute-ops", "request-deploy-to-pilot"], "missing": [] } },
     { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "implementationMarker": "React TS · read-only", "commands": { "implemented": ["read-production"], "missing": [] } },
     { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "select-task", "start-task", "save-fact", "prepare-photo", "save-report", "structure-context", "route-context", "pdf-context"], "missing": [] } },
-    { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "blocked": ["refresh", "edit-dependency", "drag", "resize", "optimize"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
+    { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today", "refresh-projection", "drag"], "blocked": ["refresh", "edit-dependency", "resize", "optimize"], "missing": ["refresh", "edit-dependency", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": ["phase1-test-state-owner", "read-api", "write-api", "database-persistence", "phase1-rbac-adapter"], "missing": ["production-owner", "production-traceability", "printer-outbox", "Pilot production acceptance"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "nomenclatureTypes", "routeId": "directories", "entry": "experiments/react-migration/src/nomenclature-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
@@ -241,7 +241,7 @@
     },
     { "id": "shiftMasterBoard", "routeId": "shiftMasterBoard", "entry": "experiments/react-migration/src/shift-master-board-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "create-carryover", "cancel-carryover", "print", "manual-lane-move"], "missing": [] } },
     { "id": "shiftWorkOrders", "routeId": "shiftWorkOrders", "entry": "experiments/react-migration/src/shift-work-orders-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["open-workshop", "assign", "save-fact", "correct-fact", "print-szn", "print-package"], "missing": [] } },
-    { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-entry", "create-work-order"], "blocked": ["edit-draft-row", "publish-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"], "missing": ["edit-draft-row", "publish-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
+    { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-entry", "publish-revision", "create-work-order"], "blocked": ["edit-draft-row", "publish-first-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"], "missing": ["edit-draft-row", "publish-first-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
     { "id": "statuses", "routeId": "directories", "entry": "experiments/react-migration/src/statuses-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-custom", "delete-custom"], "missing": [] } },
     { "id": "structureEmployees", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-employees-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureEquipment", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-equipment-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
@@ -278,7 +278,7 @@
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["restore draft-row edit and publication through an independent server owner", "server owner/API for add-row, remove-row and reparent-row", "server owner/API for attachment binding", "server owner/API for route and norm editing", "Pilot publication and work-order lifecycle"]
+      "remainingScopes": ["server owner/API for mutable draft-row editing", "first publication UI over the existing revision owner", "server owner/API for add-row, remove-row and reparent-row", "server owner/API for attachment binding", "server owner/API for route and norm editing", "Pilot publication and work-order lifecycle"]
     },
     {
       "id": "planning",
@@ -304,7 +304,7 @@
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["server-owned calendar refresh", "server-owned dependency editing", "server-owned drag and resize commands", "server-owned optimization", "exact calendar, physical-slot and dependency-geometry parity", "Pilot schedule lifecycle and permanent acceptance"]
+      "remainingScopes": ["server-owned calendar refresh", "server-owned dependency editing", "server-owned resize command", "server-owned optimization", "exact calendar, physical-slot and dependency-geometry parity", "Pilot schedule lifecycle and permanent acceptance"]
     },
     {
       "id": "weeklyProductionControl",

@@ -104,7 +104,8 @@ TypeScript строит очередь, дерево операций, пять 
 тиража и времени выбранного уже размещённого слота подключены fail-closed к
 существующим signed PostgreSQL owners и включаются только при точных server
 capabilities. Трудозатраты, первичное размещение и отмена не подменяются моками
-или legacy-командами и остаются явным остатком.
+или legacy-командами: typed формы/команды уже присутствуют, но строго
+заблокированы до появления PostgreSQL owners.
 
 Auth Prototype также больше не загружает `auth_render` в постоянном React-пути:
 strict TypeScript строит иерархию сотрудников из raw PostgreSQL System Domains,
@@ -149,20 +150,26 @@ Gantt permanent path теперь получает raw PostgreSQL runtime projec
 строки, упрощённую геометрию и последовательные зависимости собственной strict
 TypeScript моделью. Он возвращается до загрузки `gantt_runtime/render.js`.
 Маркер в заголовке честно показывает `React TS · прототип`: точные календари,
-physical split slots, drag/resize, dependency editing и optimization отложены.
+physical split slots, resize, dependency editing и optimization отложены.
+Перетаскивание старта физического слота теперь использует существующий signed
+`reschedule-slot` owner; отдельная кнопка обновляет только PostgreSQL-проекцию,
+не выдавая её за отсутствующий пересчёт производственных календарей.
 
 Specifications 2.0 permanent path больше не загружает
 `specifications2/render.js`: реестр и immutable PostgreSQL revision читает typed
-production model, а выбор и создание заказ-наряда обслуживает отдельный owner.
-Чтобы ускоренный cutover не создавал ложную parity, draft edit/publication,
-структурные операции, маршруты и вложения явно заблокированы до независимых
-server owners. Evaluation/legacy ветка сохранена только для rollback.
+production model, а выбор, повторную публикацию существующей ревизии и создание
+заказ-наряда обслуживают отдельные server owners. Чтобы ускоренный cutover не
+создавал ложную parity, первая публикация без существующей revision, mutable
+draft edit, структурные операции, маршруты и привязка вложений явно
+заблокированы до независимых server owners. Evaluation/legacy ветка сохранена
+только для rollback.
 
 Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной
 волне отложены владельцем и не засчитываются как Pilot acceptance. До
 настоящих 100% остаются: закрыть action/owner parity и
-legacy data/model dependencies в partial-модулях; заменить Marking MOCK
-production-контрактами с API, БД и RBAC; перевести активный runtime на strict
+legacy data/model dependencies в partial-модулях; подключить к готовому
+Marking Phase 1 API production traceability, printer outbox и employee RBAC;
+перевести активный runtime на strict
 TypeScript; пройти Pilot read/write lifecycle с cleanup; затем выполнить
 permanent default-on, soak и rollback/reactivation acceptance.
 
@@ -173,6 +180,33 @@ Dry-run на immediate previous `.45` прошёл. Pinned legacy `.18` сохр
 его отдельный dry-run был доказан на предыдущей волне после контролируемого
 временного отключения несовместимых owners. Реальный rollback не выполнялся,
 release pointer остался на `.46`.
+
+Следующий accelerated checkpoint `v.1.500.47-37f7ecb` активирован на Pilot:
+local/public health `ok`, shared state `ready`, migration
+`035_marking_phase1_prototype` применена (marker `1`, семь таблиц), active
+evaluation surfaces и effective `MES_REACT_*` flags отсутствуют. Immediate
+previous `.46` успешно разрешается dry-run. Pinned legacy `.18` и его manifest
+сохранены, но новый dry-run корректно остановлен compatibility guard до
+контролируемого отключения Specifications 2 command owners; guard не
+обходился. Визуальная и authenticated lifecycle-приёмка `.47` пропущены по
+ускоренному режиму, поэтому strict acceptance остаётся 50%.
+
+Кандидат `.48` продолжает именно удаление mixed runtime без визуальной
+полировки. У полностью отмеченных `Shift Work Orders`, `Timesheet` и
+`Contour Admin` удалены достижимые current-release legacy renderer imports,
+страницы, overlays и event fallback: ошибка React теперь остаётся в
+fail-closed React shell, а возврат обеспечивается предыдущим immutable
+release. Общая Shift Work Orders production model перенесена в активный
+`src` как TypeScript и используется React island и journal consumers без
+`shift_work_orders/render.js`. Auth role resolver вынесен из большого
+`products/render.js`; server-configured Nomenclature Types больше не считает
+legacy delete usage. Planning и Roles получили typed controls для оставшихся
+команд, но capability остаётся `false` до появления PostgreSQL owners, поэтому
+их маркеры честно остаются `MVP/partial`. Specifications 2 повторно публикует
+существующую ревизию через server owner; mutable draft/first publish/routes и
+attachment binding остаются partial. Визуальные проверки кандидата пропущены,
+implementation-показатель остаётся 99%, strict acceptance — 50% до Pilot
+lifecycle.
 
 ## Что проверено 2026-07-21
 
@@ -243,17 +277,18 @@ release pointer остался на `.46`.
   отдельном `test-state`; production traceability и printer owner ещё не
   подключены.
 - Strict TypeScript покрывает React-island-дерево и новый Weekly read-model, но
-  не весь активный frontend-runtime: исполняемый audit сейчас видит 145
-  JavaScript-файлов и 93 441 строку кода в `src`, при нулевом числе
-  TypeScript-файлов в этом active shell; typed boundary находится в
-  `experiments/react-migration`.
+  не весь активный frontend-runtime: исполняемый audit сейчас видит 150
+  JavaScript-файлов и около 94 тыс. строк кода в `src`. Две production
+  TypeScript boundary уже находятся в `src`: Marking API client и общий
+  Shift Work Orders production model; остальная typed boundary пока остаётся
+  в `experiments/react-migration`.
 
 ## Формула прогресса
 
 | Критерий полного cutover | Вес | Доказано | Почему не максимум |
 | --- | ---: | ---: | --- |
-| Полный scope и typed React-поверхность | 15 | 14 | Все routes/islands/aliases/commands учтены; Dispatch закрыт в read-only scope, Marking — MOCK, TypeScript ещё не покрывает весь runtime |
-| Функциональный parity без обычного возврата в legacy | 25 | 18 | В Roles, Planning, Boards/BOM, Shift Master, Employee Desktop, Specifications 2.0 и Gantt остаются legacy-only команды |
+| Полный scope и typed React-поверхность | 15 | 14 | Все routes/islands/aliases/commands учтены; Dispatch закрыт в read-only scope, Marking остаётся изолированной Phase 1, TypeScript ещё не покрывает весь runtime |
+| Функциональный parity без обычного возврата в legacy | 25 | 18 | В Roles, Planning, Boards/BOM, Shift Master, Employee Desktop, Specifications 2.0 и Gantt остаются owner/schema gaps; React показывает их fail-closed, а не вызывает legacy |
 | Реальная Pilot read/write приёмка | 20 | 9 | Historical read 21/25; fresh current-release read 1/25; полный write lifecycle только 1/22 и на историческом `.25` |
 | Постоянный default-on React runtime | 20 | 2 | Permanent приняты Weekly и Diagnostics: 2/25 production-сценариев; остальные не засчитаны |
 | Вывод legacy из обычного runtime | 15 | 2 | Weekly больше не использует legacy model factory в normal path; Diagnostics остаётся внутри смешанного Structure route |
@@ -288,9 +323,9 @@ Functional parity остаётся 18.
 
 ### Planning и производственное исполнение
 
-- Pilot lifecycle для локально готовой owner-backed даты старта; количество,
-  размещение и перенос слотов, трудозатраты, передача в Gantt и отмена остаются
-  отдельными scope;
+- Pilot lifecycle для локально готовых owner-backed даты старта, количества и
+  переноса слота; трудозатраты, первичное размещение и отмена остаются typed,
+  но заблокированными scope без owners;
 - ручное перемещение lane в Shift Master;
 - durable Report persistence и Pilot lifecycle Employee Desktop;
 - Pilot assignment/fact lifecycle Shift Work Orders.
@@ -305,7 +340,8 @@ Functional parity остаётся 18.
 ### Gantt
 
 - редактирование зависимостей;
-- drag/resize;
+- resize и точная physical-slot геометрия (drag старта уже owner-backed);
+- пересчёт по рабочим календарям (обычный projection refresh уже есть);
 - оптимизация и связанные write-контракты.
 
 ### Marking

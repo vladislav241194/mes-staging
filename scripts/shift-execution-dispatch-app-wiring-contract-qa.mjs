@@ -70,7 +70,7 @@ const refreshProjection = section(
 const moduleLoader = section(
   source,
   "function ensureShiftMasterBoardModule() {",
-  "const shiftWorkOrdersLoadingState",
+  "const shiftWorkOrderJournalOwner",
   "master board lazy loader",
 );
 const masterBoardRender = section(

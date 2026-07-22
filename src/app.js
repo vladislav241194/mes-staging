@@ -100,12 +100,14 @@ import {
   PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR,
 } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
+import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createShiftMasterBoardCommandOwner } from "./modules/shift_master_board/command_owner.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createMarkingApiClient } from "./modules/marking/api_client.ts";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
+import { inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson } from "./modules/auth_render/access_role_resolver.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.js";
 import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.js";
@@ -139,8 +141,6 @@ import {
   toPersonnelCalendarModel,
 } from "./modules/system_domains/runtime_adapter.js";
 import {
-  DEFAULT_PERSONNEL_SCHEDULE_TEMPLATES,
-  migrateLegacyTimesheetState,
   projectEmployeeAvailability as projectPersonnelEmployeeAvailability,
   resolveEffectiveScheduleAssignment as resolvePersonnelScheduleAssignment,
 } from "./modules/personnel_calendar/service.js";
@@ -209,7 +209,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.47";
+const APP_VERSION_FALLBACK = "v.1.500.48";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1934,82 +1934,16 @@ function ensureShiftMasterBoardModule() {
   return shiftMasterBoardModuleLoad;
 }
 
-const shiftWorkOrdersLoadingState = () => renderMesModulePatternPage({
-  moduleId: "shiftWorkOrders",
-  content: renderUiEmptyState({ title: "Загружаем модуль", description: "Экран откроется автоматически." }),
+const shiftWorkOrderJournalOwner = createShiftWorkOrderJournalOwner({
+  getProductionInput: () => getShiftWorkOrdersProductionInput(),
+  onSelectedRow: (row) => {
+    if (ui && row?.id && ui.shiftWorkOrderJournalSelectedId !== row.id) {
+      ui.shiftWorkOrderJournalSelectedId = row.id;
+    }
+  },
 });
-let bindShiftWorkOrdersEvents = () => {};
-let formatShiftWorkOrderPersonName = (person = {}) => String(person?.name || person?.fullName || person?.id || "—");
-let getShiftWorkOrderJournalViewModel = () => ({ rows: [], totals: {} });
-let renderShiftWorkOrderIssuePhotoModal = () => "";
-let renderShiftWorkOrderPrintPreviewModal = () => "";
-let renderShiftWorkOrdersPage = () => shiftWorkOrdersLoadingState();
-let shiftWorkOrdersModuleLoad = null;
-let shiftWorkOrdersModuleError = null;
-let shiftWorkOrdersModuleReady = false;
-function initializeShiftWorkOrdersModule(factory) {
-  ({
-    bindShiftWorkOrdersEvents,
-    formatShiftWorkOrderPersonName,
-    getShiftWorkOrderJournalViewModel,
-    renderShiftWorkOrderIssuePhotoModal,
-    renderShiftWorkOrderPrintPreviewModal,
-    renderShiftWorkOrdersPage,
-  } = factory({
-  bindGenericModalCloseEvents,
-  buildShiftMasterBoardSheetContract: (...args) => typeof buildShiftMasterBoardSheetContract === "function" ? buildShiftMasterBoardSheetContract(...args) : ({}),
-  buildShiftMasterBoardTransferContract: (...args) => typeof buildShiftMasterBoardTransferContract === "function" ? buildShiftMasterBoardTransferContract(...args) : ({}),
-  escapeAttribute,
-  escapeHtml,
-  formatDateTimeShort,
-  getApp: () => app,
-  getShiftMasterBoardAssignmentQuantity: (...args) => typeof getShiftMasterBoardAssignmentQuantity === "function" ? getShiftMasterBoardAssignmentQuantity(...args) : 0,
-  getShiftMasterBoardModel: (...args) => typeof getShiftMasterBoardModel === "function" ? getShiftMasterBoardModel(...args) : ({ rows: [], allRows: [] }),
-  getShiftMasterEmployee,
-  // These reports are owned by the session renderer. Keep them late-bound so
-  // the workshop never captures an obsolete implementation during bootstrap.
-  getShiftWorkOrderIssueLookupKeys: (...args) => getShiftWorkOrderIssueLookupKeys(...args),
-  getShiftWorkOrderIssueReports: (...args) => getShiftWorkOrderIssueReports(...args),
-  getShiftWorkOrderIssueSummary: (...args) => getShiftWorkOrderIssueSummary(...args),
-  getShiftWorkOrderReportPhotoItems: (...args) => getShiftWorkOrderReportPhotoItems(...args),
-  getSlotPlanningOrderId,
-  getUi: () => ui,
-  getWorkOrderPrintPackageViewModel: (...args) => getWorkOrderPrintPackageViewModel(...args),
-  icon,
-  normalizePlainRecord,
-  normalizeShiftMasterBoardQuantity: (value) => typeof normalizeShiftMasterBoardQuantity === "function" ? normalizeShiftMasterBoardQuantity(value) : Math.max(0, Number(value || 0) || 0),
-  persistUiState,
-  render,
-  renderPreservingModuleScroll,
-  renderRouteTreeCell: (...args) => renderRouteTreeCell(...args),
-  renderUiActionButton,
-  renderUiEmptyState,
-  renderUiModalFrame,
-  renderUiModalShell,
-  renderUiModulePage,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiStatusToken,
-  renderUiTableWrap,
-  toDate,
-  toDateInput,
-  }));
-}
-
-function ensureShiftWorkOrdersModule() {
-  if (shiftWorkOrdersModuleLoad) return shiftWorkOrdersModuleLoad;
-  shiftWorkOrdersModuleLoad = import("./modules/shift_work_orders/render.js")
-    .then(({ createShiftWorkOrdersModule }) => {
-      initializeShiftWorkOrdersModule(createShiftWorkOrdersModule);
-      shiftWorkOrdersModuleReady = true;
-      if (ui.activeModule === "shiftWorkOrders") render();
-    })
-    .catch((error) => {
-      shiftWorkOrdersModuleError = error;
-      console.error("Не удалось загрузить модуль заказ-нарядов", error);
-      if (ui.activeModule === "shiftWorkOrders") render();
-    });
-  return shiftWorkOrdersModuleLoad;
+function getShiftWorkOrderJournalViewModel() {
+  return shiftWorkOrderJournalOwner.getViewModel();
 }
 
 let weeklyProductionControlLegacyRuntimeInstance = null;
@@ -2742,57 +2676,6 @@ function ensureAccessRolesModule() {
     });
 }
 
-let bindContourAdminEvents = () => {};
-let renderContourAdminPage = () => renderUiModulePage({
-  ariaLabel: "Администрирование контура",
-  className: "contour-admin-page",
-  content: renderUiEmptyState({ title: "Загружаем модуль", description: "Экран администрирования откроется автоматически." }),
-});
-let contourAdminModuleLoad = null;
-let contourAdminModuleReady = false;
-let contourAdminModuleError = null;
-
-function initializeContourAdminModule(factory) {
-  ({
-    bindContourAdminEvents,
-    renderContourAdminPage,
-  } = factory({
-  appendLocalDataSafetyAudit,
-  escapeAttribute,
-  escapeHtml,
-  getApp: () => app,
-  notifySaveSuccess,
-  renderUiActionButton,
-  renderUiInfoGrid,
-  renderUiModuleHeader,
-  renderUiModulePage,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiStatusToken,
-  renderUiTableWrap,
-  }));
-}
-
-function ensureContourAdminModule() {
-  if (contourAdminModuleLoad) return;
-  contourAdminModuleLoad = import("./modules/contour_admin/render.js")
-    .then(({ createContourAdminModule }) => {
-      initializeContourAdminModule(createContourAdminModule);
-      contourAdminModuleReady = true;
-      if (ui.activeModule === "contourAdmin") render();
-    })
-    .catch((error) => {
-      contourAdminModuleError = error;
-      console.error("Не удалось загрузить модуль администрирования", error);
-      renderContourAdminPage = () => renderUiModulePage({
-        ariaLabel: "Администрирование контура",
-        className: "contour-admin-page",
-        content: renderUiEmptyState({ title: "Модуль недоступен", description: "Обновите страницу и повторите попытку." }),
-      });
-      if (ui.activeModule === "contourAdmin") render();
-    });
-}
-
 function measureBootStep(name, callback) {
   const stepStart = performance.now();
   try {
@@ -3011,15 +2894,6 @@ const TIMESHEET_DAY_OPTIONS = [
   { value: "leave", code: "leave", label: "Отг.", display: ["Отг."], title: "Отгул", hours: 0, overtime: 0 },
   { value: "off", code: "off", label: "Вых", display: ["Вых"], title: "Выходной", hours: 0, overtime: 0 },
 ];
-const TIMESHEET_VIEW_OPTIONS = [
-  { id: "month", label: "Месяц" },
-  { id: "week", label: "Неделя" },
-];
-const TIMESHEET_SCHEDULE_OPTIONS = [
-  { code: "5/2", label: "5/2", caption: "пятидневка", start: "08:00", end: "17:00", patternOffset: 0 },
-  { code: "2/2", label: "2/2", caption: "сменный график", start: "08:00", end: "20:00", patternOffset: 0 },
-];
-
 const defaultUiState = {
   activeRole: DEFAULT_INTERFACE_ROLE_ID,
   activeModule: "gantt",
@@ -3119,7 +2993,7 @@ const defaultUiState = {
 };
 
 
-let addNomenclatureToBom, applyGanttRowToSlot, cancelAuthPrototypePinFeedback, completeAuthPrototypeLogin, createSpekiSpecification, deleteBomImportRow, ensureNomenclatureTypeExists, ensureRouteModuleProjectForSpecification, findSmtLineByNumber, getActiveSpecificationForModule, getAuthPrototypeAttemptsLeft, getAuthPrototypeDepartmentRows, getAuthPrototypeDirectDepartmentPeople, getAuthPrototypePeople, getAuthPrototypePeopleByUnit, getAuthPrototypePinFeedbackTone, getAuthPrototypePinPerson, getAuthPrototypeSelectedDepartment, getAuthPrototypeSelectedPerson, getAuthPrototypeSelectedUnit, getAuthPrototypeUnitRows, getBomImportRowNomenclatureItem, getBomImportRows, getBomLinkedSpecifications, getBomList, getBomResultNomenclatureItem, getDefaultSmtLineConfigurations, getDirectoryRows, getFallbackNomenclatureType, getGanttResourceForSlot, getNomenclatureDeleteUsage, getNomenclatureItem, getResourceBaseCph, getResourceRowId, getResourcesForWorkCenter, getRouteBindingContext, getRouteBindingModeForSelection, getRouteBindingOptions, getRouteBomList, getRouteDocumentKind, getRouteDocumentKindLabel, getRouteDocumentKindShortLabel, getRouteLineageSubjectName, getRouteModuleSelectionName, getRouteModuleSelectionValue, getRouteParentRoute, getRouteRootRoute, getRouteScopeRootTask, getRouteSpecification, getRoutesForModule, getSlotGanttResourceId, getSlotGanttWorkCenterId, getSmtLineConfigurations, getSmtLineIdFromWorkCenterId, getSmtLineNumberFromText, getSpecificationBomEntries, getSpecificationById, getSpecificationDeleteUsage, getSpecificationItemBomId, getSpecificationProductionOrder, getSpekiStructureItemDisplayName, getSpekiStructureItemLabel, getSpekiStructureSectionOptions, getSpekiStructureTableRows, importBomFromXlsxFile, inferAccessRoleIdForPerson, isAuthPrototypePinFeedbackLocked, isSmtLineWorkCenterId, migrateSpecificationBomRowsToNomenclature, normalizeBomImportRow, normalizeLookupText, normalizeNomenclatureType, normalizeRouteBindingValue, normalizeSmtComponentKeyPart, renderModulePreviewEmpty, renderNomenclaturePage, resetAuthPrototypeAttempts, resolveRouteModuleProjectId, scheduleAuthPrototypePinValidation, scopeRouteTasks, summarizeBomComponentFields, syncNomenclatureTypeRename, syncNomenclatureTypesFromItems, syncSpecificationDerivedFields, updateBomImportCell, upsertBomResultToNomenclature;
+let addNomenclatureToBom, applyGanttRowToSlot, cancelAuthPrototypePinFeedback, completeAuthPrototypeLogin, createSpekiSpecification, deleteBomImportRow, ensureNomenclatureTypeExists, ensureRouteModuleProjectForSpecification, findSmtLineByNumber, getActiveSpecificationForModule, getAuthPrototypeAttemptsLeft, getAuthPrototypeDepartmentRows, getAuthPrototypeDirectDepartmentPeople, getAuthPrototypePeople, getAuthPrototypePeopleByUnit, getAuthPrototypePinFeedbackTone, getAuthPrototypePinPerson, getAuthPrototypeSelectedDepartment, getAuthPrototypeSelectedPerson, getAuthPrototypeSelectedUnit, getAuthPrototypeUnitRows, getBomImportRowNomenclatureItem, getBomImportRows, getBomLinkedSpecifications, getBomList, getBomResultNomenclatureItem, getDefaultSmtLineConfigurations, getDirectoryRows, getFallbackNomenclatureType, getGanttResourceForSlot, getNomenclatureDeleteUsage, getNomenclatureItem, getResourceBaseCph, getResourceRowId, getResourcesForWorkCenter, getRouteBindingContext, getRouteBindingModeForSelection, getRouteBindingOptions, getRouteBomList, getRouteDocumentKind, getRouteDocumentKindLabel, getRouteDocumentKindShortLabel, getRouteLineageSubjectName, getRouteModuleSelectionName, getRouteModuleSelectionValue, getRouteParentRoute, getRouteRootRoute, getRouteScopeRootTask, getRouteSpecification, getRoutesForModule, getSlotGanttResourceId, getSlotGanttWorkCenterId, getSmtLineConfigurations, getSmtLineIdFromWorkCenterId, getSmtLineNumberFromText, getSpecificationBomEntries, getSpecificationById, getSpecificationDeleteUsage, getSpecificationItemBomId, getSpecificationProductionOrder, getSpekiStructureItemDisplayName, getSpekiStructureItemLabel, getSpekiStructureSectionOptions, getSpekiStructureTableRows, importBomFromXlsxFile, isAuthPrototypePinFeedbackLocked, isSmtLineWorkCenterId, migrateSpecificationBomRowsToNomenclature, normalizeBomImportRow, normalizeLookupText, normalizeNomenclatureType, normalizeRouteBindingValue, normalizeSmtComponentKeyPart, renderModulePreviewEmpty, renderNomenclaturePage, resetAuthPrototypeAttempts, resolveRouteModuleProjectId, scheduleAuthPrototypePinValidation, scopeRouteTasks, summarizeBomComponentFields, syncNomenclatureTypeRename, syncNomenclatureTypesFromItems, syncSpecificationDerivedFields, updateBomImportCell, upsertBomResultToNomenclature;
 let bindSpecifications2Events = () => {};
 let renderSpecifications2Page = () => renderUiModulePage({
   ariaLabel: "Спецификации 2.0",
@@ -3234,6 +3108,9 @@ function ensureSpecifications2ProductionModule() {
         createWorkOrder: (input) => specifications2ProductionWorkOrderCommands.createWorkOrder(input),
       });
       specifications2ProductionModuleReady = true;
+      void specifications2ProductionOwner.refreshCapabilities().then(() => {
+        if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      });
       void specifications2ProductionWorkOrderCommands.refreshCapability().then(() => {
         if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
       });
@@ -4612,20 +4489,13 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
     };
   },
   getPayload: () => {
-    const permanentReact = getReactRuntimeMode("timesheet") === "react"; const localQa = getTimesheetReactLocalQaOverrides(); const registries = getSystemDomainsRegistries();
+    const localQa = getTimesheetReactLocalQaOverrides(); const registries = getSystemDomainsRegistries();
     const commandReady = isTimesheetReactCommandReady({ localWriteEvaluation: localQa.writeEvaluation });
     const editableEmployeeIds = commandReady ? (registries.employees || []).map((employee) => String(employee.id || "").trim()).filter((employeeId) => employeeId && canEditTimesheetEmployee(employeeId)) : [];
     const capabilities = { attendanceEdit: commandReady, scheduleEdit: commandReady, editableEmployeeIds, scheduleEditableEmployeeIds: editableEmployeeIds, scheduleTemplates: (registries.scheduleTemplates || []).map((template) => ({ id: template.id, code: template.code, caption: template.caption || template.name || "", start: template.startTime || template.start || "", end: template.endTime || template.end || "" })), attendanceEventKeys: (registries.attendanceEvents || []).map((event) => `${String(event.employeeId || "").trim()}|${String(event.date || "").trim()}`).filter((value) => !value.startsWith("|") && !value.endsWith("|")) };
-    if (permanentReact) return { productionModel: { domains: systemDomainsState, view: ui.timesheetView || defaultUiState.timesheetView, periodAnchor: ui.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor }, capabilities };
-    return { model: getTimesheetModel(), capabilities };
+    return { productionModel: { domains: systemDomainsState, view: ui.timesheetView || defaultUiState.timesheetView, periodAnchor: ui.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor }, capabilities };
   },
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, scope = "") => {
-    if (getReactRuntimeMode("timesheet") === "react") return;
-    const [action, value, dateKey] = String(scope || "").split(":");
-    if (["day", "schedule"].includes(action)) openTimesheetEditor(value, dateKey);
-    if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getTimesheetReactLocalQaOverrides();
     if (command.type === "set-view") {
@@ -5483,9 +5353,6 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     window.addEventListener("afterprint", restoreTitle, { once: true });
     window.requestAnimationFrame(() => window.print());
   },
-  requestLegacyRender: () => {
-    if (ui.activeModule === "shiftWorkOrders") render({ skipRememberScroll: true });
-  },
   navigate: async (navigation = {}) => {
     const decision = resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: getShiftWorkOrdersNavigationRows(), canOpenWorkshop: isModuleAllowedForRole("shiftMasterBoard") });
     if (decision.ok !== true) return decision;
@@ -6198,6 +6065,14 @@ function getAuthPickerReactProductionPerson(payload = {}, personId = "") {
     canExecute: capabilities.canExecute !== false,
   };
 }
+function inferAccessRoleIdForPerson(person = null) {
+  return resolveAccessRoleIdForPerson(person, {
+    defaultRoleId: DEFAULT_INTERFACE_ROLE_ID,
+    accessRoleAssignments: ui?.accessRoleAssignments,
+    normalizeAccessRoleAssignments,
+    normalizeLookupText,
+  });
+}
 function completeAuthPickerReactLogin(person = null) {
   if (!person?.id) return { ok: false, authenticated: false, message: "Сотрудник больше не доступен для входа." };
   const roleId = inferAccessRoleIdForPerson(person);
@@ -6363,7 +6238,6 @@ function getContourAdminReactActivation() {
     evaluationRequested: isContourAdminReactEvaluationRequested(),
     localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
   });
-  const permanentReact = runtimeActivation.runtimeMode === "react";
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -6371,8 +6245,8 @@ function getContourAdminReactActivation() {
       : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
         : runtimeActivation.accessMode,
-    adminHostReady: isAdminRuntimeHost() && (permanentReact || contourAdminModuleReady),
-    serverReadFailure: !permanentReact && contourAdminModuleError ? "model-unavailable" : "",
+    adminHostReady: isAdminRuntimeHost(),
+    serverReadFailure: "",
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
@@ -6413,7 +6287,6 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
       message: String(payload?.message || (payload?.ok ? "Операция выполнена." : payload?.error || (payload?.code !== undefined ? `Операция завершилась с кодом ${payload.code}.` : "Операция завершилась с ошибкой."))),
     };
   },
-  requestLegacyRender: () => { if (ui.activeModule === "contourAdmin") render({ skipRememberScroll: true }); },
 });
 function getSpecifications2ReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6467,13 +6340,17 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
     const activation = getSpecifications2ReactActivation();
     if (activation.accessMode === "react") {
       const productionPayload = getSpecifications2ProductionPayload();
+      const canWrite = canEditSpecifications2WithSignedRole();
       return {
         ...productionPayload,
         capabilities: {
           ...productionPayload.capabilities,
-          draftEdit: false,
-          publication: false,
-          workOrder: canEditSpecifications2WithSignedRole() && productionPayload.capabilities?.workOrder === true,
+          draftEdit: canWrite && productionPayload.capabilities?.draftEdit === true,
+          publication: canWrite && productionPayload.capabilities?.publication === true,
+          rowStructure: canWrite && productionPayload.capabilities?.rowStructure === true,
+          routeEdit: canWrite && productionPayload.capabilities?.routeEdit === true,
+          attachmentBinding: canWrite && productionPayload.capabilities?.attachmentBinding === true,
+          workOrder: canWrite && productionPayload.capabilities?.workOrder === true,
         },
       };
     }
@@ -6495,8 +6372,8 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
     const payload = command.payload || {};
     if (activation.accessMode === "react") {
       if (!specifications2ProductionOwner) return { ok: false, message: "React production model Specifications 2.0 ещё загружается." };
-      if (command.type === "create-work-order" && !canEditSpecifications2WithSignedRole()) {
-        return { ok: false, message: "Нет права создавать заказ-наряд из спецификации." };
+      if (command.type !== "select-entry" && !canEditSpecifications2WithSignedRole()) {
+        return { ok: false, message: "Нет права изменять спецификацию." };
       }
       const result = await specifications2ProductionOwner.execute(command);
       if (result?.ok && command.type === "select-entry" && result.changed) {
@@ -6673,11 +6550,17 @@ function getGanttReactProductionInput() {
 const ganttReactIslandHost = createGanttReactIslandHost({
   getActivation: getGanttReactActivation,
   getPayload: () => getReactRuntimeMode("gantt") === "react"
-    ? { productionModel: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule() } }
-    : { model: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule() } },
+    ? { productionModel: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule(), refresh: true, slotDrag: canGanttReactReschedule(), slotResize: false } }
+    : { model: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule(), refresh: true, slotDrag: canGanttReactReschedule(), slotResize: false } },
   getTargetRoot: () => app,
   requestLegacyRender: () => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); },
   navigate: async (navigation = {}) => {
+    if (navigation.type === "refresh") {
+      const applied = await hydratePlanningRuntimeProjection({ force: true, renderOnChange: true });
+      return applied
+        ? { ok: true }
+        : { ok: false, message: "PostgreSQL-проекция графика сейчас недоступна." };
+    }
     if (navigation.type === "set-window-start") {
       const value = String(navigation.value || "").trim();
       const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(fromDateInput(value)) : new Date(Number.NaN);
@@ -7353,14 +7236,16 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
     if (isNomenclatureTypesSurfaceActive() && nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
     const serverCapability = getNomenclatureTypesServerCapabilityModel();
     if (serverCapability.enabled) void ensureNomenclatureTypesDeleteContracts();
-    const legacyDeleteUsageById = Object.fromEntries((directoryState.nomenclatureTypes || []).flatMap((row) => {
-      const itemId = String(row?.id || "").trim();
-      if (!itemId) return [];
-      const typeKey = normalizeLookupText(normalizeNomenclatureType(row.name));
-      const nomenclatureCount = (directoryState.nomenclature || []).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.type)) === typeKey).length;
-      const specificationRowsCount = (directoryState.specifications || []).reduce((count, specification) => count + getSpecificationStructureItems(specification).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.nomenclatureType)) === typeKey).length, 0);
-      return [[itemId, { nomenclatureCount, specificationRowsCount, fallbackType: getFallbackNomenclatureType(row.name) }]];
-    }));
+    const legacyDeleteUsageById = serverCapability.configured
+      ? {}
+      : Object.fromEntries((directoryState.nomenclatureTypes || []).flatMap((row) => {
+        const itemId = String(row?.id || "").trim();
+        if (!itemId) return [];
+        const typeKey = normalizeLookupText(normalizeNomenclatureType(row.name));
+        const nomenclatureCount = (directoryState.nomenclature || []).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.type)) === typeKey).length;
+        const specificationRowsCount = (directoryState.specifications || []).reduce((count, specification) => count + getSpecificationStructureItems(specification).filter((item) => normalizeLookupText(normalizeNomenclatureType(item.nomenclatureType)) === typeKey).length, 0);
+        return [[itemId, { nomenclatureCount, specificationRowsCount, fallbackType: getFallbackNomenclatureType(row.name) }]];
+      }));
     const serverDeleteUsageById = nomenclatureTypesDeleteContractsState.status === "ready"
       && nomenclatureTypesDeleteContractsState.revision === serverCapability.directoryRevision
       ? nomenclatureTypesDeleteContractsState.byId
@@ -7643,7 +7528,6 @@ function initializeProductsRenderModule() {
     getSpekiStructureItemLabel,
     getSpekiStructureSectionOptions,
     getSpekiStructureTableRows,
-    inferAccessRoleIdForPerson,
     importBomFromXlsxFile,
     isAuthPrototypePinFeedbackLocked,
     isSmtLineWorkCenterId,
@@ -8046,102 +7930,36 @@ function ensureAuthModules() {
     });
 }
 
-let bindTimesheetEvents = () => {};
-let buildTimesheetAttendanceEventsFromFormData = () => ({ ok: false, reason: "timesheet-module-pending", events: [] });
-let formatTimesheetHours = (value = 0) => String(Number(value || 0));
-let getTimesheetCell = () => ({ value: "work", code: "work", hours: 8, overtime: 0 });
-let getTimesheetDayOption = (value = "work") => ({ value, label: value });
-let getTimesheetEmployeeSchedule = () => null;
-let getTimesheetModel = () => ({ rows: [] });
-let moveTimesheetPeriod = () => {};
-let openTimesheetEditor = () => {};
-let renderTimesheetEditorModal = () => "";
-let renderTimesheetPage = () => renderUiModulePage({
-  ariaLabel: "Табель",
-  content: renderUiEmptyState({ title: "Загружаем табель", description: "Экран откроется автоматически." }),
-});
-let timesheetModuleLoad = null;
-function initializeTimesheetModule(factory) {
-  ({
-    bindTimesheetEvents,
-    buildAttendanceEventsFromFormData: buildTimesheetAttendanceEventsFromFormData,
-    formatTimesheetHours,
-    getTimesheetCell,
-    getTimesheetDayOption,
-    getTimesheetEmployeeSchedule,
-    getTimesheetModel,
-    moveTimesheetPeriod,
-    openTimesheetEditor,
-    renderTimesheetEditorModal,
-    renderTimesheetPage,
-  } = factory({
-  DAY_MS,
-  TIMESHEET_DAY_OPTIONS,
-  TIMESHEET_SCHEDULE_OPTIONS,
-  TIMESHEET_VIEW_OPTIONS,
-  addMs,
-  bindGenericModalCloseEvents,
-  blockProtectedDestructiveAction,
-  canEditTimesheetEmployee,
-  dedupeEmployeeOrgRows,
-  escapeAttribute,
-  escapeHtml,
-  formatDate,
-  fromDateInput,
-  getApp: () => app,
-  getDefaultUiState: () => defaultUiState,
-  getEmployeeDepartmentLabelForWorkCenters,
-  getPersonnelCalendarModel,
-  getProductionStructureEmployees,
-  getProductionStructureMatrixRuntimeOverrides,
-  getUi: () => ui,
-  icon,
-  mapLegacyWorkCenterId,
-  normalizeDateInput: (value = "") => typeof normalizeDateInput === "function" ? normalizeDateInput(value) : String(value || "").slice(0, 10),
-  normalizeLookupText,
-  normalizePlainRecord,
-  normalizeWorkMode,
-  migrateLegacyTimesheetState,
-  personnelScheduleTemplates: DEFAULT_PERSONNEL_SCHEDULE_TEMPLATES,
-  persistUiState,
-  projectEmployeeAvailability,
-  removeAttendanceEvents,
-  removeScheduleAssignment,
-  render,
-  renderUiActionButton,
-  renderUiFilterBar,
-  renderUiFormActions,
-  renderUiFormField,
-  renderUiFormGrid,
-  renderUiFormSection,
-  renderUiModalFrame,
-  renderUiModulePage,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiStatusToken,
-  renderUiTableWrap,
-  renderUiToolbar,
-  resolveEffectiveScheduleAssignment,
-  saveAttendanceEvent,
-  saveScheduleAssignment,
-  startOfDay,
-  startOfWeek,
-  toDateInput,
-  }));
+function formatTimesheetHours(value = 0) {
+  return Math.max(0, Number(value) || 0).toLocaleString("ru-RU", { maximumFractionDigits: 2 });
 }
 
-function ensureTimesheetModule() {
-  if (timesheetModuleLoad) return timesheetModuleLoad;
-  timesheetModuleLoad = import("./modules/timesheet/render.js")
-    .then(({ createTimesheetModule }) => {
-      initializeTimesheetModule(createTimesheetModule);
-      if (ui.activeModule === "timesheet") render();
-    })
-    .catch((error) => {
-      console.error("Не удалось загрузить модуль табеля", error);
-      if (ui.activeModule === "timesheet") render();
-    });
-  return timesheetModuleLoad;
+function getTimesheetDayOption(value = "unknown") {
+  return TIMESHEET_DAY_OPTIONS.find((option) => option.value === value) || {
+    value: "unknown",
+    code: "unknown",
+    label: "Не определено",
+    display: ["?"],
+    title: "Доступность сотрудника не определена",
+    hours: 0,
+    overtime: 0,
+  };
+}
+
+function getTimesheetCell() {
+  return {
+    ...getTimesheetDayOption("unknown"),
+    availabilityStatus: "unknown",
+    hours: 0,
+    plannedHours: 0,
+    overtime: 0,
+    start: "",
+    end: "",
+  };
+}
+
+function getTimesheetEmployeeSchedule() {
+  return null;
 }
 
 const BOM_COMPONENT_FIELDS = [
@@ -12038,18 +11856,11 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("timesheet", { fallbackToLegacy: false });
         }
-        const permanentReact = getReactRuntimeMode("timesheet") === "react";
-        if (!permanentReact) {
-          ensureProductionStructureMatrixModule();
-          ensureTimesheetModule();
-        }
-        const reactDecision = timesheetReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return timesheetReactIslandHost.renderTarget();
-        if (permanentReact) return timesheetReactIslandHost.renderTarget();
-        return renderTimesheetPage();
+        timesheetReactIslandHost.prepareRender();
+        return timesheetReactIslandHost.renderTarget();
       },
-      renderModals: () => timesheetReactIslandHost.isReactEligible() ? "" : renderTimesheetEditorModal(),
-      bind: () => { if (!timesheetReactIslandHost.isReactEligible()) bindTimesheetEvents(); },
+      renderModals: () => "",
+      bind: () => {},
       afterRender: () => { void timesheetReactIslandHost.mount(); },
     },
     roles: {
@@ -12072,14 +11883,10 @@ function initializeModuleRuntime() {
     },
     contourAdmin: {
       render: () => {
-        const permanentReact = getReactRuntimeMode("contourAdmin") === "react";
-        if (!permanentReact) ensureContourAdminModule();
-        const reactDecision = contourAdminReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return contourAdminReactIslandHost.renderTarget();
-        if (permanentReact) return contourAdminReactIslandHost.renderTarget();
-        return renderContourAdminPage();
+        contourAdminReactIslandHost.prepareRender();
+        return contourAdminReactIslandHost.renderTarget();
       },
-      bind: () => { if (!contourAdminReactIslandHost.isReactEligible()) bindContourAdminEvents(); },
+      bind: () => {},
       afterRender: () => { void contourAdminReactIslandHost.mount(); },
     },
     nomenclature: {
@@ -12164,22 +11971,11 @@ function initializeModuleRuntime() {
         }
         if (planningRuntimeProjectionState.status === "idle") void hydratePlanningRuntimeProjection();
         if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();
-        const reactDecision = shiftWorkOrdersReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return shiftWorkOrdersReactIslandHost.renderTarget();
-        ensureShiftMasterBoardModule();
-        ensureShiftWorkOrdersModule();
-        if (shiftWorkOrdersModuleError) {
-          return renderMesModulePatternPage({
-            moduleId: "shiftWorkOrders",
-            content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
-          });
-        }
-        return renderShiftWorkOrdersPage();
+        shiftWorkOrdersReactIslandHost.prepareRender();
+        return shiftWorkOrdersReactIslandHost.renderTarget();
       },
-      renderModals: () => shiftWorkOrdersReactIslandHost.isReactEligible()
-        ? ""
-        : `${renderShiftWorkOrderPrintPreviewModal()}${renderShiftWorkOrderIssuePhotoModal()}${renderWorkOrderPrintPackageModal()}`,
-      bind: () => { if (!shiftWorkOrdersReactIslandHost.isReactEligible()) bindShiftWorkOrdersEvents(); },
+      renderModals: () => "",
+      bind: () => {},
       afterRender: () => { void shiftWorkOrdersReactIslandHost.mount(); },
     },
   };

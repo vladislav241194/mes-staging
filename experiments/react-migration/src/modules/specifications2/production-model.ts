@@ -19,16 +19,17 @@ export const SPECIFICATIONS2_PRODUCTION_MODEL_SUPPORTED = [
   "Specifications 2.0 registry and current selection from the compatibility store",
   "immutable PostgreSQL revision read-back with source, revision and fingerprint checks",
   "published tree, route and operation summaries",
-  "existing draft-row projection for prototype row editing",
+  "existing draft-row and route-draft read projections",
+  "PostgreSQL-primary immutable revision publication",
   "PostgreSQL-primary work-order capability",
 ] as const;
 
 export const SPECIFICATIONS2_PRODUCTION_MODEL_DEFERRED = [
   "XLSX import and import deletion",
-  "draft add, remove and reparent commands",
-  "route, operation and normalization editing",
-  "attachment upload, download and binding",
-  "server-owned draft-row editing and revision publication",
+  "PostgreSQL-owned draft-row edit, add, remove and reparent commands",
+  "PostgreSQL-owned route metadata, operation and normalization editing",
+  "server attachment binding, download and unbinding",
+  "PostgreSQL-owned mutable draft collaboration",
 ] as const;
 
 const asRecord = (value: unknown): UnknownRecord => value && typeof value === "object" && !Array.isArray(value)
@@ -167,6 +168,7 @@ function selectedEntryModel(entry: UnknownRecord, state: UnknownRecord, currentF
     publicationRevision: Math.max(0, number(publication.revision)),
     publishedAt: text(publication.releasedAt || publication.publishedAt),
     draftRows: normalizeDraftRows(entry),
+    routeDrafts: asArray(entry.routeDrafts),
     serverRevision: Object.keys(serverItem).length ? {
       id: text(serverItem.id),
       sourceEntryId: text(serverItem.sourceEntryId),

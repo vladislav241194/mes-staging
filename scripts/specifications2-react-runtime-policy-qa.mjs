@@ -49,7 +49,8 @@ for (const label of ["Загрузить XLSX · недоступно", "Стр�
 const island = ledger.islands.find((entry) => entry.id === "specifications2");
 const module = ledger.modules.find((entry) => entry.id === "specifications2");
 assert.equal(island.normalActionFallback, false);
-assert.deepEqual(island.commands.missing, ["edit-draft-row", "publish-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"]);
+assert.deepEqual(island.commands.implemented, ["select-entry", "publish-revision", "create-work-order"]);
+assert.deepEqual(island.commands.missing, ["edit-draft-row", "publish-first-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"]);
 assert.equal(module.runtimeMode, "react");
 assert.equal(module.visibleLegacyRendererPath, false);
 assert.equal(module.runtimeLegacyModelDependency, false);

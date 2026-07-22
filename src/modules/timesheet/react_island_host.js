@@ -19,10 +19,10 @@ function renderTimesheetTarget({ activation = {}, failureReason = "", shellState
   return `<div class="mes-react-timesheet-island" data-react-timesheet-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite"><main class="module-page timesheet-page"><section class="workspace"><section class="workspace-main">${content}</section></section></main></div>`;
 }
 
-export function createTimesheetReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Timesheet React island failed", error) } = {}) {
+export function createTimesheetReactIslandHost({ getActivation, getPayload, getTargetRoot, executeCommand, reportError = (error) => console.error("[MES] Timesheet React island failed", error) } = {}) {
   return createReactIslandHost({
-    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    getActivation, getPayload, getTargetRoot, reportError,
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
@@ -46,10 +46,9 @@ export function createTimesheetReactIslandHost({ getActivation, getPayload, getT
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountTimesheetReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountTimesheetReactIsland(target, payload, {
       onError,
       onReady,
-      onRequestLegacy: getActivation?.().accessMode === "react" ? undefined : onRequestLegacy,
       onCommand: (command) => executeCommand?.(command),
     }),
   });

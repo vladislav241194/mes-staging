@@ -1226,3 +1226,42 @@ evidence commit `fb38100` and the current-truth docs reconciliation at branch
 HEAD. Commit `33d7859` was not cherry-picked because its core is already present
 in main through `0354fda`. No push or deploy of the main-port branch has been
 performed. Legacy rollback is preserved and Blueprint UI is not used.
+
+## Accelerated Marking Phase 1 checkpoint 2026-07-22: release `.47`
+
+This block supersedes earlier statements that Marking is memory-only and is
+the authoritative current live Pilot pointer. It does not supersede the
+strict accepted-evidence baseline above.
+
+- Active Pilot candidate is `v.1.500.47-37f7ecb` at exact commit
+  `37f7ecb4e99507071b67903d3e69651610fa7ebd`; immediate previous is
+  `v.1.500.46-7a359c4` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `ede2f4841449e81454c31dc57d718d0fca6fdbbc94ec8dac18e9c8d743ec84f5` and
+  `bf87595aa648c54375d9965016400a51602f5c587042733148278ec3f99b1b8e`.
+- Migration `035_marking_phase1_prototype` completed with systemd
+  `Result=success`, exit `0`; the marker count is `1` and exactly seven
+  `marking_phase1_*` tables exist.
+- Local/public health report `ok`, version `v.1.500.47`, shared state `ready`,
+  no active evaluation surfaces and no effective `MES_REACT_*` flags.
+- Normal Marking routing is React + TypeScript and fail-closed without legacy
+  fallback. A typed host port calls `/api/v1/marking`; PostgreSQL stores only
+  explicit `test-state` / `testData:true` rows. Configure, add kits/codes,
+  print/confirm/error/reprint, complete, transfer/cancel and code lookup are
+  implemented. Existing production SZN, routes, statuses and history are not
+  mutated.
+- The visible module marker is `REACT + TS · PHASE 1`; it is deliberately not
+  the global `React TS` completion marker. Production traceability, printer
+  outbox, employee-RBAC acceptance and a live lifecycle remain open.
+- Accelerated implementation is now `99%`; evidence-weighted acceptance stays
+  exactly `50%` because browser/visual and authenticated lifecycle QA were
+  explicitly deferred.
+- Previous-release dry-run resolves `.46` successfully. Pinned legacy `.18`
+  remains immutable and its manifest verifies, but direct dry-run is currently
+  blocked until the active Specifications 2 Work Orders/publication command
+  owners (and any subsequent incompatible owners reported by the guard) are
+  deliberately deactivated. Do not bypass this guard.
+- No visual/browser tests were run in this accelerated block. TypeScript,
+  syntax, Marking contract QA, cutover QA, runtime-policy QA, deterministic
+  build and diff checks passed. Blueprint UI was not introduced.

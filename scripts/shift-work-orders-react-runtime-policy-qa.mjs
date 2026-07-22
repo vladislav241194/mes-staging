@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
+import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "../src/modules/shift_work_orders/journal_owner.js";
+
+function section(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start);
+  assert.ok(start >= 0 && end > start, `Missing source boundary: ${startMarker}`);
+  return source.slice(start, end);
+}
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS, false);
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION, false);
@@ -12,7 +20,7 @@ const script = renderRuntimeConfigScript({ MES_REACT_SHIFT_WORK_ORDERS: "1", MES
 assert.match(script, /"MES_REACT_SHIFT_WORK_ORDERS":true/);
 assert.match(script, /"MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak/);
-const makeHost = (accessMode, { serverReadReady = true, serverReadFailure = "", runtimeMode = "evaluation" } = {}) => createShiftWorkOrdersReactIslandHost({ getActivation: () => ({ featureFlagEnabled: true, serverReadReady, serverReadFailure, accessMode, runtimeMode, policyId: "qa" }), getPayload: () => ({}), getTargetRoot: () => null, requestLegacyRender: () => {} });
+const makeHost = (accessMode, { featureFlagEnabled = true, serverReadReady = true, serverReadFailure = "", runtimeMode = "evaluation" } = {}) => createShiftWorkOrdersReactIslandHost({ getActivation: () => ({ featureFlagEnabled, serverReadReady, serverReadFailure, accessMode, runtimeMode, policyId: "qa" }), getPayload: () => ({}), getTargetRoot: () => null });
 assert.deepEqual(makeHost("read-only-evaluation").prepareRender(), { activateReact: true, reason: "eligible" });
 assert.deepEqual(makeHost("write-evaluation").prepareRender(), { activateReact: true, reason: "eligible" });
 assert.deepEqual(makeHost("editor").prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
@@ -22,14 +30,77 @@ assert.match(permanentPending.renderTarget(), /data-react-island-runtime-mode="r
 const permanentFailure = makeHost("react", { serverReadReady: false, serverReadFailure: "read-unavailable", runtimeMode: "react" });
 assert.deepEqual(permanentFailure.prepareRender(), { activateReact: true, reason: "eligible" });
 assert.match(permanentFailure.renderTarget(), /data-react-island-state="error"[^]*read-unavailable/, "permanent read failure must fail closed inside React");
+const disabledHost = makeHost("legacy", { featureFlagEnabled: false, runtimeMode: "legacy" });
+assert.deepEqual(disabledHost.prepareRender(), { activateReact: false, reason: "disabled" });
+assert.match(disabledHost.renderTarget(), /data-react-island-state="error"[^]*react-required/, "a disabled current runtime must fail closed instead of rendering legacy");
 const releasePolicy = JSON.parse(await readFile("react-runtime-policy.json", "utf8"));
 assert.equal(releasePolicy.surfaces.shiftWorkOrders, "react", "release policy must select permanent Shift Work Orders");
 const appSource = await readFile("src/app.js", "utf8");
+const hostSource = await readFile("src/modules/shift_work_orders/react_island_host.js", "utf8");
+const journalOwnerSource = await readFile("src/modules/shift_work_orders/journal_owner.js", "utf8");
 assert.match(appSource, /surfaceId: "shiftWorkOrders"/);
 assert.match(appSource, /activation\.accessMode === "react" \|\| localQa\.writeEvaluation/);
 assert.match(appSource, /productionModel: getShiftWorkOrdersProductionInput\(\)/);
-assert.match(appSource, /shiftWorkOrders:\s*\{[\s\S]*shiftWorkOrdersReactIslandHost\.prepareRender\(\)[\s\S]*if \(reactDecision\.activateReact\)[\s\S]*ensureShiftMasterBoardModule\(\)[\s\S]*ensureShiftWorkOrdersModule\(\)/, "legacy Journal chunks must load only after React rejection");
-assert.match(appSource, /renderModals: \(\) => shiftWorkOrdersReactIslandHost\.isReactEligible\(\)/, "permanent React must not render legacy overlays");
+const routeSource = section(appSource, "    shiftWorkOrders: {", "  };\n  const prototypeAdapters");
+assert.match(routeSource, /shiftWorkOrdersReactIslandHost\.prepareRender\(\);\s*return shiftWorkOrdersReactIslandHost\.renderTarget\(\);/, "the current route must always render the React-owned shell");
+assert.match(routeSource, /renderModals: \(\) => ""/);
+assert.match(routeSource, /bind: \(\) => \{\}/);
+assert.doesNotMatch(routeSource, /ensureShiftMasterBoardModule|ensureShiftWorkOrdersModule|renderShiftWorkOrdersPage|renderShiftWorkOrderPrintPreviewModal|bindShiftWorkOrdersEvents/, "the current route must expose no legacy renderer or overlay edge");
+assert.doesNotMatch(appSource, /import\("\.\/modules\/shift_work_orders\/render\.js"\)/, "the current bundle must not load the retired Shift Work Orders renderer");
+assert.doesNotMatch(appSource, /function ensureShiftWorkOrdersModule\(/, "the retired dynamic loader must be deleted");
+assert.match(hostSource, /canFallbackToLegacy: \(\) => false/, "bundle and render failures must fail closed in the current release");
+assert.doesNotMatch(hostSource, /requestLegacyRender/, "the current Shift Work Orders host must not expose a legacy callback");
+assert.match(journalOwnerSource, /buildShiftWorkOrdersProductionModel/, "shared journal consumers must use the React production model");
+assert.doesNotMatch(journalOwnerSource, /shift_work_orders\/render\.js/, "the shared journal owner must not import the retired renderer");
+
+let selectedRowId = "";
+const journalOwner = createShiftWorkOrderJournalOwner({
+  getProductionInput: () => ({
+    shiftExecution: {
+      items: [{ id: "assignment-1", sourceRowId: "row-1", workOrderId: "route-1", operationId: "step-1", assignedQuantity: 4, plannedQuantity: 4, status: "assigned", updatedAt: "2026-07-22T08:00:00.000Z" }],
+      scope: { dateKey: "2026-07-22" },
+    },
+    planning: { routes: [{ id: "route-1", name: "Изделие" }], routeSteps: [{ id: "step-1", routeId: "route-1", operationName: "Монтаж" }] },
+    presentation: { selectedRowId: "row-1" },
+  }),
+  onSelectedRow: (row) => { selectedRowId = row.id; },
+});
+const journal = journalOwner.getViewModel();
+assert.equal(journal.rows.length, 1, "the shared owner must build journal rows without the legacy renderer");
+assert.equal(journal.selectedRow?.id, "row-1");
+assert.equal(selectedRowId, "row-1");
+assert.equal(formatShiftWorkOrderPersonName("Иванов Иван Иванович"), "Иванов Иван");
+
+class FakeElement {
+  constructor() { this.dataset = {}; this.isConnected = true; this.children = []; }
+  append(...children) { this.children.push(...children); }
+  replaceChildren(...children) { this.children = children; }
+  setAttribute(name, value) { this[name] = String(value); }
+}
+const previousHTMLElement = globalThis.HTMLElement;
+const previousDocument = globalThis.document;
+globalThis.HTMLElement = FakeElement;
+globalThis.document = { createElement: () => new FakeElement() };
+try {
+  const target = new FakeElement();
+  let legacyRequests = 0;
+  const failedBundleHost = createShiftWorkOrdersReactIslandHost({
+    getActivation: () => ({ featureFlagEnabled: true, serverReadReady: true, serverReadFailure: "", accessMode: "react", runtimeMode: "react", policyId: "qa" }),
+    getPayload: () => ({}),
+    getTargetRoot: () => ({ querySelector: () => target }),
+    requestLegacyRender: () => { legacyRequests += 1; },
+    reportError: () => {},
+  });
+  failedBundleHost.prepareRender();
+  assert.equal(await failedBundleHost.mount(), false, "a missing React bundle must fail closed");
+  assert.equal(target.dataset.reactIslandState, "error");
+  assert.equal(legacyRequests, 0, "a missing React bundle must never request legacy rendering");
+} finally {
+  if (previousHTMLElement === undefined) delete globalThis.HTMLElement;
+  else globalThis.HTMLElement = previousHTMLElement;
+  if (previousDocument === undefined) delete globalThis.document;
+  else globalThis.document = previousDocument;
+}
 const sourceRow = { id: "journal-assignment", sourceRowId: "source-slot", shiftDateKey: "2026-07-19" };
 const navigation = { type: "open-workshop", journalRowId: "journal-assignment", sourceRowId: "source-slot", shiftDateKey: "2026-07-19", intent: "inspect" };
 assert.deepEqual(resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: [sourceRow], canOpenWorkshop: true }), { ok: true, row: sourceRow, intent: "inspect" });

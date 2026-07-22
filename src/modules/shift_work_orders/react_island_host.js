@@ -9,6 +9,7 @@ const SHIFT_WORK_ORDERS_FAILURE_REASONS = new Set([
   "model-unavailable",
   "mount-error",
   "read-unavailable",
+  "react-required",
   "render-error",
 ]);
 
@@ -19,8 +20,9 @@ function normalizeFailureReason(value) {
 
 function renderShiftWorkOrdersTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
   const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "legacy";
-  const state = failureReason || shellState?.state === "error" ? "error" : "loading";
-  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+  const unavailableReason = activation.featureFlagEnabled === false ? "react-required" : "";
+  const state = failureReason || shellState?.state === "error" || unavailableReason ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || unavailableReason);
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем журнал СЗН</strong><p>Получаем актуальные сменные задания из PostgreSQL…</p></section>';
@@ -46,10 +48,10 @@ export function isShiftWorkOrdersWorkshopTargetSelected(decision = {}, model = {
   return Boolean(targetRowId && dateKey && String(model?.selectedRow?.id || "") === targetRowId && String(model?.dateKey || "") === dateKey);
 }
 
-export function createShiftWorkOrdersReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, loadAssignmentContext, loadPrintPackage, navigate, printDocument, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Work Orders React island failed", error) } = {}) {
+export function createShiftWorkOrdersReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, loadAssignmentContext, loadPrintPackage, navigate, printDocument, reportError = (error) => console.error("[MES] Shift Work Orders React island failed", error) } = {}) {
   return createReactIslandHost({
-    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    getActivation, getPayload, getTargetRoot, reportError,
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };

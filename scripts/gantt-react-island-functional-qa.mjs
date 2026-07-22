@@ -116,7 +116,7 @@ try {
   await waitForCondition(client, (expandedRowCount) => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "false" && document.querySelectorAll("[data-row-id]").length < expandedRowCount && !document.querySelector("[data-gantt-shell]"), { arg: react.rows, message: "React Gantt collapse-all returned to legacy or kept all resource rows", timeoutMs: 15_000 });
   await evaluate(client, () => document.querySelector("[data-gantt-react-jump-today]")?.click());
   await waitForCondition(client, (value) => document.querySelector("[data-gantt-react-period] input")?.value === value && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "React Gantt jump-to-today did not stay in React", timeoutMs: 15_000 });
-  assert(!await evaluate(client, () => Boolean(document.querySelector("[data-gantt-react-refresh]"))), "schedule-mutating refresh must not appear in the local React toolbar slice");
+  assert(await evaluate(client, () => Boolean(document.querySelector("[data-gantt-react-refresh]"))), "read-only PostgreSQL projection refresh must appear separately from calendar recalculation");
   assert(planningWrites === 0, "safe React Gantt display actions must not call planning writes");
 
   await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&qa-reload=gantt-safe-toolbar-deep-link` });
