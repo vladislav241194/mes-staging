@@ -315,8 +315,15 @@ async function waitForModuleCoverage(client, moduleId) {
         document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")
         && document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")
       );
+      const rolesReady = Boolean(
+        document.querySelector("[data-react-roles-island][data-react-island-state='ready']")
+        && document.querySelector("[data-react-roles-island] [data-ui-component='ModulePage'][data-ui-runtime='hard-v1']")
+      );
       return {
-        ready: Boolean(shell) && layoutPage === expectedLayout && (moduleId !== "gantt" || ganttReady),
+        ready: Boolean(shell)
+          && layoutPage === expectedLayout
+          && (moduleId !== "gantt" || ganttReady)
+          && (moduleId !== "roles" || rolesReady),
         layoutPage,
         appShell,
         components,
@@ -324,6 +331,7 @@ async function waitForModuleCoverage(client, moduleId) {
         documentedException,
         headerlessModuleContract,
         ganttReady,
+        rolesReady,
         runtimeErrors,
         title: (document.querySelector(".app-topbar-title h1")?.textContent || "").trim(),
         mainTextLength: bodyText.length,

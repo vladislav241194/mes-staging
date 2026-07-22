@@ -205,7 +205,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.53";
+const APP_VERSION_FALLBACK = "v.1.500.54";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -2209,83 +2209,6 @@ function ensureProductionStructureDiagnosticsData() {
       return null;
     });
   return productionStructureDiagnosticsDataLoad;
-}
-
-let bindAccessRolesEvents = () => {};
-let renderAccessRolesPage = () => renderUiModulePage({
-  ariaLabel: "Роли и доступ",
-  className: "access-roles-page",
-  content: renderUiEmptyState({ title: "Загружаем модуль", description: "Экран ролей откроется автоматически." }),
-});
-let accessRolesModuleLoad = null;
-
-function initializeAccessRolesModule(factory) {
-  ({
-    bindAccessRolesEvents,
-    renderAccessRolesPage,
-  } = factory({
-  ACCESS_ROLE_ACTIONS,
-  ACCESS_ROLE_SCOPES,
-  escapeAttribute,
-  escapeHtml,
-  getAccessControlNow: () => new Date(),
-  getAccessControlResourceContext,
-  getAccessControlService,
-  getAccessControlSubject,
-  getAccessRoleForEmployee,
-  getAccessRoleProfiles,
-  getApp: () => app,
-  getMesModuleFlowContract,
-  getModuleAnnotation,
-  getModuleDefinitions,
-  getProductionStructureEmployees,
-  getProductionStructureMatrixRuntimeOverrides,
-  getUi: () => ui,
-  normalizeAccessPermissionRecord,
-  normalizeAccessRoleAssignments,
-  normalizeInterfaceRoleId,
-  notifyAccessControlFailure,
-  notifySaveSuccess,
-  persistUiState,
-  render,
-  renderMesModulePatternPage,
-  renderUiActionButton,
-  renderUiFormGrid,
-  renderUiFormField,
-  renderUiSidebarItem,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiStatusToken,
-  renderUiTableControlAttributes,
-  renderUiTableWrap,
-  resetAccessControlConfiguration,
-  resetAccessRoleConfiguration,
-  setAccessGrant,
-  setAccessRoleAssignment,
-  setAccessRoleModulePermission,
-  setAccessRoleProfileField,
-  setResponsibilityScope,
-  setSubjectRoleAssignment,
-  updateAccessRole,
-  }));
-}
-
-function ensureAccessRolesModule() {
-  if (accessRolesModuleLoad) return;
-  accessRolesModuleLoad = import("./modules/access_roles/render.js")
-    .then(({ createAccessRolesModule }) => {
-      initializeAccessRolesModule(createAccessRolesModule);
-      if (ui.activeModule === "roles") render();
-    })
-    .catch((error) => {
-      console.error("Не удалось загрузить модуль ролей", error);
-      renderAccessRolesPage = () => renderUiModulePage({
-        ariaLabel: "Роли и доступ",
-        className: "access-roles-page",
-        content: renderUiEmptyState({ title: "Модуль недоступен", description: "Обновите страницу и повторите попытку." }),
-      });
-      if (ui.activeModule === "roles") render();
-    });
 }
 
 function measureBootStep(name, callback) {
@@ -5990,9 +5913,6 @@ const rolesReactIslandHost = createRolesReactIslandHost({
     };
   },
   getTargetRoot: () => app,
-  requestLegacyRender: () => {
-    if (ui.activeModule === "roles") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
     const permanentReact = getRolesReactActivation().accessMode === "react";
@@ -9776,10 +9696,6 @@ function canEditTimesheetEmployee(employeeId = "") {
     && authorizeSystemDomainAction("timesheet", "edit", getAccessControlEmployeeContext(normalizedEmployeeId)));
 }
 
-function notifyAccessControlFailure(reason = "access-control-write-failed") {
-  console.warn("Access Control write rejected", reason);
-}
-
 function updateAccessRole({ roleId = "", patch = {} } = {}) {
   const normalizedRoleId = String(roleId || "").trim();
   if (!normalizedRoleId || !patch || typeof patch !== "object" || !authorizeSystemDomainAction("roles", "configure")) return false;
@@ -9859,65 +9775,6 @@ function setResponsibilityScope({ scopeId = "", patch = {} } = {}) {
   const roleMatch = normalizedScopeId.match(/^role-default-scope:(.+)$/);
   if (roleMatch) return updateAccessRole({ roleId: roleMatch[1], patch: { scope: nextType } });
   return false;
-}
-
-function buildCanonicalAccessRegistries(profiles = [], assignments = {}) {
-  const accessRoles = profiles.map((profile) => ({
-    id: profile.id,
-    label: profile.label,
-    description: profile.caption || profile.description || "",
-    scope: profile.scope || "factory",
-    defaultModuleId: profile.defaultModule || profile.defaultModuleId || "",
-    icon: profile.icon || "",
-    isActive: profile.isActive !== false,
-    readOnly: Boolean(profile.readOnly ?? profile.readonly),
-    sourceRef: { system: "runtime-default" },
-  }));
-  const grants = profiles.flatMap((profile) => Object.entries(profile.modulePermissions || {}).flatMap(([moduleId, permissions]) => (
-    ACCESS_ROLE_ACTIONS.map((action) => ({
-      id: `access-grant:${profile.id}:${moduleId}:${action.id}`,
-      roleId: profile.id,
-      resourceType: "module",
-      resourceId: moduleId,
-      actionId: action.id,
-      effect: permissions?.[action.id] ? "allow" : "deny",
-      sourceRef: { system: "runtime-default" },
-    }))
-  )));
-  const roleAssignments = Object.entries(assignments).flatMap(([employeeId, roleId]) => (
-    employeeId && roleId ? [{
-      id: `access-role-assignment:${employeeId}`,
-      employeeId,
-      roleId,
-      validFrom: "",
-      validTo: "",
-      source: "access-control-default",
-      sourceRef: { system: "runtime-default" },
-    }] : []
-  ));
-  return { accessRoles, grants, roleAssignments };
-}
-
-function resetAccessControlConfiguration() {
-  if (!authorizeSystemDomainAction("roles", "configure")) return false;
-  if (blockProtectedDestructiveAction(
-    "resetAccessControlConfiguration",
-    "Сброс ролей и доступов отключен в этом окружении для защиты пользовательских данных",
-  )) return false;
-  const defaults = getDefaultAccessRoleProfiles();
-  const assignments = getLegacyAccessRoleAssignmentsForMigration();
-  const registries = buildCanonicalAccessRegistries(defaults, assignments);
-  const candidate = normalizeSystemDomains({
-    ...systemDomainsState,
-    metadata: { ...(systemDomainsState?.metadata || {}), updatedAt: new Date().toISOString(), lastMutationRegistry: "access-control-reset" },
-    registries: { ...getSystemDomainsRegistries(), ...registries },
-  });
-  return commitSystemDomainsCandidate(candidate, {
-    source: "mutation:access-control-reset",
-    reason: "system-domains:access-control-reset",
-    serverCommand: true,
-    surface: "access-control",
-  });
 }
 
 function syncResponsibilityPolicyFromCompatibilityState(masterId = "", { archive = false } = {}) {
@@ -10754,17 +10611,10 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("roles", { fallbackToLegacy: false });
         }
-        const permanentReact = getReactRuntimeMode("roles") === "react";
-        if (!permanentReact) ensureAccessRolesModule();
-        const reactDecision = rolesReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return rolesReactIslandHost.renderTarget();
-        if (permanentReact) return rolesReactIslandHost.renderTarget();
-        return renderAccessRolesPage();
+        rolesReactIslandHost.prepareRender();
+        return rolesReactIslandHost.renderTarget();
       },
-      bind: () => {
-        if (rolesReactIslandHost.isReactEligible()) return;
-        bindAccessRolesEvents();
-      },
+      bind: () => {},
       afterRender: () => { void rolesReactIslandHost.mount(); },
     },
     contourAdmin: {
@@ -11230,11 +11080,6 @@ function getPlanningStepLineLabel(...args) { return operationalRuntimeService.ge
 function schedulePlanningRouteStructureSidebarSync(...args) { return operationalRuntimeService.schedulePlanningRouteStructureSidebarSync(...args); }
 function syncPlanningRouteStructureSidebarHeight(...args) { return operationalRuntimeService.syncPlanningRouteStructureSidebarHeight(...args); }
 function getAccessRoleForEmployee(...args) { return operationalRuntimeService.getAccessRoleForEmployee(...args); }
-function updateAccessRoleProfile(...args) { return operationalRuntimeService.updateAccessRoleProfile(...args); }
-function setAccessRoleProfileField(...args) { return operationalRuntimeService.setAccessRoleProfileField(...args); }
-function setAccessRoleModulePermission(...args) { return operationalRuntimeService.setAccessRoleModulePermission(...args); }
-function setAccessRoleAssignment(...args) { return operationalRuntimeService.setAccessRoleAssignment(...args); }
-function resetAccessRoleConfiguration(...args) { return operationalRuntimeService.resetAccessRoleConfiguration(...args); }
 function formatDateTimeShort(...args) { return operationalRuntimeService.formatDateTimeShort(...args); }
 function createAccessPermissionRecord(...args) { return operationalRuntimeService.createAccessPermissionRecord(...args); }
 function createAccessPermissionMap(...args) { return operationalRuntimeService.createAccessPermissionMap(...args); }

@@ -1702,81 +1702,6 @@ function getAccessRoleForEmployee(person = null) {
   };
 }
 
-function updateAccessRoleProfile(roleId = "", updater = (role) => role) {
-  const normalizedRoleId = normalizeInterfaceRoleId(roleId);
-  const profiles = getAccessRoleProfiles();
-  ui.accessRoleProfiles = normalizeAccessRoleProfiles(profiles.map((role) => (
-    role.id === normalizedRoleId ? updater({ ...role, modulePermissions: { ...role.modulePermissions } }) : role
-  )));
-}
-
-function setAccessRoleProfileField(roleId = "", field = "", value = "") {
-  const normalizedField = String(field || "");
-  updateAccessRoleProfile(roleId, (role) => {
-    if (["label", "caption"].includes(normalizedField)) {
-      return { ...role, [normalizedField]: String(value || "").trim() || role[normalizedField] };
-    }
-    if (normalizedField === "scope") {
-      const scope = ACCESS_ROLE_SCOPES.some((item) => item.id === value) ? value : role.scope;
-      return { ...role, scope };
-    }
-    if (normalizedField === "defaultModule") {
-      const defaultModule = getModuleDefinitions().some((moduleItem) => moduleItem.id === value) ? value : role.defaultModule;
-      return { ...role, defaultModule };
-    }
-    return role;
-  });
-}
-
-function setAccessRoleModulePermission(roleId = "", moduleId = "", actionId = "", enabled = false) {
-  const normalizedRoleId = normalizeInterfaceRoleId(roleId);
-  const normalizedModuleId = normalizeDeepLinkModuleId(moduleId);
-  const normalizedActionId = ACCESS_ROLE_ACTIONS.some((action) => action.id === actionId) ? actionId : "";
-  if (!normalizedRoleId || !normalizedModuleId || !normalizedActionId) return;
-  updateAccessRoleProfile(normalizedRoleId, (role) => {
-    const current = normalizeAccessPermissionRecord(role.modulePermissions?.[normalizedModuleId]);
-    const next = { ...current, [normalizedActionId]: Boolean(enabled) };
-    if (normalizedActionId === "view" && !enabled) {
-      ACCESS_ROLE_ACTIONS.forEach((action) => { next[action.id] = false; });
-    }
-    if (normalizedActionId !== "view" && enabled) next.view = true;
-    return {
-      ...role,
-      modulePermissions: {
-        ...role.modulePermissions,
-        [normalizedModuleId]: next,
-      },
-    };
-  });
-}
-
-function setAccessRoleAssignment(employeeId = "", roleId = "") {
-  const normalizedEmployeeId = String(employeeId || "").trim();
-  if (!normalizedEmployeeId) return;
-  const assignments = normalizeAccessRoleAssignments(ui.accessRoleAssignments);
-  const normalizedRoleId = String(roleId || "").trim();
-  if (!normalizedRoleId) {
-    delete assignments[normalizedEmployeeId];
-  } else {
-    assignments[normalizedEmployeeId] = normalizeInterfaceRoleId(normalizedRoleId);
-  }
-  ui.accessRoleAssignments = normalizeAccessRoleAssignments(assignments);
-}
-
-function resetAccessRoleConfiguration() {
-  if (blockProtectedDestructiveAction(
-    "resetAccessRoleConfiguration",
-    "Сброс ролей отключен в этом окружении для защиты данных пользователей",
-  )) {
-    return;
-  }
-  ui.accessRoleProfiles = [];
-  ui.accessRoleAssignments = {};
-  ui.accessRolesSelectedRoleId = DEFAULT_INTERFACE_ROLE_ID;
-  ui.accessRolesSelectedEmployeeId = "";
-  if (!ACCESS_ROLE_IDS.includes(ui.activeRole)) ui.activeRole = DEFAULT_INTERFACE_ROLE_ID;
-}
-
 function formatDateTimeShort(value) {
   const date = toDate(value);
   return date.toLocaleString("ru-RU", {
@@ -2369,11 +2294,6 @@ function refreshCurrentAppPage() {
     schedulePlanningRouteStructureSidebarSync,
     syncPlanningRouteStructureSidebarHeight,
     getAccessRoleForEmployee,
-    updateAccessRoleProfile,
-    setAccessRoleProfileField,
-    setAccessRoleModulePermission,
-    setAccessRoleAssignment,
-    resetAccessRoleConfiguration,
     formatDateTimeShort,
     createAccessPermissionRecord,
     createAccessPermissionMap,

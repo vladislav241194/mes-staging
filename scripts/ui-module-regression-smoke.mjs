@@ -260,6 +260,10 @@ async function waitForSmokeReady(client, moduleId) {
           document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")
           && document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")
         ),
+        rolesReady: Boolean(
+          document.querySelector("[data-react-roles-island][data-react-island-state='ready']")
+          && document.querySelector("[data-react-roles-island] [data-ui-component='ModulePage'][data-ui-runtime='hard-v1']")
+        ),
         runtimeErrors: /Ошибка запуска интерфейса|Cannot initialize|ReferenceError|TypeError|SyntaxError/.test(bodyText),
       };
     });
@@ -268,7 +272,8 @@ async function waitForSmokeReady(client, moduleId) {
       && report.layoutPage === moduleId
       && report.textLength > 40
       && !report.runtimeErrors
-      && (moduleId !== "gantt" || report.ganttReady)) return;
+      && (moduleId !== "gantt" || report.ganttReady)
+      && (moduleId !== "roles" || report.rolesReady)) return;
     await delay(140);
   }
   throw new Error(`${moduleId}: page did not become smoke-ready. Last report: ${JSON.stringify(lastReport)}`);

@@ -225,12 +225,16 @@
       "entry": "experiments/react-migration/src/roles-island.tsx",
       "disposition": "migration-required",
       "normalActionFallback": false,
+      "implementationMarker": "React TS · PARTIAL · server writes blocked",
       "commands": {
-        "implemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "add-immediate-assignment", "deactivate", "reactivate"],
-        "supportedVariants": ["role-default-scope:self"],
+        "implemented": [],
+        "clientImplemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "add-immediate-assignment", "deactivate", "reactivate"],
+        "clientSupportedVariants": ["role-default-scope:self"],
+        "serverBlocked": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "add-immediate-assignment", "deactivate", "reactivate"],
         "guarded": ["deactivate-assigned-role", "deactivate-current-role", "reset-access-control"],
-        "missing": ["effective-window-persistence", "subject-responsibility-scope-persistence", "assignment-responsibility-scope-persistence", "read-only-role-persistence"],
+        "missing": ["access-control-server-write-owner", "effective-window-persistence", "subject-responsibility-scope-persistence", "assignment-responsibility-scope-persistence", "read-only-role-persistence"],
         "blockedBy": {
+          "access-control-server-write-owner": ["server-authorization", "bounded-delta-invariants", "actor-policy"],
           "effective-window-persistence": ["owner-contract", "schema-migration"],
           "subject-responsibility-scope-persistence": ["owner-contract", "system-domains-schema-version", "schema-migration"],
           "assignment-responsibility-scope-persistence": ["owner-contract", "system-domains-schema-version", "schema-migration"],
@@ -406,7 +410,7 @@
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["effective-window persistence and schema migration", "subject responsibility-scope owner and schema", "assignment responsibility-scope owner and schema", "readOnly role persistence owner and schema", "current-release Pilot read", "Pilot write lifecycle and cleanup", "rollback/reactivation acceptance"]
+      "remainingScopes": ["access-control server authorization and bounded delta owner", "effective-window persistence and schema migration", "subject responsibility-scope owner and schema", "assignment responsibility-scope owner and schema", "readOnly role persistence owner and schema", "current-release Pilot read", "Pilot write lifecycle and cleanup", "rollback/reactivation acceptance"]
     },
     {
       "id": "contourAdmin",

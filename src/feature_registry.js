@@ -119,9 +119,14 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   roles: {
     css: ["styles/layers/60-operational-modules.css"],
-    files: ["src/modules/access_roles/render.js"],
+    files: [
+      "src/modules/access_roles/react_island_host.js",
+      "experiments/react-migration/src/modules/roles/RolesScenario.tsx",
+      "experiments/react-migration/src/modules/roles/adapter.ts",
+    ],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
-    qa: ["scripts/roles-functional-qa.mjs"],
+    qa: ["scripts/roles-react-runtime-policy-qa.mjs", "scripts/roles-cutover-classification-qa.mjs"],
+    removalContract: "Permanent React read surface; writes remain fail-closed until the access-control server owner is authorized.",
   },
   contourAdmin: {
     css: ["styles/layers/60-operational-modules.css"],

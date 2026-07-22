@@ -376,11 +376,18 @@ async function waitForModule(client, moduleId) {
 	          document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")
 	          && document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")
 	        ),
+	        rolesReady: Boolean(
+	          document.querySelector("[data-react-roles-island][data-react-island-state='ready']")
+	          && document.querySelector("[data-react-roles-island] [data-ui-component='ModulePage'][data-ui-runtime='hard-v1']")
+	        ),
 	        startupText: (document.body?.innerText || "").slice(0, 500),
 	      };
 	    }, expectedLayout);
     lastReport = report;
-    if (report.hasShell && report.layoutPage === expectedLayout && (moduleId !== "gantt" || report.ganttReady)) {
+    if (report.hasShell
+      && report.layoutPage === expectedLayout
+      && (moduleId !== "gantt" || report.ganttReady)
+      && (moduleId !== "roles" || report.rolesReady)) {
       if (!isChromelessModule) {
         assert(report.title === expectedLabel, `${moduleId}: topbar title is out of sync with MES_MODULE_FLOW_CONTRACTS.label. Expected "${expectedLabel}", got "${report.title}".`);
 		        assert(report.refreshAction?.width > 0, `${moduleId}: topbar refresh action is missing`);

@@ -1306,7 +1306,7 @@ try {
   assert.deepEqual(
     makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(),
     { activateReact: false, reason: "write-parity-incomplete" },
-    "edit-capable Roles sessions must retain legacy commands",
+    "edit-capable Roles sessions must fail closed while the server owner is unavailable",
   );
   const eligibleRolesProductionHost = makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleRolesProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
@@ -1636,6 +1636,8 @@ try {
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
+  assert.doesNotMatch(rolesProductionHostSource, /requestLegacyRender|onRequestLegacy/);
+  assert.match(rolesProductionHostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/);
   const specifications2ProductionHostSource = await readFile(join(repositoryRoot, "src/modules/specifications2/react_island_host.js"), "utf8");
   assert.match(specifications2ProductionHostSource, /createReactIslandHost/);
   assert.match(specifications2ProductionHostSource, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
@@ -2926,10 +2928,10 @@ try {
     "every production-integrated React scenario must have one command-parity row",
   );
   assert.equal(new Set(commandParityMatrix.scenarios.map((scenario) => scenario.id)).size, 24, "command-parity scenario IDs must be unique");
-  assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
+  assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.readParity === "string" && scenario.readParity.trim()), "all registered scenarios must retain explicit read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
-  assert(commandParityMatrix.scenarios.every((scenario) => ["slice-complete", "pending", "not-applicable"].includes(scenario.sliceParity)), "slice-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "slice-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench", "shiftWorkOrders", "shiftMasterBoard", "employeeDesktop", "specifications2", "gantt", "authPicker", "contourAdmin"], "twenty-two scenarios must retain locally complete vertical slices without claiming whole-module completion");
+  assert(commandParityMatrix.scenarios.every((scenario) => ["slice-complete", "mvp-partial", "prototype-partial", "partial-owner-blocked", "read-only-complete", "pending", "not-applicable"].includes(scenario.sliceParity)), "slice-parity status must use the closed vocabulary");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "slice-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "timesheet", "shiftWorkOrders", "shiftMasterBoard", "employeeDesktop", "authPicker", "contourAdmin"], "only owner-backed scenarios may retain slice-complete classification");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.sliceParity === "pending").length, 0, "no registered command slice may remain implicit or pending");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "structureMigrationDiagnostics")?.nextVerticalScope || "", /permanent Pilot acceptance is complete on v\.1\.500\.21.*monitoring.*rollback evidence/);

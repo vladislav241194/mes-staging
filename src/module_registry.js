@@ -243,7 +243,7 @@ const CORE_MODULE_BLUEPRINTS = [
     shellClassName: "access-roles-app-shell", pageClassName: "access-roles-page", sidebarClassName: "access-roles-sidebar", workspaceClassName: "access-roles-workspace", contentClassName: "access-roles-content", ariaLabel: "Роли и доступ",
     visualWave: "reference", parity: { family: "sidebar-standard", shell: "standard", page: "sidebar", header: "required" },
     regression: { type: "contract", hasTable: true, hasActions: true },
-    defaultRoleActions: { productionHead: READ_ONLY_ACCESS }, capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/access_roles/render.js"],
+    defaultRoleActions: { productionHead: READ_ONLY_ACCESS }, capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/access_roles/react_island_host.js", "experiments/react-migration/src/modules/roles/RolesScenario.tsx", "experiments/react-migration/src/modules/roles/adapter.ts"],
   }),
   coreBlueprint({
     id: "directories", label: "Справочники и нормативы", icon: "directory", groupId: "system", navigationOrder: 40, flowOrder: 150,

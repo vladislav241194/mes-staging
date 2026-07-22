@@ -32,7 +32,6 @@ export function createRolesReactIslandHost({
   getActivation,
   getPayload,
   getTargetRoot,
-  requestLegacyRender,
   executeCommand,
   reportError = (error) => console.error("[MES] Roles React island failed", error),
 } = {}) {
@@ -40,9 +39,8 @@ export function createRolesReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
     reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) {

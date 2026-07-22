@@ -35,7 +35,7 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/shift_work_orders/production_model.ts",
 ], "active src TypeScript must grow only through explicitly audited production boundaries");
 assert(activeJavaScriptLines < 80_000, "active JavaScript inventory regrew above the audited post-retirement ceiling");
-assert(requestLegacyRenderDefinitions > 0, "legacy-render callbacks must remain explicitly inventoried until final cutover");
+assert.equal(requestLegacyRenderDefinitions, 0, "the app shell must not retain any same-release legacy-render callback");
 
 for (const module of ledger.modules) {
   assert.equal(typeof module.visibleLegacyRendererPath, "boolean", `${module.id}: visibleLegacyRendererPath is required`);

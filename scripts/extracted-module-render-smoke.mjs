@@ -1,5 +1,4 @@
 import { renderDispatchModulePage } from "../src/modules/dispatch/render.js";
-import { createAccessRolesModule } from "../src/modules/access_roles/render.js";
 import { createProductionStructureMatrixModule } from "../src/modules/production_structure_matrix/render.js";
 import { createUiRenderers } from "../src/ui/components.js";
 import { createMesModulePatternRenderer } from "../src/ui/module_patterns.js";
@@ -82,61 +81,6 @@ check("production structure matrix module", productionStructure.renderProduction
   "Структура и сотрудники",
   "Подразделения",
   "реестр пуст",
-]);
-
-const accessRoles = createAccessRolesModule({
-  ACCESS_ROLE_ACTIONS: [
-    { id: "view", label: "Просмотр", shortLabel: "Видит" },
-    { id: "edit", label: "Редактирование", shortLabel: "Правит" },
-  ],
-  ACCESS_ROLE_SCOPES: [{ id: "factory", label: "Вся система" }],
-  escapeAttribute,
-  escapeHtml,
-  getAccessRoleForEmployee: () => ({ role: { label: "Администратор" }, explicit: false }),
-  getAccessRoleProfiles: () => [{
-    id: "admin",
-    label: "Администратор",
-    caption: "полный доступ",
-    scope: "factory",
-    defaultModule: "gantt",
-    modulePermissions: {
-      gantt: { view: true, edit: true },
-      roles: { view: true, edit: true },
-    },
-  }],
-  getApp: () => ({ querySelector: () => null }),
-  getMesModuleFlowContract: () => ({ group: "Система" }),
-  getModuleAnnotation: (moduleId) => `module ${moduleId}`,
-  getModuleDefinitions: () => [
-    { id: "gantt", label: "Планирование" },
-    { id: "roles", label: "Роли и доступ" },
-  ],
-  getProductionStructureEmployees: () => [{
-    id: "employee-1",
-    name: "Иванов Иван",
-    role: "Мастер",
-    department: "Отдел теста",
-  }],
-  getProductionStructureMatrixRuntimeOverrides: () => ({}),
-  getUi: () => ({
-    accessRoleAssignments: {},
-    accessRolesSelectedRoleId: "admin",
-    activeRole: "admin",
-    authCurrentUserId: "employee-1",
-  }),
-  normalizeAccessPermissionRecord: (value = {}) => ({ view: Boolean(value.view), edit: Boolean(value.edit) }),
-  normalizeAccessRoleAssignments: (value = {}) => value,
-  normalizeInterfaceRoleId: (value = "") => value || "admin",
-  renderMesModulePatternPage,
-  ...renderers,
-});
-
-check("access roles module", accessRoles.renderAccessRolesPage(), [
-  "access-roles-page",
-  "Access control",
-  "Grants роли",
-  "Области ответственности",
-  "Иванов Иван",
 ]);
 
 if (failures.length) {

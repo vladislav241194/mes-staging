@@ -15,11 +15,13 @@ function functionSource(fileSource, functionName) {
   return fileSource.slice(start, next >= 0 ? next : fileSource.length);
 }
 
-const [app, structure, timesheet, roles, directories, events, server, publicAuth, domainApi, sharedState] = await Promise.all([
+const [app, structure, timesheet, roles, rolesAdapter, rolesHost, directories, events, server, publicAuth, domainApi, sharedState] = await Promise.all([
   source("src/app.js"),
   source("src/modules/production_structure_matrix/render.js"),
   source("src/modules/timesheet/render.js"),
-  source("src/modules/access_roles/render.js"),
+  source("experiments/react-migration/src/modules/roles/RolesScenario.tsx"),
+  source("experiments/react-migration/src/modules/roles/adapter.ts"),
+  source("src/modules/access_roles/react_island_host.js"),
   source("src/modules/app_interactions/render.js"),
   source("src/modules/app_events/service.js"),
   source("server.js"),
@@ -37,7 +39,6 @@ const expectations = [
   ["setAccessGrant", 'authorizeSystemDomainAction("roles", "configure"'],
   ["setSubjectRoleAssignment", 'authorizeSystemDomainAction("roles", "assign"'],
   ["setResponsibilityScope", 'authorizeSystemDomainAction("roles", "configure"'],
-  ["resetAccessControlConfiguration", 'authorizeSystemDomainAction("roles", "configure"'],
   ["syncResponsibilityPolicyFromCompatibilityState", 'authorizeSystemDomainAction("productionStructureMatrix", "assign"'],
   ["canEditDirectorySection", 'authorizeSystemDomainAction("directories", "edit"'],
 ];
@@ -49,7 +50,10 @@ assert(functionSource(app, "canEditSystemDomainRegistry").includes('service?.can
 assert(structure.includes("canEditSystemDomainRegistry(registryId) === true"), "Structure UI does not consume the edit guard.");
 assert(timesheet.includes("canEditTimesheetEmployee(employee.timesheetId) === true"), "Timesheet editor does not expose read-only mode.");
 assert(timesheet.includes('reason: "access_denied"'), "Timesheet handlers do not fail closed on denied writes.");
-assert(roles.includes("adapter.canConfigure(accessSubject, accessResourceContext)"), "Access roles UI does not evaluate configure permission.");
+assert(roles.includes('data-react-parity-status="partial"'), "Access Roles React UI must remain explicitly partial.");
+assert(rolesAdapter.includes("canEditMetadata: capabilities.metadataEdit === true"), "Access Roles writes must require an explicit projected capability.");
+assert(rolesHost.includes("canFallbackToLegacy: () => false"), "Access Roles runtime must fail closed without a same-release renderer.");
+assert(!rolesHost.includes("requestLegacyRender"), "Access Roles host must not expose a legacy callback.");
 assert(directories.includes('sectionId === "statuses"') && directories.includes("readOnly: true"), "Status contracts are not hard read-only.");
 assert(directories.includes("!canEditDirectorySection(sectionId)"), "Directory renderer does not apply authorization.");
 assert(events.includes("!canEditDirectorySection(sectionId)"), "Directory mutation service does not fail closed.");

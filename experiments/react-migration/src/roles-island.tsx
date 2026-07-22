@@ -1,8 +1,8 @@
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
-import { RolesScenario, type RolesReactCommand } from "./modules/roles/RolesScenario";
+import { RolesScenario, type RolesCommand } from "./modules/roles/RolesScenario";
 
 export interface RolesIslandOptions extends ReactMigrationIslandOptions {
-  onCommand?(command: RolesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onCommand?(command: RolesCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }
 
 export function mountRolesReactIsland(target: HTMLElement, initialPayload: unknown, options: RolesIslandOptions = {}) {

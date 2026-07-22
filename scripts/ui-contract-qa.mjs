@@ -34,7 +34,7 @@ const paths = {
   uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
   uiHtml: path.join(rootDir, "src", "ui", "html.js"),
   uiComponents: path.join(rootDir, "src", "ui", "components.js"),
-  accessRolesModule: path.join(rootDir, "src", "modules", "access_roles", "render.js"),
+  accessRolesModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "roles", "adapter.ts"),
   ganttRuntimeModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "gantt", "GanttScenario.tsx"),
   uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.js"),
   uiHardeningPlanContracts: path.join(rootDir, "src", "ui", "contracts", "hardening-plan-contracts.js"),
@@ -486,7 +486,7 @@ checkIncludes("Документ speed-pass не фиксирует Scroll-contra
 checkIncludes("Документ speed-pass не фиксирует runtime normalizer", speedDocsSource, "applyUiRuntimeContracts()");
 checkIncludes("Документ speed-pass не фиксирует opened states visual QA", speedDocsSource, "opened states");
 checkIncludes("Документ component map не фиксирует runtime normalizer", componentMapDocsSource, "Runtime normalizer");
-checkIncludes("Матрица ролей должна исключать системный экран authPrototype", accessRolesModuleSource, "getModuleDefinitions().filter((moduleItem) => moduleItem.id !== \"authPrototype\")");
+checkIncludes("Матрица ролей должна исключать системный экран authPrototype", accessRolesModuleSource, "if (!id || id === \"authPrototype\") return []");
 if (!/id:\s*"authSessionPrototype"[^\n]*groupId:\s*"operations"/.test(moduleRegistrySource)) {
   fail("Главный сайдбар должен держать Рабочий стол в Оперативном управлении через единый module registry");
 }
@@ -627,9 +627,8 @@ if (!recursiveSyntaxQa && (!packageJson.scripts?.["qa:syntax"]?.includes("src/va
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/planning-labor-functional-qa.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/module-smoke-qa.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/shift-operational-flow-functional-qa.mjs")
-  || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/auth-functional-qa.mjs")
-  || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/roles-functional-qa.mjs"))) {
-  fail("scripts.qa:syntax должен проверять src/validation.js, visual QA, planning-labor QA, module-smoke QA, shift-flow QA, auth/roles QA и local-server wrapper");
+  || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/auth-functional-qa.mjs"))) {
+  fail("scripts.qa:syntax должен проверять src/validation.js, visual QA, planning-labor QA, module-smoke QA, shift-flow QA, auth QA и local-server wrapper");
 }
 const functionalScript = packageJson.scripts?.["qa:functional:inner"] || packageJson.scripts?.["qa:functional"] || "";
 if (!functionalScript.includes("npm run qa:shared-state")
@@ -662,7 +661,6 @@ browserQaScriptFiles.forEach((file, index) => {
   ["qa:gantt-operational", "qa:gantt-operational:inner"],
   ["qa:shift-flow", "qa:shift-flow:inner"],
   ["qa:auth", "qa:auth:inner"],
-  ["qa:roles", "qa:roles:inner"],
   ["qa:boot", "qa:boot:inner"],
 ].forEach(([outerName, innerName]) => {
   const expectedWrapper = outerName === "qa:boot" ? "scripts/run-with-dist-preview.mjs" : "scripts/run-with-local-server.mjs";
@@ -670,6 +668,10 @@ browserQaScriptFiles.forEach((file, index) => {
     fail(`scripts.${outerName} должен запускаться через ${expectedWrapper} и ${innerName}`);
   }
 });
+if (packageJson.scripts?.["qa:roles"] !== "npm run qa:roles:inner"
+  || !packageJson.scripts?.["qa:roles:inner"]?.includes("roles-react-runtime-policy-qa.mjs")) {
+  fail("scripts.qa:roles должен запускать прямой nonvisual React/server-contract gate");
+}
 if (/"qa:shift-master"\s*:|"qa:shift-master-v2"\s*:|shift-master-functional-qa|shift-master-v2-functional-qa/.test(JSON.stringify(packageJson.scripts || {}))) {
   fail("package.json не должен возвращать QA-команды удаленных старых мастерских");
 }
