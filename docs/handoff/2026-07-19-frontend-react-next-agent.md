@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.70-fb09aa4`; последний strict-accepted release остаётся
+> `v.1.500.71-dc067b3`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.70-fb09aa4`; immediate previous:
-  `v.1.500.69-4308c08`; pinned legacy:
+- Активный accelerated release: `v.1.500.71-dc067b3`; immediate previous:
+  `v.1.500.70-fb09aa4`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -133,22 +133,23 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
 
 ## Что делать следующим
 
-1. Интегрировать полный range
-   `aca289f..codex/main-weekly-evidence-port` в основную ветку без повторного
-   cherry-pick `33d7859`; перед интеграцией повторить status/log/QA.
-2. Сверить Git, Pilot health, active `.26`, previous `.25`, pinned legacy `.18`
-   и runtime flags перед любым следующим rollout.
-3. Взять следующий настоящий legacy-only command scope из
-   `command-parity-matrix.md`, доказать его существование в owner-коде и выбрать
-   один измеримый вертикальный сценарий.
-4. Не заявлять live parity для Boards/BOM или Responsibility
-   Policies на пустом наборе. Для записи нужен отдельный disposable record и
-   явная cleanup-проверка; реальные данные Pilot не загрязнять.
-5. Каждый следующий срез: typed adapter -> existing owner -> React UI ->
-   fail-closed policy QA -> production-shell functional QA -> legacy read-back
-   -> performance budget -> docs -> отдельный commit/push.
-6. Default-on не включать автоматически. Каждый новый Pilot experiment должен
-   быть явно ограничен, reversible и завершаться rollback/cleanup evidence.
+1. Продолжить strict-TS вывод активного JavaScript пакетами по `4–6`
+   совместимых owners. Следующий рекомендуемый пакет: базовый
+   `src/modules/react_island_host.js` и несколько простых browser-only island
+   hosts после короткого import/QA preflight.
+2. На пакет выполнять один focused QA, один commit/push, один accelerated Pilot
+   release и одно обновление handoff. Не выпускать отдельный релиз на каждый
+   файл.
+3. Staging оставить замороженным до крупной пользовательской контрольной
+   точки. Admin считать частью Pilot runtime и проверять отдельно только при
+   изменении admin routing/auth/commands.
+4. Не повышать evidence-weighted `50%` за механическую TS-конверсию. Следующий
+   процент требует fresh authenticated Pilot read/write acceptance либо
+   закрытия одного из partial production-сценариев с owner-backed parity.
+5. Не заявлять live parity для Boards/BOM или Responsibility Policies на пустом
+   наборе. Для записи нужен отдельный disposable record и явная cleanup-проверка.
+6. Сохранять `.70` как immediate rollback и sealed `.18` как legacy baseline;
+   не добавлять evaluation flags и не обходить compatibility guard.
 
 ## Важные ограничения
 
@@ -2275,3 +2276,44 @@ Next accelerated batch: type the shared browser renderer helpers
 `src/ui/components.js` and `src/ui/module_patterns.js` (595 JavaScript lines)
 without altering generated HTML or design. The broader React island-host layer
 follows after those shared contracts are typed.
+
+## Shared UI runtime strict TypeScript batch 2026-07-22: release `.71`
+
+This block supersedes `.70` as the live Pilot pointer and applies the new
+batched-release rule: five compatible owners were migrated and published in one
+release rather than one release per file.
+
+- Active Pilot is `v.1.500.71-dc067b3` at exact commit
+  `dc067b3dd1b19dab2f925cb42e1e7b1b9d85686c`; immediate previous is
+  `v.1.500.70-fb09aa4`, pinned legacy remains `v.1.500.18-93d02ed`, and
+  Staging remains `v.1.499.70-c3b4059`.
+- Source/dist SHA-256 are
+  `1b7e87efedb337fb3550cb42234fd1a42dc14008b29ba11a1da3ecb9b386bfb5` and
+  `880a97c2d37e5544f12aa526bd6b6b251a722d07957c64634a66df2e38e14458`.
+- `src/ui/components`, `src/ui/module_patterns`,
+  `src/ui/tree_table_visual`, Roles `multiple_assignment_owner` and auth
+  `access_role_resolver` now execute from strict `.ts`; all five old `.js`
+  files are absent. Active imports, tsconfig, exact Node QA loaders and
+  module/feature ownership registries use the typed paths.
+- Active JavaScript fell from `51,737` to `50,942` lines and from `111` to
+  `106` files; strict production inventory grew from `22` to `27` TypeScript
+  files. HTML, design, API/schema, PostgreSQL authority and command behavior
+  were not changed.
+- Strict typecheck, syntax, focused owner/tree/auth/UI contracts, React
+  cutover/runtime policy, module/feature registries, clean build and
+  `git diff --check` passed. Independent review returned `GO` with no P1/P2.
+- The two pre-existing broad UI failures were not weakened: hardening still
+  expects the removed Gantt opened-modal marker, and strict visual-unification
+  still reports historical adoption thresholds after legacy renderer cleanup.
+  No visual/browser test was claimed for this accelerated batch.
+- Live health reports `ok`, version `v.1.500.71`, shared state `ready`, all 25
+  policy surfaces React, zero evaluation/legacy surfaces, no effective
+  `MES_REACT_*` flags and no evaluation drop-ins. `.70` passed exact rollback
+  dry-run; `.18` remains sealed and unchanged.
+- No completion marker or accepted Pilot scenario changed. Implementation
+  remains `99%`; honest evidence-weighted progress remains `50%`. Blueprint UI
+  was not introduced.
+
+Next accelerated batch: type the shared base React island host and `4–5`
+compatible browser-only host leaves in one release, then perform one focused
+QA/review/release/handoff cycle.

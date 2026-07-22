@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.70-fb09aa4`
+Текущий accelerated Pilot release: `v.1.500.71-dc067b3`
 
 ## Исправление прежней оценки
 
@@ -920,6 +920,38 @@ Structure Migration Diagnostics. Responsive/narrow Pilot-приёмка дока
 Готово, когда: normal runtime не содержит пользовательского fallback в legacy,
 все in-scope routes default-on React, строгий QA зелёный, Pilot acceptance полон,
 а release rollback реально выполнен и задокументирован.
+
+## Shared UI runtime strict TypeScript batch 2026-07-22: release `.71`
+
+- Pilot активирован на `v.1.500.71-dc067b3`; source/dist SHA-256 —
+  `1b7e87efedb337fb3550cb42234fd1a42dc14008b29ba11a1da3ecb9b386bfb5` и
+  `880a97c2d37e5544f12aa526bd6b6b251a722d07957c64634a66df2e38e14458`.
+- Пять browser-only owners переведены из JavaScript в strict TypeScript одним
+  пакетом: shared UI components, module pattern composer, Specifications 2 tree
+  visual model, Roles additional-assignment guard и auth role resolver. Старые
+  `.js` файлы отсутствуют, активные импорты и ownership registries используют
+  `.ts`.
+- Активный JavaScript уменьшен с `51 737` до `50 942` строк и со `111` до `106`
+  файлов; strict inventory вырос с `22` до `27` TypeScript-файлов. HTML,
+  layout, API/schema и command authority не менялись.
+- Strict typecheck, syntax, focused semantic QA, React cutover/runtime policy,
+  UI helpers, extracted modules, module/feature registries, deterministic build
+  и `git diff --check` прошли. Независимый P1/P2 review — `GO`.
+- Старые широкие UI gates не ослаблялись: hardening всё ещё ожидает удалённый
+  Gantt opened-modal marker, а visual-unification strict — прежние adoption
+  thresholds. Визуальный/browser QA в accelerated пакете намеренно не
+  выполнялся.
+- Service/health/pointer подтверждают `.71`, shared state `ready`, все 25
+  runtime policy surfaces — React, evaluation/legacy surfaces и effective
+  `MES_REACT_*` flags отсутствуют. Immediate `.70` прошёл rollback dry-run;
+  sealed legacy `.18` сохранён. Staging остался на `v.1.499.70-c3b4059`.
+- Ни один partial-модуль не стал complete и fresh acceptance не добавилась:
+  implementation checkpoint остаётся `99%`, честный evidence-weighted прогресс
+  остаётся `50%`.
+
+Следующий accelerated batch: типизировать базовый React island host и `4–5`
+совместимых browser-only host leaves одним release, без отдельного выпуска на
+каждый файл.
 
 Статус 2026-07-21: исторические rollback chains `.21 -> .20 -> .21` и
 `.21 -> .18 -> .19 -> .20 -> .21` сохранены как evidence своей контрольной
