@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.74-902dd57`; последний strict-accepted release остаётся
+> `v.1.500.75-985b62a`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.74-902dd57`; immediate previous:
-  `v.1.500.73-36727f3`; pinned legacy:
+- Активный accelerated release: `v.1.500.75-985b62a`; immediate previous:
+  `v.1.500.74-902dd57`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -148,7 +148,7 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
    закрытия одного из partial production-сценариев с owner-backed parity.
 5. Не заявлять live parity для Boards/BOM или Responsibility Policies на пустом
    наборе. Для записи нужен отдельный disposable record и явная cleanup-проверка.
-6. Сохранять `.73` как immediate rollback и sealed `.18` как legacy baseline;
+6. Сохранять `.74` как immediate rollback и sealed `.18` как legacy baseline;
    не добавлять evaluation flags и не обходить compatibility guard.
 
 ## Важные ограничения
@@ -2428,3 +2428,39 @@ lazy chunks, command owners and completion classifications.
 Next accelerated batch: convert the shared Directories host using a closed
 literal mapping for its four mounts, then keep the seven-surface Production
 Structure/Diagnostics host as a dedicated follow-up release.
+
+## Directories host strict TypeScript batch 2026-07-22: release `.75`
+
+This block supersedes `.74` as the live Pilot pointer. It isolates the shared
+Directories host and types all four completed directory surfaces without
+changing their routes, write gates, navigation or immutable rollback.
+
+- Active Pilot is `v.1.500.75-985b62a` at exact commit
+  `985b62a44a95fe6edc56dab9d6ae2bb534b243fb`; immediate previous is
+  `v.1.500.74-902dd57`, pinned legacy remains `v.1.500.18-93d02ed`, and
+  Staging remains `v.1.499.70-c3b4059`.
+- Source/dist SHA-256 are
+  `3b3cd895ac8565e5a431f7fa61dc35ad836e340ee4d7f08f21dac17cf28cae4c` and
+  `628e65dda77d98613b0e85844f5cd15953b2c35fea9fc11220dcfdb0df55dfd3`.
+- The shared Component Types, Operations, Nomenclature Types and Statuses host
+  now executes from strict `.ts`; the old `.js` file is absent. A closed
+  literal config map and exhaustive mount switch bind the four bundle/scope/
+  mount/attribute pairs without a free string index or `any`.
+- Active JavaScript fell from `49,742` to `49,597` lines and from `90` to `89`
+  files; strict production inventory grew from `43` to `44` TypeScript files.
+  All four existing `React TS` completion markers remain unchanged.
+- Strict typecheck, Directory cluster permanent runtime QA, syntax,
+  mixed-runtime inventory, React cutover/runtime policy, module/feature
+  registries, deterministic build, four marker/specifier checks and
+  `git diff --check` passed. Independent review returned `GO` with no P1/P2.
+  No visual/browser QA was claimed for this mechanical batch.
+- Local/public health report `ok`, version `v.1.500.75`, shared state `ready`,
+  all 25 surfaces React, zero evaluation/legacy surfaces, no effective
+  `MES_REACT_*` flags and no evaluation drop-ins. `.74` passed rollback
+  dry-run; sealed `.18` remains unchanged.
+- Implementation remains `99%`; honest evidence-weighted progress remains
+  `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: type the dedicated seven-surface Production Structure
+host and correct its stale Diagnostics QA oracle to the already-active
+fail-closed contract; do not count that test correction as new Pilot evidence.

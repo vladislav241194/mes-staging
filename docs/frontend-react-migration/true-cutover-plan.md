@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.74-902dd57`
+Текущий accelerated Pilot release: `v.1.500.75-985b62a`
 
 ## Исправление прежней оценки
 
@@ -1037,6 +1037,33 @@ Roles и Nomenclature/Boards wrappers; Directories и Production Structure
 Следующий accelerated batch: отдельным релизом типизировать общий Directories
 host с четырьмя literal mount mappings; затем отдельно закрыть семиповерхностный
 Production Structure/Diagnostics host.
+
+## Directories host strict TypeScript batch 2026-07-22: release `.75`
+
+- Pilot активирован на `v.1.500.75-985b62a`; source/dist SHA-256 —
+  `3b3cd895ac8565e5a431f7fa61dc35ad836e340ee4d7f08f21dac17cf28cae4c` и
+  `628e65dda77d98613b0e85844f5cd15953b2c35fea9fc11220dcfdb0df55dfd3`.
+- Общий host четырёх завершённых Directory surfaces переведён из JavaScript в
+  strict TypeScript. Literal config map и exhaustive switch связывают Component
+  Types, Operations, Nomenclature Types и Statuses с точными bundle/scope/mount
+  pairs без `any` и свободной строковой индексации.
+- Активный JavaScript уменьшен с `49 742` до `49 597` строк и с `90` до `89`
+  файлов; strict inventory вырос с `43` до `44` TypeScript-файлов. Runtime,
+  write evaluation gates, direct navigation и completion markers не менялись.
+- Typecheck, Directory cluster permanent runtime QA, syntax, mixed-runtime,
+  React cutover/runtime policy, module/feature registries, deterministic build,
+  четыре marker/specifier checks и `git diff --check` прошли; независимый P1/P2
+  review — `GO`. Визуальный/browser QA для механического пакета не выполнялся.
+- Service/health/pointer подтверждают `.75`, shared state `ready`, все 25
+  surfaces — React, evaluation/legacy surfaces, effective `MES_REACT_*` flags
+  и evaluation drop-ins отсутствуют. Immediate `.74` прошёл rollback dry-run;
+  sealed `.18` сохранён, Staging остался на `v.1.499.70-c3b4059`.
+- Implementation checkpoint остаётся `99%`, честный evidence-weighted прогресс
+  — `50%`. Blueprint UI не используется.
+
+Следующий accelerated batch: отдельно типизировать семиповерхностный Production
+Structure host и привести stale Diagnostics QA oracle к уже действующему
+fail-closed контракту без начисления новых Pilot evidence points.
 
 Статус 2026-07-21: исторические rollback chains `.21 -> .20 -> .21` и
 `.21 -> .18 -> .19 -> .20 -> .21` сохранены как evidence своей контрольной
