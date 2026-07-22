@@ -67,12 +67,6 @@ const refreshProjection = section(
   "async function flushShiftExecutionOutbox() {",
   "dispatch forced refresh",
 );
-const moduleLoader = section(
-  source,
-  "function ensureShiftMasterBoardModule() {",
-  "const shiftWorkOrderJournalOwner",
-  "master board lazy loader",
-);
 const masterBoardRender = section(
   source,
   "    shiftMasterBoard: {\n      render: () => {",
@@ -116,23 +110,21 @@ assert(dispatchHydration.includes('status: "error"'), "Dispatch hydration must f
 
 // Permanent React Shift surfaces hydrate their production projections before
 // preparing the island. The current route has no renderer fallback; rollback
-// belongs to the previous immutable release. The retained loader serves only
-// shared compatibility helpers outside the current route.
-const loaderInitialize = moduleLoader.indexOf("initializeShiftMasterBoardModule(createShiftMasterBoardModule);");
-const loaderRerender = moduleLoader.indexOf('["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule)');
-const renderModuleLoad = masterBoardRender.indexOf("ensureShiftMasterBoardModule();");
+// belongs to the previous immutable release. The current release must not
+// retain a loader or factory for the retired renderer.
 const renderHydration = masterBoardRender.indexOf('if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();');
 const renderReactDecision = masterBoardRender.indexOf("shiftMasterBoardReactIslandHost.prepareRender();");
 const renderReactTarget = masterBoardRender.indexOf("return shiftMasterBoardReactIslandHost.renderTarget();");
-assert(loaderInitialize >= 0 && loaderRerender > loaderInitialize, "lazy board factory must initialize before re-rendering the active board");
+assert(!source.includes("modules/shift_master_board/render.js"), "current release must not import the retired Master Board renderer");
+assert(!source.includes("initializeShiftMasterBoardModule") && !source.includes("ensureShiftMasterBoardModule"), "current release must not retain the retired Master Board factory/loader");
+assert(source.includes("return shiftMasterBoardCommandOwner.getModel();"), "shared Master Board consumers must use the command-owner production model");
 assert(renderHydration >= 0 && renderReactDecision > renderHydration, "Master Board must start production hydration before preparing permanent React");
 assert(renderReactTarget > renderReactDecision, "Master Board must return its fail-closed React target after production hydration");
-assert(renderModuleLoad === -1, "Master Board current route must not load the same-release legacy renderer");
 assert(!masterBoardRender.includes("renderShiftMasterBoardPage") && !masterBoardRender.includes("bindShiftMasterBoardEvents"),
   "Master Board current route must not expose legacy render or bind callbacks");
 assert(authSessionRender.includes('hydrateShiftExecutionServerProjection();'), "employee desktop must hydrate the PostgreSQL assignment and fact projection");
 assert(authSessionRender.indexOf("hydrateShiftExecutionServerProjection();") < authSessionRender.indexOf("employeeDesktopReactIslandHost.prepareRender();"), "employee desktop must start production hydration before preparing permanent React");
-assert(!authSessionRender.includes("ensureShiftMasterBoardModule();"), "employee desktop must not load the legacy Master Board renderer on its normal path");
+assert(!authSessionRender.includes("renderShiftMasterBoardPage"), "employee desktop must not expose the retired Master Board renderer on its normal path");
 assert(hydration.includes('["shiftMasterBoard", "authSessionPrototype"].includes(ui?.activeModule)'), "a changed dispatch projection must re-render both the Master Board and employee desktop");
 
 // A bounded overlay must not erase compatibility snapshot state. It can only

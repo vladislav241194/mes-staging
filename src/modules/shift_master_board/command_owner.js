@@ -18,10 +18,12 @@ function firstText(...values) {
   return values.map((value) => text(value)).find(Boolean) || "";
 }
 
-function quantity(value) {
+export function normalizeShiftMasterBoardQuantity(value) {
   const parsed = Math.round(Number(String(value ?? "").replace(",", ".")));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
+
+const quantity = normalizeShiftMasterBoardQuantity;
 
 function safeInteger(value) {
   const parsed = Number(value);

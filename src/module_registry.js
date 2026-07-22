@@ -158,7 +158,11 @@ const CORE_MODULE_BLUEPRINTS = [
     regression: { type: "contract", hasTable: false, hasActions: true, hasOverlayProbe: true },
     overlayProbeSelector: "[data-shift-board-print]:not([disabled])",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, master: OPERATIONAL_ACCESS, dispatcher: READ_ONLY_ACCESS },
-    capabilities: { actions: true, overlays: ["shift-sheet"] }, sourceFiles: ["src/modules/shift_master_board/render.js"],
+    capabilities: { actions: true, overlays: ["shift-sheet"] }, sourceFiles: [
+      "src/modules/shift_master_board/react_island_host.js",
+      "src/modules/shift_master_board/command_owner.js",
+      "src/modules/shift_master_board/server_execution_bridge.js",
+    ],
   }),
   coreBlueprint({
     id: "authSessionPrototype", label: "Рабочий стол", icon: "keyboard", groupId: "operations", navigationOrder: 30, flowOrder: 170,

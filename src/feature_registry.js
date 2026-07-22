@@ -94,7 +94,12 @@ const MODULE_FEATURE_OVERRIDES = {
       "shiftMasterBoardLaneBySlot",
     ],
     api: ["/api/shared-state"],
-    qa: ["scripts/shift-master-board-functional-qa.mjs", "scripts/shift-operational-flow-functional-qa.mjs"],
+    qa: [
+      "scripts/shift-master-board-react-runtime-policy-qa.mjs",
+      "scripts/shift-master-board-command-owner-qa.mjs",
+      "scripts/shift-master-board-server-command-contract-qa.mjs",
+      "scripts/shift-master-board-server-execution-bridge-qa.mjs",
+    ],
   },
   shiftWorkOrders: {
     css: ["styles/layers/60-operational-modules.css"],

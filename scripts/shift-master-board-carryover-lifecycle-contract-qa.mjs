@@ -13,29 +13,28 @@ function section(source, startMarker, endMarker, name) {
 }
 
 const app = await readFile(fileURLToPath(new URL("../src/app.js", import.meta.url)), "utf8");
-const render = await readFile(fileURLToPath(new URL("../src/modules/shift_master_board/render.js", import.meta.url)), "utf8");
+const owner = await readFile(fileURLToPath(new URL("../src/modules/shift_master_board/command_owner.js", import.meta.url)), "utf8");
 const bridge = await readFile(fileURLToPath(new URL("../src/modules/shift_master_board/server_execution_bridge.js", import.meta.url)), "utf8");
 
-const saveFact = section(render, "function saveShiftMasterBoardFact(", "function removeShiftMasterBoardCarryoverForSource(", "fact save lifecycle");
-const createCarryover = section(render, "function createShiftMasterBoardCarryover(", "function bindShiftMasterBoardEvents(", "carryover creation lifecycle");
+const mergedCarryovers = section(owner, "function mergedCarryoverStore(", "export function prepareShiftMasterBoardFact(", "canonical carryover merge");
+const prepareFact = section(owner, "export function prepareShiftMasterBoardFact(", "export function prepareShiftMasterBoardLane(", "fact command lifecycle");
+const executeFact = section(app, "async function executeShiftExecutionFactCommand(", "async function executeEmployeeDesktopOperationFactCommand(", "fact owner execution");
 const mirrorFact = section(app, "async function mirrorShiftMasterBoardFactToServer(", "async function mirrorShiftMasterBoardCarryoverToServer(", "fact server mirror");
 const mirrorCarryover = section(app, "async function mirrorShiftMasterBoardCarryoverToServer(", "async function mirrorShiftMasterBoardCarryoverRemovalToServer(", "carryover server mirror");
-// Keep the removal adapter bounded by the function that immediately follows it.
-// `hydratePlanningWorkOrderDetail` was removed during the planning read-model
-// consolidation, so using it as an end marker made this contract test fail
-// before it could inspect the lifecycle it is meant to protect.
 const mirrorRemoval = section(app, "async function mirrorShiftMasterBoardCarryoverRemovalToServer(", "async function changePlanningRouteQuantity(", "carryover removal mirror");
 
-assert(saveFact.includes("void onShiftMasterBoardFactSaved(finalRow, finalFact);"), "fact persistence must not relay an automatic carryover through the fact callback");
-assert(saveFact.includes("if (notifyOwner)"), "React fact commands must be able to await the existing owner without duplicate callbacks");
-assert(saveFact.includes("onShiftMasterBoardCarryoverRemoved(finalRow, removedCarryover)"), "completed fact correction must notify the carryover cancellation lifecycle");
-assert(createCarryover.includes("item.sourceRowId === slotId && item.dateKey === nextDate"), "carryovers must be matched by their logical source-row/date identity");
-assert(createCarryover.includes("if (!isUnchanged && notifyOwner) void onShiftMasterBoardCarryoverCreated(row, carryover, existing);"), "an unchanged or explicitly awaited partial fact must not emit a duplicate carryover write");
-assert(mirrorFact.includes("async function mirrorShiftMasterBoardFactToServer(row, fact)"), "fact mirror must not accept a duplicate carryover argument");
-assert(!mirrorFact.includes("mirrorShiftMasterBoardCarryoverToServer("), "fact mirror must not issue a second automatic carryover command");
-assert(mirrorCarryover.includes("mirrorShiftMasterBoardCarryoverRemovalToServer(row, replacedCarryover"), "changed partial carryovers must cancel their active canonical predecessor first");
+assert(mergedCarryovers.includes("sourceRowId && dateKey"), "carryover merge must use the logical source-row/date identity");
+assert(prepareFact.includes("text(carryover?.sourceRowId) === row.id && validDateKey(carryover?.dateKey) === nextDateKey"), "fact command must find the canonical carryover by source row and next date");
+assert(prepareFact.includes("const unchanged = Boolean(existing && quantity(existing.remainingQuantity) === remainingQuantity)"), "an unchanged partial fact must reuse its canonical carryover");
+assert(prepareFact.includes("carryoverChanged = !unchanged") && prepareFact.includes("replacedCarryover = carryoverChanged ? existing : null"), "changed carryovers must expose their predecessor to the server bridge");
+assert(prepareFact.includes("removedCarryovers = Object.values(carryoverStore).filter"), "a completed corrected fact must expose every active carryover for cancellation");
+assert(executeFact.includes("mirrorShiftMasterBoardFactToServer(prepared.row, prepared.fact)"), "fact execution must await the fact server owner");
+assert(executeFact.includes("prepared.carryover && prepared.carryoverChanged") && executeFact.includes("mirrorShiftMasterBoardCarryoverToServer(prepared.row, prepared.carryover, prepared.replacedCarryover)"), "changed partial facts must write one canonical carryover");
+assert(executeFact.includes("for (const removedCarryover of prepared.removedCarryovers || [])") && executeFact.includes("mirrorShiftMasterBoardCarryoverRemovalToServer"), "completed corrections must cancel every removed carryover");
+assert(!mirrorFact.includes("mirrorShiftMasterBoardCarryoverToServer("), "fact mirror must not issue a duplicate automatic carryover command");
+assert(mirrorCarryover.includes("mirrorShiftMasterBoardCarryoverRemovalToServer(row, replacedCarryover"), "changed partial carryovers must cancel their canonical predecessor first");
 assert(mirrorRemoval.includes("buildShiftMasterBoardCarryoverCancelWrite"), "removed carryovers must build the explicit cancellation command");
-assert(app.includes("onShiftMasterBoardCarryoverRemoved: (...args) => mirrorShiftMasterBoardCarryoverRemovalToServer(...args)"), "board callback must route removal through the server command adapter");
 assert(bridge.includes("write.type === \"carryover-cancel\""), "server bridge must execute carryover cancellation commands");
+assert(!app.includes("modules/shift_master_board/render.js") && !app.includes("onShiftMasterBoardCarryoverRemoved"), "current app must not retain the retired renderer callback lifecycle");
 
 console.log("Shift master board carryover lifecycle contract QA: OK");

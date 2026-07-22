@@ -89,7 +89,6 @@ const browserQaScriptFiles = [
   "scripts/design-qa-snapshots.mjs",
   "scripts/mobile-qa.mjs",
   "scripts/scroll-dropdown-qa.mjs",
-  "scripts/shift-master-board-functional-qa.mjs",
 ];
 
 const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, designSnapshotsSource, packageSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, bootstrapSnapshotSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource, uiHardeningPlanQaSource, accessRolesModuleSource, ganttRuntimeModuleSource, moduleRuntimeSources] = await Promise.all([
@@ -517,8 +516,6 @@ checkNoMatches("Запрещено возвращать старый shift-metho
 checkNoMatches("Запрещено возвращать старую доску Мастерской в runtime", appSource, /renderShiftMasterPage|renderShiftMasterDemo|renderShiftMasterOrderCard|renderShiftMasterRow\(|updateShiftMasterAssignment|updateShiftMasterFact|issueShiftMasterRows|data-shift-master-(?:scope|login|select|resource|employee|note)/);
 checkNoMatches("Запрещено возвращать CSS старой доски Мастерской", stylesSource, /shift-master-(?:scope|login|section-card|order-flow|row(?:-|\b)|demo-(?!badge))/);
 checkNoMatches("Запрещено возвращать мертвые CSS-хвосты текущей доски Мастерской", stylesSource, /shift-master-board-(?:load(?!-tooltip\b)|detail-head)/);
-checkIncludes("Текущий tooltip нагрузки Мастерской должен иметь runtime-разметку", runtimeSource, "shift-master-board-load-tooltip");
-checkIncludes("Текущий tooltip нагрузки Мастерской должен иметь CSS", stylesSource, ".shift-master-board-load-tooltip");
 checkNoMatches("Запрещено возвращать старый module-entity runtime/CSS слой", `${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, /module-entity-(?:item|list|title)|module-list-label/);
 checkNoMatches("Боковые элементы нельзя писать вручную как class=\"ui-sidebar-item\"; использовать renderUiSidebarItem", appSource, /class="[^"]*\bui-sidebar-item(?:\s|")/);
 checkNoMatches("Живые страницы нельзя собирать ручным literal module-data-page; использовать renderUiModulePage", appSource, /<section class="[^"]*\bmodule-data-page\b/);
@@ -656,7 +653,6 @@ browserQaScriptFiles.forEach((file, index) => {
 [
   ["qa:state", "qa:state:inner"],
   ["qa:planning-labor", "qa:planning-labor:inner"],
-  ["qa:shift-master-board", "qa:shift-master-board:inner"],
   ["qa:timesheet", "qa:timesheet:inner"],
   ["qa:gantt-operational", "qa:gantt-operational:inner"],
   ["qa:shift-flow", "qa:shift-flow:inner"],
@@ -671,6 +667,12 @@ browserQaScriptFiles.forEach((file, index) => {
 if (packageJson.scripts?.["qa:roles"] !== "npm run qa:roles:inner"
   || !packageJson.scripts?.["qa:roles:inner"]?.includes("roles-react-runtime-policy-qa.mjs")) {
   fail("scripts.qa:roles должен запускать прямой nonvisual React/server-contract gate");
+}
+if (packageJson.scripts?.["qa:shift-master-board"] !== "npm run qa:shift-master-board:inner"
+  || !packageJson.scripts?.["qa:shift-master-board:inner"]?.includes("shift-master-board-react-runtime-policy-qa.mjs")
+  || !packageJson.scripts?.["qa:shift-master-board:inner"]?.includes("shift-master-board-command-owner-qa.mjs")
+  || !packageJson.scripts?.["qa:shift-master-board:inner"]?.includes("qa:shift-master-board-server-bridge")) {
+  fail("scripts.qa:shift-master-board должен запускать прямой nonvisual React/owner/server-contract gate");
 }
 if (/"qa:shift-master"\s*:|"qa:shift-master-v2"\s*:|shift-master-functional-qa|shift-master-v2-functional-qa/.test(JSON.stringify(packageJson.scripts || {}))) {
   fail("package.json не должен возвращать QA-команды удаленных старых мастерских");

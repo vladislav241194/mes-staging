@@ -2022,7 +2022,12 @@ function getVisibleDirectoryGroups(visibleSections = getVisibleDirectorySections
 function getShiftMasterBoardUnassignedTaskCount() {
   try {
     const model = getShiftMasterBoardModel();
-    return Math.max(0, Number(model.lanes.find((lane) => lane.id === "intake")?.rows.length || 0));
+    const rows = Array.isArray(model?.allRows)
+      ? model.allRows
+      : Array.isArray(model?.rows)
+        ? model.rows
+        : [];
+    return rows.filter((row) => row?.boardLaneId === "intake").length;
   } catch {
     return 0;
   }

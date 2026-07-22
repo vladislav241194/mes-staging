@@ -99,7 +99,10 @@ import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workb
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
-import { createShiftMasterBoardCommandOwner } from "./modules/shift_master_board/command_owner.js";
+import {
+  createShiftMasterBoardCommandOwner,
+  normalizeShiftMasterBoardQuantity,
+} from "./modules/shift_master_board/command_owner.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createMarkingApiClient } from "./modules/marking/api_client.ts";
@@ -205,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.54";
+const APP_VERSION_FALLBACK = "v.1.500.55";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1571,295 +1574,6 @@ function ensureRoutesRenderModule() {
       if (["directories", "routes"].includes(ui.activeModule)) render();
     });
   return routesRenderModuleLoad;
-}
-
-let getShiftWorkOrderRows, getShiftMasterBoardSlotRows, groupShiftRowsByWorkCenter, groupShiftRowsByOrder, getDispatchWindow, getShiftWorkbenchWindow, getShiftWindowDayCount, renderShiftWindowRuler, normalizeDateInput, setShiftWorkbenchDate, moveShiftWorkbenchDate, setShiftWorkbenchToday, renderShiftCalendarControl, isSlotInsideDispatchWindow, getDispatchSlotTone, getDispatchSlotWindowStyle, buildDispatchWorkCenterRows, buildDispatchRouteRows, buildDispatchSignals, getDispatchCheckpointReferenceTime, buildDispatchCheckpoints, buildDispatchBoardData, normalizeShiftMasterBoardQuantity, getShiftMasterBoardAssignment, getShiftMasterBoardFact, getShiftMasterBoardAssignmentQuantity, getShiftMasterBoardRowById, getShiftMasterBoardNextRouteStep, getShiftMasterBoardTransferTarget, getShiftMasterBoardCarryoverForSource, buildShiftMasterBoardTransferContract, buildShiftMasterBoardSheetContract, getShiftMasterBoardLaborMinutesPerUnit, getShiftMasterBoardTimesheetCapacity, getShiftMasterBoardLaneId, getShiftMasterBoardRow, getShiftMasterBoardGroupKey, groupShiftMasterBoardRows, getShiftMasterBoardWeek, getShiftMasterBoardCarryoverRows, getShiftMasterBoardFallbackRows, getShiftMasterBoardModel, getShiftMasterBoardExecutorLoadMap, renderShiftMasterBoardPage, renderShiftMasterBoardTopControls, renderShiftMasterBoardKpi, renderShiftMasterBoardLanes, renderShiftMasterBoardLane, renderShiftMasterBoardCard, renderShiftMasterBoardDetail, renderShiftMasterBoardTaskContext, renderShiftMasterBoardInlineSummary, renderShiftMasterBoardSummaryCell, getShiftMasterBoardRouteChain, renderShiftMasterBoardRouteChain, renderShiftMasterBoardCoverage, renderShiftMasterBoardEmployeeOptions, renderShiftMasterBoardAvailableEmployeeLoadbar, renderShiftMasterBoardAssignment, renderShiftMasterBoardDocument, renderShiftMasterBoardSheetModal, renderShiftMasterBoardActionModal, getShiftMasterDemoLanes, getShiftMasterRowOrderLabel, getShiftMasterRowRouteLabel, getShiftMasterRowRoutePartLabel, readShiftMasterBoardAssignmentPanel, readShiftMasterBoardCurrentAssignmentPatch, mergeShiftMasterBoardIssueAssignment, persistShiftMasterBoardAssignmentInput, updateShiftMasterBoardAvailableQuantityPreview, updateShiftMasterBoardLane, canMoveShiftMasterBoardCardToLane, moveShiftMasterBoardCardToLane, saveShiftMasterBoardAssignment, markShiftMasterBoardSheetPrinted, saveShiftMasterBoardFact, removeShiftMasterBoardCarryoverForSource, createShiftMasterBoardCarryover, bindShiftMasterBoardEvents;
-function initializeShiftMasterBoardModule(factory) {
-  ({
-    getShiftWorkOrderRows,
-    getShiftMasterBoardSlotRows,
-    groupShiftRowsByWorkCenter,
-    groupShiftRowsByOrder,
-    getDispatchWindow,
-    getShiftWorkbenchWindow,
-    getShiftWindowDayCount,
-    renderShiftWindowRuler,
-    normalizeDateInput,
-    setShiftWorkbenchDate,
-    moveShiftWorkbenchDate,
-    setShiftWorkbenchToday,
-    renderShiftCalendarControl,
-    isSlotInsideDispatchWindow,
-    getDispatchSlotTone,
-    getDispatchSlotWindowStyle,
-    buildDispatchWorkCenterRows,
-    buildDispatchRouteRows,
-    buildDispatchSignals,
-    getDispatchCheckpointReferenceTime,
-    buildDispatchCheckpoints,
-    buildDispatchBoardData,
-    normalizeShiftMasterBoardQuantity,
-    getShiftMasterBoardAssignment,
-    getShiftMasterBoardFact,
-    getShiftMasterBoardAssignmentQuantity,
-    getShiftMasterBoardRowById,
-    getShiftMasterBoardNextRouteStep,
-    getShiftMasterBoardTransferTarget,
-    getShiftMasterBoardCarryoverForSource,
-    buildShiftMasterBoardTransferContract,
-    buildShiftMasterBoardSheetContract,
-    getShiftMasterBoardLaborMinutesPerUnit,
-    getShiftMasterBoardTimesheetCapacity,
-    getShiftMasterBoardLaneId,
-    getShiftMasterBoardRow,
-    getShiftMasterBoardGroupKey,
-    groupShiftMasterBoardRows,
-    getShiftMasterBoardWeek,
-    getShiftMasterBoardCarryoverRows,
-    getShiftMasterBoardFallbackRows,
-    getShiftMasterBoardModel,
-    getShiftMasterBoardExecutorLoadMap,
-    renderShiftMasterBoardPage,
-    renderShiftMasterBoardTopControls,
-    renderShiftMasterBoardKpi,
-    renderShiftMasterBoardLanes,
-    renderShiftMasterBoardLane,
-    renderShiftMasterBoardCard,
-    renderShiftMasterBoardDetail,
-    renderShiftMasterBoardTaskContext,
-    renderShiftMasterBoardInlineSummary,
-    renderShiftMasterBoardSummaryCell,
-    getShiftMasterBoardRouteChain,
-    renderShiftMasterBoardRouteChain,
-    renderShiftMasterBoardCoverage,
-    renderShiftMasterBoardEmployeeOptions,
-    renderShiftMasterBoardAvailableEmployeeLoadbar,
-    renderShiftMasterBoardAssignment,
-    renderShiftMasterBoardDocument,
-    renderShiftMasterBoardSheetModal,
-    renderShiftMasterBoardActionModal,
-    getShiftMasterDemoLanes,
-    getShiftMasterRowOrderLabel,
-    getShiftMasterRowRouteLabel,
-    getShiftMasterRowRoutePartLabel,
-    readShiftMasterBoardAssignmentPanel,
-    readShiftMasterBoardCurrentAssignmentPatch,
-    mergeShiftMasterBoardIssueAssignment,
-    persistShiftMasterBoardAssignmentInput,
-    updateShiftMasterBoardAvailableQuantityPreview,
-    updateShiftMasterBoardLane,
-    canMoveShiftMasterBoardCardToLane,
-    moveShiftMasterBoardCardToLane,
-    saveShiftMasterBoardAssignment,
-    markShiftMasterBoardSheetPrinted,
-    saveShiftMasterBoardFact,
-    removeShiftMasterBoardCarryoverForSource,
-    createShiftMasterBoardCarryover,
-    bindShiftMasterBoardEvents,
-  } = factory({
-  addMs,
-  app,
-  attributes: {},
-  bindGenericModalCloseEvents,
-  bindShiftCalendarEvents,
-  buildBacklogItems,
-  buildMesDocumentContract,
-  calculateProjectProgress,
-  candidate: null,
-  canSelectMaster: false,
-  center: null,
-  className: "",
-  day: "",
-  DAY_MS,
-  defaultUiState,
-  deviationComment: "",
-  deviationNotes: [],
-  employeeId: "",
-  enrichShiftMasterEmployeesWithTimesheet,
-  escapeAttribute,
-  escapeHtml,
-  fallback: null,
-  field: "",
-  formatDate,
-  formatDateTimeShort,
-  formatReportNumber,
-  fromDateInput,
-  getDispatchFact,
-  getDispatchFactStatusConfig,
-  getBatch,
-  getEarliestPlannedSlotStart,
-  getGanttSlotStatusView,
-  getGanttSlotViewModel,
-  getMesFlowTransitionView,
-  getMesStatusView,
-  getPlanningOrderObjectLabel,
-  getPlanningRouteLaborReadiness,
-  getPlanningRouteQuantity,
-  getPlanningShiftSlotTimeLabelForWindow,
-  getPlanningWorkCenters,
-  getProject,
-  getProjectDeadlineState,
-  getProjectDisplayName,
-  getRoutePlanningContext,
-  getRouteStepPlanningTask,
-  getRouteStepQuantityForBatch,
-  getRouteStepSelectedPlanningWorkCenterId,
-  getShiftMasterAssignableEmployees,
-  getShiftMasterAssignment,
-  getShiftMasterBoardAccessContext,
-  getShiftMasterBoardRiskLabel,
-  getShiftMasterEmployee,
-  getShiftMasterOwnerProfileForWorkCenter,
-  getShiftMasterProfile,
-  getShiftMasterProfiles,
-  getShiftMasterResourceOptions,
-  getShiftRowId,
-  getShiftRowWorkCenterId,
-  getShiftSlotPlannedQuantity,
-  getSlotDurationHours,
-  getSlotGanttWorkCenterId: (slot) => getPlanningSlotWorkCenterId(slot),
-  getSlotPlanningOrderId,
-  getSlotRoute: (slot) => getPlanningSlotRoute(slot),
-  getSlotRouteId,
-  getSlotWarnings,
-  getTimesheetAvailabilityForShiftMasterEmployee,
-  getWorkCenter,
-  getWorkCenterCapacity,
-  getWorkingDurationBetween: (...args) => (
-    typeof planningCoreService.getWorkingDurationBetween === "function"
-      ? planningCoreService.getWorkingDurationBetween(...args)
-      : Math.max(0, new Date(args[2]).getTime() - new Date(args[1]).getTime())
-  ),
-  getWorkOrderPlanningStatusValue,
-  icon,
-  iconName: "",
-  id: "",
-  input: null,
-  isActive: false,
-  isGanttSlotActive,
-  isGanttSlotCompleted,
-  isGanttSlotProblemStatus,
-  isGanttSlotStatus,
-  isManufacturingOutputReceiptSlot,
-  isSmtOperationWorkCenter,
-  isSmtStep: false,
-  isWorkOrderPlanningCanceled,
-  item: null,
-  kind: "",
-  mapLegacyWorkCenterId,
-  message: "",
-  month: "",
-  name: "",
-  normalizeBoardsPerPanel,
-  normalizeDispatchExecutorCount,
-  normalizeDispatchLaborMinutes,
-  normalizePlainRecord,
-  normalizePlanningLaborPositiveNumber,
-  normalizeQuantity,
-  normalizeUiTone,
-  normalizeShiftMasterBoardFocus,
-  normalizeShiftMasterBoardLane,
-  normalizeShiftMasterBoardRiskReason,
-  normalizeShiftMasterBoardSwimlane,
-  normalizeShiftMasterExecutorQuantity,
-  normalizeShiftMasterExecutors,
-  normalizeShiftMasterFactQuantity,
-  note: "",
-  notifySaveSuccess,
-  onShiftMasterBoardAssignmentSaved: (...args) => mirrorShiftMasterBoardAssignmentToServer(...args),
-  onShiftMasterBoardFactSaved: (...args) => mirrorShiftMasterBoardFactToServer(...args),
-  onShiftMasterBoardCarryoverCreated: (...args) => mirrorShiftMasterBoardCarryoverToServer(...args),
-  onShiftMasterBoardCarryoverRemoved: (...args) => mirrorShiftMasterBoardCarryoverRemovalToServer(...args),
-  operationName: "",
-  patch: null,
-  persistUiState,
-  profile: null,
-  rawStatus: "",
-  recoverPlanningStateFromStorageIfRuntimeEmpty,
-  render,
-  renderUiActionButton,
-  renderUiEmptyState,
-  renderUiModalFrame,
-  renderUiModalShell,
-  renderUiModuleHeader,
-  renderUiModulePage,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiPanelHead,
-  renderUiSystemState,
-  renderUiStatusToken,
-  resource: null,
-  resourceId: "",
-  resourceLabel: "",
-  routeStepRequiresManualPlanningLine,
-  rowId: "",
-  SHIFT_MASTER_BOARD_LANES,
-  SHIFT_WORKBENCH_WINDOW_DAYS,
-  shiftMasterProfileOwnsWorkCenter,
-  slackMs: 0,
-  source: null,
-  sourceId: "",
-  startOfDay,
-  stepId: "",
-  style: "",
-  taskLabel: "",
-  tasks: [],
-  text: "",
-  title: "",
-  toDate,
-  toDateInput,
-  transferSummary: null,
-  type: "",
-  value: "",
-  version: "",
-  windowsOverlap,
-  getUi: () => ui,
-  getPlanningState: () => planningState,
-  getDirectoryState: () => directoryState,
-  }));
-}
-
-function renderShiftMasterBoardShellState({ title, description }) {
-  return renderMesModulePatternPage({
-    moduleId: "shiftMasterBoard",
-    header: renderUiModuleHeader({
-      eyebrow: "Оперативное управление",
-      title: "Мастерская",
-      description,
-      className: "shift-master-board-header is-compact",
-    }),
-    content: renderUiEmptyState({ title, description }),
-  });
-}
-
-renderShiftMasterBoardPage = () => renderShiftMasterBoardShellState({
-  title: "Загружаем мастерскую",
-  description: "Рабочее пространство откроется автоматически.",
-});
-renderShiftMasterBoardSheetModal = () => "";
-renderShiftMasterBoardActionModal = () => "";
-markShiftMasterBoardSheetPrinted = () => null;
-bindShiftMasterBoardEvents = () => {};
-let shiftMasterBoardModuleLoad = null;
-let shiftMasterBoardModuleError = null;
-let shiftMasterBoardModuleReady = false;
-
-function ensureShiftMasterBoardModule() {
-  if (shiftMasterBoardModuleLoad || shiftMasterBoardModuleError) return shiftMasterBoardModuleLoad;
-  shiftMasterBoardModuleLoad = import("./modules/shift_master_board/render.js")
-    .then(({ createShiftMasterBoardModule }) => {
-      initializeShiftMasterBoardModule(createShiftMasterBoardModule);
-      shiftMasterBoardModuleReady = true;
-    if (["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule) || ui.activeModule === "shiftWorkOrders") {
-      render({ skipRememberScroll: true });
-    }
-    })
-    .catch((error) => {
-      shiftMasterBoardModuleError = error;
-      console.error("[MES shift-master-board] module load failed", error);
-      if (["shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui.activeModule)) render({ skipRememberScroll: true });
-    });
-  return shiftMasterBoardModuleLoad;
 }
 
 const shiftWorkOrderJournalOwner = createShiftWorkOrderJournalOwner({
@@ -4455,6 +4169,12 @@ function getShiftProductionWindow() {
     label: dateKey ? `${formatDate(fromDateInput(dateKey))} · 1 смена` : "Текущая смена",
   };
 }
+function normalizeDateInput(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const date = raw.includes("T") ? toDate(raw) : toDate(fromDateInput(raw));
+  return Number.isNaN(date.getTime()) ? "" : toDateInput(date);
+}
 function getShiftMasterBoardProductionInput() {
   const window = getShiftProductionWindow();
   return {
@@ -4490,6 +4210,9 @@ const shiftMasterBoardCommandOwner = createShiftMasterBoardCommandOwner({
   getPermissions: getShiftMasterBoardCommandPermissions,
   makeId,
 });
+function getShiftMasterBoardModel() {
+  return shiftMasterBoardCommandOwner.getModel();
+}
 async function executeShiftExecutionAssignmentCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
   const prepared = shiftMasterBoardCommandOwner.execute({ ...command, type: "save-assignment" });
   if (prepared?.ok !== true) return prepared;
@@ -11228,7 +10951,7 @@ operationalRuntimeService = createOperationalRuntimeServiceModule({
   getRouteTaskTypeLabel: (...args) => typeof getRouteTaskTypeLabel === "function" ? getRouteTaskTypeLabel(...args) : "объект",
   getRouteTaskInputObjectLabel,
   getRouteTaskProducedObjectLabel,
-  getShiftMasterBoardModel: (...args) => typeof getShiftMasterBoardModel === "function" ? getShiftMasterBoardModel(...args) : ({ lanes: [] }),
+  getShiftMasterBoardModel,
   getSlotEffectiveOperationContext,
   getSlotGanttResourceId,
   getSlotGanttWorkCenterId,
@@ -11546,7 +11269,7 @@ appEventsService = createAppEventsServiceModule({
   getRouteStepsForModule,
   getRouteStepsForTask,
   getRouteTasksForModule,
-  getShiftMasterBoardModel: (...args) => typeof getShiftMasterBoardModel === "function" ? getShiftMasterBoardModel(...args) : ({ rows: [], allRows: [] }),
+  getShiftMasterBoardModel,
   getSlotPlanningOrderId,
   getSlotRouteId,
   getSlotWarnings,
@@ -11617,14 +11340,17 @@ appEventsService = createAppEventsServiceModule({
     authPrototypePinDraft = "";
     authPrototypeKeypadDigits = [];
   },
-  saveShiftMasterBoardAssignment: (...args) => typeof saveShiftMasterBoardAssignment === "function" ? saveShiftMasterBoardAssignment(...args) : false,
-  saveShiftMasterBoardFact: (...args) => typeof saveShiftMasterBoardFact === "function" ? saveShiftMasterBoardFact(...args) : false,
+  saveShiftMasterBoardAssignment: (rowId, assignment = {}) => {
+    const result = shiftMasterBoardCommandOwner.execute({
+      type: "save-assignment",
+      rowId,
+      executors: assignment.executors,
+    });
+    return result?.ok === true ? result.assignment : null;
+  },
   schedulePlanningRouteToGantt,
   runLongTask,
   selected,
-  setShiftWorkbenchDate: (...args) => typeof setShiftWorkbenchDate === "function" ? setShiftWorkbenchDate(...args) : false,
-  moveShiftWorkbenchDate: (...args) => typeof moveShiftWorkbenchDate === "function" ? moveShiftWorkbenchDate(...args) : false,
-  setShiftWorkbenchToday: (...args) => typeof setShiftWorkbenchToday === "function" ? setShiftWorkbenchToday(...args) : false,
   setPlanningOrderLaborSetting,
   slotMatchesProductionContext,
   statusReportColors,
