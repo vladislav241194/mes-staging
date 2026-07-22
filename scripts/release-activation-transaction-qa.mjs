@@ -23,6 +23,12 @@ import { buildDirectoryClusterCommandManifestContract } from "./release-director
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const activationSource = await readFile(join(projectRoot, "scripts", "release-activate.mjs"), "utf8");
+assert(activationSource.includes("-H 'Host: mes-internal'")
+  && activationSource.includes('http://127.0.0.1:$port/bootstrap-snapshot.json'),
+"the manifest bootstrap healthcheck must use the internal Host boundary");
+assert(activationSource.indexOf('mv -Tf "$rollback_pointer_path" "$app_path"')
+    < activationSource.indexOf('rm -f -- "$failed_pointer_path"'),
+"automatic rollback must remove its temporary failed-candidate pointer before recovery sealing");
 const specifications2CompatibilityMarker = await readFile(
   join(projectRoot, "ops", "postgres", "specifications2-server-command-compatibility.json"),
   "utf8",
@@ -312,12 +318,7 @@ exit 2
   await assertMissing(`${activeRecordPath}.next`, "partial active release record must be removed");
   await assertMissing(join(candidate.releasePath, "activation.json.next"), "partial activation record must be removed");
   const failedPointers = (await readdir(candidate.releasePath)).filter((name) => name.startsWith("failed-active-pointer-"));
-  assert.equal(failedPointers.length, 1, "transaction QA must prove that the candidate pointer was switched before failure");
-  assert.equal(
-    await readlink(join(candidate.releasePath, failedPointers[0])),
-    candidate.appPath,
-    "failed candidate pointer must remain available for diagnosis",
-  );
+  assert.equal(failedPointers.length, 0, "rollback must remove the failed candidate pointer before recovery sealing");
   const restartLogBeforeSameRelease = await readFile(restartLogPath, "utf8");
   assert.equal(restartLogBeforeSameRelease.trim().split(/\r?\n/).length, 2, "failed activation must restart once for verification and then stop the restored pointer fail-closed");
 
@@ -416,12 +417,7 @@ exit 2
   );
   const finalRenameFailedPointers = (await readdir(finalRenameCandidate.releasePath))
     .filter((name) => name.startsWith("failed-active-pointer-"));
-  assert.equal(finalRenameFailedPointers.length, 1, "second final rename failure must retain the failed candidate pointer");
-  assert.equal(
-    await readlink(join(finalRenameCandidate.releasePath, finalRenameFailedPointers[0])),
-    finalRenameCandidate.appPath,
-    "second final rename failure must retain the exact failed candidate target",
-  );
+  assert.equal(finalRenameFailedPointers.length, 0, "second final rename failure must not poison recovery sealing with a diagnostic symlink");
   assert.equal(
     (await readFile(finalRenameRestartLogPath, "utf8")).trim().split(/\r?\n/).length,
     2,

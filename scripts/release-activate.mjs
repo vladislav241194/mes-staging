@@ -1219,6 +1219,8 @@ rollback() {
       mv -T "$app_path" "$failed_pointer_path"
     fi
     mv -Tf "$rollback_pointer_path" "$app_path"
+    rm -f -- "$failed_pointer_path"
+    sync -f "$release_path"
   else
     if [ -L "$app_path" ]; then
       mv -T "$app_path" "$failed_pointer_path"
@@ -1336,7 +1338,7 @@ check_served_bootstrap() {
   for attempt in $(seq 1 12); do
     if systemctl is-active --quiet "$service"; then
       http_code="$(curl -sS --max-time 10 -o "$bootstrap_body_path" -w '%{http_code}' \
-        "http://localhost:$port/bootstrap-snapshot.json" || true)"
+        -H 'Host: mes-internal' "http://127.0.0.1:$port/bootstrap-snapshot.json" || true)"
       if [ "$http_code" = "200" ]; then
         actual_sha="$(sha256sum "$bootstrap_body_path" | awk '{print $1}')"
         if [ "$actual_sha" = "$expected_sha" ]; then
