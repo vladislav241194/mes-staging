@@ -291,6 +291,36 @@ Immediate rollback dry-run точно возвращает `v.1.500.51-6ec4524`;
 legacy `.18` сохранён. Browser/visual QA намеренно не выполнялся;
 implementation остаётся 99%, strict acceptance — 50%.
 
+Release `v.1.500.53-a82f24e` активирован на Pilot из точного commit
+`a82f24e0011a471264c7dec49355bd21e99d353f`. Specifications 2 и Gantt теперь
+всегда остаются внутри fail-closed React runtime; их same-release legacy
+renderers физически удалены. Удалено 10 110 строк runtime source:
+`gantt_runtime/render.js`, `gantt_runtime/lazy_facade.js`,
+`specifications2/render.js` и `specifications2/publish_flow.js`.
+`requestLegacyRender` в app shell снижен с 3 до 1; последний bridge относится
+к partial Roles. Gantt получил точный PostgreSQL projection/physical-slot
+read-back, безопасную навигацию и явные blocked owners. Specifications 2
+публикует только подготовленный N+1 fingerprint и подтверждает результат
+forced PostgreSQL read-back без повторной совместимой snapshot-записи.
+Оба модуля остаются `PARTIAL`: у Gantt нет owners для dependency edit/resize/
+calendar recalculation/optimization, у Specifications 2 не закрыта полная
+историческая relational-digest parity и mutable owner-поверхности.
+
+Local/public health `ok`, версия `v.1.500.53`, shared state `ready`, evaluation
+surfaces пусты; service и release pointer указывают на `.53`. Source/dist
+SHA-256 — `f9f2d462ca9cb48e6a697d95447925e7abd98c453e6821cbee708888db7f8f9f`
+и `bbe83cd0a8ce14b723237b1802dff2173903f6bc83e65bbe4563d773ff606bc2`.
+Immediate rollback dry-run точно возвращает `v.1.500.52-ee9cfd5`. Pinned
+legacy `v.1.500.18-93d02ed` остаётся запечатанным, но его dry-run правильно
+заблокирован включёнными Specifications 2 attachments/Work Orders/publication
+command owners; перед реальным legacy drill их необходимо штатно отключить
+root-owned скриптами, а guard обходить нельзя. Узкие production-shell smoke
+Gantt и Specifications 2, strict TypeScript, syntax, owner/runtime QA, fresh
+dist и boot QA прошли. Visual snapshot QA и authenticated Pilot lifecycle
+намеренно не выполнялись; полный all-modules smoke отдельно упирается в старый
+Planning empty-fixture contract. Implementation остаётся 99%, strict
+acceptance — 50%. Blueprint UI не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,

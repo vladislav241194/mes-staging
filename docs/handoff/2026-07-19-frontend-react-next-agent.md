@@ -1468,3 +1468,70 @@ without misclassifying any partial module as complete.
   pinned `.18` baseline is preserved.
 - Browser/visual QA was deliberately skipped. Implementation remains `99%`
   and strict accepted evidence remains `50%`. Blueprint UI was not introduced.
+
+## Gantt and Specifications 2 legacy retirement 2026-07-22: release `.53`
+
+This block supersedes `.52` as the live Pilot pointer. It removes both
+remaining Gantt/Specifications 2 same-release UI fallbacks without promoting
+either partial module to complete.
+
+- Active Pilot is `v.1.500.53-a82f24e` at exact commit
+  `a82f24e0011a471264c7dec49355bd21e99d353f`; immediate previous is
+  `v.1.500.52-ee9cfd5` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `f9f2d462ca9cb48e6a697d95447925e7abd98c453e6821cbee708888db7f8f9f` and
+  `bbe83cd0a8ce14b723237b1802dff2173903f6bc83e65bbe4563d773ff606bc2`.
+  Git provenance is `fresh-upstream-fetch`; the release manifest, root seals,
+  service pointer and activation record all resolve to the same commit.
+- Local/public health report `ok`, version `v.1.500.53`, shared state `ready`,
+  policy SHA
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`,
+  and zero active evaluation surfaces. `mes-pilot.service` is active and the
+  release pointer resolves to `.53`.
+- Deleted runtime source: `gantt_runtime/render.js` (5,850 lines),
+  `gantt_runtime/lazy_facade.js` (46), `specifications2/render.js` (4,019)
+  and `specifications2/publish_flow.js` (195), or 10,110 retired runtime lines.
+  The normal Gantt and Specifications 2 routes are permanent React/fail-closed.
+  `requestLegacyRender` in `src/app.js` fell from three to one; Roles owns the
+  last remaining bridge.
+- Gantt now validates exact projection slot identity/revision, forces
+  PostgreSQL projection read-back, persists safe display navigation, restores
+  selected/active routes and exposes explicit ownerless actions instead of
+  falling back. It stays `PARTIAL` until dependency edit, resize, working-
+  calendar recalculation and optimization have real server owners.
+- Specifications 2 now prepares the canonical N+1 revision and exact draft
+  fingerprint before mutation, suppresses the compatibility snapshot ACK,
+  and requires forced PostgreSQL read-back of the exact new revision. It stays
+  `PARTIAL`: historical local-vs-PostgreSQL relational-digest parity and the
+  remaining mutable owner surfaces are not claimed.
+- Shared React `Panel` now emits a direct `PanelBody`, so React screens obey
+  the same MES UI contract. Broad browser gates now build and inspect the
+  release `dist` instead of trying to execute raw TypeScript imports in Chrome;
+  their Gantt checks wait for the asynchronous island/runtime mount.
+- Strict React TypeScript, recursive syntax, cutover/runtime policy, Gantt and
+  Specifications 2 model/owner/runtime QA, boot QA, deterministic build,
+  built-dist policy and narrow production-shell module smoke all passed.
+  Visual snapshots and authenticated Pilot lifecycle were deliberately not
+  run. The full all-modules smoke has a separate pre-existing Planning empty-
+  fixture failure; do not misclassify it as a `.53` Gantt/Specifications 2
+  regression.
+- Immediate previous `.52` passed rollback dry-run. The pinned legacy `.18`
+  manifest remains valid, but a direct legacy-baseline dry-run is correctly
+  blocked while these PostgreSQL command owners are ON:
+  `50-specifications2-attachments.conf`,
+  `63-specifications2-work-orders.conf`, and
+  `64-specifications2-publication.conf`. A real legacy drill must first run the
+  active sealed release's root-owned deactivation scripts under the rollout
+  lock:
+  `ops/postgres/deactivate-specifications2-attachments.sh`,
+  `ops/postgres/deactivate-specifications2-work-orders.sh`, and
+  `ops/postgres/deactivate-specifications2-publication.sh`. Do not bypass the
+  compatibility guard.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: remove the final Roles legacy renderer/service and
+`requestLegacyRender` bridge while leaving the module honestly `PARTIAL` and
+fail-closed for unavailable access-control PostgreSQL writes. Do not count the
+mocked Roles browser PUT as production-owner evidence.
