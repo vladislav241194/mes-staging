@@ -66,6 +66,27 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 получил два legacy-consolidation балла. Доказанный глобальный прогресс теперь
 составляет **50%**; остальные критерии не переоценивались.
 
+## Ускоренный implementation checkpoint 2026-07-22
+
+Отдельный показатель реализации составляет **82%**, тогда как строгая
+evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
+верхнеуровневых маршрутов уже имеют React UI: **7 complete**, **7 partial** и
+**2 явных prototype**. Маркер `React TS` показывается только на семи complete
+модулях; partial и prototype не выдаются за завершённые.
+
+- Complete: Nomenclature, Weekly Production Control, Shift Master Board,
+  Shift Work Orders, Production Structure Matrix, Directories, Auth Prototype.
+- Partial: Specifications 2, Planning, Gantt, Timesheet, Roles, Contour Admin,
+  Auth Session Prototype.
+- Prototype: Dispatch и Marking.
+
+Visual QA на этой ускоренной волне отложен владельцем и не засчитывается как
+Pilot acceptance. До настоящих 100% остаются: закрыть action/owner parity и
+legacy data/model dependencies в partial-модулях; довести Dispatch и Marking до
+production-контрактов с API, БД и RBAC; перевести активный runtime на strict
+TypeScript; пройти Pilot read/write lifecycle с cleanup; затем выполнить
+permanent default-on, soak и rollback/reactivation acceptance.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,
