@@ -4648,13 +4648,19 @@ function getPlanningWorkbenchReactActivation() {
     evaluationRequested: readEvaluationRequested || liveWriteEvaluationEligible,
     localQaEnabled: localEvaluationEnabled,
   });
+  const permanentWriteEligible = runtimeActivation.runtimeMode === "react"
+    && isPlanningStartDateServerCommandsPrimary()
+    && authenticatedAccess
+    && canEditPlanning
+    && serverProjectionReady;
+  const signedWriteSurfaceEligible = liveWriteEvaluationEligible || permanentWriteEligible;
   if (!localQa.writeEvaluation
     && (serverWriteEvaluationAllowed || runtimeActivation.runtimeMode === "react")
     && employeeServerSessionState.status === "idle") {
     void reconcileEmployeeServerSession();
   }
   if (!localQa.writeEvaluation
-    && liveWriteEvaluationEligible
+    && signedWriteSurfaceEligible
     && signedServerSessionReady
     && planningCommandCapabilitiesState.status === "idle") {
     void ensurePlanningCommandCapabilities();
@@ -4673,6 +4679,11 @@ function getPlanningWorkbenchReactActivation() {
       && !readStatus.bootstrapLoading
       && !readStatus.bootstrapError
       && Boolean(getDomainWorkOrderDetail(ui.activeRouteId)),
+    serverReadFailure: planningWorkbenchModuleError
+      ? "model-unavailable"
+      : readStatus.bootstrapError
+        ? "read-unavailable"
+        : "",
     serverProjectionReady,
     startDateServerCommandsPrimary: isPlanningStartDateServerCommandsPrimary(),
     authenticatedAccess,
@@ -4681,6 +4692,8 @@ function getPlanningWorkbenchReactActivation() {
     canEditPlanning,
     writeEvaluationRequested,
     liveWriteEvaluationEligible,
+    permanentWriteEligible,
+    signedWriteSurfaceEligible,
     liveWriteEvaluationReady,
     startDateReconciliationScopeEnabled,
     startDateReconciliationSessionRequested,
@@ -4732,7 +4745,7 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
       capabilities: {
         quantityEdit: false,
         startDateEdit: canEdit,
-        employeeElevation: activation.liveWriteEvaluationEligible === true
+        employeeElevation: activation.signedWriteSurfaceEligible === true
           && activation.signedServerSessionReady !== true,
       },
       employeeAuth: {
@@ -10724,14 +10737,14 @@ function initializeModuleRuntime() {
       render: () => {
         hydratePlanningWorkOrderReadModel();
         ensurePlanningWorkbenchModule();
+        const reactDecision = planningWorkbenchReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return planningWorkbenchReactIslandHost.renderTarget();
         if (planningWorkbenchModuleError) {
           return renderPlanningWorkbenchShellState({
             title: "Не удалось загрузить заказ-наряды",
             description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
           });
         }
-        const reactDecision = planningWorkbenchReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return planningWorkbenchReactIslandHost.renderTarget();
         return renderPlanningWorkbenchPage();
       },
       bind: () => { if (!planningWorkbenchReactIslandHost.isReactEligible()) bindPlanningEvents(); },

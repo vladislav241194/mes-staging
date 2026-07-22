@@ -15,6 +15,7 @@
       "boards",
       "componentTypes",
       "operations",
+      "planningWorkbench",
       "nomenclatureTypes",
       "statuses",
       "structureEmployees",
@@ -26,7 +27,7 @@
       "shiftWorkOrders",
       "timesheet"
     ],
-    "runtimePolicySha256": "869b342901f40fc9cbb9a69a6dd976b0f1edbc86d922e60bcc25dfa8ef36e24a",
+    "runtimePolicySha256": "545bb84e1f2bcb7d2b2d7d3e56c377421fcc9754c6685a43c0a6711a35c45200",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -205,7 +206,7 @@
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "nomenclatureTypes", "routeId": "directories", "entry": "experiments/react-migration/src/nomenclature-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "operations", "routeId": "directories", "entry": "experiments/react-migration/src/operations-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
-    { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["change-start-date"], "missing": ["change-quantity", "change-slot", "change-labor", "transfer-to-gantt", "cancel"] } },
+    { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-route", "select-item", "request-elevation", "change-start-date"], "missing": ["change-quantity", "change-slot", "change-labor", "transfer-to-gantt", "cancel"] } },
     {
       "id": "roles",
       "routeId": "roles",
@@ -273,12 +274,12 @@
       "scenarios": ["planningWorkbench"],
       "reactSurface": "production-island",
       "functionalStatus": "partial",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["quantity", "slot/Gantt writes", "labor", "Gantt transfer", "cancel", "Pilot start-date-only lifecycle"]
+      "remainingScopes": ["owner-backed quantity write", "owner-backed slot/Gantt scheduling", "owner-backed labor write", "owner-backed Gantt transfer", "owner-backed cancel", "Pilot start-date lifecycle and rollback acceptance"]
     },
     {
       "id": "gantt",

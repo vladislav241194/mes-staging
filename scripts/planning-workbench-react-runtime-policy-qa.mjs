@@ -76,6 +76,10 @@ assert.match(app, /await reconcileEmployeeServerSession\(\{ force: true \}\);[\s
   "the first save after PIN must refresh both the signed session and exact server capability before gating");
 assert.match(app, /quantityEdit: false/);
 assert.match(app, /startDateEdit: canEdit/);
+assert.match(app, /permanentWriteEligible = runtimeActivation\.runtimeMode === "react"[\s\S]*isPlanningStartDateServerCommandsPrimary\(\)/,
+  "permanent React may expose only the signed start-date owner");
+assert.match(app, /signedWriteSurfaceEligible[\s\S]*ensurePlanningCommandCapabilities/,
+  "permanent React must refresh the exact server capability after employee elevation");
 assert.match(app, /command\.type === "request-elevation"/);
 assert.match(app, /beginPlanningEmployeeElevation/);
 assert.match(app, /command\.type !== "change-start-date"/);
@@ -134,8 +138,12 @@ assert.doesNotMatch(app.slice(app.indexOf("const planningWorkbenchReactIslandHos
   "the React evaluation command host must not expose quantity writes");
 
 assert.match(host, /\["read-only-evaluation", "write-evaluation"\]/);
-assert.doesNotMatch(host, /accessMode === "react"/,
-  "Planning is not a permanent-ready consumer in this narrow evaluation");
+assert.match(host, /canFallbackToLegacy:\s*\(activation\)\s*=>\s*activation\.accessMode !== "react"/,
+  "permanent Planning failures must stay inside the React fail-closed shell");
+assert.match(host, /if \(activation\.accessMode === "react"\) return ""/,
+  "the signed runtime policy must activate Planning without an evaluation URL");
+assert.match(host, /getShellState:[\s\S]*serverReadFailure[\s\S]*server-read-pending/,
+  "permanent Planning must show loading/error React shells instead of legacy");
 assert.match(routes, /isPlanningStartDateServerCommandsPrimary\(\) && options\.persist !== false/);
 const quantityFunction = routes.slice(routes.indexOf("function syncPlanningRouteQuantity"), routes.indexOf("function syncPlanningRouteStartDate"));
 assert.match(quantityFunction, /isPlanningLegacyWritesQuiesced\(\).*options\.persist !== false/,
@@ -172,7 +180,10 @@ assert.doesNotMatch(gantt, /Blueprint/,
   "the temporary Gantt read-only contract must not introduce Blueprint UI");
 assert.match(scenario, /employeeElevationAvailable/);
 assert.match(scenario, /Подтвердить PIN/);
-assert.match(scenario, /Только чтение в этой проверке/);
+assert.match(scenario, /Серверная команда тиража пока недоступна/);
+assert.match(scenario, /Операции без серверного владельца заблокированы/);
+assert.match(scenario, /не вызывают legacy-код/,
+  "unsafe actions must be visibly fail-closed rather than delegated to legacy");
 assert.match(scenario, /startDateReconcilePending/);
 assert.match(scenario, /Проверить legacy-зеркало/);
 assert.match(scenario, /data-react-planning-start-date-clear/);

@@ -353,6 +353,7 @@ if (candidatePolicy) {
     "nomenclature",
     "nomenclatureTypes",
     "operations",
+    "planningWorkbench",
     "shiftWorkOrders",
     "statuses",
     "structureEmployees",

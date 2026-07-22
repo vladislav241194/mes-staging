@@ -18,7 +18,7 @@
     "roles": "evaluation",
     "weeklyProductionControl": "react",
     "timesheet": "react",
-    "planningWorkbench": "evaluation",
+    "planningWorkbench": "react",
     "shiftWorkOrders": "react",
     "shiftMasterBoard": "evaluation",
     "employeeDesktop": "evaluation",
