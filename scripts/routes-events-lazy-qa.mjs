@@ -10,8 +10,12 @@ const assert = (value, message) => {
 const root = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const appPath = join(root, "src", "app.js");
 const appEventsPath = join(root, "src", "modules", "app_events", "service.js");
+const appInteractionsPath = join(root, "src", "modules", "app_interactions", "render.js");
+const directoryLegacyPath = join(root, "src", "modules", "app_interactions", "directory_legacy.js");
 const appSource = await readFile(appPath, "utf8");
 const appEventsSource = await readFile(appEventsPath, "utf8");
+const appInteractionsSource = await readFile(appInteractionsPath, "utf8");
+const directoryLegacySource = await readFile(directoryLegacyPath, "utf8");
 
 assert(
   !appSource.includes('import { createRoutesEventsModule } from "./modules/routes/events.js";'),
@@ -44,6 +48,22 @@ assert(
 assert(
   !appEventsSource.includes("} = createRoutesEventsModule({"),
   "Route event factory must not be constructed during application boot",
+);
+assert(
+  appInteractionsSource.includes('import("./directory_legacy.js")')
+    && appEventsSource.includes("Promise.resolve().then(() => ensureDirectoryLegacyInteractions())"),
+  "Legacy Directory modal/bind handlers must load through the existing routes single-flight boundary",
+);
+assert(
+  !appInteractionsSource.includes("directory-editor-form-grid")
+    && !appInteractionsSource.includes("[data-add-directory]"),
+  "Legacy Directory markup and DOM bindings must not remain in the static interaction shell",
+);
+assert(
+  directoryLegacySource.includes("createDirectoryLegacyInteractions")
+    && directoryLegacySource.includes("directory-editor-form-grid")
+    && directoryLegacySource.includes("[data-add-directory]"),
+  "The lazy Directory interaction chunk must retain rollback modal and binding behavior",
 );
 
 let routeRuntimeLoadCount = 0;
@@ -133,6 +153,9 @@ try {
     bundledApp.includes(`./chunks/${routesEventsChunk.entry}`),
     "Boot bundle must reach route event handlers only through their dynamic chunk",
   );
+  const directoryLegacyChunk = chunkSources.find(({ source }) => source.includes("createDirectoryLegacyInteractions"));
+  assert(directoryLegacyChunk, "A dynamic chunk must contain the rollback-only Directory interactions");
+  assert(!bundledApp.includes("data-add-directory"), "Boot bundle must not inline legacy Directory bindings");
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;
 }

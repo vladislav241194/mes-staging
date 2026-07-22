@@ -263,10 +263,11 @@ try {
   assert(mirroredAgain.applied && !mirroredAgain.conflict, "Repeated outbox delivery must be idempotent");
 
   const scheduled = await request(filePath, "/api/v1/planning/work-orders/WO-001/operations/step-1/slot", "PATCH", {
+    slotId: "slot-1",
     plannedStart: "2026-07-18T08:00:00.000Z",
     expectedRevision: 6,
   }, { "if-match": '"6"' }, planningMutationEnv);
-  assert(scheduled.statusCode === 200 && scheduled.json.item?.concurrencyRevision === 7, "slot schedule command must update the aggregate revision");
+  assert(scheduled.statusCode === 200 && scheduled.json.item?.concurrencyRevision === 7 && scheduled.json.slot?.id === "slot-1" && scheduled.json.compatibilityReceipt?.ready === true, "slot schedule command must update/read back the exact physical slot with an applied rollback receipt");
   const scheduledDetail = await request(filePath, "/api/v1/planning/work-orders/WO-001");
   assert(scheduledDetail.json.item?.operations?.[0]?.slot?.plannedStart === "2026-07-18T08:00:00.000Z", "slot schedule command must persist its new start");
   assert(scheduledDetail.json.item?.operations?.[0]?.slot?.plannedEnd === "2026-07-18T10:00:00.000Z", "snapshot schedule command must preserve slot duration");

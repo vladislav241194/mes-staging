@@ -958,6 +958,7 @@ const {
   formatDirectoryCell,
   getDirectorySectionLabel,
   getDirectoryRowLabel,
+  ensureDirectoryLegacyInteractions = async () => null,
   renderDirectoryEditorModal,
   renderDirectoryReaderModal,
   renderDirectoryField,
@@ -1635,9 +1636,11 @@ function getRoutesEventsDependencies() {
 function ensureRoutesEvents() {
   if (routesEventsApi) return Promise.resolve(routesEventsApi);
   if (!routesEventsLoad) {
-    routesEventsLoad = Promise.resolve()
-      .then(() => loadRoutesEventsModule())
-      .then((module) => {
+    routesEventsLoad = Promise.all([
+      Promise.resolve().then(() => loadRoutesEventsModule()),
+      Promise.resolve().then(() => ensureDirectoryLegacyInteractions()),
+    ])
+      .then(([module]) => {
         const createRoutesEventsModule = module?.createRoutesEventsModule;
         if (typeof createRoutesEventsModule !== "function") {
           throw new Error("Routes events runtime did not export its factory");

@@ -25,8 +25,8 @@ assert(planningAuthorizationIndex >= 0 && workOrdersRepositoryIndex > planningAu
   "Planning mutation/capability authorization must complete before the work-order repository is constructed or health-checked");
 assert.equal((api.match(/planningAuthorizationResolver\(req, \{ env \}\)/g) || []).length, 1,
   "Planning mutation authorization must resolve exactly once and be reused by its route handler");
-assert.equal((api.match(/actorId: planningAuthorization\.actor\.id/g) || []).length, 4,
-  "All three Planning commands and the exact start-date compatibility receipt must use the normalized signed employee actor");
+assert.equal((api.match(/actorId: planningAuthorization\.actor\.id/g) || []).length, 5,
+  "All three Planning commands and both exact compatibility receipts must use the normalized signed employee actor");
 assert.match(api, /startDateCommandReadiness/,
   "start-date PATCH must fail closed behind its exact migration/index readiness proof");
 assert.match(api, /Idempotency-Key are required/,
@@ -48,7 +48,15 @@ assert.match(postgresRepository, /hasPlanningStartDate[\s\S]*?planningStartDate 
   "PostgreSQL owner must distinguish an explicit nullable clear from a missing/invalid field");
 assert.match(postgresRepository, /SET planning_start_date = NULL[\s\S]*?metadata = COALESCE\(metadata, '\{\}'::jsonb\) - 'planningStartDate'/,
   "nullable clear must remove compatibility metadata transactionally");
-assert.match(postgresRepository, /changeSlotSchedule\(id, operationId, \{ plannedStart, expectedRevision, actorId = "" \}\)/);
+assert.match(postgresRepository, /changeSlotSchedule\(id, operationId, \{ slotId, plannedStart, expectedRevision, actorId = "" \}\)/);
+assert.match(api, /const slotId = String\(payload\.slotId \|\| ""\)\.trim\(\)[\s\S]*isExactIsoInstantWithOffset\(plannedStart\)[\s\S]*slotId,[\s\S]*plannedStart/,
+  "Planning slot HTTP owner must require and forward an exact physical slot and offset-bearing instant");
+assert.match(postgresRepository, /WHERE ps\.id = \$\{exactSlotId\}[\s\S]*op\.id = \$\{operationId\}[\s\S]*UPDATE planning_slots AS ps[\s\S]*WHERE ps\.id = \$\{exactSlotId\}[\s\S]*op\.id = \$\{slot\.operation_row_id\}[\s\S]*wo\.id = \$\{updated\[0\]\.id\}[\s\S]*String\(authoritativeSlot\.id\) !== exactSlotId/,
+  "PostgreSQL slot owner must select, update and read back the exact slot inside its operation and route");
+assert.match(postgresRepository, /getSlotScheduleSnapshotReceipt[\s\S]*command_type = 'change_slot_schedule'[\s\S]*receipt\.payload\?\.slotId[\s\S]*ready: exact && state === "applied" && unresolvedCount === 0/,
+  "PostgreSQL slot owner must expose exact applied compatibility readiness");
+assert.match(api, /getSlotScheduleSnapshotReceipt[\s\S]*operationId,[\s\S]*slotId,[\s\S]*plannedStart,[\s\S]*compatibilityReceipt/,
+  "slot HTTP response must include its exact compatibility receipt");
 assert.equal((postgresRepository.match(/tx\.json\(\{[^}]*actorId: String\(actorId \|\| ""\)[^}]*\}\)/g) || []).length, 2,
   "Both durable Planning change-log payloads must retain the server-derived employee actor");
 assert.equal((postgresRepository.match(/payload, actor_id, snapshot_sync_state/g) || []).length, 2,

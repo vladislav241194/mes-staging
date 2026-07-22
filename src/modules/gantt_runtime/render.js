@@ -4457,11 +4457,18 @@ function bindSlotForm() {
     }
 
     if (slotId && String(slotData.routeId || "") && String(slotData.routeStepId || "")) {
-      const serverSchedule = await changePlanningSlotSchedule(slotData.routeId, slotData.routeStepId, slotData.plannedStart);
+      const serverSchedule = await changePlanningSlotSchedule(slotData.routeId, slotData.routeStepId, slotId, slotData.plannedStart);
       if (serverSchedule.applied) {
         ui.selectedSlotId = slotId;
         ui.editor = null;
         notifySaveSuccess("Срок слота сохранён на сервере");
+        render();
+        return;
+      }
+      if (serverSchedule.committed && serverSchedule.rollbackReady === false) {
+        ui.selectedSlotId = slotId;
+        ui.editor = null;
+        notifySaveSuccess("Срок сохранён; rollback-копия ещё синхронизируется. Не повторяйте перенос.");
         render();
         return;
       }

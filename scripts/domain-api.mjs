@@ -36,7 +36,7 @@ import { withProductionResourceDependencyExclusiveLock } from "./production-reso
 import { isPlanningSnapshotObservationEnabled } from "./planning-snapshot-observer.mjs";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
-import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
+import { isExactIsoCalendarDate, isExactIsoInstantWithOffset } from "../src/domain/calendar_date.js";
 
 const API_PREFIX = "/api/v1";
 const SYSTEM_DOMAINS_COMMAND_SURFACES = new Set(["production-structure", "timesheet", "access-control"]);
@@ -3969,13 +3969,14 @@ export async function handleDomainApiRequest(req, res, url, {
       return true;
     }
     const expected = readExpectedRevision(req, payload);
+    const slotId = String(payload.slotId || "").trim();
     const plannedStart = String(payload.plannedStart || "");
     if (expected.error) {
       sendJson(res, headers, 400, { ok: false, ...meta, error: expected.error });
       return true;
     }
-    if (!plannedStart || Number.isNaN(new Date(plannedStart).getTime()) || !Number.isInteger(expected.value)) {
-      sendJson(res, headers, 400, { ok: false, ...meta, error: "plannedStart and expectedRevision are required" });
+    if (!slotId || !isExactIsoInstantWithOffset(plannedStart) || !Number.isInteger(expected.value)) {
+      sendJson(res, headers, 400, { ok: false, ...meta, error: "slotId, exact plannedStart with offset and expectedRevision are required" });
       return true;
     }
     planningSafety = await verifyPlanningProjectionBeforeWrite({ planningSafety, getPlanningSafety });
@@ -3985,6 +3986,7 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     try {
       const updated = await workOrders.changeSlotSchedule(id, operationId, {
+        slotId,
         plannedStart,
         expectedRevision: expected.value,
         actorId: planningAuthorization.actor.id,
@@ -3995,6 +3997,10 @@ export async function handleDomainApiRequest(req, res, url, {
       }
       if (!updated.item) {
         sendJson(res, headers, 404, { ok: false, ...meta, error: "Planning operation or slot was not found" });
+        return true;
+      }
+      if (!updated.slot?.id || String(updated.slot.id) !== slotId) {
+        sendJson(res, headers, 409, { ok: false, ...meta, error: "Planning owner returned another physical slot" });
         return true;
       }
       // A successful command owns a new aggregate epoch. Invalidate before
@@ -4010,7 +4016,43 @@ export async function handleDomainApiRequest(req, res, url, {
           snapshotSync = { applied: 0, conflicts: 0, failed: 1, error: error?.message || "Snapshot sync deferred" };
         }
       }
-      sendJson(res, headers, 200, { ok: true, apiVersion: "v1", ...updated, ...(snapshotSync ? { snapshotSync } : {}) }, { ETag: getRevisionEtag(updated.item.concurrencyRevision) });
+      let compatibilityReceipt = {
+        found: false,
+        exact: false,
+        ready: false,
+        state: "unavailable",
+        unresolvedCount: 0,
+        error: "Planning slot compatibility receipt is unavailable",
+      };
+      if (updated.storageMode === "postgres" || updated.storageBackend === "postgresql") {
+        try {
+          if (typeof workOrders.getSlotScheduleSnapshotReceipt !== "function") {
+            throw new Error("Planning slot compatibility receipt is unsupported");
+          }
+          compatibilityReceipt = await workOrders.getSlotScheduleSnapshotReceipt({
+            actorId: planningAuthorization.actor.id,
+            aggregateId: updated.item.id,
+            aggregateRevision: updated.item.concurrencyRevision,
+            expectedRevision: expected.value,
+            operationId,
+            slotId,
+            plannedStart,
+          });
+        } catch (error) {
+          compatibilityReceipt = { ...compatibilityReceipt, error: error?.message || compatibilityReceipt.error };
+        }
+      } else if (updated.storageMode === "snapshot-adapter") {
+        compatibilityReceipt = {
+          found: true,
+          exact: true,
+          ready: true,
+          state: "applied",
+          unresolvedCount: 0,
+          aggregateId: String(updated.item.id || ""),
+          aggregateRevision: Number(updated.item.concurrencyRevision || 0),
+        };
+      }
+      sendJson(res, headers, 200, { ok: true, apiVersion: "v1", ...updated, ...(snapshotSync ? { snapshotSync } : {}), compatibilityReceipt }, { ETag: getRevisionEtag(updated.item.concurrencyRevision) });
       return true;
     } catch (error) {
       sendJson(res, headers, 422, { ok: false, ...meta, error: error?.message || "Planning slot cannot be rescheduled" });

@@ -27,6 +27,12 @@ export interface PlanningProductionMetric {
 export interface PlanningProductionStructureRow {
   id: string;
   kind: "task" | "step";
+  routeId: string;
+  operationId: string;
+  slotId: string;
+  plannedStart: string;
+  plannedEnd: string;
+  locked: boolean;
   level: number;
   title: string;
   meta: string;
@@ -325,6 +331,12 @@ function buildRows({
     rows.push({
       id: taskItemId,
       kind: "task",
+      routeId: asText(order.id),
+      operationId: "",
+      slotId: "",
+      plannedStart: "",
+      plannedEnd: "",
+      locked: false,
       level: Math.max(0, Math.round(asNumber(sample.specTaskLevel ?? sample.taskLevel))),
       title: taskTitle(sample, order),
       meta: asText(sample.parentTitle || sample.specTaskParentName, taskIndex === 0 ? "главное изделие" : "составная часть"),
@@ -341,6 +353,7 @@ function buildRows({
     if (!expanded) return;
     taskOperations.forEach((operation, operationIndex) => {
       const id = asText(operation.id);
+      const slot = asRecord(operation.slot);
       const operationQuantity = asPositiveQuantity(order.quantity) * asPositiveQuantity(operation.quantityMultiplier);
       const seconds = operationDurations[operationIndex];
       const context = operationContext(operation);
@@ -349,6 +362,12 @@ function buildRows({
       rows.push({
         id: `step:${id}`,
         kind: "step",
+        routeId: asText(order.id),
+        operationId: id,
+        slotId: asText(slot.id),
+        plannedStart: asText(slot.plannedStart),
+        plannedEnd: asText(slot.plannedEnd),
+        locked: slot.locked === true || slot.isLocked === true,
         level: Math.max(0, Math.round(asNumber(sample.specTaskLevel ?? sample.taskLevel))) + 1,
         title: asText(operation.operationName, "Операция"),
         meta: lineLabel(operation, workCentersById),

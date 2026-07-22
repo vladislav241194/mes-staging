@@ -76,7 +76,15 @@ const legacyLoadIndex = nomenclatureRouteSource.indexOf("ensureNomenclatureRende
 assert(nomenclatureRouteStart >= 0 && planningRouteStart > nomenclatureRouteStart, "Nomenclature route boundary must be discoverable");
 assert(reactDecisionIndex >= 0 && legacyLoadIndex > reactDecisionIndex, "Nomenclature route must decide React ownership before loading the legacy renderer");
 assert(/permanentActiveRuntime[^]*return activeReactHost\.renderTarget\(\)[^]*ensureNomenclatureRenderModule\(\)/.test(nomenclatureRouteSource), "permanent Nomenclature and Boards routes must fail closed in React before the rollback-only legacy load");
-assert(boardsHostSource.includes("boardsCommandOwner.execute(command)"), "ordinary Boards commands must use the isolated React command owner");
+const boardsOwnerLoaderStart = appSource.indexOf("function ensureBoardsCommandOwner()", boardsHostStart - 4000);
+const boardsOwnerLoaderSource = appSource.slice(boardsOwnerLoaderStart, boardsHostStart);
+assert(boardsOwnerLoaderStart >= 0 && boardsOwnerLoaderStart < boardsHostStart, "Boards command owner lazy boundary must be discoverable before the host");
+assert(!/^import[^\n]*boards_command_owner\.js/m.test(appSource), "Boards command owner must not remain in the startup import graph");
+assert(boardsOwnerLoaderSource.includes('import("./modules/nomenclature/boards_command_owner.js")'), "Boards command owner must load through a route-local dynamic import");
+assert(boardsOwnerLoaderSource.includes("if (boardsCommandOwnerLoad) return boardsCommandOwnerLoad"), "concurrent Boards commands must share one cached module load");
+assert(boardsHostSource.includes("const commandOwner = await ensureBoardsCommandOwner()"), "ordinary Boards commands must await the isolated owner before executing");
+assert(boardsHostSource.indexOf("await ensureBoardsCommandOwner()") < boardsHostSource.indexOf("commandOwner.execute(command)"), "Boards owner must be ready before a command can execute");
+assert(boardsHostSource.includes('code: "owner-unavailable"'), "a failed Boards owner import must fail closed without legacy fallback");
 assert(!boardsHostSource.includes("ensureNomenclatureRenderModule()"), "ordinary Boards commands must not load the legacy products renderer");
 assert(boardsHostSource.includes('code: "deferred-import"'), "XLSX must be explicitly deferred instead of entering the legacy path");
 assert(!/products\/render\.js|ensureNomenclatureRenderModule|saveBomCommand|deleteBomCommand/.test(boardsOwnerSource), "Boards command owner must remain isolated from the retired renderer and commands");

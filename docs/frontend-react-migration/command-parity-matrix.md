@@ -9,15 +9,15 @@ its rollback declaration, or is marked complete without an explicit status.
 
 Correction 2026-07-21: `local-complete` was renamed to `slice-complete` because
 it proves only the listed vertical slice, not whole-module cutover. Historical
-Pilot read evidence is `21/24` across multiple releases. On current audited
+Pilot read evidence is `21/25` across multiple releases. On current audited
 release `v.1.500.21-8fb92d9`, Weekly Production Control and Structure Migration
 Diagnostics have fresh read acceptance and permanent default-on policy:
-same-release read and permanent coverage are therefore `2/24`. The only full
+same-release read and permanent coverage are therefore `2/25`. The only full
 Pilot write/read-back/cleanup lifecycle remains Nomenclature on live evaluation
 release `v.1.500.25-1f8369c`, so write coverage is still `1/22`. The executable cross-route
 source of truth is `experiments/react-migration/cutover-ledger.json`.
 
-All 24 scenarios have local production-shell read evidence and keep legacy
+All 25 scenarios have local production-shell read evidence and keep legacy
 rollback. The historical all-flags-off Pilot baseline remains accepted; the
 current runtime is intentionally mixed, with exactly two permanent read-only
 React surfaces and no evaluation surface. Authenticated Pilot read-only evidence
@@ -181,7 +181,7 @@ remains available only as the immutable rollback path.
 | 13 | Structure Work Centers | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy, active-reference and active-parent guards while preserving Planning/Gantt flags | High | Separately gated Pilot lifecycle evaluation with a disposable leaf work center and verified cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
 | 15 | Roles and Access | Local complete: role label, description, default module, six-action grant toggles, role default scope including `self`, exact-employee immediate assignment replace/clear and ID-bound deactivate/reactivate for unassigned roles; assigned/current-role deactivation and protected-contour access-control reset stay intentionally guarded, while multiple-assignment management and durable effective-window, subject/assignment responsibility-scope and `readOnly` persistence remain owner/schema gaps rather than proven legacy parity | Critical | Separately gated Pilot metadata/grant/default-scope/assignment/unassigned-role lifecycle write evaluation with disposable coordinates and verified cleanup/reactivation; keep destructive reset outside React unless product policy explicitly changes; resolve each durable owner/schema contract separately |
-| 16 | Planning Workbench | Partial React TS cutover: strict production read-model owns route/detail navigation, queue, operation tree, metrics, canonical dates and revision from PostgreSQL/runtime projections without loading the legacy Planning renderer; start-date is owner-backed, while quantity and other Planning/Gantt writes remain explicitly unavailable | Critical | Add bounded BOM/resource/labor/shift projections and the remaining command owners, then run the deferred Pilot start-date lifecycle; no visual acceptance is claimed in this accelerated wave |
+| 16 | Planning Workbench | `React TS · MVP`, still partial: strict production read-model owns route/detail navigation, queue, operation tree, metrics, canonical dates and revision without loading the legacy Planning renderer; start-date, quantity and selected existing-slot scheduling call signed PostgreSQL owners and stay fail-closed until their exact server capabilities are active | Critical | Activate and accept quantity/slot separately on Pilot; add bounded BOM/resource/labor/shift projections and owner commands for initial placement, labor, transfer and cancel; no visual acceptance is claimed in this accelerated wave |
 | 17 | Shift Work Orders | Local complete: attachment viewer, SZN/package print previews and owner-backed assignment plus fact entry/correction; Workshop remains legacy; Pilot read accepted | Critical | Keep default-off; any assignment/fact write acceptance on Pilot requires explicit disposable cleanup approval |
 | 18 | Shift Master Board | React UI complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer, SZN preview/print and manual lane movement through the existing owner; historical Pilot read accepted | Critical | Permanent candidate is default-on in code; Pilot write lifecycle, cleanup and rollback acceptance remain deferred |
 | 19 | Employee Desktop | React TS complete: strict production model builds tasks, person scope, facts, route context and Report summaries from raw projections; task start/fact/photo Report and Structure/Route/PDF stay inside React, and the normal path no longer loads `auth_render` | Critical | Current-release Pilot read and separately gated task/fact/Report lifecycle remain deferred; immutable legacy release stays available for rollback |
@@ -376,8 +376,8 @@ Weekly factory. Authenticated `.26` acceptance retained exact `25 x 11` row
 text parity with `.25`; the real immutable drill was `.26 -> .25 -> .26`.
 Legacy `.18` was verified by dry-run only and was not activated.
 
-The current accounting is therefore: historical reads `21/24`, fresh `.26`
-browser reads `1/24` (Weekly only), historical write lifecycles `1/22`
+The current accounting is therefore: historical reads `21/25`, fresh `.26`
+browser reads `1/25` (Weekly only), historical write lifecycles `1/22`
 (Nomenclature on `.25`), and two permanent read-only React surfaces.
 Diagnostics remains permanent but its browser evidence is historical `.21`,
 not a fresh `.26` read. The global evidence-weighted result is exactly `50%`;

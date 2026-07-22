@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
 import { inspectDomainSnapshotSyncOutcome } from "./domain-snapshot-sync-runner.mjs";
 import { createWorkOrdersRepository, PLANNING_STATE_KEY } from "./domain-work-orders-repository.mjs";
+import { inspectPlanningCompatibilityResult } from "../src/modules/domain_api/work_orders_read_model.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -39,17 +40,17 @@ const scheduleMarks = [];
 const scheduleResult = await syncPendingSnapshotChanges({
   primary: {
     async listPendingSnapshotSyncs() {
-      return [{ id: 2, aggregateId: "WO-1", aggregateRevision: 7, commandType: "change_slot_schedule", payload: { expectedRevision: 6, operationId: "op-1", plannedStart: "2026-07-18T08:00:00.000Z" } }];
+      return [{ id: 2, aggregateId: "WO-1", aggregateRevision: 7, commandType: "change_slot_schedule", payload: { expectedRevision: 6, operationId: "op-1", slotId: "slot-1", plannedStart: "2026-07-18T08:00:00.000Z", plannedEnd: "2026-07-18T10:00:00.000Z", quantity: 30, status: "planned", isLocked: false } }];
     },
     async get() {
-      return { item: { concurrencyRevision: 7, operations: [{ id: "op-1", slot: { id: "slot-1", plannedStart: "2026-07-18T08:00:00.000Z", plannedEnd: "2026-07-18T10:00:00.000Z" } }] } };
+      return { item: { concurrencyRevision: 7, operations: [{ id: "op-1", slot: { id: "slot-neighbor", plannedStart: "2026-07-18T11:00:00.000Z", plannedEnd: "2026-07-18T12:00:00.000Z" } }] } };
     },
     async markSnapshotSync(id, mark) { scheduleMarks.push({ id, ...mark }); },
   },
   snapshot: {
     async applyServerSlotScheduleProjection(id, projection) {
       assert(id === "WO-1" && projection.expectedRevision === 6 && projection.targetRevision === 7, "schedule sync must preserve its concurrency boundary");
-      assert(projection.slot?.id === "slot-1" && projection.slot?.plannedEnd === "2026-07-18T10:00:00.000Z", "schedule sync must mirror the authoritative slot projection");
+      assert(projection.slot?.id === "slot-1" && projection.slot?.plannedEnd === "2026-07-18T10:00:00.000Z", "schedule sync must mirror the exact outbox slot rather than a collapsed neighboring operation slot");
       return { applied: true, conflict: false };
     },
   },
@@ -194,7 +195,7 @@ try {
     { id: 81, aggregateType: "work_order", aggregateId: canonicalRouteId, aggregateRevision: 8, commandType: "change_start_date", payload: { expectedRevision: 7, planningStartDate: "2026-07-24" } },
     { id: 82, aggregateType: "work_order", aggregateId: canonicalRouteId, aggregateRevision: 9, commandType: "change_quantity", payload: { expectedRevision: 8, quantity: 12 } },
     { id: 83, aggregateType: "work_order", aggregateId: canonicalRouteId, aggregateRevision: 10, commandType: "change_start_date", payload: { expectedRevision: 9, planningStartDate: "2026-07-25" } },
-    { id: 84, aggregateType: "work_order", aggregateId: canonicalRouteId, aggregateRevision: 11, commandType: "change_slot_schedule", payload: { expectedRevision: 10, operationId: "step-canonical", plannedStart: "2026-07-22T10:00:00.000Z" } },
+    { id: 84, aggregateType: "work_order", aggregateId: canonicalRouteId, aggregateRevision: 11, commandType: "change_slot_schedule", payload: { expectedRevision: 10, operationId: "step-canonical", slotId: "slot-shared", plannedStart: "2026-07-22T10:00:00.000Z", plannedEnd: "2026-07-22T11:00:00.000Z", quantity: 12, status: "planned", isLocked: false } },
     { id: 85, aggregateType: "work_order", aggregateId: canonicalRouteId, aggregateRevision: 12, commandType: "change_start_date", payload: { expectedRevision: 11, planningStartDate: null } },
   ];
   const recoveryMarks = [];
@@ -219,6 +220,16 @@ try {
               status: "planned",
               isLocked: false,
             },
+          }],
+          physicalSlots: [{
+            id: "slot-shared",
+            routeId: canonicalRouteId,
+            routeStepId: "step-canonical",
+            quantity: 12,
+            plannedStart: recoveredSlotStart,
+            plannedEnd: recoveredSlotEnd,
+            status: "planned",
+            isLocked: false,
           }],
         },
       };
@@ -336,6 +347,16 @@ try {
         isLocked: false,
       },
     }],
+    physicalSlots: [{
+      id: "slot-receipt",
+      routeId,
+      routeStepId: "step-receipt",
+      quantity: 37,
+      plannedStart: "2026-08-20T10:00:00.000Z",
+      plannedEnd: "2026-08-20T11:00:00.000Z",
+      status: "planned",
+      isLocked: false,
+    }],
   };
   const allJobs = Array.from({ length: 30 }, (_, index) => {
     const targetRevision = index + 8;
@@ -344,7 +365,7 @@ try {
       ? { expectedRevision: targetRevision - 1, planningStartDate: `2026-08-${String((index % 28) + 1).padStart(2, "0")}` }
       : commandType === "change_quantity"
         ? { expectedRevision: targetRevision - 1, quantity: targetRevision }
-        : { expectedRevision: targetRevision - 1, operationId: "step-receipt", plannedStart: `2026-08-${String((index % 28) + 1).padStart(2, "0")}T10:00:00.000Z` };
+        : { expectedRevision: targetRevision - 1, operationId: "step-receipt", slotId: "slot-receipt", plannedStart: `2026-08-${String((index % 28) + 1).padStart(2, "0")}T10:00:00.000Z`, plannedEnd: `2026-08-${String((index % 28) + 1).padStart(2, "0")}T11:00:00.000Z`, quantity: targetRevision, status: "planned", isLocked: false };
     return { id: 200 + index, aggregateType: "work_order", aggregateId: routeId, aggregateRevision: targetRevision, commandType, payload };
   });
   const pendingIds = new Set(allJobs.map((job) => job.id));
@@ -409,6 +430,82 @@ try {
     "a failure after N historical marks must converge through exact snapshot receipt read-back on retry");
 } finally {
   await rm(receiptDirectory, { recursive: true, force: true });
+}
+
+const splitDirectory = await mkdtemp(join(tmpdir(), "mes-domain-split-slot-sync-qa-"));
+const splitFile = join(splitDirectory, "state.json");
+try {
+  const routeId = "route-split-coalesced";
+  const operationId = "step-split-coalesced";
+  const originalSlots = [
+    { id: "slot-split-selected", routeId, routeStepId: operationId, plannedStart: "2026-09-01T08:00:00.000Z", plannedEnd: "2026-09-01T09:00:00.000Z", quantity: 10, status: "planned", locked: false },
+    { id: "slot-split-neighbor-b", routeId, routeStepId: operationId, plannedStart: "2026-09-01T10:00:00.000Z", plannedEnd: "2026-09-01T11:00:00.000Z", quantity: 10, status: "planned", locked: false },
+    { id: "slot-split-neighbor-c", routeId, routeStepId: operationId, plannedStart: "2026-09-01T12:00:00.000Z", plannedEnd: "2026-09-01T13:00:00.000Z", quantity: 10, status: "planned", locked: false },
+  ];
+  await writeFile(splitFile, JSON.stringify({
+    version: 1,
+    values: {
+      [PLANNING_STATE_KEY]: JSON.stringify({
+        routes: [{ id: routeId, name: "Split QA", planningQuantity: 10, planningStartDate: "2026-09-01", domainConcurrencyRevision: 5 }],
+        routeSteps: [{ id: operationId, routeId, operationId: "OP-SPLIT", operationName: "Split operation" }],
+        slots: originalSlots,
+      }),
+    },
+  }), "utf8");
+  const snapshotRepository = createWorkOrdersRepository({ filePath: splitFile });
+  const selectedAfter = { ...originalSlots[0], plannedStart: "2026-09-01T09:00:00.000Z", plannedEnd: "2026-09-01T10:00:00.000Z" };
+  const finalPhysicalSlots = [selectedAfter, originalSlots[1], originalSlots[2]].map((slot) => ({
+    id: slot.id,
+    routeId,
+    routeStepId: operationId,
+    plannedStart: slot.plannedStart,
+    plannedEnd: slot.plannedEnd,
+    quantity: slot.quantity,
+    status: slot.status,
+    isLocked: slot.locked,
+  }));
+  const jobs = [
+    { id: 901, aggregateType: "work_order", aggregateId: routeId, aggregateRevision: 6, commandType: "change_start_date", payload: { expectedRevision: 5, planningStartDate: "2026-09-02" } },
+    { id: 902, aggregateType: "work_order", aggregateId: routeId, aggregateRevision: 7, commandType: "change_slot_schedule", payload: { expectedRevision: 6, operationId, slotId: selectedAfter.id, plannedStart: selectedAfter.plannedStart, plannedEnd: selectedAfter.plannedEnd, quantity: 10, status: "planned", isLocked: false } },
+    { id: 903, aggregateType: "work_order", aggregateId: routeId, aggregateRevision: 8, commandType: "change_start_date", payload: { expectedRevision: 7, planningStartDate: "2026-09-03" } },
+  ];
+  const receiptState = new Map(jobs.map((job) => [job.id, "pending"]));
+  const primary = {
+    async listPendingSnapshotSyncs() { return jobs.filter((job) => receiptState.get(job.id) === "pending"); },
+    async listPendingSnapshotSyncsForAggregate() { return jobs.filter((job) => receiptState.get(job.id) === "pending"); },
+    async get() {
+      return {
+        item: {
+          id: routeId,
+          number: routeId,
+          quantity: 10,
+          planningStartDate: "2026-09-03",
+          concurrencyRevision: 8,
+          operations: [{ id: operationId, slot: { ...finalPhysicalSlots[0] } }],
+          physicalSlots: structuredClone(finalPhysicalSlots),
+        },
+      };
+    },
+    async markSnapshotSync(id, mark) { receiptState.set(id, mark.state); },
+    async markSnapshotSyncs(ids, mark) { ids.forEach((id) => receiptState.set(id, mark.state)); },
+  };
+  const splitResult = await syncPendingSnapshotChanges({ primary, snapshot: snapshotRepository });
+  const splitReadBack = await snapshotRepository.get(routeId);
+  const slotsById = new Map((splitReadBack.item?.physicalSlots || []).map((slot) => [slot.id, slot]));
+  const compatibility = inspectPlanningCompatibilityResult({
+    compatibilityReceipt: { found: true, exact: true, ready: [...receiptState.values()].every((state) => state === "applied"), state: "applied", unresolvedCount: 0 },
+  });
+  assert(splitResult.applied === 3 && splitResult.conflicts === 0 && splitResult.failed === 0,
+    "mixed coalesced split-slot chain must apply as one complete physical-slot projection");
+  assert(slotsById.get(selectedAfter.id)?.plannedStart === selectedAfter.plannedStart,
+    "coalesced mirror must change the exact first canonical split slot");
+  assert(slotsById.get(originalSlots[1].id)?.plannedStart === originalSlots[1].plannedStart
+    && slotsById.get(originalSlots[2].id)?.plannedStart === originalSlots[2].plannedStart,
+  "coalesced mirror must leave both neighboring physical slots unchanged");
+  assert(compatibility.compatibilityReady === true,
+    "an exact applied split-slot receipt must expose compatibilityReady=true");
+} finally {
+  await rm(splitDirectory, { recursive: true, force: true });
 }
 
 const planningConflictOutcome = inspectDomainSnapshotSyncOutcome({

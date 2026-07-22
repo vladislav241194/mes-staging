@@ -414,6 +414,7 @@ try {
   });
   assert(rootSlotSeed.ok, "the root operational overlay must accept its physical planning slot");
   const rootSchedule = await workOrders.changeSlotSchedule(revision1RootId, revision1RootStepId, {
+    slotId: "slot-root-r1",
     plannedStart: rootSlotStart,
     expectedRevision: 2,
   });

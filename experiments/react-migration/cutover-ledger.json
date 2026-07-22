@@ -3,9 +3,9 @@
   "updatedAt": "2026-07-22",
   "baselineProgress": 46,
   "currentProgress": 50,
-  "implementationProgress": 97,
+  "implementationProgress": 98,
   "implementationProgressUpdatedAt": "2026-07-22",
-  "implementationProgressBasis": "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; Gantt and Specifications 2.0 no longer load legacy models on the permanent path, bringing accelerated implementation to 97%, while strict Pilot acceptance remains separate at 50%.",
+  "implementationProgressBasis": "16/16 top-level routes have React UI: 11 complete (Dispatch is production-backed read-only), 4 partial and 1 explicit prototype; Dispatch no longer loads its rollback renderer on the normal path, bringing accelerated implementation to 98%, while strict Pilot acceptance remains separate at 50%.",
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
@@ -18,6 +18,7 @@
       "boards",
       "componentTypes",
       "contourAdmin",
+      "dispatch",
       "employeeDesktop",
       "gantt",
       "operations",
@@ -36,7 +37,7 @@
       "specifications2",
       "timesheet"
     ],
-    "runtimePolicySha256": "035c8255acbce854d8fbe9e816915e670b50443ea272fc3ae15ba28e197705a3",
+    "runtimePolicySha256": "0ff557038f135df4cb4c75f032ea00da4f03ddc6ac38ca41980577fb4c09a96a",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -189,7 +190,8 @@
     { "id": "specifications2", "historicalPilotRead": "accepted", "readEvidenceRelease": ".97", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "gantt", "historicalPilotRead": "accepted", "readEvidenceRelease": ".85", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
     { "id": "authPicker", "historicalPilotRead": "accepted", "readEvidenceRelease": ".01", "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
-    { "id": "contourAdmin", "historicalPilotRead": "pending", "readEvidenceRelease": null, "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false }
+    { "id": "contourAdmin", "historicalPilotRead": "pending", "readEvidenceRelease": null, "currentReleaseRead": "pending", "pilotWrite": "pending", "cleanup": "pending", "defaultOn": false },
+    { "id": "dispatch", "historicalPilotRead": "pending", "readEvidenceRelease": null, "currentReleaseRead": "pending", "pilotWrite": "not-applicable", "cleanup": "not-applicable", "defaultOn": false }
   ],
   "aliases": [
     { "id": "bomLists", "routeId": "nomenclature", "surfaceId": "boards" },
@@ -209,14 +211,14 @@
     { "id": "boards", "routeId": "nomenclature", "entry": "experiments/react-migration/src/boards-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-board", "delete-board", "import-xlsx", "add-bom-row", "update-bom-row", "delete-bom-row"], "missing": [] } },
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["execute-ops", "request-deploy-to-pilot"], "missing": [] } },
-    { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["approved-scope", "production-owner", "read-api", "write-api", "rbac"] } },
+    { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "implementationMarker": "React TS · read-only", "commands": { "implemented": ["read-production"], "missing": [] } },
     { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "select-task", "start-task", "save-fact", "prepare-photo", "save-report", "structure-context", "route-context", "pdf-context"], "missing": [] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "blocked": ["refresh", "edit-dependency", "drag", "resize", "optimize"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "nomenclatureTypes", "routeId": "directories", "entry": "experiments/react-migration/src/nomenclature-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "operations", "routeId": "directories", "entry": "experiments/react-migration/src/operations-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
-    { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-route", "select-item", "request-elevation", "change-start-date"], "missing": ["change-quantity", "change-slot", "change-labor", "transfer-to-gantt", "cancel"] } },
+    { "id": "planningWorkbench", "routeId": "planning", "entry": "experiments/react-migration/src/planning-workbench-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "implementationMarker": "React TS · MVP", "commands": { "implemented": ["select-route", "select-item", "request-elevation", "change-start-date", "change-quantity", "change-slot"], "missing": ["change-labor", "transfer-to-gantt", "cancel"] } },
     {
       "id": "roles",
       "routeId": "roles",
@@ -289,7 +291,7 @@
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["bounded BOM and resource/labor/shift owner projections", "owner-backed quantity write", "owner-backed slot/Gantt scheduling", "owner-backed labor write", "owner-backed Gantt transfer", "owner-backed cancel", "Pilot start-date lifecycle and rollback acceptance"]
+      "remainingScopes": ["bounded BOM and resource/labor/shift owner projections", "activate and accept the existing quantity and selected-slot owners on Pilot", "owner-backed labor write", "owner-backed initial Gantt transfer", "owner-backed cancel", "Pilot start-date lifecycle and rollback acceptance"]
     },
     {
       "id": "gantt",
@@ -358,15 +360,15 @@
     {
       "id": "dispatch",
       "navigationScope": "user",
-      "scenarios": [],
-      "reactSurface": "mock-island",
-      "functionalStatus": "placeholder",
-      "runtimeMode": "react-mock",
+      "scenarios": ["dispatch"],
+      "reactSurface": "production-island",
+      "functionalStatus": "read-only-complete",
+      "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["product scope decision", "approved specification", "production owner", "API and RBAC contracts"]
+      "remainingScopes": ["current-release authenticated Pilot read", "write workflows remain outside the approved read-only scope"]
     },
     {
       "id": "productionStructureMatrix",

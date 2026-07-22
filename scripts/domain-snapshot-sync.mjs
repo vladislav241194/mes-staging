@@ -1,4 +1,4 @@
-import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
+import { isExactIsoCalendarDate, isExactIsoInstantWithOffset } from "../src/domain/calendar_date.js";
 
 /**
  * Delivers committed PostgreSQL commands to the temporary planning snapshot.
@@ -30,8 +30,10 @@ function isValidWorkOrderTransition(job = {}) {
   if (job.commandType === "change_quantity") return Boolean(asPositiveInteger(job.payload?.quantity));
   if (job.commandType === "change_start_date") return readNullablePlanningStartDate(job.payload).valid;
   if (job.commandType === "change_slot_schedule") {
-    const plannedStart = new Date(job.payload?.plannedStart);
-    return Boolean(String(job.payload?.operationId || "").trim()) && !Number.isNaN(plannedStart.getTime());
+    return Boolean(String(job.payload?.operationId || "").trim())
+      && Boolean(String(job.payload?.slotId || "").trim())
+      && isExactIsoInstantWithOffset(job.payload?.plannedStart)
+      && isExactIsoInstantWithOffset(job.payload?.plannedEnd);
   }
   return false;
 }
@@ -104,10 +106,22 @@ export async function syncPendingSnapshotChanges({ primary, snapshot, limit = 20
             blockedAggregates.add(aggregateKey);
             continue;
           }
+          const slotJobs = aggregateJobs.filter((candidate) => candidate.commandType === "change_slot_schedule");
+          const physicalSlots = Array.isArray(detail.item.physicalSlots) ? detail.item.physicalSlots : [];
+          if (slotJobs.length && (!physicalSlots.length || slotJobs.some((candidate) => {
+            const slotId = String(candidate.payload?.slotId || "");
+            const operationId = String(candidate.payload?.operationId || "");
+            return !physicalSlots.some((slot) => String(slot?.id || "") === slotId
+              && (String(slot?.routeStepId || "") === operationId
+                || String(slot?.operationId || "") === operationId));
+          }))) {
+            throw new Error("Complete authoritative physical-slot projection is unavailable");
+          }
+          const compatibilityItem = detail.item;
           const mirrored = await snapshot.applyServerAggregateProjection(job.aggregateId, {
             expectedRevision: firstExpectedRevision,
             targetRevision: authoritativeRevision,
-            item: detail.item,
+            item: compatibilityItem,
           });
           if (!mirrored.applied) {
             await primary.markSnapshotSync(job.id, { state: "conflict", error: "Snapshot revision changed independently" });
@@ -218,10 +232,24 @@ export async function syncPendingSnapshotChanges({ primary, snapshot, limit = 20
           planningStartDate,
         });
       } else {
+        const slotId = String(job.payload?.slotId || "").trim();
+        const authoritativeSlot = {
+          id: slotId,
+          plannedStart: String(job.payload?.plannedStart || ""),
+          plannedEnd: String(job.payload?.plannedEnd || ""),
+          quantity: Number(job.payload?.quantity || 0),
+          status: String(job.payload?.status || "planned"),
+          isLocked: Boolean(job.payload?.isLocked),
+        };
+        if (!slotId
+          || !isExactIsoInstantWithOffset(authoritativeSlot.plannedStart)
+          || !isExactIsoInstantWithOffset(authoritativeSlot.plannedEnd)) {
+          throw new Error("Exact authoritative planning slot is unavailable for compatibility sync");
+        }
         mirrored = await snapshot.applyServerSlotScheduleProjection(job.aggregateId, {
           expectedRevision,
           targetRevision,
-          slot: (detail.item.operations || []).find((operation) => String(operation.id) === String(job.payload?.operationId))?.slot || null,
+          slot: authoritativeSlot,
         });
       }
       if (mirrored.applied) {

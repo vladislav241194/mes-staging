@@ -463,6 +463,7 @@ function createPlanningMutationCollisionHarness() {
   const slots = [
     { id: "slot-alias", work_order_operation_id: "op-alias", quantity: 10, status: "planned", is_locked: false, planned_start: new Date("2026-07-21T08:00:00.000Z"), planned_end: new Date("2026-07-21T09:00:00.000Z") },
     { id: "slot-exact", work_order_operation_id: "op-exact", quantity: 10, status: "planned", is_locked: false, planned_start: new Date("2026-07-21T08:00:00.000Z"), planned_end: new Date("2026-07-21T09:00:00.000Z") },
+    { id: "slot-exact-neighbor", work_order_operation_id: "op-exact", quantity: 10, status: "planned", is_locked: false, planned_start: new Date("2026-07-21T10:00:00.000Z"), planned_end: new Date("2026-07-21T11:00:00.000Z") },
   ];
   const calls = [];
   const logs = [];
@@ -490,10 +491,11 @@ function createPlanningMutationCollisionHarness() {
     if (/WITH canonical_order AS MATERIALIZED/.test(query)) {
       assert.match(query, /ORDER BY CASE WHEN id = \? THEN 0 ELSE 1 END, id\s+LIMIT 1/,
         "slot owner must resolve one exact-id-first aggregate before joining operations");
-      assert.match(query, /ORDER BY CASE WHEN op\.id = \? THEN 0 ELSE 1 END, op\.id, ps\.id\s+LIMIT 1\s+FOR UPDATE OF wo, op, ps/,
-        "slot owner must prefer an exact operation id inside the canonical aggregate");
+      assert.match(query, /WHERE ps\.id = \?\s+AND \(op\.id = \? OR op\.operation_id = \?\)\s+ORDER BY CASE WHEN op\.id = \? THEN 0 ELSE 1 END, op\.id\s+LIMIT 1\s+FOR UPDATE OF wo, op, ps/,
+        "slot owner must bind an exact physical slot and operation inside the canonical aggregate");
       const requestedId = String(values[0]);
-      const operationId = String(values[3]);
+      const slotId = String(values[3]);
+      const operationId = String(values[4]);
       const order = orders.find((item) => String(item.id) === requestedId)
         || orders.find((item) => String(item.number) === requestedId);
       const candidates = operations.filter((operation) => operation.work_order_id === order?.id
@@ -501,7 +503,7 @@ function createPlanningMutationCollisionHarness() {
       candidates.sort((left, right) => Number(left.id !== operationId) - Number(right.id !== operationId)
         || left.id.localeCompare(right.id));
       const operation = candidates[0];
-      const slot = slots.find((item) => item.work_order_operation_id === operation?.id);
+      const slot = slots.find((item) => item.id === slotId && item.work_order_operation_id === operation?.id);
       return Promise.resolve(order && operation && slot ? [{
         ...order,
         operation_row_id: operation.id,
@@ -522,14 +524,15 @@ function createPlanningMutationCollisionHarness() {
       row.aggregate_revision += 1;
       return Promise.resolve([{ ...row }]);
     }
-    if (/UPDATE planning_slots/.test(query)) {
-      const [plannedStart, plannedEnd, slotId] = values;
-      const slot = slots.find((item) => item.id === String(slotId));
+    if (/UPDATE planning_slots AS ps/.test(query)) {
+      const [plannedStart, plannedEnd, slotId, operationId, orderId] = values;
+      const operation = operations.find((item) => item.id === String(operationId) && item.work_order_id === String(orderId));
+      const slot = slots.find((item) => item.id === String(slotId) && item.work_order_operation_id === operation?.id);
       if (slot) { slot.planned_start = plannedStart; slot.planned_end = plannedEnd; }
-      return Promise.resolve([]);
+      return Promise.resolve(slot ? [{ ...slot }] : []);
     }
     if (/INSERT INTO domain_change_log/.test(query) && /change_slot_schedule/.test(query)) {
-      logs.push({ type: "slot", aggregateId: values[0] });
+      logs.push({ type: "slot", aggregateId: values[0], payload: values[2] });
       return Promise.resolve([]);
     }
     throw new Error(`Unexpected collision SQL: ${query}`);
@@ -548,17 +551,36 @@ assert.equal(mutationCollision.orders.find((row) => row.id === "route-alias")?.q
 assert.deepEqual(mutationCollision.logs[0], { type: "quantity", aggregateId: "WO-EXACT" });
 
 const slotCollision = await mutationCollision.repository.changeSlotSchedule("WO-EXACT", "op-exact", {
+  slotId: "slot-exact",
   plannedStart: "2026-07-22T10:00:00.000Z",
   expectedRevision: 12,
   actorId: "employee:planner",
 });
 assert.equal(slotCollision.item?.id, "WO-EXACT");
+assert.equal(slotCollision.slot?.id, "slot-exact", "owner read-back must identify the same physical slot selected by the UI");
 assert.equal(mutationCollision.orders.find((row) => row.id === "WO-EXACT")?.aggregate_revision, 13);
 assert.equal(mutationCollision.orders.find((row) => row.id === "route-alias")?.aggregate_revision, 11,
   "slot mutation must not advance a colliding number-alias aggregate");
 assert.equal(mutationCollision.slots.find((slot) => slot.id === "slot-exact")?.planned_start.toISOString(), "2026-07-22T10:00:00.000Z");
+assert.equal(mutationCollision.slots.find((slot) => slot.id === "slot-exact-neighbor")?.planned_start.toISOString(), "2026-07-21T10:00:00.000Z",
+  "rescheduling one split physical slot must leave its neighboring slot unchanged");
 assert.equal(mutationCollision.slots.find((slot) => slot.id === "slot-alias")?.planned_start.toISOString(), "2026-07-21T08:00:00.000Z",
   "exact operation id must win over a colliding operation alias");
-assert.deepEqual(mutationCollision.logs[1], { type: "slot", aggregateId: "WO-EXACT" });
+assert.equal(mutationCollision.logs[1]?.type, "slot");
+assert.equal(mutationCollision.logs[1]?.aggregateId, "WO-EXACT");
+assert.equal(mutationCollision.logs[1]?.payload?.slotId, "slot-exact", "snapshot compatibility payload must retain the exact physical slot id");
+assert.equal(mutationCollision.logs[1]?.payload?.plannedStart, "2026-07-22T10:00:00.000Z");
+assert.equal(mutationCollision.logs[1]?.payload?.plannedEnd, "2026-07-22T11:00:00.000Z", "snapshot compatibility payload must carry the authoritative recalculated end");
 
-console.log("Planning start-date owner QA: exact calendar, migration safety, canonical read/write collisions, idempotency and anchor-only semantics passed.");
+await assert.rejects(
+  mutationCollision.repository.changeSlotSchedule("WO-EXACT", "op-exact", {
+    slotId: "slot-exact-neighbor",
+    plannedStart: "2026-07-22T11:00:00",
+    expectedRevision: 13,
+    actorId: "employee:planner",
+  }),
+  /exact ISO date-time with offset/,
+  "repository must reject a local date-time without an explicit offset before SQL",
+);
+
+console.log("Planning owner QA: exact calendar/instant, split physical-slot identity, canonical collisions, idempotency and anchor-only semantics passed.");

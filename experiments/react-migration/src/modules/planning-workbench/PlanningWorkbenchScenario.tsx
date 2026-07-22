@@ -5,7 +5,8 @@ import { adaptPlanningWorkbench } from "./adapter";
 export type PlanningWorkbenchReactNavigation = { type: "select-route" | "select-item"; id: string };
 export type PlanningWorkbenchReactCommand =
   | { type: "request-elevation" }
-  | { type: "change-quantity"; routeId: string; quantity: string }
+  | { type: "change-quantity"; routeId: string; quantity: number; expectedRevision: number }
+  | { type: "change-slot"; routeId: string; operationId: string; slotId: string; plannedStart: string; expectedRevision: number }
   | { type: "change-start-date"; routeId: string; planningStartDate: string | null; expectedRevision: number; idempotencyKey: string };
 
 type PlanningWorkbenchCommandResult = { ok?: boolean; message?: string; preserveRequest?: boolean; committed?: boolean; code?: string; canonicalPlanningStartDate?: string | null; canonicalRevision?: number };
@@ -17,8 +18,15 @@ function makeStartDateIdempotencyKey(): string {
   return `planning-start-date:${random}`;
 }
 
+function dateTimeInput(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { payload: unknown; onCommand?(command: PlanningWorkbenchReactCommand): Promise<PlanningWorkbenchCommandResult | void>; onNavigate?(navigation: PlanningWorkbenchReactNavigation): Promise<{ ok?: boolean; message?: string } | void> }) {
   const model = useMemo(() => adaptPlanningWorkbench(payload), [payload]);
+  const selectedSlotRow = model.rows.find((row) => row.kind === "step" && row.selected && row.slotId) || null;
   const retainedStartDateRequest = model.startDateReconciliation;
   const [navigationError, setNavigationError] = useState("");
   const [navigating, setNavigating] = useState(false);
@@ -30,6 +38,9 @@ export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { 
   const [startDateError, setStartDateError] = useState(retainedStartDateRequest?.message || "");
   const [saving, setSaving] = useState(false);
   const [savingStartDate, setSavingStartDate] = useState(false);
+  const [slotStartDraft, setSlotStartDraft] = useState(() => dateTimeInput(selectedSlotRow?.plannedStart || ""));
+  const [slotError, setSlotError] = useState("");
+  const [savingSlot, setSavingSlot] = useState(false);
   const [startDateReconcilePending, setStartDateReconcilePending] = useState(Boolean(retainedStartDateRequest));
   const [elevating, setElevating] = useState(false);
   const startDateRequest = useRef<StartDateRequest | null>(retainedStartDateRequest ? {
@@ -84,6 +95,10 @@ export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { 
     retainedStartDateRequest?.planningStartDate,
     retainedStartDateRequest?.status,
   ]);
+  useEffect(() => {
+    setSlotStartDraft(dateTimeInput(selectedSlotRow?.plannedStart || ""));
+    setSlotError("");
+  }, [selectedSlotRow?.operationId, selectedSlotRow?.plannedStart]);
   const navigate = async (navigation: PlanningWorkbenchReactNavigation) => {
     if (!onNavigate || navigating) return;
     setNavigating(true); setNavigationError("");
@@ -93,8 +108,10 @@ export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { 
   };
   const saveQuantity = async () => {
     if (!onCommand || saving) return;
+    const quantity = Number(quantityDraft);
+    if (!Number.isInteger(quantity) || quantity <= 0) { setCommandError("Тираж должен быть положительным целым числом."); return; }
     setSaving(true); setCommandError("");
-    try { const result = await onCommand({ type: "change-quantity", routeId: model.activeRouteId, quantity: quantityDraft }); if (result && result.ok === false) setCommandError(result.message || "Тираж не сохранён."); }
+    try { const result = await onCommand({ type: "change-quantity", routeId: model.activeRouteId, quantity, expectedRevision: model.concurrencyRevision }); if (result && result.ok === false) setCommandError(result.message || "Тираж не сохранён."); }
     catch (error) { setCommandError(error instanceof Error ? error.message : "Тираж не сохранён."); }
     finally { setSaving(false); }
   };
@@ -146,6 +163,17 @@ export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { 
     }
     finally { setSavingStartDate(false); }
   };
+  const saveSlot = async () => {
+    if (!onCommand || !selectedSlotRow || savingSlot) return;
+    const plannedStart = new Date(slotStartDraft);
+    if (!slotStartDraft || Number.isNaN(plannedStart.getTime())) { setSlotError("Укажите корректное начало операции."); return; }
+    setSavingSlot(true); setSlotError("");
+    try {
+      const result = await onCommand({ type: "change-slot", routeId: model.activeRouteId, operationId: selectedSlotRow.operationId, slotId: selectedSlotRow.slotId, plannedStart: slotStartDraft, expectedRevision: model.concurrencyRevision });
+      if (result && result.ok === false) setSlotError(result.message || "Начало операции не сохранено.");
+    } catch (error) { setSlotError(error instanceof Error ? error.message : "Начало операции не сохранено."); }
+    finally { setSavingSlot(false); }
+  };
   const requestElevation = async () => {
     if (!onCommand || elevating) return;
     setElevating(true); setStartDateError("");
@@ -155,7 +183,7 @@ export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { 
     } catch (error) { setStartDateError(error instanceof Error ? error.message : "Не удалось открыть подтверждение PIN."); }
     finally { setElevating(false); }
   };
-  const header = <ModuleHeader eyebrow="Планирование" title="Заказ-наряды" badge={<StatusToken label={model.projectionSource === "server" ? "PostgreSQL read" : "snapshot fallback"} tone={model.projectionSource === "server" ? "success" : "warning"} />} />;
+  const header = <ModuleHeader eyebrow="Планирование" title="Заказ-наряды" badge={<><span className="lab-badge" data-react-prototype-marker title="React + TypeScript MVP; трудозатраты, размещение и отмена ожидают server owner">React TS · MVP</span><StatusToken label={model.projectionSource === "server" ? "PostgreSQL read" : "snapshot fallback"} tone={model.projectionSource === "server" ? "success" : "warning"} /></>} />;
   const sidebar = <ModuleSidebar label="Список заказ-нарядов" title="Заказ-наряды">{model.queue.map((item) => <SidebarItem active={item.active} count={item.operationCount} key={item.id} label={item.title} meta={<>{item.meta} · {item.statusLabel}</>} onClick={() => void navigate({ type: "select-route", id: item.id })} />)}</ModuleSidebar>;
   return <ModulePage header={header} sidebar={sidebar}><section className="workspace-main planning-order-workspace" data-planning-workbench-react>
     {model.canActivate ? <>
@@ -169,11 +197,13 @@ export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { 
             <button className="action" disabled={!model.canEditStartDate || savingStartDate || (!startDateReconcilePending && (!startDateDraft || startDateDraft === model.planningStartDate))} type="submit">{savingStartDate ? "Проверка…" : startDateReconcilePending ? "Проверить legacy-зеркало" : "Сохранить дату"}</button>
             <button className="action" data-react-planning-start-date-clear disabled={!model.canEditStartDate || savingStartDate || startDateReconcilePending || !model.planningStartDate} onClick={() => void saveStartDate(null)} type="button">Очистить дату</button>
           </form>
-          <form className="planning-order-decision-quantity" data-react-planning-quantity-form onSubmit={(event) => { event.preventDefault(); void saveQuantity(); }}><label><span>Тираж, шт.</span><input disabled={!model.canEditQuantity || saving} min="1" name="quantity" onChange={(event) => setQuantityDraft(event.currentTarget.value)} required step="1" type="number" value={quantityDraft} /><small>Серверная команда тиража пока недоступна</small></label><button className="action action--primary" disabled={!model.canEditQuantity || saving} type="submit">{saving ? "Сохранение…" : "Сохранить тираж"}</button></form>
+          <form className="planning-order-decision-quantity" data-react-planning-quantity-form onSubmit={(event) => { event.preventDefault(); void saveQuantity(); }}><label><span>Тираж, шт.</span><input disabled={!model.canEditQuantity || saving} min="1" name="quantity" onChange={(event) => setQuantityDraft(event.currentTarget.value)} required step="1" type="number" value={quantityDraft} /><small>{model.startDateReconciliation ? "Сначала проверьте дату старта" : model.canEditQuantity ? "PostgreSQL owner готов" : "Серверный владелец тиража не подтверждён"}</small></label><button className="action action--primary" disabled={!model.canEditQuantity || saving} type="submit">{saving ? "Сохранение…" : "Сохранить тираж"}</button></form>
         </div>
-        <div className="planning-order-command-auth" data-react-planning-deferred-actions role="status"><div><strong>Операции без серверного владельца заблокированы</strong><p>Тираж, трудозатраты, размещение и отмена не вызывают legacy-код. Они будут включены после подключения owner-команд.</p></div></div>
+        {selectedSlotRow ? <form className="planning-order-decision-start-date" data-react-planning-slot-form onSubmit={(event) => { event.preventDefault(); void saveSlot(); }}><label className="planning-order-start-date-control"><span>Начало выбранной операции</span><input data-react-planning-slot-start disabled={!model.canEditSlotSchedule || selectedSlotRow.locked || savingSlot} onChange={(event) => { setSlotStartDraft(event.currentTarget.value); setSlotError(""); }} required type="datetime-local" value={slotStartDraft} /><small>{selectedSlotRow.locked ? "Слот заблокирован" : model.canEditSlotSchedule ? `PostgreSQL slot ${selectedSlotRow.slotId}` : "Серверный владелец слота не подтверждён"}</small></label><button className="action action--primary" disabled={!model.canEditSlotSchedule || selectedSlotRow.locked || savingSlot || !slotStartDraft || slotStartDraft === dateTimeInput(selectedSlotRow.plannedStart)} type="submit">{savingSlot ? "Сохранение…" : "Сохранить начало операции"}</button></form> : null}
+        <div className="planning-order-command-auth" data-react-planning-deferred-actions role="status"><div><strong>Операции без серверного владельца заблокированы</strong><p>Трудозатраты, первичное размещение и отмена не вызывают legacy-код. Они будут включены после подключения owner-команд.</p></div></div>
         {startDateError ? <p className="react-nomenclature-command-error" role="alert">{startDateError}</p> : null}
         {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
+        {slotError ? <p className="react-nomenclature-command-error" role="alert">{slotError}</p> : null}
       </Panel>
       <Panel heading={<div><h2>Дерево заказ-наряда</h2><p>{model.quantity.toLocaleString("ru-RU")} шт. · только чтение</p></div>}>
         {navigationError ? <p className="react-nomenclature-command-error" role="alert">{navigationError}</p> : null}

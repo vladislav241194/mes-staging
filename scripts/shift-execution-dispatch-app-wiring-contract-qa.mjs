@@ -19,6 +19,24 @@ const dispatchScope = section(
   "function isSameShiftExecutionDispatchScope(",
   "dispatch scope",
 );
+const dispatchActivation = section(
+  source,
+  "function getDispatchReactActivation() {",
+  "function getDispatchReactProductionPayload() {",
+  "React Dispatch activation",
+);
+const dispatchPayload = section(
+  source,
+  "function getDispatchReactProductionPayload() {",
+  "function ensureDispatchReactProduction(",
+  "React Dispatch payload",
+);
+const dispatchHydration = section(
+  source,
+  "function ensureDispatchReactProduction(",
+  "function isShiftExecutionServerAuthoritative() {",
+  "React Dispatch hydration",
+);
 const authority = section(
   source,
   "function isShiftExecutionServerAuthoritative() {",
@@ -68,29 +86,48 @@ const authSessionRender = section(
   "employee desktop render route",
 );
 
-// The compact API must be scoped from the real board model: it contains work
-// order rows when they are present, whereas the slot-only fallback does not.
-assert(dispatchScope.includes('typeof getShiftMasterBoardModel !== "function"'), "dispatch scope must wait for the loaded board model");
-assert(dispatchScope.includes("const model = getShiftMasterBoardModel();"), "dispatch scope must read the board model, not a compatibility snapshot");
-assert(dispatchScope.includes("toDateInput(model?.window?.start || \"\")"), "dispatch scope must carry the visible board date");
-assert(dispatchScope.includes("model?.allRows || []"), "dispatch scope must use all current board rows");
-assert(dispatchScope.includes("!row.isBoardCarryover && !row.isBoardFallback"), "dispatch scope must not request synthetic carryovers or fallback rows");
+// The compact API scope is a Planning projection concern. Dispatch and the
+// existing Shift surfaces must not depend on the retired Master Board renderer
+// or its compatibility-only view model to obtain production row identifiers.
+assert(dispatchScope.includes("planningState.routeSteps || []"), "dispatch scope must resolve work centers from the Planning projection");
+assert(dispatchScope.includes("planningState.slots || []"), "dispatch scope must derive production rows from Planning slots");
+assert(dispatchScope.includes("getShiftRowId(slot, dateKey)"), "dispatch scope must use the shared production source-row identity");
+assert(dispatchScope.includes("getPlanningSlotWorkCenterId(slot, stepsById.get(slot.routeStepId) || null)"), "dispatch scope must retain the Planning work-center contract");
 assert(dispatchScope.includes("sourceRowIds.sort()"), "dispatch scope must be deterministic for cache and ETag reuse");
 assert(dispatchScope.includes("workCenterIds.sort()"), "dispatch scope must include a stable visible work-center filter");
+assert(dispatchScope.includes("sourceRowIds.length > 200"), "dispatch scope must remain bounded by the server row contract");
 assert(dispatchScope.includes("workCenterIds.length > 100"), "dispatch scope must remain bounded by the server work-center contract");
-assert(!dispatchScope.includes("getShiftMasterBoardSlotRows("), "dispatch scope must not regress to the incomplete slot-only fallback");
+assert(!dispatchScope.includes("getShiftMasterBoardModel"), "dispatch scope must not depend on the legacy Master Board view model");
+assert(!dispatchScope.includes("getShiftMasterBoardSlotRows("), "dispatch scope must not depend on the legacy Master Board slot helper");
 
-// The initial module render is intentionally a loading shell. Hydration may
-// only run after the lazy factory exposes the real model, then re-renders the
-// active board to start the scoped server read.
+// Permanent React Dispatch is production-backed and fail-closed: Planning must
+// hydrate first, then the exact bounded Shift Execution projection. No mock or
+// compatibility snapshot is accepted as a successful Dispatch read.
+assert(dispatchActivation.includes('runtimeMode: "react"'), "Dispatch must remain a permanent React surface");
+assert(dispatchActivation.includes('accessMode: "react"'), "Dispatch must not advertise a legacy access mode");
+assert(dispatchActivation.includes('planningRuntimeProjectionState.status === "server"'), "Dispatch activation must require the PostgreSQL Planning projection");
+assert(dispatchPayload.includes("planning: planningState"), "Dispatch payload must carry the Planning production projection");
+assert(dispatchPayload.includes("shiftExecution"), "Dispatch payload must carry the bounded Shift Execution production projection");
+assert(dispatchPayload.includes("getSystemDomainsRegistries()"), "Dispatch payload must use System Domains labels");
+assert(dispatchPayload.includes("productionBacked: getDispatchReactActivation().serverReadReady"), "Dispatch marker eligibility must be tied to the complete production read");
+assert(dispatchHydration.includes("hydratePlanningRuntimeProjection({ force, renderOnChange: false })"), "Dispatch must hydrate Planning before Shift Execution");
+assert(dispatchHydration.includes("shiftExecutionDispatchReadModel.refresh({ ...scope, force })"), "Dispatch must request the exact bounded Shift Execution scope");
+assert(dispatchHydration.includes('status: "error"'), "Dispatch hydration must fail closed when a production projection is unavailable");
+
+// Permanent React Shift surfaces hydrate their production projections before
+// preparing the island. The lazy renderer remains reachable only after React
+// declines activation, preserving an immutable rollback path.
 const loaderInitialize = moduleLoader.indexOf("initializeShiftMasterBoardModule(createShiftMasterBoardModule);");
 const loaderRerender = moduleLoader.indexOf('["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule)');
 const renderModuleLoad = masterBoardRender.indexOf("ensureShiftMasterBoardModule();");
-const renderHydration = masterBoardRender.indexOf('if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();');
+const renderHydration = masterBoardRender.indexOf('if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();');
+const renderReactDecision = masterBoardRender.indexOf("shiftMasterBoardReactIslandHost.prepareRender();");
 assert(loaderInitialize >= 0 && loaderRerender > loaderInitialize, "lazy board factory must initialize before re-rendering the active board");
-assert(renderModuleLoad >= 0 && renderHydration > renderModuleLoad, "board hydration must be ordered after lazy module loading is requested");
-assert(authSessionRender.indexOf("ensureShiftMasterBoardModule();") < authSessionRender.indexOf("hydrateShiftExecutionServerProjection();"), "employee desktop must load the board model before requesting its bounded PostgreSQL dispatch scope");
+assert(renderHydration >= 0 && renderReactDecision > renderHydration, "Master Board must start production hydration before preparing permanent React");
+assert(renderModuleLoad > renderReactDecision, "Master Board legacy renderer must remain after the permanent React decision as rollback only");
 assert(authSessionRender.includes('hydrateShiftExecutionServerProjection();'), "employee desktop must hydrate the PostgreSQL assignment and fact projection");
+assert(authSessionRender.indexOf("hydrateShiftExecutionServerProjection();") < authSessionRender.indexOf("employeeDesktopReactIslandHost.prepareRender();"), "employee desktop must start production hydration before preparing permanent React");
+assert(!authSessionRender.includes("ensureShiftMasterBoardModule();"), "employee desktop must not load the legacy Master Board renderer on its normal path");
 assert(hydration.includes('["shiftMasterBoard", "authSessionPrototype"].includes(ui?.activeModule)'), "a changed dispatch projection must re-render both the Master Board and employee desktop");
 
 // A bounded overlay must not erase compatibility snapshot state. It can only

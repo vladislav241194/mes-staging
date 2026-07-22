@@ -12,6 +12,7 @@ assert(source.includes("isolation level repeatable read read only"), "Runtime pr
 assert(source.includes("function firstRuntimeSlotByOperation(rows = [])"), "Runtime projection must select one split slot per operation deterministically until the runtime contract is expanded");
 assert(source.includes("SELECT COALESCE(max(aggregate_revision), 0) AS revision"), "PostgreSQL health must return one compact aggregate row rather than transfer every order revision");
 assert(source.includes("slot.quantity") && source.includes("slot.is_locked"), "PostgreSQL detail projection must return slot quantity and lock state");
+assert(source.includes("physicalSlots: slots.map") && source.includes("routeStepId: String(slot.work_order_operation_id"), "PostgreSQL detail must expose every physical split slot for rollback mirroring");
 assert(source.includes("const nextQuantity = Number(slot.quantity_multiplier) * Number(quantity)"), "PostgreSQL quantity change must recalculate a slot from its operation multiplier");
 assert(source.includes("function normalizeExecutionContext"), "PostgreSQL detail projection must normalize a complete execution context");
 assert(source.includes("executionContext: normalizeExecutionContext(row.execution_context)"), "PostgreSQL detail projection must return its normalized execution context");
@@ -21,6 +22,9 @@ assert(source.includes("Work-center calendar is missing"), "PostgreSQL quantity 
 assert(source.includes("snapshot_sync_state") && source.includes("listPendingSnapshotSyncs") && source.includes("markSnapshotSync"), "PostgreSQL repository must expose the snapshot-sync outbox contract");
 assert(source.includes("AND slot.is_locked = FALSE") && source.includes("slot.status NOT IN ('completed', 'done')"), "PostgreSQL quantity change must not rewrite locked or completed slots");
 assert(source.includes("async changeSlotSchedule(id, operationId"), "PostgreSQL repository must expose a slot schedule command");
+assert(source.includes("WHERE ps.id = ${exactSlotId}") && source.includes("AND op.id = ${slot.operation_row_id}") && source.includes("AND wo.id = ${updated[0].id}"), "Slot schedule command must bind the exact physical slot, operation and work order");
+assert(source.includes("authoritativeSlot.id !== exactSlotId"), "Slot schedule command must fail closed when authoritative read-back identifies another physical slot");
+assert(source.includes("async getSlotScheduleSnapshotReceipt"), "Slot schedule command must expose an exact rollback compatibility receipt");
 assert(source.includes("Completed or locked planning slot cannot be rescheduled"), "Slot schedule command must reject locked and completed slots");
 assert(source.includes("const nextEnd = addCalendarWorkingDuration(calendar, nextStart, durationMs)"), "Slot schedule command must calculate its end through the work-center calendar");
 assert(source.includes("'change_slot_schedule'"), "Slot schedule command must persist an outbox event");

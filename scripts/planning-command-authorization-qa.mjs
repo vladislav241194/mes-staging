@@ -368,6 +368,15 @@ const primaryWorkOrders = {
       unresolvedCount,
     };
   },
+  async getSlotScheduleSnapshotReceipt({ aggregateId, aggregateRevision, expectedRevision, operationId, slotId, plannedStart }) {
+    const exact = aggregateId === "WO-001"
+      && aggregateRevision === currentRevision
+      && expectedRevision === currentRevision - 1
+      && operationId === "OP-1"
+      && slotId === "slot-1"
+      && plannedStart === currentPlannedStart;
+    return { found: true, exact, ready: exact, state: exact ? "applied" : "conflict", unresolvedCount: exact ? 0 : 1 };
+  },
   async changeSlotSchedule(id, operationId, command) {
     slotCalls.push({ id, operationId, command });
     currentPlannedStart = command.plannedStart;
@@ -377,6 +386,7 @@ const primaryWorkOrders = {
       revision: currentRevision,
       conflict: false,
       item: currentItem(),
+      slot: { ...currentItem().operations[0].slot, id: command.slotId },
     };
   },
 };
@@ -431,7 +441,7 @@ const startDatePath = "/api/v1/planning/work-orders/WO-001/start-date";
 const slotPath = "/api/v1/planning/work-orders/WO-001/operations/OP-1/slot";
 const quantityBody = () => ({ quantity: 24, expectedRevision: currentRevision, actorId: "employee:forged" });
 const startDateBody = () => ({ planningStartDate: "2026-07-23", expectedRevision: currentRevision, actorId: "employee:forged" });
-const slotBody = () => ({ plannedStart: "2026-07-22T08:00:00.000Z", expectedRevision: currentRevision, actorId: "employee:forged" });
+const slotBody = () => ({ slotId: "slot-1", plannedStart: "2026-07-22T08:00:00.000Z", expectedRevision: currentRevision, actorId: "employee:forged" });
 const startDateHeaders = (options = {}, key = "planning-start-date:authorization-qa") => ({
   ...requestHeaders(options),
   "idempotency-key": key,
@@ -571,9 +581,22 @@ assert.equal(quantityCalls.length, 1);
 assert.equal(quantityCalls[0].command.actorId, "employee:employee-planner",
   "quantity audit actor must come from the signed employee session, not the request body");
 
+for (const invalidSlotCommand of [
+  { plannedStart: "2026-07-22T08:00:00.000Z", expectedRevision: currentRevision },
+  { slotId: "slot-1", plannedStart: "2026-07-22T08:00:00", expectedRevision: currentRevision },
+  { slotId: "slot-1", plannedStart: "2026-02-29T08:00:00.000Z", expectedRevision: currentRevision },
+]) {
+  const callsBeforeInvalidSlot = slotCalls.length;
+  const invalidSlot = await request(slotPath, { method: "PATCH", body: invalidSlotCommand });
+  assert.equal(invalidSlot.statusCode, 400, "slot owner must require an exact physical slot and ISO instant with offset");
+  assert.equal(slotCalls.length, callsBeforeInvalidSlot, "invalid slot identity/time must stop before repository mutation");
+}
 const slotResult = await request(slotPath, { method: "PATCH", body: slotBody() });
 assert.equal(slotResult.statusCode, 200);
 assert.equal(slotCalls.length, 1);
+assert.equal(slotCalls[0].command.slotId, "slot-1", "slot owner must receive the exact physical slot from the request body");
+assert.equal(slotResult.json.slot?.id, "slot-1", "HTTP response must read back the same physical slot");
+assert.equal(slotResult.json.compatibilityReceipt?.ready, true, "HTTP slot response must expose an exact applied rollback receipt");
 assert.equal(slotCalls[0].command.actorId, "employee:employee-planner",
   "slot audit actor must come from the signed employee session, not the request body");
 

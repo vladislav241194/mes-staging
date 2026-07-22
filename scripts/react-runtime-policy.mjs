@@ -29,6 +29,7 @@ export const REACT_RUNTIME_PERMANENT_CONSUMERS = Object.freeze([
   "contourAdmin",
   "gantt",
   "specifications2",
+  "dispatch",
 ]);
 export const REACT_RUNTIME_SURFACE_IDS = Object.freeze([
   "nomenclature",
@@ -55,6 +56,7 @@ export const REACT_RUNTIME_SURFACE_IDS = Object.freeze([
   "gantt",
   "authPicker",
   "contourAdmin",
+  "dispatch",
 ]);
 
 export const REACT_RUNTIME_EVALUATION_ENV = Object.freeze({
@@ -82,6 +84,7 @@ export const REACT_RUNTIME_EVALUATION_ENV = Object.freeze({
   gantt: Object.freeze({ feature: "MES_REACT_GANTT", permissions: Object.freeze(["MES_REACT_GANTT_READ_ONLY_EVALUATION"]) }),
   authPicker: Object.freeze({ feature: "MES_REACT_AUTH_PICKER", permissions: Object.freeze(["MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION"]) }),
   contourAdmin: Object.freeze({ feature: "MES_REACT_CONTOUR_ADMIN", permissions: Object.freeze(["MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION"]) }),
+  dispatch: Object.freeze({ feature: "MES_REACT_DISPATCH", permissions: Object.freeze(["MES_REACT_DISPATCH_READ_ONLY_EVALUATION"]) }),
 });
 
 const PROTECTED_ENVS = new Set(["pilot", "staging", "user-testing", "production"]);

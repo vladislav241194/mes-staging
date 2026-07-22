@@ -8,6 +8,17 @@ const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
 expect(!source.includes('import { createPlanningWorkbenchModule } from "./modules/planning_workbench/render.js";'), "Planning Workbench must not remain a static app import");
 expect(source.includes('import("./modules/planning_workbench/render.js")'), "Planning Workbench must load as a dynamic module");
+expect(!source.includes('import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";'), "Planning Workbench legacy selection helpers must not remain in the static app graph");
+expect(source.includes('import("./modules/planning_workbench/work_items.js")'), "Planning Workbench legacy selection helpers must load with the rollback renderer");
+const planningWorkbenchLazyLoader = source.slice(
+  source.indexOf("function ensurePlanningWorkbenchModule"),
+  source.indexOf("function normalizeStatusApplicationArea"),
+);
+expect(planningWorkbenchLazyLoader.includes("Promise.all(["), "Planning Workbench rollback dependencies must share one lazy-load boundary");
+const helperInitializationIndex = planningWorkbenchLazyLoader.indexOf("initializePlanningWorkItemHelpers(createPlanningWorkItemHelpers)");
+const rendererInitializationIndex = planningWorkbenchLazyLoader.indexOf("initializePlanningWorkbenchModule(createPlanningWorkbenchModule)");
+expect(helperInitializationIndex >= 0 && rendererInitializationIndex > helperInitializationIndex,
+  "Planning Workbench selection helpers must initialize before the rollback renderer");
 expect(source.includes('title: "Загружаем заказ-наряды"'), "Planning Workbench needs a visible loading state");
 expect(source.includes('function renderPlanningWorkbenchShellState'), "Planning Workbench loading and failure states must preserve the planning shell contract");
 expect(source.includes('sidebar: renderUiModuleSidebar({'), "Planning Workbench loading state must provide its required ModuleSidebar slot");

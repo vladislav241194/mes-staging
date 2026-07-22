@@ -43,14 +43,6 @@ export const UI_REGRESSION_EXCEPTIONS = [
     allowedInternalOverflowSelectors: [".production-structure-table-wrap", ".ui-table-wrap"],
     futurePhase: "Matrix editing ergonomics phase",
   },
-  {
-    module: "dispatch",
-    type: "placeholder",
-    reason: "Dispatcher module is intentionally a stub and should not expose live workflow UI.",
-    expectedMissingMarkers: ["TableWrap"],
-    allowedInternalOverflowSelectors: [],
-    futurePhase: "Replace placeholder only when dispatcher workflow returns",
-  },
 ];
 
 export function getUiRegressionException(moduleId) {

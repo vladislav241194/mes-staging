@@ -19,7 +19,7 @@ const exactDate = (value: unknown): string => {
 
 export interface PlanningQueueItem { id: string; title: string; meta: string; operationCount: number; statusLabel: string; statusTone: "success" | "warning" | "neutral"; active: boolean }
 export interface PlanningMetric { id: string; label: string; value: string; meta: string; tone: "success" | "warning" | "neutral" }
-export interface PlanningStructureRow { id: string; kind: "task" | "step"; level: number; title: string; meta: string; labor: string; laborMeta: string; context: string; contextMeta: string; quantity: number; unit: string; statusLabel: string; statusTone: "success" | "warning" | "neutral"; selected: boolean }
+export interface PlanningStructureRow { id: string; kind: "task" | "step"; routeId: string; operationId: string; slotId: string; plannedStart: string; plannedEnd: string; locked: boolean; level: number; title: string; meta: string; labor: string; laborMeta: string; context: string; contextMeta: string; quantity: number; unit: string; statusLabel: string; statusTone: "success" | "warning" | "neutral"; selected: boolean }
 export interface PlanningStartDateReconciliation { routeId: string; planningStartDate: string | null; intent: "set" | "clear"; expectedRevision: number; idempotencyKey: string; status: "submitting" | "transport-unknown" | "readback-pending" | "rollback-pending"; message: string }
 
 export function adaptPlanningWorkbench(payload: unknown) {
@@ -45,7 +45,7 @@ export function adaptPlanningWorkbench(payload: unknown) {
   }).filter(Boolean) as PlanningMetric[];
   const rows = list(overview.rows).map((value): PlanningStructureRow | null => {
     const item = record(value); const status = record(item.status); const id = text(item.id); const title = text(item.title); const kind = text(item.kind) === "step" ? "step" : "task";
-    return id && title ? { id, kind, level: Math.max(0, number(item.level)), title, meta: text(item.meta), labor: text(item.labor, "—"), laborMeta: text(item.laborMeta), context: text(item.context, "—"), contextMeta: text(item.contextMeta), quantity: number(item.quantity), unit: text(item.unit, "шт."), statusLabel: text(status.label, "не определено"), statusTone: tone(status.tone), selected: item.selected === true } : null;
+    return id && title ? { id, kind, routeId: text(item.routeId), operationId: text(item.operationId), slotId: text(item.slotId), plannedStart: text(item.plannedStart), plannedEnd: text(item.plannedEnd), locked: item.locked === true, level: Math.max(0, number(item.level)), title, meta: text(item.meta), labor: text(item.labor, "—"), laborMeta: text(item.laborMeta), context: text(item.context, "—"), contextMeta: text(item.contextMeta), quantity: number(item.quantity), unit: text(item.unit, "шт."), statusLabel: text(status.label, "не определено"), statusTone: tone(status.tone), selected: item.selected === true } : null;
   }).filter(Boolean) as PlanningStructureRow[];
   const activeRouteId = text(source.activeRouteId);
   const reconciliation = record(root.startDateReconciliation || productionInput.startDateReconciliation);
@@ -104,6 +104,7 @@ export function adaptPlanningWorkbench(payload: unknown) {
     canActivate: Boolean(activeRouteId && queue.length && metrics.length === 5 && rows.length),
     canEditQuantity: capabilities.quantityEdit === true,
     canEditStartDate: capabilities.startDateEdit === true,
+    canEditSlotSchedule: capabilities.slotScheduleEdit === true,
     employeeElevationAvailable: capabilities.employeeElevation === true,
     employeeAuthStatus: text(employeeAuth.status, "idle"),
     employeeCapabilityStatus: text(employeeAuth.capabilityStatus, "idle"),

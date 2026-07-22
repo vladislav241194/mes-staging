@@ -72,17 +72,24 @@ assert.match(app, /serverWriteEvaluationAllowed[\s\S]*writeEvaluationRequested[\
   "query request must be additive to the root flag and narrow server owner, never authority by itself");
 assert.match(app, /employeeServerSessionState\.authenticated === true[\s\S]*signedServerActor\.employeeId/);
 assert.match(app, /signedPlanningCapabilityReady/);
+assert.match(app, /signedPlanningQuantityCapabilityReady[\s\S]*quantityEnabled === true/,
+  "quantity edit must require the signed Planning owner capability");
+assert.match(app, /signedPlanningSlotCapabilityReady[\s\S]*slotScheduleEnabled === true/,
+  "selected-slot edit must require the signed Planning owner capability");
 assert.match(app, /await reconcileEmployeeServerSession\(\{ force: true \}\);[\s\S]*await ensurePlanningCommandCapabilities\(\{ force: true \}\)/,
   "the first save after PIN must refresh both the signed session and exact server capability before gating");
-assert.match(app, /quantityEdit: false/);
-assert.match(app, /startDateEdit: canEdit/);
+assert.match(app, /quantityEdit: canEditQuantity/);
+assert.match(app, /startDateEdit: canEditStartDate/);
+assert.match(app, /slotScheduleEdit: canEditSlotSchedule/);
 assert.match(app, /permanentWriteEligible = runtimeActivation\.runtimeMode === "react"[\s\S]*isPlanningStartDateServerCommandsPrimary\(\)/,
-  "permanent React may expose only the signed start-date owner");
+  "permanent React start-date edit must retain its narrow public owner gate");
+assert.match(app, /permanentCommandSurfaceEligible = runtimeActivation\.runtimeMode === "react"[\s\S]*signedWriteSurfaceEligible/,
+  "permanent React must discover signed command capabilities without assuming that quantity is enabled");
 assert.match(app, /signedWriteSurfaceEligible[\s\S]*ensurePlanningCommandCapabilities/,
   "permanent React must refresh the exact server capability after employee elevation");
 assert.match(app, /command\.type === "request-elevation"/);
 assert.match(app, /beginPlanningEmployeeElevation/);
-assert.match(app, /command\.type !== "change-start-date"/);
+assert.match(app, /\["change-start-date", "change-quantity", "change-slot"\]\.includes\(command\.type\)/);
 const planningProductionPayload = app.slice(
   app.indexOf("function getPlanningWorkbenchProductionReadState"),
   app.indexOf("function ensurePlanningCommandCapabilities"),
@@ -153,8 +160,34 @@ assert.match(app, /result\.kind === "superseded"\) \{[\s\S]*clearPlanningStartDa
 assert.match(app, /result\.kind === "conflict"\) \{[\s\S]*clearPlanningStartDateReconciliation\(\)/);
 assert.match(app, /result\.rollbackReady !== true[\s\S]*retainPlanningStartDateReconciliation[\s\S]*clearPlanningStartDateReconciliation\(\)[\s\S]*planningWorkbenchReactIslandHost\.update\(\)/,
   "pending mirror receipts must retain, while confirmed success must clear, the durable request");
-assert.doesNotMatch(app.slice(app.indexOf("const planningWorkbenchReactIslandHost"), app.indexOf("async function executeShiftExecutionAssignmentCommand")), /changePlanningRouteQuantity\(/,
-  "the React evaluation command host must not expose quantity writes");
+assert.match(planningReactHost, /command\.type === "change-quantity"[\s\S]*Number\.isInteger\(quantity\)[\s\S]*Number\.isInteger\(expectedRevision\)[\s\S]*canPlanningWorkbenchReactQuantityWrite[\s\S]*activeRoute\?\.concurrencyRevision[\s\S]*changePlanningRouteQuantity\(routeId, quantity,[\s\S]*expectedRevision,[\s\S]*requireServerCommand: true[\s\S]*planningWorkbenchReactIslandHost\.update\(\)/,
+  "quantity edit must validate quantity and displayed revision, require the signed capability, use only the server owner and update React in place");
+assert.match(planningReactHost, /command\.type === "change-quantity"[\s\S]*readPlanningStartDateReconciliation\(\)[\s\S]*Сначала проверьте незавершённую команду даты старта/,
+  "quantity must not advance the aggregate while a start-date outcome is unresolved");
+assert.match(planningReactHost, /command\.type === "change-slot"[\s\S]*readPlanningStartDateReconciliation\(\)[\s\S]*operationId[\s\S]*slotId[\s\S]*expectedRevision[\s\S]*ui\?\.planningWorkItem[\s\S]*projectedSlot[\s\S]*canPlanningWorkbenchReactSlotWrite[\s\S]*changePlanningSlotSchedule\(routeId, operationId, slotId, plannedStart\.toISOString\(\), \{ expectedRevision, renderOnChange: false, renderOnConflict: false, requireServerCommand: true \}\)[\s\S]*planningWorkbenchReactIslandHost\.update\(\)/,
+  "selected-slot edit must verify the displayed row/revision against both PostgreSQL projections and call only the existing server owner");
+assert.match(planningReactHost, /result\?\.committed && result\?\.rollbackReady === false[\s\S]*code: "compatibility-pending"[\s\S]*Не повторяйте перенос/,
+  "a committed slot with a pending rollback mirror must not be reported as plain success or invite a blind retry");
+assert.match(planningReactHost, /slot\.locked \|\| slot\.isLocked \|\| projectedSlot\.locked \|\| projectedSlot\.isLocked \|\| isGanttSlotCompleted\(slot\)/,
+  "selected-slot edit must reject locked or completed slots before the owner command");
+const quantityOwnerCommand = app.slice(
+  app.indexOf("async function changePlanningRouteQuantity"),
+  app.indexOf("async function changePlanningRouteStartDate"),
+);
+assert.match(quantityOwnerCommand, /requireServerCommand = options\.requireServerCommand === true[\s\S]*return requireServerCommand \? false : syncPlanningRouteQuantity/,
+  "a missing quantity owner must fail closed instead of invoking the legacy writer");
+assert.match(quantityOwnerCommand, /requestedRevision = Number\(options\.expectedRevision\)[\s\S]*workOrdersReadModel\.changeQuantity\(routeId, quantity, expectedRevision\)/,
+  "the server owner must receive the revision displayed by the typed React model");
+const slotOwnerCommand = app.slice(
+  app.indexOf("async function changePlanningSlotSchedule"),
+  app.indexOf("let planningCoreService", app.indexOf("async function changePlanningSlotSchedule")),
+);
+assert.match(slotOwnerCommand, /requireServerCommand = options\.requireServerCommand === true[\s\S]*requestedRevision = Number\(options\.expectedRevision\)[\s\S]*exactSlotId[\s\S]*workOrdersReadModel\.changeSlotSchedule\(routeId, operationId, exactSlotId, plannedStart, expectedRevision\)[\s\S]*String\(authoritativeSlot\.id\) !== exactSlotId/,
+  "the slot owner must accept the displayed revision and fail closed when the server client is unavailable");
+assert.match(slotOwnerCommand, /rollbackReady = result\.compatibilityReady === true[\s\S]*applied: false, committed: true, rollbackReady: false, kind: "compatibility-pending"/,
+  "slot owner must distinguish a committed PostgreSQL mutation from rollback readiness");
+assert.match(slotOwnerCommand, /hydratePlanningRuntimeProjection\(\{ force: true, renderOnChange: options\.renderOnChange !== false \}\)/,
+  "slot read-back must update the PostgreSQL projection without forcing the mounted React Scenario to unmount");
 const planningRuntimeAdapter = app.slice(
   app.indexOf("    planning: {\n      render: () => {"),
   app.indexOf("    shiftMasterBoard:", app.indexOf("    planning: {\n      render: () => {")),
@@ -211,7 +244,17 @@ assert.doesNotMatch(gantt, /Blueprint/,
   "the temporary Gantt read-only contract must not introduce Blueprint UI");
 assert.match(scenario, /employeeElevationAvailable/);
 assert.match(scenario, /Подтвердить PIN/);
-assert.match(scenario, /Серверная команда тиража пока недоступна/);
+assert.match(scenario, /React TS · MVP/);
+assert.match(scenario, /type: "change-quantity"; routeId: string; quantity: number; expectedRevision: number/,
+  "the typed React command must carry quantity and the displayed owner revision");
+assert.match(scenario, /type: "change-slot"; routeId: string; operationId: string; slotId: string; plannedStart: string; expectedRevision: number/,
+  "the typed React slot command must carry exact owner identifiers, time and displayed revision");
+assert.match(scenario, /data-react-planning-slot-form[\s\S]*data-react-planning-slot-start[\s\S]*selectedSlotRow\.locked[\s\S]*model\.canEditSlotSchedule/,
+  "the selected-operation slot form must remain disabled without capability or when PostgreSQL marks the slot locked");
+assert.match(scenario, /data-react-prototype-marker/,
+  "Planning must remain visibly marked as an MVP rather than implementation-complete");
+assert.match(scenario, /Серверный владелец тиража не подтверждён/);
+assert.match(scenario, /PostgreSQL owner готов/);
 assert.match(scenario, /Операции без серверного владельца заблокированы/);
 assert.match(scenario, /не вызывают legacy-код/,
   "unsafe actions must be visibly fail-closed rather than delegated to legacy");
@@ -226,4 +269,4 @@ assert.match(scenario, /useRef<StartDateRequest \| null>\(retainedStartDateReque
 assert.match(scenario, /disabled=\{!model\.canEditStartDate \|\| savingStartDate \|\| startDateReconcilePending\}/,
   "an unresolved command must allow only its exact reconciliation submit, never a new date intent");
 
-console.log("Planning Workbench React runtime policy QA: explicit-session signed start-date-only evaluation, system-wide legacy browser domain-value quiesce, capability refresh and elevation CTA passed.");
+console.log("Planning Workbench React runtime policy QA: signed start-date and quantity owners, fail-closed MVP commands, legacy browser domain-value quiesce, capability refresh and elevation CTA passed.");

@@ -1,4 +1,4 @@
-import { isExactIsoCalendarDate } from "../../domain/calendar_date.js";
+import { isExactIsoCalendarDate, isExactIsoInstantWithOffset } from "../../domain/calendar_date.js";
 
 const DEFAULT_MAX_AGE_MS = 30_000;
 
@@ -423,25 +423,27 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
       return { ok: false, kind: "unavailable", error: error?.message || "Work-order start-date API is unavailable" };
     }
   }
-  async function changeSlotSchedule(id, operationId, plannedStart, expectedRevision) {
+  async function changeSlotSchedule(id, operationId, slotId, plannedStart, expectedRevision) {
     const key = String(id || "");
     const operationKey = String(operationId || "");
+    const slotKey = String(slotId || "");
     const revision = Number(expectedRevision);
-    const start = new Date(plannedStart);
-    if (!key || !operationKey || Number.isNaN(start.getTime()) || !Number.isInteger(revision)) {
+    if (!key || !operationKey || !slotKey || !isExactIsoInstantWithOffset(plannedStart) || !Number.isInteger(revision)) {
       return { ok: false, kind: "invalid", error: "Invalid planning slot schedule command" };
     }
+    const start = new Date(plannedStart);
     try {
       const response = await fetchImpl(`${url}/${encodeURIComponent(key)}/operations/${encodeURIComponent(operationKey)}/slot`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "If-Match": `"${revision}"` },
-        body: JSON.stringify({ plannedStart: start.toISOString(), expectedRevision: revision }),
+        body: JSON.stringify({ slotId: slotKey, plannedStart: start.toISOString(), expectedRevision: revision }),
         cache: "no-store",
         credentials: "same-origin",
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 409) return { ok: false, kind: "conflict", item: payload.item || null, error: payload.error || "Work order changed by another client" };
       if (!response.ok || !payload?.ok || !payload.item) return { ok: false, kind: "unavailable", error: payload?.error || `Work-order schedule API returned ${response.status}` };
+      if (!payload.slot?.id || String(payload.slot.id) !== slotKey) return { ok: false, kind: "unavailable", error: "Planning owner returned another physical slot" };
       const item = payload.item;
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
       state.etag = response.headers?.get?.("ETag") || state.etag;
@@ -449,7 +451,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
       invalidateWorkbenchBootstrap();
       const cached = state.details.get(key);
       if (cached) { cached.etag = ""; cached.fetchedAt = 0; }
-      return { ok: true, item, ...inspectPlanningCompatibilityResult(payload) };
+      return { ok: true, item, slot: payload.slot, ...inspectPlanningCompatibilityResult(payload) };
     } catch (error) {
       return { ok: false, kind: "unavailable", error: error?.message || "Work-order schedule API is unavailable" };
     }

@@ -51,7 +51,7 @@ try {
         quantityMultiplier: 1,
         labor: { minutesPerUnit: 0.5 },
         metadata: { routeId: "route-a", specTaskId: "task-main", specTaskName: "Контроллер КТ-7", specTaskQuantity: 1, specTaskUnit: "шт." },
-        slot: { id: "slot-2", plannedStart: "2026-07-25T08:00:00.000Z", plannedEnd: "2026-07-25T09:00:00.000Z", quantity: 120 },
+        slot: { id: "slot-2", plannedStart: "2026-07-25T08:00:00.000Z", plannedEnd: "2026-07-25T09:00:00.000Z", quantity: 120, isLocked: true },
       },
       {
         id: "step-3",
@@ -80,7 +80,7 @@ try {
       selectedItem: "step:step-2",
       shiftOrders: [{ id: "shift-a", routeId: "route-a" }],
     },
-    capabilities: { startDateEdit: true },
+    capabilities: { startDateEdit: true, slotScheduleEdit: true },
   });
   assert.equal(bootstrapModel.projectionSource, "server");
   assert.equal(bootstrapModel.planningStartDate, "2026-07-24", "canonical PostgreSQL date must override stale metadata");
@@ -90,6 +90,12 @@ try {
   assert.equal(bootstrapModel.metrics.length, 5);
   assert.equal(bootstrapModel.rows.length, 5, "two task rows and three operation rows must be projected");
   assert.equal(bootstrapModel.rows.find((row) => row.id === "step:step-2")?.selected, true);
+  assert.deepEqual(
+    (({ routeId, operationId, slotId, plannedStart, plannedEnd, locked }) => ({ routeId, operationId, slotId, plannedStart, plannedEnd, locked }))(bootstrapModel.rows.find((row) => row.id === "step:step-2")),
+    { routeId: "route-a", operationId: "step-2", slotId: "slot-2", plannedStart: "2026-07-25T08:00:00.000Z", plannedEnd: "2026-07-25T09:00:00.000Z", locked: true },
+    "selected operation must retain exact PostgreSQL identifiers, timing and lock state",
+  );
+  assert.equal(bootstrapModel.canEditSlotSchedule, true);
   assert.equal(bootstrapModel.rows.find((row) => row.id === "step:step-3")?.context, "склад");
   assert.equal(bootstrapModel.metrics.find((metric) => metric.id === "schedule")?.value, "2/3");
   assert.equal(bootstrapModel.metrics.find((metric) => metric.id === "shifts")?.value, "1");
@@ -109,6 +115,11 @@ try {
   assert.equal(runtimeModel.rows.length, 2);
   assert.equal(runtimeModel.quantity, 20);
   assert.equal(runtimeModel.rows[0]?.title, "Плата");
+  assert.deepEqual(
+    (({ routeId, operationId, slotId }) => ({ routeId, operationId, slotId }))(runtimeModel.rows.find((row) => row.id === "step:runtime-step")),
+    { routeId: "runtime-route", operationId: "runtime-step", slotId: "runtime-slot" },
+    "runtime projection fallback must retain exact slot ownership identifiers",
+  );
   assert.equal(runtimeModel.metrics.find((metric) => metric.id === "schedule")?.value, "1/1");
   assert.equal(runtimeModel.planningStartDateSource, "unavailable", "runtime fallback must not pretend to own the canonical DATE");
 
@@ -152,7 +163,7 @@ try {
   assert.doesNotMatch(`${adapterSource}\n${productionSource}`, /src\/modules\/planning_workbench|render\.js|server_projection_adapter/, "typed read model must not import a legacy Planning renderer or adapter");
 
   console.log("Planning Workbench React production model QA: OK");
-  console.log("- PostgreSQL bootstrap, runtime projection and canonical DATE clear: pass");
+  console.log("- PostgreSQL bootstrap, runtime projection, exact slot identity/timing/lock and canonical DATE clear: pass");
   console.log("- fixture adapter compatibility and explicit deferred coverage: pass");
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

@@ -3,7 +3,7 @@ import { calculateOperationDurationMs } from "../src/domain/operation_duration.j
 import { addCalendarWorkingDuration, createWorkingCalendar } from "../src/domain/working_calendar.js";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
-import { isExactIsoCalendarDate, toExactIsoCalendarDate } from "../src/domain/calendar_date.js";
+import { isExactIsoCalendarDate, isExactIsoInstantWithOffset, toExactIsoCalendarDate } from "../src/domain/calendar_date.js";
 import { acquireProductionResourceDependencySharedLock } from "./production-resource-dependency-lock.mjs";
 
 const CLIENTS_BY_URL = new Map();
@@ -129,15 +129,19 @@ function mapOperation(row, slot = null) {
     executionContext: normalizeExecutionContext(row.execution_context),
     labor: row.labor || {},
     metadata: row.metadata || {},
-    slot: slot ? {
-      id: String(slot.id),
-      plannedStart: slot.planned_start instanceof Date ? slot.planned_start.toISOString() : String(slot.planned_start || ""),
-      plannedEnd: slot.planned_end instanceof Date ? slot.planned_end.toISOString() : String(slot.planned_end || ""),
-      status: String(slot.status || "planned"),
-      quantity: Number(slot.quantity),
-      isLocked: Boolean(slot.is_locked),
-      metadata: slot.metadata || {},
-    } : null,
+    slot: slot ? mapPlanningSlot(slot) : null,
+  };
+}
+
+function mapPlanningSlot(slot) {
+  return {
+    id: String(slot.id),
+    plannedStart: slot.planned_start instanceof Date ? slot.planned_start.toISOString() : String(slot.planned_start || ""),
+    plannedEnd: slot.planned_end instanceof Date ? slot.planned_end.toISOString() : String(slot.planned_end || ""),
+    status: String(slot.status || "planned"),
+    quantity: Number(slot.quantity),
+    isLocked: Boolean(slot.is_locked),
+    metadata: slot.metadata || {},
   };
 }
 
@@ -910,7 +914,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       if (!order) return { ...metadata, revision: 0, updatedAt: "", item: null };
       const operations = await sql`SELECT * FROM work_order_operations WHERE work_order_id = ${order.id} ORDER BY sequence_no`;
       const slots = await sql`
-        SELECT ps.* FROM planning_slots ps
+        SELECT ps.*, op.operation_id AS operation_code FROM planning_slots ps
         JOIN work_order_operations op ON op.id = ps.work_order_operation_id
         WHERE op.work_order_id = ${order.id}
         ORDER BY ps.planned_start ASC NULLS LAST, ps.id ASC
@@ -920,7 +924,16 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         ...metadata,
         revision: Number(order.aggregate_revision),
         updatedAt: order.updated_at?.toISOString?.() || "",
-        item: { ...mapOrderDetail(order), operations: operations.map((operation) => mapOperation(operation, slotsByOperation.get(String(operation.id)) || null)) },
+        item: {
+          ...mapOrderDetail(order),
+          operations: operations.map((operation) => mapOperation(operation, slotsByOperation.get(String(operation.id)) || null)),
+          physicalSlots: slots.map((slot) => ({
+            ...mapPlanningSlot(slot),
+            routeId: String(order.id),
+            routeStepId: String(slot.work_order_operation_id || ""),
+            operationId: String(slot.operation_code || ""),
+          })),
+        },
       };
     },
 
@@ -1439,9 +1452,84 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       };
     },
 
-    async changeSlotSchedule(id, operationId, { plannedStart, expectedRevision, actorId = "" }) {
+    async getSlotScheduleSnapshotReceipt(receiptIdentity = {}) {
+      const {
+        actorId = "",
+        aggregateId = "",
+        aggregateRevision = 0,
+        expectedRevision = 0,
+        operationId = "",
+        slotId = "",
+        plannedStart = "",
+      } = receiptIdentity;
+      const normalizedActor = String(actorId || "").trim();
+      const normalizedAggregateId = String(aggregateId || "").trim();
+      const normalizedOperationId = String(operationId || "").trim();
+      const normalizedSlotId = String(slotId || "").trim();
+      const normalizedAggregateRevision = Number(aggregateRevision);
+      const normalizedExpectedRevision = Number(expectedRevision);
+      if (!normalizedActor || !normalizedAggregateId || !normalizedOperationId || !normalizedSlotId
+        || !Number.isInteger(normalizedAggregateRevision) || normalizedAggregateRevision < 1
+        || !Number.isInteger(normalizedExpectedRevision) || normalizedExpectedRevision < 1
+        || !isExactIsoInstantWithOffset(plannedStart)) {
+        throw new Error("Exact Planning slot-schedule receipt identity is required");
+      }
+      const normalizedStart = new Date(plannedStart).toISOString();
+      const rows = await sql`
+        SELECT
+          receipt.id,
+          receipt.aggregate_id,
+          receipt.aggregate_revision,
+          receipt.command_type,
+          receipt.payload,
+          receipt.snapshot_sync_state,
+          receipt.snapshot_sync_error,
+          receipt.snapshot_synced_at,
+          COALESCE((
+            SELECT count(*)::int
+            FROM domain_change_log AS unresolved
+            WHERE unresolved.aggregate_type = 'work_order'
+              AND unresolved.aggregate_id = receipt.aggregate_id
+              AND unresolved.snapshot_sync_state IN ('pending', 'conflict')
+          ), 0)::int AS unresolved_count
+        FROM domain_change_log AS receipt
+        WHERE receipt.aggregate_type = 'work_order'
+          AND receipt.aggregate_id = ${normalizedAggregateId}
+          AND receipt.aggregate_revision = ${normalizedAggregateRevision}
+          AND receipt.actor_id = ${normalizedActor}
+          AND receipt.command_type = 'change_slot_schedule'
+        LIMIT 1
+      `;
+      const receipt = rows[0] || null;
+      if (!receipt) return { found: false, exact: false, ready: false, state: "missing", unresolvedCount: 0 };
+      const exact = String(receipt.aggregate_id) === normalizedAggregateId
+        && Number(receipt.aggregate_revision) === normalizedAggregateRevision
+        && String(receipt.command_type) === "change_slot_schedule"
+        && String(receipt.payload?.operationId || "") === normalizedOperationId
+        && String(receipt.payload?.slotId || "") === normalizedSlotId
+        && String(receipt.payload?.plannedStart || "") === normalizedStart
+        && Number(receipt.payload?.expectedRevision) === normalizedExpectedRevision;
+      const state = String(receipt.snapshot_sync_state || "pending");
+      const unresolvedCount = Math.max(0, Number(receipt.unresolved_count || 0));
+      return {
+        found: true,
+        exact,
+        ready: exact && state === "applied" && unresolvedCount === 0,
+        receiptId: Number(receipt.id),
+        aggregateId: String(receipt.aggregate_id || ""),
+        aggregateRevision: Number(receipt.aggregate_revision || 0),
+        state,
+        unresolvedCount,
+        error: String(receipt.snapshot_sync_error || ""),
+        syncedAt: receipt.snapshot_synced_at?.toISOString?.() || "",
+      };
+    },
+
+    async changeSlotSchedule(id, operationId, { slotId, plannedStart, expectedRevision, actorId = "" }) {
+      const exactSlotId = String(slotId || "").trim();
+      if (!exactSlotId) throw new Error("Exact planning slotId is required");
+      if (!isExactIsoInstantWithOffset(plannedStart)) throw new Error("plannedStart must be an exact ISO date-time with offset");
       const nextStart = new Date(plannedStart);
-      if (Number.isNaN(nextStart.getTime())) throw new Error("plannedStart must be an ISO date-time");
       const result = await sql.begin(async (tx) => {
         await acquireResourceDependencyLock(tx);
         const current = await tx`
@@ -1458,8 +1546,9 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
           JOIN work_orders AS wo ON wo.id = target.id
           JOIN work_order_operations AS op ON op.work_order_id = wo.id
           JOIN planning_slots AS ps ON ps.work_order_operation_id = op.id
-          WHERE op.id = ${operationId} OR op.operation_id = ${operationId}
-          ORDER BY CASE WHEN op.id = ${operationId} THEN 0 ELSE 1 END, op.id, ps.id
+          WHERE ps.id = ${exactSlotId}
+            AND (op.id = ${operationId} OR op.operation_id = ${operationId})
+          ORDER BY CASE WHEN op.id = ${operationId} THEN 0 ELSE 1 END, op.id
           LIMIT 1
           FOR UPDATE OF wo, op, ps
         `;
@@ -1494,20 +1583,32 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
           RETURNING *
         `;
         if (!updated[0]) return { row: null, conflict: true, exists: true };
-        await tx`
-          UPDATE planning_slots
+        const updatedSlots = await tx`
+          UPDATE planning_slots AS ps
           SET planned_start = ${nextStart}, planned_end = ${nextEnd}
-          WHERE id = ${slot.slot_id}
+          FROM work_order_operations AS op, work_orders AS wo
+          WHERE ps.id = ${exactSlotId}
+            AND ps.work_order_operation_id = op.id
+            AND op.id = ${slot.operation_row_id}
+            AND op.work_order_id = wo.id
+            AND wo.id = ${updated[0].id}
+          RETURNING ps.*
         `;
+        const authoritativeSlot = updatedSlots[0] || null;
+        if (!authoritativeSlot || String(authoritativeSlot.id) !== exactSlotId) {
+          throw new Error("Exact planning slot authoritative read-back failed");
+        }
         await tx`
           INSERT INTO domain_change_log (aggregate_type, aggregate_id, aggregate_revision, command_type, payload, actor_id, snapshot_sync_state)
-          VALUES ('work_order', ${updated[0].id}, ${updated[0].aggregate_revision}, 'change_slot_schedule', ${tx.json({ operationId, plannedStart: nextStart.toISOString(), expectedRevision, actorId: String(actorId || "") })}, ${String(actorId || "")}, 'pending')
+          VALUES ('work_order', ${updated[0].id}, ${updated[0].aggregate_revision}, 'change_slot_schedule', ${tx.json({ operationId, slotId: exactSlotId, plannedStart: nextStart.toISOString(), plannedEnd: nextEnd.toISOString(), quantity: Number(slot.slot_quantity || 0), status: String(slot.slot_status || "planned"), isLocked: Boolean(slot.is_locked), expectedRevision, actorId: String(actorId || "") })}, ${String(actorId || "")}, 'pending')
         `;
-        return { row: updated[0], conflict: false };
+        return { row: updated[0], slot: authoritativeSlot, conflict: false };
       });
       if (!result.row) return { ...metadata, revision: 0, updatedAt: "", conflict: result.conflict, item: null };
       const item = mapOrder({ ...result.row, operation_count: 0, scheduled_operation_count: 0 });
-      return { ...metadata, revision: item.concurrencyRevision, updatedAt: item.updatedAt, conflict: false, item };
+      const authoritativeSlot = result.slot ? mapPlanningSlot(result.slot) : null;
+      if (!authoritativeSlot || authoritativeSlot.id !== exactSlotId) throw new Error("Exact planning slot authoritative read-back failed");
+      return { ...metadata, revision: item.concurrencyRevision, updatedAt: item.updatedAt, conflict: false, item, slot: authoritativeSlot };
     },
 
     async listPendingSnapshotSyncs(limit = 20, { aggregateType = "", aggregateId = "" } = {}) {

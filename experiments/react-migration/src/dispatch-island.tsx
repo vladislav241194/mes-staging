@@ -2,5 +2,5 @@ import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-run
 import { DispatchScenario } from "./modules/dispatch/DispatchScenario";
 
 export function mountDispatchReactIsland(target: HTMLElement, initialPayload: unknown, options: ReactMigrationIslandOptions = {}) {
-  return mountReactIsland(target, () => <DispatchScenario />, initialPayload, options);
+  return mountReactIsland(target, (payload) => <DispatchScenario payload={payload} />, initialPayload, options);
 }

@@ -40,7 +40,7 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "boards", status: COMPLETE }),
   defineCompletionEntry({ id: "componentTypes", status: COMPLETE }),
   defineCompletionEntry({ id: "contourAdmin", status: COMPLETE }),
-  defineCompletionEntry({ id: "dispatch", status: PARTIAL }),
+  defineCompletionEntry({ id: "dispatch", status: COMPLETE }),
   defineCompletionEntry({ id: "employeeDesktop", status: COMPLETE }),
   defineCompletionEntry({ id: "gantt", status: PARTIAL }),
   defineCompletionEntry({ id: "marking", status: PARTIAL }),
@@ -72,7 +72,7 @@ export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "weeklyProductionControl", status: COMPLETE, verification: ACCEPTED, surfaceIds: ["weeklyProductionControl"] }),
   defineCompletionEntry({ id: "shiftMasterBoard", status: COMPLETE, surfaceIds: ["shiftMasterBoard"] }),
   defineCompletionEntry({ id: "shiftWorkOrders", status: COMPLETE, surfaceIds: ["shiftWorkOrders"] }),
-  defineCompletionEntry({ id: "dispatch", status: PARTIAL, surfaceIds: ["dispatch"] }),
+  defineCompletionEntry({ id: "dispatch", status: COMPLETE, surfaceIds: ["dispatch"] }),
   defineCompletionEntry({
     id: "productionStructureMatrix",
     status: COMPLETE,

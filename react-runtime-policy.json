@@ -25,6 +25,7 @@
     "specifications2": "react",
     "gantt": "react",
     "authPicker": "react",
-    "contourAdmin": "react"
+    "contourAdmin": "react",
+    "dispatch": "react"
   }
 }

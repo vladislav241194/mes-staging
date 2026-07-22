@@ -1,18 +1,16 @@
-import { renderDispatchModulePage } from "./render.js";
 import { createDispatchReactIslandHost } from "./react_island_host.js";
 
 export function createModuleRuntimeAdapter(context = {}) {
-  const reactHost = createDispatchReactIslandHost({ getTargetRoot: context.getApp });
+  const reactHost = createDispatchReactIslandHost({
+    getActivation: context.getDispatchReactActivation,
+    getPayload: context.getDispatchReactProductionPayload,
+    getTargetRoot: context.getApp,
+  });
   return {
     render: () => {
-      const decision = reactHost.prepareRender();
-      if (decision.activateReact) return reactHost.renderTarget();
-      return renderDispatchModulePage({
-        renderMesModulePatternPage: context.renderMesModulePatternPage,
-        renderUiPanel: context.renderUiPanel,
-        renderUiPanelBody: context.renderUiPanelBody,
-        renderUiSystemState: context.renderUiSystemState,
-      });
+      void context.ensureDispatchReactProduction?.();
+      reactHost.prepareRender();
+      return reactHost.renderTarget();
     },
     bind: () => {},
     afterRender: () => { void reactHost.mount(); },

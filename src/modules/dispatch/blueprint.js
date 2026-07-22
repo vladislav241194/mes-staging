@@ -20,32 +20,32 @@ export const MODULE_BLUEPRINT = defineMesModuleBlueprint({
   },
   layout: {
     pattern: MES_MODULE_LAYOUT_PATTERNS.FULL_WIDTH,
-    header: MES_MODULE_HEADER_MODES.ABSENT,
+    header: MES_MODULE_HEADER_MODES.REQUIRED,
     sidebar: MES_MODULE_SIDEBAR_MODES.ABSENT,
     shellClassName: "dispatch-app-shell",
-    pageClassName: "dispatch-page dispatch-placeholder-page",
-    contentClassName: "dispatch-placeholder-content-wrap",
+    pageClassName: "dispatch-page",
+    contentClassName: "dispatch-content-wrap",
     ariaLabel: "Диспетчерская",
-    visualContract: "headerless-module",
+    visualContract: "module-header-table",
   },
   runtime: {
     kind: MES_MODULE_RUNTIME_KINDS.STANDARD,
     contract: MES_MODULE_RUNTIME_CONTRACTS.HARD,
     instanceKey: "dispatch",
-    lifecycle: MES_MODULE_RUNTIME_LIFECYCLES.BLUEPRINT_NATIVE,
+    lifecycle: MES_MODULE_RUNTIME_LIFECYCLES.STANDARD_READY,
     chrome: "standard",
   },
   qa: {
     smoke: true,
     visualWave: "reference",
-    parity: { family: "full-headerless", shell: "standard", page: "full", header: "absent" },
-    regression: { type: "placeholder", hasTable: false, hasActions: false },
+    parity: { family: "operational-table", shell: "standard", page: "full", header: "required" },
+    regression: { type: "operational-table", hasTable: true, hasActions: false },
   },
   access: {
     defaultRoleActions: { dispatcher: ["view"] },
   },
   capabilities: {
-    table: false,
+    table: true,
     tree: false,
     actions: false,
     overlays: [],
@@ -55,12 +55,12 @@ export const MODULE_BLUEPRINT = defineMesModuleBlueprint({
     contract: {
       label: "Диспетчерская",
       group: "Оперативное управление",
-      role: "Модуль-заглушка: диспетчерская выведена из рабочего контура и сейчас не влияет на планирование, Гант, мастерскую и заказ-наряды.",
-      reads: [],
+      role: "Read-only производственный срез текущей смены: план, назначения, факты, брак и переносы без изменения данных.",
+      reads: ["Planning work-order projection", "Shift Execution dispatch projection", "System Domains labels"],
       writes: [],
       ganttImpact: "none",
-      ganttVisualChange: "—",
-      editPolicy: "Не принимает факт, не хранит аналитику и не пересчитывает Гант до нового ТЗ.",
+      ganttVisualChange: "Читает уже размещённые слоты без изменения геометрии Ганта.",
+      editPolicy: "Только просмотр; команды назначения, факта и перепланирования остаются в существующих владельцах.",
     },
   },
   sourceFiles: [
@@ -81,7 +81,7 @@ export const MODULE_BLUEPRINT = defineMesModuleBlueprint({
     api: [],
     qa: [],
   },
-  prototypeNative: true,
+  prototypeNative: false,
 });
 
 export const DISPATCH_MODULE_BLUEPRINT = MODULE_BLUEPRINT;

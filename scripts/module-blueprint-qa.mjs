@@ -206,8 +206,7 @@ for (const blueprint of MES_MODULE_BLUEPRINT_REGISTRY) {
 
 await syncGeneratedModuleBlueprintIndexes({ check: true }).catch((error) => failures.push(error.message));
 const generatedIds = GENERATED_MODULE_BLUEPRINTS.map((blueprint) => blueprint.id);
-const nativeIds = MES_MODULE_BLUEPRINT_REGISTRY.filter((blueprint) => blueprint.prototypeNative).map((blueprint) => blueprint.id);
-assert(sameSet(generatedIds, nativeIds), `factory-blueprint-discovery failed: generated=${generatedIds} native=${nativeIds}`);
+assert(sameSet(generatedIds, ["dispatch"]), `factory-blueprint-discovery failed: generated=${generatedIds}`);
 
 const generatedAdapters = createGeneratedModuleRuntimeAdapters({
   renderMesModulePatternPage: () => "",
@@ -215,12 +214,13 @@ const generatedAdapters = createGeneratedModuleRuntimeAdapters({
   renderUiPanelBody: () => "",
   renderUiSystemState: () => "",
 });
-assert(sameSet(Object.keys(generatedAdapters), nativeIds), `factory-runtime-handler failed: adapters=${Object.keys(generatedAdapters)} native=${nativeIds}`);
+assert(sameSet(Object.keys(generatedAdapters), generatedIds), `factory-runtime-handler failed: adapters=${Object.keys(generatedAdapters)} generated=${generatedIds}`);
 
 const weeklyBlueprint = blueprintById.get("weeklyProductionControl");
 const dispatchBlueprint = blueprintById.get("dispatch");
 assert(weeklyBlueprint?.runtime.lifecycle === MES_MODULE_RUNTIME_LIFECYCLES.FACTORY_LAZY, "weekly lifecycle must remain factory-lazy");
-assert(dispatchBlueprint?.runtime.lifecycle === MES_MODULE_RUNTIME_LIFECYCLES.BLUEPRINT_NATIVE, "dispatch lifecycle must remain blueprint-native");
+assert(dispatchBlueprint?.prototypeNative === false, "production-backed Dispatch may not remain classified as a prototype-native module");
+assert(dispatchBlueprint?.runtime.lifecycle === MES_MODULE_RUNTIME_LIFECYCLES.STANDARD_READY, "production-backed Dispatch must use the standard-ready lifecycle");
 assertThrows(() => createMesModuleRuntime({
   blueprints: [weeklyBlueprint],
   adapters: { weeklyProductionControl: { render: () => "" } },
@@ -230,7 +230,7 @@ assertThrows(() => createMesModuleRuntime({
   blueprints: [dispatchBlueprint],
   adapters: { dispatch: { initialize: () => ({}), render: () => "" } },
   renderAppShell: () => {},
-}), /blueprint-native adapter cannot declare initialize/, "blueprint-native lifecycle accepted an unexpected initializer");
+}), /standard-ready adapter cannot declare initialize/, "standard-ready lifecycle accepted an unexpected initializer");
 const sharedLazyBlueprintA = {
   ...weeklyBlueprint,
   id: "factoryLazyA",

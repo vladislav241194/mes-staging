@@ -16,7 +16,14 @@ const readModel = createWorkOrdersReadModel({
       status: 200,
       ok: true,
       headers: { get: () => '"9"' },
-      json: async () => ({ ok: true, item: { id: "route-1", quantity: 24, concurrencyRevision: 9 } }),
+      json: async () => ({
+        ok: true,
+        item: { id: "route-1", quantity: 24, concurrencyRevision: 9 },
+        slot: { id: responseKind === "wrong-slot" ? "slot-neighbor" : "slot-1", plannedStart: "2026-07-18T08:00:00.000Z" },
+        compatibilityReceipt: responseKind === "slot-pending"
+          ? { found: true, exact: true, ready: false, state: "pending", unresolvedCount: 1 }
+          : { found: true, exact: true, ready: true, state: "applied", unresolvedCount: 0 },
+      }),
     };
     if (options?.method === "PATCH") return {
       status: 200,
@@ -86,14 +93,22 @@ await readModel.refreshWorkbenchBootstrap("route-1");
 assert(calls === callsBeforeBootstrap + 1, "fresh workbench bootstrap must reuse its cached selected aggregate across ID and number aliases");
 const changedQuantity = await readModel.changeQuantity("route-1", 24, 7);
 assert(changedQuantity.ok && changedQuantity.item?.concurrencyRevision === 8 && readModel.getItems()[0]?.quantity === 24, "quantity command must update the read-through cache after a successful conditional write");
-const scheduled = await readModel.changeSlotSchedule("route-1", "step-1", "2026-07-18T08:00:00.000Z", 8);
-assert(scheduled.ok && scheduled.item?.concurrencyRevision === 9 && requests.at(-1)?.options?.headers?.["If-Match"] === '"8"', "slot schedule command must use the aggregate ETag and update the cache");
+const scheduled = await readModel.changeSlotSchedule("route-1", "step-1", "slot-1", "2026-07-18T08:00:00.000Z", 8);
+assert(scheduled.ok && scheduled.compatibilityReady === true && scheduled.item?.concurrencyRevision === 9 && scheduled.slot?.id === "slot-1" && requests.at(-1)?.options?.headers?.["If-Match"] === '"8"', "slot schedule command must use the exact physical slot, aggregate ETag and applied rollback receipt before success");
+assert(JSON.parse(requests.at(-1)?.options?.body || "{}").slotId === "slot-1", "slot schedule request must carry the selected physical slot id");
+responseKind = "slot-pending";
+const pendingSlotMirror = await readModel.changeSlotSchedule("route-1", "step-1", "slot-1", "2026-07-18T08:30:00.000Z", 9);
+assert(pendingSlotMirror.ok && pendingSlotMirror.compatibilityReady === false, "a committed slot with a pending rollback mirror must not expose plain compatibility success");
+responseKind = "wrong-slot";
+const wrongSlot = await readModel.changeSlotSchedule("route-1", "step-1", "slot-1", "2026-07-18T09:00:00+03:00", 9);
+assert(!wrongSlot.ok && wrongSlot.kind === "unavailable", "client must fail closed when the owner returns a neighboring physical slot");
+responseKind = "fresh";
 await readModel.refresh();
-assert(calls === 7, "fresh list read model must not refetch during its TTL");
+assert(calls === 9, "fresh list read model must not refetch during its TTL");
 clock += 31_000;
 responseKind = "unchanged";
 const unchanged = await readModel.refresh();
-assert(unchanged.ok && !unchanged.changed && requests[7]?.options?.headers?.["If-None-Match"] === '"9"', "a mutation must advance the cache ETag before stale data is revalidated");
+assert(unchanged.ok && !unchanged.changed && requests[9]?.options?.headers?.["If-None-Match"] === '"9"', "a mutation must advance the cache ETag before stale data is revalidated");
 clock += 31_000;
 responseKind = "offline";
 const offline = await readModel.refresh();

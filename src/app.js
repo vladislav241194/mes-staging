@@ -76,16 +76,10 @@ import {
   normalizeUiTone,
 } from "./ui/html.js";
 import { createAppInteractionsModule } from "./modules/app_interactions/render.js";
-import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createNomenclatureServerOwnerClient } from "./modules/nomenclature/server_owner_client.js";
-import {
-  createNomenclatureTypesServerOwnerClient,
-  prepareNomenclatureTypeDeleteContract,
-} from "./modules/nomenclature_types/server_owner_client.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
-import { createBoardsCommandOwner } from "./modules/nomenclature/boards_command_owner.js";
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import {
   createEmptySystemDomainsServerCommandState,
@@ -215,7 +209,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.42";
+const APP_VERSION_FALLBACK = "v.1.500.43";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -437,7 +431,37 @@ const sharedStateStatus = {
 };
 
 const nomenclatureServerOwnerClient = createNomenclatureServerOwnerClient();
-const nomenclatureTypesServerOwnerClient = createNomenclatureTypesServerOwnerClient();
+let nomenclatureTypesServerOwnerModule = null;
+let nomenclatureTypesServerOwnerModuleLoad = null;
+let nomenclatureTypesServerOwnerModuleError = "";
+function isNomenclatureTypesSurfaceActive() {
+  return ui?.activeModule === "directories"
+    && String(ui.activeDirectory || "") === "nomenclatureTypes";
+}
+function ensureNomenclatureTypesServerOwnerModule() {
+  if (nomenclatureTypesServerOwnerModule) return Promise.resolve(nomenclatureTypesServerOwnerModule);
+  if (nomenclatureTypesServerOwnerModuleLoad) return nomenclatureTypesServerOwnerModuleLoad;
+  nomenclatureTypesServerOwnerModuleLoad = import("./modules/nomenclature_types/server_owner_client.js")
+    .then(({ createNomenclatureTypesServerOwnerClient, prepareNomenclatureTypeDeleteContract }) => {
+      if (typeof createNomenclatureTypesServerOwnerClient !== "function"
+        || typeof prepareNomenclatureTypeDeleteContract !== "function") {
+        throw new Error("Nomenclature Types server owner contract is unavailable");
+      }
+      nomenclatureTypesServerOwnerModule = {
+        client: createNomenclatureTypesServerOwnerClient(),
+        prepareDeleteContract: prepareNomenclatureTypeDeleteContract,
+      };
+      nomenclatureTypesServerOwnerModuleError = "";
+      return nomenclatureTypesServerOwnerModule;
+    })
+    .catch((error) => {
+      nomenclatureTypesServerOwnerModuleLoad = null;
+      nomenclatureTypesServerOwnerModuleError = error?.message || "Nomenclature Types server owner is unavailable";
+      console.error("Не удалось загрузить серверного владельца типов номенклатуры", error);
+      return null;
+    });
+  return nomenclatureTypesServerOwnerModuleLoad;
+}
 const NOMENCLATURE_CAPABILITIES_RECHECK_MS = 5_000;
 let employeeServerSessionState = { status: "idle", authenticated: false, actor: null, error: "" };
 let employeeServerSessionPromise = null;
@@ -578,7 +602,7 @@ async function createEmployeeServerSession({ employeeId = "", pin = "" } = {}) {
   // to the pre-login cookie/session and must not authorize this actor.
   resetEmployeeServerCapabilities();
   void ensureNomenclatureServerCapabilities({ force: true });
-  void ensureNomenclatureTypesServerCapabilities({ force: true });
+  if (isNomenclatureTypesSurfaceActive()) void ensureNomenclatureTypesServerCapabilities({ force: true });
   void forceRehydrateSystemDomainsServerCapabilities(ui?.activeModule || "", { refreshRead: true });
   return { ...result, ok: true, authenticated: true, actor };
 }
@@ -641,7 +665,7 @@ function reconcileEmployeeServerSession({ force = false } = {}) {
     }
     if (actor) {
       void ensureNomenclatureServerCapabilities({ force: true });
-      void ensureNomenclatureTypesServerCapabilities({ force: true });
+      if (isNomenclatureTypesSurfaceActive()) void ensureNomenclatureTypesServerCapabilities({ force: true });
     }
     return employeeServerSessionState;
   }).catch((error) => {
@@ -716,7 +740,12 @@ function ensureNomenclatureTypesServerCapabilities({ force = false } = {}) {
   nomenclatureTypesServerCapabilitiesState = { status: "loading", result: null, error: "" };
   let retryWhenLocalActorReady = false;
   let requestPromise;
-  requestPromise = nomenclatureTypesServerOwnerClient.getCapabilities().then((result) => {
+  requestPromise = ensureNomenclatureTypesServerOwnerModule().then((ownerModule) => {
+    if (!ownerModule?.client) {
+      throw new Error(nomenclatureTypesServerOwnerModuleError || "Nomenclature Types server owner is unavailable");
+    }
+    return ownerModule.client.getCapabilities();
+  }).then((result) => {
     if (requestEpoch !== nomenclatureTypesServerCapabilitiesEpoch) return nomenclatureTypesServerCapabilitiesState;
     const localEmployeeId = String(getAuthenticatedAccessPerson()?.id || "");
     const serverEmployeeId = String(result?.actor?.employeeId || "");
@@ -799,6 +828,11 @@ function ensureNomenclatureTypesDeleteContracts({ force = false } = {}) {
     return Promise.resolve(nomenclatureTypesDeleteContractsState);
   }
   if (nomenclatureTypesDeleteContractsPromise) return nomenclatureTypesDeleteContractsPromise;
+  const prepareDeleteContract = nomenclatureTypesServerOwnerModule?.prepareDeleteContract;
+  if (typeof prepareDeleteContract !== "function") {
+    nomenclatureTypesDeleteContractsState = { status: "error", revision, byId: {}, error: "Серверный расчёт связей типов номенклатуры недоступен." };
+    return Promise.resolve(nomenclatureTypesDeleteContractsState);
+  }
   const requestEpoch = nomenclatureTypesServerCapabilitiesEpoch;
   let directorySnapshot;
   try { directorySnapshot = JSON.parse(JSON.stringify(directoryState)); }
@@ -816,7 +850,7 @@ function ensureNomenclatureTypesDeleteContracts({ force = false } = {}) {
       && normalizeLookupText(normalizeNomenclatureType(candidate?.name)) === normalizeLookupText(normalizeNomenclatureType(fallbackName))
     )) || null;
     if (!itemId || !fallback?.id) return [itemId, null];
-    const preview = await prepareNomenclatureTypeDeleteContract({
+    const preview = await prepareDeleteContract({
       directory: directorySnapshot,
       itemId,
       fallbackTypeId: String(fallback.id),
@@ -943,7 +977,7 @@ function finishNomenclatureEmployeeElevation(actor = null) {
   if (returnModule === "productionStructureMatrix") setProductionStructureMatrixActiveRegistry(returnStructureRegistry || "orgUnits");
   persistUiState();
   void ensureNomenclatureServerCapabilities({ force: true });
-  void ensureNomenclatureTypesServerCapabilities({ force: true });
+  if (isNomenclatureTypesSurfaceActive()) void ensureNomenclatureTypesServerCapabilities({ force: true });
   void forceRehydrateSystemDomainsServerCapabilities(returnModule, { refreshRead: true }).finally(() => {
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
   });
@@ -3625,19 +3659,38 @@ function canWriteBoardsReact(activation = getBoardsReactActivation()) {
     && !isLegacyDirectoryWriteBlocked()
     && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" });
 }
-const boardsCommandOwner = createBoardsCommandOwner({
-  getDirectoryState: () => directoryState,
-  setDirectoryState: (nextState) => { directoryState = nextState; },
-  getUi: () => ui,
-  apply: (nextState) => normalizeDirectoryState(nextState, { mergeFallback: false }),
-  persist: (_nextState, { type } = {}) => type === "delete"
-    ? withDirectoryEntityRemovalAllowed(() => persistDirectoryState())
-    : persistDirectoryState(),
-  persistUi: () => persistUiState() !== false,
-  notify: (message) => notifySaveSuccess(message),
-  recordRemoval: (sectionId, rowId) => recordDirectoryEntityDeletion(sectionId, rowId),
-  makeId,
-});
+let boardsCommandOwner = null;
+let boardsCommandOwnerLoad = null;
+function ensureBoardsCommandOwner() {
+  if (boardsCommandOwner) return Promise.resolve(boardsCommandOwner);
+  if (boardsCommandOwnerLoad) return boardsCommandOwnerLoad;
+  boardsCommandOwnerLoad = import("./modules/nomenclature/boards_command_owner.js")
+    .then(({ createBoardsCommandOwner }) => {
+      if (typeof createBoardsCommandOwner !== "function") {
+        throw new Error("Boards/BOM command owner factory is unavailable");
+      }
+      boardsCommandOwner = createBoardsCommandOwner({
+        getDirectoryState: () => directoryState,
+        setDirectoryState: (nextState) => { directoryState = nextState; },
+        getUi: () => ui,
+        apply: (nextState) => normalizeDirectoryState(nextState, { mergeFallback: false }),
+        persist: (_nextState, { type } = {}) => type === "delete"
+          ? withDirectoryEntityRemovalAllowed(() => persistDirectoryState())
+          : persistDirectoryState(),
+        persistUi: () => persistUiState() !== false,
+        notify: (message) => notifySaveSuccess(message),
+        recordRemoval: (sectionId, rowId) => recordDirectoryEntityDeletion(sectionId, rowId),
+        makeId,
+      });
+      return boardsCommandOwner;
+    })
+    .catch((error) => {
+      boardsCommandOwnerLoad = null;
+      console.error("Не удалось загрузить владельца команд плат и BOM", error);
+      return null;
+    });
+  return boardsCommandOwnerLoad;
+}
 const boardsReactIslandHost = createBoardsReactIslandHost({
   getActivation: getBoardsReactActivation,
   getPayload: () => {
@@ -3680,7 +3733,11 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (command.type === "import-bom-xlsx") {
       return { ok: false, code: "deferred-import", message: "Импорт XLSX временно отложен; обычное редактирование BOM уже работает в React TS." };
     }
-    const result = boardsCommandOwner.execute(command);
+    const commandOwner = await ensureBoardsCommandOwner();
+    if (!commandOwner) {
+      return { ok: false, code: "owner-unavailable", message: "Команды плат и BOM временно недоступны. Обновите страницу и повторите действие." };
+    }
+    const result = commandOwner.execute(command);
     if (result?.ok === true) {
       queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
     }
@@ -4689,7 +4746,9 @@ function getPlanningWorkbenchProductionItemIds(state = getPlanningWorkbenchProdu
 function getPlanningWorkbenchProductionPayload() {
   const state = getPlanningWorkbenchProductionReadState();
   const activation = getPlanningWorkbenchReactActivation();
-  const canEdit = canPlanningWorkbenchReactWrite(activation, state);
+  const canEditStartDate = canPlanningWorkbenchReactWrite(activation, state);
+  const canEditQuantity = canPlanningWorkbenchReactQuantityWrite(activation, state);
+  const canEditSlotSchedule = canPlanningWorkbenchReactSlotWrite(activation, state);
   const reconciliationEnabled = activation.startDateReconciliationSessionRequested === true;
   const startDateReconciliation = readPlanningStartDateReconciliation({
     activeRouteId: state.activeRouteId,
@@ -4713,8 +4772,9 @@ function getPlanningWorkbenchProductionPayload() {
     },
     startDateReconciliation,
     capabilities: {
-      quantityEdit: false,
-      startDateEdit: canEdit,
+      quantityEdit: canEditQuantity && !startDateReconciliation,
+      startDateEdit: canEditStartDate,
+      slotScheduleEdit: canEditSlotSchedule && !startDateReconciliation,
       employeeElevation: activation.signedWriteSurfaceEligible === true
         && activation.signedServerSessionReady !== true,
     },
@@ -4776,13 +4836,16 @@ function getPlanningWorkbenchReactActivation() {
     && String(signedServerActor.employeeId) === String(authenticatedPerson?.id || "");
   const canEditPlanning = authorizeSystemDomainAction("planning", "edit");
   const planningCapability = planningCommandCapabilitiesState.result;
-  const signedPlanningCapabilityReady = planningCapability?.ok === true
+  const signedPlanningActorCapabilityReady = planningCapability?.ok === true
     && planningCapability.authenticated === true
     && String(planningCapability.actor?.employeeId || "") === String(authenticatedPerson?.id || "")
-    && planningCapability.capabilities?.canEditPlanning === true
-    && planningCapability.capabilities?.startDateEnabled === true
-    && planningCapability.capabilities?.quantityEnabled !== true
-    && planningCapability.capabilities?.slotScheduleEnabled !== true;
+    && planningCapability.capabilities?.canEditPlanning === true;
+  const signedPlanningCapabilityReady = signedPlanningActorCapabilityReady
+    && planningCapability.capabilities?.startDateEnabled === true;
+  const signedPlanningQuantityCapabilityReady = signedPlanningActorCapabilityReady
+    && planningCapability.capabilities?.quantityEnabled === true;
+  const signedPlanningSlotCapabilityReady = signedPlanningActorCapabilityReady
+    && planningCapability.capabilities?.slotScheduleEnabled === true;
   const serverWriteEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH_WRITE_EVALUATION === true;
   const writeEvaluationRequested = isPlanningWorkbenchReactWriteEvaluationRequested();
   const liveWriteEvaluationEligible = serverWriteEvaluationAllowed
@@ -4808,7 +4871,11 @@ function getPlanningWorkbenchReactActivation() {
     && authenticatedAccess
     && canEditPlanning
     && serverProjectionReady;
-  const signedWriteSurfaceEligible = liveWriteEvaluationEligible || permanentWriteEligible;
+  const permanentCommandSurfaceEligible = runtimeActivation.runtimeMode === "react"
+    && authenticatedAccess
+    && canEditPlanning
+    && serverProjectionReady;
+  const signedWriteSurfaceEligible = liveWriteEvaluationEligible || permanentCommandSurfaceEligible;
   if (!localQa.writeEvaluation
     && (serverWriteEvaluationAllowed || runtimeActivation.runtimeMode === "react")
     && employeeServerSessionState.status === "idle") {
@@ -4837,6 +4904,8 @@ function getPlanningWorkbenchReactActivation() {
     authenticatedAccess,
     signedServerSessionReady,
     signedPlanningCapabilityReady,
+    signedPlanningQuantityCapabilityReady,
+    signedPlanningSlotCapabilityReady,
     canEditPlanning,
     writeEvaluationRequested,
     liveWriteEvaluationEligible,
@@ -4875,6 +4944,23 @@ function canPlanningWorkbenchReactWrite(activation = getPlanningWorkbenchReactAc
     && activation.signedPlanningCapabilityReady === true
     && activation.canEditPlanning === true
     && state.serverProjectionReady === true;
+}
+function canPlanningWorkbenchReactQuantityWrite(activation = getPlanningWorkbenchReactActivation(), state = getPlanningWorkbenchProductionReadState()) {
+  return ["write-evaluation", "react"].includes(activation.accessMode)
+    && activation.authenticatedAccess === true
+    && activation.signedServerSessionReady === true
+    && activation.signedPlanningQuantityCapabilityReady === true
+    && activation.canEditPlanning === true
+    && state.serverProjectionReady === true;
+}
+function canPlanningWorkbenchReactSlotWrite(activation = getPlanningWorkbenchReactActivation(), state = getPlanningWorkbenchProductionReadState()) {
+  return ["write-evaluation", "react"].includes(activation.accessMode)
+    && activation.authenticatedAccess === true
+    && activation.signedServerSessionReady === true
+    && activation.signedPlanningSlotCapabilityReady === true
+    && activation.canEditPlanning === true
+    && state.serverProjectionReady === true
+    && Boolean(state.runtimeProjection);
 }
 const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost({
   getActivation: getPlanningWorkbenchReactActivation,
@@ -4927,11 +5013,61 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
       }
     }
     const activation = getPlanningWorkbenchReactActivation();
-    if (command.type !== "change-start-date") return { ok: false, message: "В этой проверке доступно только изменение даты старта." };
+    if (!["change-start-date", "change-quantity", "change-slot"].includes(command.type)) return { ok: false, message: "Команда Planning не поддерживается React-модулем." };
     const state = getPlanningWorkbenchProductionReadState(); const routeId = String(command.routeId || "").trim();
-    if (!canPlanningWorkbenchReactWrite(activation, state)) return { ok: false, message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false ? "Выполните подтверждённый вход сотрудника, чтобы изменять заказ-наряд." : "Нет подтверждённого права изменять заказ-наряд." };
     if (!routeId || routeId !== state.activeRouteId || !state.items.some((route) => String(route?.id || "") === routeId)) return { ok: false, message: "Заказ-наряд больше не является активным." };
     if (state.serverProjectionReady !== true) return { ok: false, message: "PostgreSQL-проекция заказ-наряда недоступна." };
+    if (command.type === "change-slot") {
+      if (readPlanningStartDateReconciliation()) return { ok: false, message: "Сначала проверьте незавершённую команду даты старта." };
+      const operationId = String(command.operationId || "").trim();
+      const slotId = String(command.slotId || "").trim();
+      const expectedRevision = Number(command.expectedRevision);
+      const plannedStart = new Date(String(command.plannedStart || ""));
+      const activeRoute = state.item && String(state.item.id || "") === routeId ? state.item : null;
+      const operation = (Array.isArray(activeRoute?.operations) ? activeRoute.operations : []).find((item) => String(item?.id || "") === operationId);
+      const slot = operation?.slot && typeof operation.slot === "object" ? operation.slot : null;
+      const projectedSlot = (Array.isArray(state.runtimeProjection?.slots) ? state.runtimeProjection.slots : []).find((item) => String(item?.id || "") === slotId);
+      if (!operationId || !slotId || String(ui?.planningWorkItem || "") !== `step:${operationId}`) return { ok: false, message: "Выбранная операция изменилась. Выберите её повторно." };
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 1 || Number(activeRoute?.concurrencyRevision) !== expectedRevision) return { ok: false, message: "Заказ-наряд изменился в другом сеансе. Обновите данные и повторите." };
+      if (Number.isNaN(plannedStart.getTime()) || plannedStart.getFullYear() < 2000 || plannedStart.getFullYear() > 2100) return { ok: false, message: "Дата начала операции некорректна." };
+      if (!slot || String(slot.id || "") !== slotId || !projectedSlot || String(projectedSlot.routeId || projectedSlot.planningOrderId || "") !== routeId || String(projectedSlot.routeStepId || projectedSlot.operationId || "") !== operationId) return { ok: false, message: "Слот больше не соответствует выбранной операции." };
+      if (slot.locked || slot.isLocked || projectedSlot.locked || projectedSlot.isLocked || isGanttSlotCompleted(slot) || isGanttSlotCompleted(projectedSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
+      if (!canPlanningWorkbenchReactSlotWrite(activation, state)) return { ok: false, message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false ? "Выполните подтверждённый вход сотрудника, чтобы изменить слот." : activation.signedPlanningSlotCapabilityReady !== true ? "Серверный владелец слота не подтверждён." : "Нет подтверждённого права изменить слот." };
+      const result = await changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { expectedRevision, renderOnChange: false, renderOnConflict: false, requireServerCommand: true });
+      planningWorkbenchReactIslandHost.update();
+      if (result?.committed && result?.rollbackReady === false) return { ok: false, committed: true, code: "compatibility-pending", message: "Слот сохранён в PostgreSQL, но rollback-копия ещё синхронизируется. Не повторяйте перенос; обновите экран позже." };
+      if (!result?.applied) return { ok: false, message: result?.kind === "conflict" ? "График изменился в другом сеансе. Показаны актуальные данные — проверьте слот и повторите." : "Начало операции не сохранено владельцем Planning." };
+      return { ok: true, id: slotId, plannedStart: result.slot?.plannedStart || plannedStart.toISOString() };
+    }
+    if (command.type === "change-quantity") {
+      if (readPlanningStartDateReconciliation()) return { ok: false, message: "Сначала проверьте незавершённую команду даты старта." };
+      const quantity = Number(command.quantity);
+      const expectedRevision = Number(command.expectedRevision);
+      const activeRoute = state.item && String(state.item.id || "") === routeId
+        ? state.item
+        : state.items.find((route) => String(route?.id || "") === routeId) || null;
+      if (!Number.isInteger(quantity) || quantity <= 0) return { ok: false, message: "Тираж должен быть положительным целым числом." };
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 1) return { ok: false, message: "Не удалось определить исходную ревизию заказ-наряда." };
+      if (!canPlanningWorkbenchReactQuantityWrite(activation, state)) return {
+        ok: false,
+        message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false
+          ? "Выполните подтверждённый вход сотрудника, чтобы изменить тираж."
+          : activation.signedPlanningQuantityCapabilityReady !== true
+            ? "Серверный владелец тиража не подтверждён."
+            : "Нет подтверждённого права изменить тираж.",
+      };
+      if (Number(activeRoute?.concurrencyRevision) !== expectedRevision) return { ok: false, message: "Заказ-наряд изменился в другом сеансе. Обновите данные и повторите." };
+      if (Number(activeRoute?.quantity) === quantity) return { ok: false, message: "Тираж не изменился." };
+      const applied = await changePlanningRouteQuantity(routeId, quantity, {
+        expectedRevision,
+        requireServerCommand: true,
+        renderOnConflict: false,
+      });
+      if (applied !== true) return { ok: false, message: "Тираж не сохранён владельцем Planning. Обновите данные и повторите." };
+      planningWorkbenchReactIslandHost.update();
+      return { ok: true, id: routeId, quantity };
+    }
+    if (!canPlanningWorkbenchReactWrite(activation, state)) return { ok: false, message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false ? "Выполните подтверждённый вход сотрудника, чтобы изменять заказ-наряд." : "Нет подтверждённого права изменять заказ-наряд." };
     if (command.type === "change-start-date") {
       const ownsPlanningStartDate = Object.prototype.hasOwnProperty.call(command, "planningStartDate");
       const planningStartDate = normalizeNullablePlanningStartDate(command.planningStartDate);
@@ -6556,7 +6692,8 @@ const ganttReactIslandHost = createGanttReactIslandHost({
     if (stateSlot.locked || stateSlot.isLocked || isGanttSlotCompleted(stateSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
     const plannedStart = new Date(String(command.plannedStart || ""));
     if (Number.isNaN(plannedStart.getTime()) || plannedStart.getFullYear() < 2000 || plannedStart.getFullYear() > 2100) return { ok: false, message: "Дата начала операции некорректна." };
-    const result = await changePlanningSlotSchedule(routeId, operationId, plannedStart.toISOString(), { renderOnConflict: false, requireServerCommand: true });
+    const result = await changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { renderOnConflict: false, requireServerCommand: true });
+    if (result?.committed && result?.rollbackReady === false) return { ok: false, committed: true, code: "compatibility-pending", message: "Слот сохранён в PostgreSQL, но rollback-копия ещё синхронизируется. Не повторяйте перенос; обновите график позже." };
     if (!result?.applied) return { ok: false, message: result?.kind === "conflict" ? "График изменился в другом сеансе. Экран обновлён — проверьте слот и повторите." : "Начало операции не сохранено владельцем Planning." };
     queueMicrotask(() => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); });
     return { ok: true, id: slotId, plannedStart: result.slot?.plannedStart || plannedStart.toISOString() };
@@ -7060,9 +7197,14 @@ async function executeNomenclatureTypesServerCommand(command = {}) {
     return { ok: false, message: "Directory изменилась после открытия формы. Экран обновляется; повторите команду." };
   }
   const itemId = String(input.itemId || "").trim();
+  const ownerModule = await ensureNomenclatureTypesServerOwnerModule();
+  const serverOwnerClient = ownerModule?.client;
+  if (!serverOwnerClient) {
+    return { ok: false, code: "owner-unavailable", message: "Серверные команды типов номенклатуры временно недоступны." };
+  }
   let result;
   if (command.type === "delete") {
-    result = await nomenclatureTypesServerOwnerClient.deleteNomenclatureType({
+    result = await serverOwnerClient.deleteNomenclatureType({
       itemId,
       expectedRow: input.expectedRow,
       expectedRevision,
@@ -7082,13 +7224,13 @@ async function executeNomenclatureTypesServerCommand(command = {}) {
       status: String(input.status || "").trim() || "Активен",
     };
     result = isNew
-      ? await nomenclatureTypesServerOwnerClient.createNomenclatureType({
+      ? await serverOwnerClient.createNomenclatureType({
         itemId,
         row,
         expectedRevision,
         idempotencyKey,
       })
-      : await nomenclatureTypesServerOwnerClient.updateNomenclatureType({
+      : await serverOwnerClient.updateNomenclatureType({
         itemId,
         expectedRow: input.expectedRow,
         row,
@@ -7158,7 +7300,7 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
       evaluationRequested,
       localQaEnabled: localEvaluationEnabled,
     });
-    if (nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
+    if (isNomenclatureTypesSurfaceActive() && nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
     const serverCapability = getNomenclatureTypesServerCapabilityModel();
     const serverWriteEvaluation = serverEvaluationAllowed
       && evaluationRequested
@@ -7180,7 +7322,7 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
   },
   getPayload: () => {
     const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
-    if (nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
+    if (isNomenclatureTypesSurfaceActive() && nomenclatureTypesServerCapabilitiesState.status === "idle") void ensureNomenclatureTypesServerCapabilities();
     const serverCapability = getNomenclatureTypesServerCapabilityModel();
     if (serverCapability.enabled) void ensureNomenclatureTypesDeleteContracts();
     const legacyDeleteUsageById = Object.fromEntries((directoryState.nomenclatureTypes || []).flatMap((row) => {
@@ -7231,6 +7373,9 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
       : await ensureNomenclatureTypesServerCapabilities({ force: true });
     const serverCapability = getNomenclatureTypesServerCapabilityModel();
     if (serverCapability.configured) return executeNomenclatureTypesServerCommand(command);
+    if (nomenclatureTypesServerOwnerModuleError) {
+      return { ok: false, code: "owner-unavailable", message: "Серверный владелец типов номенклатуры временно недоступен." };
+    }
     if (capabilityState.error && !localQa.writeEvaluation) {
       return { ok: false, message: capabilityState.error };
     }
@@ -8056,6 +8201,15 @@ let getPlanningWorkbenchModel = () => ({ routes: [], queue: [], overview: null }
 let syncPlanningManualLaborToStepSlots = () => false;
 let planningWorkbenchModuleLoad = null;
 let planningWorkbenchModuleError = null;
+function initializePlanningWorkItemHelpers(factory) {
+  ({ getPlanningWorkItemId, parsePlanningWorkItemId, getPlanningWorkItemSet, getDefaultPlanningWorkItem, getPlanningActiveWorkItem } = factory({
+    getUi: () => ui,
+    getPlanningState: () => planningState,
+    routeStepRequiresManualPlanningLine,
+    isSmtOperationWorkCenter,
+    getRouteStepSelectedPlanningWorkCenterId,
+  }));
+}
 function initializePlanningWorkbenchModule(factory) {
   ({
     getPlanningWorkbenchModel,
@@ -8139,8 +8293,12 @@ function initializePlanningWorkbenchModule(factory) {
 }
 function ensurePlanningWorkbenchModule() {
   if (planningWorkbenchModuleLoad || planningWorkbenchModuleError) return planningWorkbenchModuleLoad;
-  planningWorkbenchModuleLoad = import("./modules/planning_workbench/render.js")
-    .then(({ createPlanningWorkbenchModule }) => {
+  planningWorkbenchModuleLoad = Promise.all([
+    import("./modules/planning_workbench/render.js"),
+    import("./modules/planning_workbench/work_items.js"),
+  ])
+    .then(([{ createPlanningWorkbenchModule }, { createPlanningWorkItemHelpers }]) => {
+      initializePlanningWorkItemHelpers(createPlanningWorkItemHelpers);
       initializePlanningWorkbenchModule(createPlanningWorkbenchModule);
       if (ui.activeModule === "planning") render({ skipRememberScroll: true });
     })
@@ -8787,6 +8945,7 @@ const PLANNING_STARTUP_PROJECTION_MODULE_IDS = new Set([
   "gantt",
   "shiftMasterBoard",
   "shiftWorkOrders",
+  "dispatch",
 ]);
 let planningRuntimeProjectionState = { status: "idle", error: "", revision: 0 };
 const systemDomainsReadModel = createSystemDomainsReadModel();
@@ -8802,6 +8961,10 @@ let executeShiftMasterBoardServerWrite = null;
 let projectShiftExecutionDispatchProjection = null;
 let reconcileShiftMasterBoardCarryovers = null;
 let shiftExecutionDomainApiModuleLoad = null;
+const DISPATCH_REACT_PRODUCTION_MAX_AGE_MS = 30_000;
+let dispatchReactProductionState = { status: "idle", error: "", reason: "", scope: null, emptyScope: false, coverageComplete: false, fetchedAt: 0 };
+let dispatchReactProductionLoad = null;
+let dispatchReactProductionRefreshTimer = null;
 let shiftExecutionIssueReportsBySourceRowId = {};
 let shiftExecutionIssueReportCoveredSourceRowIds = new Set();
 let employeeDesktopIssueReportReadStateByAssignmentId = new Map();
@@ -9269,7 +9432,7 @@ async function hydratePlanningRuntimeProjection({ force = false, renderOnChange 
       // forced caller must then observe one more PostgreSQL projection rather
       // than accepting the pre-command response it happened to join.
     } while (planningRuntimeProjectionForceRefreshRequested);
-    if (renderOnChange && applied && ["planning", "gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)) {
+    if (renderOnChange && applied && ["planning", "gantt", "shiftMasterBoard", "shiftWorkOrders", "dispatch", "authSessionPrototype"].includes(ui?.activeModule)) {
       render({ skipRememberScroll: true });
     }
     return applied;
@@ -9314,6 +9477,152 @@ function isSameShiftExecutionDispatchScope(left = null, right = null) {
     && left.sourceRowIds.every((value, index) => value === right.sourceRowIds[index])
     && left.workCenterIds.length === right.workCenterIds.length
     && left.workCenterIds.every((value, index) => value === right.workCenterIds[index]);
+}
+
+function hasDispatchPlanningRowsInCurrentWindow() {
+  const window = getShiftProductionWindow();
+  const start = toDate(window.start);
+  const end = toDate(window.end);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return (planningState.slots || []).some((slot) => {
+    const slotStart = toDate(slot?.plannedStart || "");
+    const slotEnd = toDate(slot?.plannedEnd || "");
+    return !Number.isNaN(slotStart.getTime())
+      && !Number.isNaN(slotEnd.getTime())
+      && slotStart < end
+      && slotEnd > start;
+  });
+}
+
+function scheduleDispatchReactProductionRefresh() {
+  if (dispatchReactProductionRefreshTimer !== null) {
+    globalThis.clearTimeout(dispatchReactProductionRefreshTimer);
+    dispatchReactProductionRefreshTimer = null;
+  }
+  if (ui?.activeModule !== "dispatch") return;
+  dispatchReactProductionRefreshTimer = globalThis.setTimeout(() => {
+    dispatchReactProductionRefreshTimer = null;
+    if (ui?.activeModule !== "dispatch") return;
+    void ensureDispatchReactProduction({ force: true });
+  }, DISPATCH_REACT_PRODUCTION_MAX_AGE_MS);
+}
+
+function getDispatchReactActivation() {
+  const currentScope = getShiftExecutionDispatchScope();
+  const scopeReady = isSameShiftExecutionDispatchScope(currentScope, dispatchReactProductionState.scope);
+  const serverReadReady = planningRuntimeProjectionState.status === "server"
+    && dispatchReactProductionState.status === "ready"
+    && dispatchReactProductionState.coverageComplete === true
+    && scopeReady;
+  return {
+    runtimeMode: "react",
+    accessMode: "react",
+    serverReadReady,
+    serverReadFailure: dispatchReactProductionState.status === "error"
+      ? dispatchReactProductionState.reason || "read-unavailable"
+      : "",
+  };
+}
+
+function getDispatchReactProductionPayload() {
+  const window = getShiftProductionWindow();
+  const shiftExecution = getShiftExecutionProductionProjection();
+  return {
+    productionModel: {
+      planning: planningState,
+      shiftExecution,
+      systemDomains: { registries: getSystemDomainsRegistries() },
+      window,
+      readState: {
+        status: dispatchReactProductionState.status,
+        productionBacked: getDispatchReactActivation().serverReadReady,
+        planningRevision: planningRuntimeProjectionState.revision,
+        coverageComplete: dispatchReactProductionState.coverageComplete,
+        serverAuthoritative: dispatchReactProductionState.coverageComplete,
+      },
+    },
+    capabilities: { readOnly: true },
+  };
+}
+
+function ensureDispatchReactProduction({ force = false } = {}) {
+  if (dispatchReactProductionLoad) return dispatchReactProductionLoad;
+  const currentScope = getShiftExecutionDispatchScope();
+  const currentScopeReady = isSameShiftExecutionDispatchScope(currentScope, dispatchReactProductionState.scope);
+  const cacheFresh = Number(dispatchReactProductionState.fetchedAt || 0) > 0
+    && Date.now() - Number(dispatchReactProductionState.fetchedAt) < DISPATCH_REACT_PRODUCTION_MAX_AGE_MS;
+  if (!force
+    && dispatchReactProductionState.status === "ready"
+    && dispatchReactProductionState.coverageComplete === true
+    && currentScopeReady
+    && cacheFresh
+    && planningRuntimeProjectionState.status === "server") {
+    return Promise.resolve(true);
+  }
+  const failedScopeStillCurrent = currentScopeReady || (!currentScope && !dispatchReactProductionState.scope);
+  if (!force && dispatchReactProductionState.status === "error" && failedScopeStillCurrent && cacheFresh) {
+    return Promise.resolve(false);
+  }
+  dispatchReactProductionState = { ...dispatchReactProductionState, status: "loading", error: "", reason: "", coverageComplete: false };
+  const load = (async () => {
+    const planningReady = await hydratePlanningRuntimeProjection({ force, renderOnChange: false });
+    if (!planningReady || planningRuntimeProjectionState.status !== "server") {
+      dispatchReactProductionState = { status: "error", error: planningRuntimeProjectionState.error || "Planning projection is unavailable", reason: "read-unavailable", scope: currentScope, emptyScope: false, coverageComplete: false, fetchedAt: Date.now() };
+      return false;
+    }
+    const scope = getShiftExecutionDispatchScope();
+    if (!scope) {
+      const error = hasDispatchPlanningRowsInCurrentWindow()
+        ? "Dispatch scope is outside the bounded production contract"
+        : "Dispatch scope cannot prove Planning rows or date-scoped carryovers";
+      dispatchReactProductionState = { status: "error", error, reason: "model-unavailable", scope: null, emptyScope: false, coverageComplete: false, fetchedAt: Date.now() };
+      return false;
+    }
+    if (!await ensureShiftExecutionDomainApiModule()) {
+      dispatchReactProductionState = { status: "error", error: "Shift Execution projection is unavailable", reason: "read-unavailable", scope, emptyScope: false, coverageComplete: false, fetchedAt: Date.now() };
+      return false;
+    }
+    const result = await shiftExecutionDispatchReadModel.refresh({ ...scope, force });
+    if (!result.ok) {
+      dispatchReactProductionState = { status: "error", error: result.error || "Shift Execution projection is unavailable", reason: "read-unavailable", scope, emptyScope: false, coverageComplete: false, fetchedAt: Date.now() };
+      return false;
+    }
+    if (!isSameShiftExecutionDispatchScope(scope, getShiftExecutionDispatchScope())) {
+      dispatchReactProductionState = { status: "idle", error: "", reason: "", scope: null, emptyScope: false, coverageComplete: false };
+      return false;
+    }
+    if (result.coverageComplete !== true) {
+      dispatchReactProductionState = {
+        status: "error",
+        error: "Shift Execution projection is not server-authoritative for the Dispatch scope",
+        reason: "model-unavailable",
+        scope: result.scope || scope,
+        emptyScope: false,
+        coverageComplete: false,
+        fetchedAt: Date.now(),
+      };
+      return false;
+    }
+    dispatchReactProductionState = {
+      status: "ready",
+      error: "",
+      reason: "",
+      scope: result.scope || scope,
+      emptyScope: false,
+      coverageComplete: true,
+      fetchedAt: Number(result.fetchedAt || 0) || Date.now(),
+    };
+    return true;
+  })();
+  dispatchReactProductionLoad = load;
+  void load.finally(() => {
+    if (dispatchReactProductionLoad === load) dispatchReactProductionLoad = null;
+    if (["ready", "error"].includes(dispatchReactProductionState.status)) scheduleDispatchReactProductionRefresh();
+    if (ui?.activeModule === "dispatch") queueMicrotask(() => {
+      if (ui?.activeModule === "dispatch") render({ skipRememberScroll: true });
+    });
+  });
+  return load;
 }
 
 function isShiftExecutionServerAuthoritative() {
@@ -9788,7 +10097,10 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
   if (!await ensurePlanningDomainApiModule()) return requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   const route = (planningState?.routes || []).find((item) => item.id === routeId);
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
-  const expectedRevision = Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
+  const requestedRevision = Number(options.expectedRevision);
+  const expectedRevision = Number.isInteger(requestedRevision) && requestedRevision >= 1
+    ? requestedRevision
+    : Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
   if ((!route && !requireServerCommand) || !Number.isInteger(expectedRevision)) {
     return requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   }
@@ -9887,23 +10199,30 @@ async function changePlanningRouteStartDate(routeId, planningStartDate, options 
   }
   return { applied: false, kind: result.kind || "unavailable" };
 }
-async function changePlanningSlotSchedule(routeId, operationId, plannedStart, options = {}) {
+async function changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart, options = {}) {
   if (isPlanningLegacyWritesQuiesced()) return { applied: false, kind: "evaluation-quiesced" };
   const requireServerCommand = options.requireServerCommand === true;
   if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
   const route = (planningState?.routes || []).find((item) => item.id === routeId);
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
-  const expectedRevision = Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
-  if (!route || !String(operationId || "") || !Number.isInteger(expectedRevision)) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
-  const result = await workOrdersReadModel.changeSlotSchedule(routeId, operationId, plannedStart, expectedRevision);
+  const requestedRevision = Number(options.expectedRevision);
+  const expectedRevision = Number.isInteger(requestedRevision) && requestedRevision >= 1
+    ? requestedRevision
+    : Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
+  const exactSlotId = String(slotId || "").trim();
+  if (!route || !String(operationId || "") || !exactSlotId || !Number.isInteger(expectedRevision)) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
+  const result = await workOrdersReadModel.changeSlotSchedule(routeId, operationId, exactSlotId, plannedStart, expectedRevision);
   if (result.ok) {
     const [detailResult, serverProjectionApplied] = await Promise.all([
       workOrdersReadModel.refreshDetail(routeId, { force: true }),
-      hydratePlanningRuntimeProjection({ force: true }),
+      hydratePlanningRuntimeProjection({ force: true, renderOnChange: options.renderOnChange !== false }),
     ]);
-    const authoritativeSlot = detailResult.item?.operations?.find((operation) => String(operation.id) === String(operationId))?.slot;
-    if (!authoritativeSlot?.id) return { applied: false, kind: "unavailable" };
-    if (serverProjectionApplied) return { applied: true, slot: authoritativeSlot };
+    const authoritativeSlot = result.slot;
+    if (!authoritativeSlot?.id || String(authoritativeSlot.id) !== exactSlotId) return { applied: false, kind: "unavailable" };
+    const rollbackReady = result.compatibilityReady === true;
+    if (serverProjectionApplied) return rollbackReady
+      ? { applied: true, committed: true, rollbackReady: true, slot: authoritativeSlot }
+      : { applied: false, committed: true, rollbackReady: false, kind: "compatibility-pending", slot: authoritativeSlot };
     planningState.routes = planningState.routes.map((item) => item.id === routeId
       ? { ...item, domainConcurrencyRevision: result.item.concurrencyRevision, updatedAt: result.item.updatedAt || item.updatedAt }
       : item);
@@ -9911,10 +10230,16 @@ async function changePlanningSlotSchedule(routeId, operationId, plannedStart, op
       ? { ...slot, plannedStart: authoritativeSlot.plannedStart, plannedEnd: authoritativeSlot.plannedEnd, updatedAt: result.item.updatedAt || slot.updatedAt }
       : slot);
     invalidateWeeklyPlanningPeriod();
-    return { applied: true, slot: authoritativeSlot };
+    return rollbackReady
+      ? { applied: true, committed: true, rollbackReady: true, slot: authoritativeSlot }
+      : { applied: false, committed: true, rollbackReady: false, kind: "compatibility-pending", slot: authoritativeSlot };
   }
   if (result.kind === "conflict") {
-    await Promise.all([workOrdersReadModel.refresh({ force: true }), workOrdersReadModel.refreshDetail(routeId, { force: true })]);
+    await Promise.all([
+      workOrdersReadModel.refresh({ force: true }),
+      workOrdersReadModel.refreshDetail(routeId, { force: true }),
+      hydratePlanningRuntimeProjection({ force: true, renderOnChange: options.renderOnConflict !== false }),
+    ]);
     notifySaveSuccess("Срок уже изменён в другом сеансе. Экран обновлён.");
     if (options.renderOnConflict !== false) render();
   }
@@ -11832,6 +12157,9 @@ function initializeModuleRuntime() {
   };
   const prototypeAdapters = createGeneratedModuleRuntimeAdapters({
     getApp: () => app,
+    getDispatchReactActivation,
+    getDispatchReactProductionPayload,
+    ensureDispatchReactProduction,
     renderMesModulePatternPage,
     renderUiPanel,
     renderUiPanelBody,
@@ -13483,13 +13811,6 @@ const {
   getDirectoryState: () => directoryState,
 }));
 
-({ getPlanningWorkItemId, parsePlanningWorkItemId, getPlanningWorkItemSet, getDefaultPlanningWorkItem, getPlanningActiveWorkItem } = createPlanningWorkItemHelpers({
-  getUi: () => ui,
-  getPlanningState: () => planningState,
-  routeStepRequiresManualPlanningLine,
-  isSmtOperationWorkCenter,
-  getRouteStepSelectedPlanningWorkCenterId,
-}));
 initializeModuleRuntime();
 rememberSharedUiSignature();
 startRuntimeApplication();

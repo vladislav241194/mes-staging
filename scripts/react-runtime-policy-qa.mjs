@@ -21,7 +21,7 @@ const policyPath = join(projectRoot, "react-runtime-policy.json");
 const sourcePolicyText = await readFile(policyPath, "utf8");
 const ledger = JSON.parse(await readFile(join(projectRoot, "experiments", "react-migration", "cutover-ledger.json"), "utf8"));
 const commandScenarioIds = ledger.scenarioAcceptance.map((scenario) => scenario.id).sort();
-assert.deepEqual([...REACT_RUNTIME_SURFACE_IDS].sort(), commandScenarioIds, "runtime policy must cover the same 24 production scenarios as the cutover ledger");
+assert.deepEqual([...REACT_RUNTIME_SURFACE_IDS].sort(), commandScenarioIds, "runtime policy must cover the same 25 production scenarios as the cutover ledger");
 const acceptedSurfaceIds = ledger.scenarioAcceptance.filter((scenario) => scenario.defaultOn).map((scenario) => scenario.id).sort();
 const evidenceAcceptedSurfaceIds = [...(ledger.permanentPilotEvidence?.reactSurfaces || [])].sort();
 assert.deepEqual(acceptedSurfaceIds, evidenceAcceptedSurfaceIds, "accepted IDs must come from matching scenario default-on and permanent Pilot evidence");
@@ -33,7 +33,7 @@ assert.equal(policy.schemaVersion, 1);
 assert.equal(policy.policyId, "mes-react-runtime-v1");
 assert.match(policy.sha256 || "", /^[a-f0-9]{64}$/);
 assert.equal(policy.source, "react-runtime-policy.json");
-assert.equal(Object.keys(policy.surfaces).length, 24);
+assert.equal(Object.keys(policy.surfaces).length, 25);
 assert(REACT_RUNTIME_SURFACE_IDS.every((id) => ["legacy", "evaluation", "react"].includes(policy.surfaces[id])));
 assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "nomenclature",
@@ -60,6 +60,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "contourAdmin",
   "gantt",
   "specifications2",
+  "dispatch",
 ], "permanent allowlist must stay explicit and limited to fully wired consumers");
 const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
 assert.deepEqual(
@@ -81,6 +82,7 @@ if (candidatePolicy) {
     "boards",
     "componentTypes",
     "contourAdmin",
+    "dispatch",
     "employeeDesktop",
     "gantt",
     "nomenclature",

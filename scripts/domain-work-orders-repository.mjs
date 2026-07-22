@@ -5,7 +5,7 @@ import {
   updateSpecifications2WorkOrderSharedStateSnapshot,
 } from "./shared-state-endpoint.mjs";
 import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
-import { isExactIsoCalendarDate } from "../src/domain/calendar_date.js";
+import { isExactIsoCalendarDate, isExactIsoInstantWithOffset } from "../src/domain/calendar_date.js";
 
 export const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -383,6 +383,9 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       const route = findRoute(model, id);
       if (!route) return { ...metaFromSnapshot(state), item: null };
       const routeId = String(route.id || "");
+      const operationCodeByStepId = new Map(model.routeSteps
+        .filter((step) => String(step.routeId || "") === routeId)
+        .map((step) => [String(step.id || step.routeStepId || ""), String(step.operationId || "")]));
       const slotsByStepId = new Map(model.slots
         .filter((slot) => String(slot.routeId || "") === routeId)
         .map((slot) => [String(slot.routeStepId || ""), slot]));
@@ -393,6 +396,20 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
           operations: model.routeSteps
             .filter((step) => String(step.routeId || "") === routeId)
             .map((step) => operationProjection(step, slotsByStepId.get(String(step.id || step.routeStepId || "")) || null)),
+          physicalSlots: model.slots
+            .filter((slot) => String(slot.routeId || "") === routeId)
+            .map((slot) => ({
+              id: String(slot.id || ""),
+              routeId,
+              routeStepId: String(slot.routeStepId || ""),
+              operationId: operationCodeByStepId.get(String(slot.routeStepId || "")) || "",
+              plannedStart: String(slot.plannedStart || ""),
+              plannedEnd: String(slot.plannedEnd || ""),
+              status: String(slot.status || "planned"),
+              quantity: Number(slot.quantity || 0),
+              isLocked: Boolean(slot.locked),
+              metadata: slot.metadata || {},
+            })),
         },
       };
     },
@@ -495,9 +512,11 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), conflict: false, item: route ? orderProjection(route, model.routeSteps, model.slots) : null };
     },
 
-    async changeSlotSchedule(id, operationId, { plannedStart, expectedRevision }) {
+    async changeSlotSchedule(id, operationId, { slotId, plannedStart, expectedRevision }) {
+      const exactSlotId = String(slotId || "").trim();
+      if (!exactSlotId) throw new Error("Exact planning slotId is required");
+      if (!isExactIsoInstantWithOffset(plannedStart)) throw new Error("plannedStart must be an exact ISO date-time with offset");
       const start = new Date(plannedStart);
-      if (Number.isNaN(start.getTime())) throw new Error("plannedStart must be an ISO date-time");
       const before = await read();
       const model = readModel(before.snapshot);
       const route = findRoute(model, id);
@@ -507,7 +526,9 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       if (Number(expectedRevision) !== currentRevision) {
         return { ...metaFromSnapshot(before), conflict: true, item: orderProjection(route, model.routeSteps, model.slots) };
       }
-      const currentSlot = model.slots.find((slot) => String(slot.routeId || "") === routeId && String(slot.routeStepId || "") === String(operationId));
+      const currentSlot = model.slots.find((slot) => String(slot.id || "") === exactSlotId
+        && String(slot.routeId || "") === routeId
+        && String(slot.routeStepId || "") === String(operationId));
       if (!currentSlot) return { ...metaFromSnapshot(before), conflict: false, item: null };
       if (currentSlot.locked || ["completed", "done"].includes(String(currentSlot.status || "").toLowerCase())) {
         throw new Error("Completed or locked planning slot cannot be rescheduled");
@@ -531,7 +552,7 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
           });
           if (!found) return current;
           nextPlanning.slots = asArray(nextPlanning.slots).map((slot) => (
-            String(slot.id || "") === String(currentSlot.id)
+            String(slot.id || "") === exactSlotId
               ? { ...slot, plannedStart: start.toISOString(), plannedEnd, updatedAt: new Date().toISOString() }
               : slot
           ));
@@ -541,7 +562,11 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       if (!updated.ok || updated.conflict) return { ...metaFromSnapshot({ configured: updated.configured, kind: "snapshot", snapshot: updated.snapshot }), conflict: Boolean(updated.conflict), item: null };
       const nextModel = readModel(updated.snapshot);
       const nextRoute = findRoute(nextModel, routeId);
-      return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), conflict: false, item: nextRoute ? orderProjection(nextRoute, nextModel.routeSteps, nextModel.slots) : null };
+      const authoritativeSlot = nextModel.slots.find((slot) => String(slot.id || "") === exactSlotId
+        && String(slot.routeId || "") === routeId
+        && String(slot.routeStepId || "") === String(operationId)) || null;
+      if (!authoritativeSlot || String(authoritativeSlot.id) !== exactSlotId) throw new Error("Exact planning slot authoritative read-back failed");
+      return { ...metaFromSnapshot({ configured: true, kind: "snapshot", snapshot: updated.snapshot }), conflict: false, item: nextRoute ? orderProjection(nextRoute, nextModel.routeSteps, nextModel.slots) : null, slot: authoritativeSlot };
     },
 
     async applyServerAggregateProjection(id, {
@@ -562,8 +587,10 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
         || !hasPlanningStartDate || planningStartDate === undefined) {
         throw new Error("Authoritative work-order aggregate projection is invalid");
       }
-      const slotProjection = new Map((item.operations || [])
-        .map((operation) => operation?.slot)
+      const authoritativeSlots = Array.isArray(item.physicalSlots)
+        ? item.physicalSlots
+        : (item.operations || []).map((operation) => operation?.slot);
+      const slotProjection = new Map(authoritativeSlots
         .filter((slot) => slot?.id)
         .map((slot) => [String(slot.id), slot]));
       const currentSlots = model.slots.filter((slot) => String(slot.routeId || "") === routeId);
