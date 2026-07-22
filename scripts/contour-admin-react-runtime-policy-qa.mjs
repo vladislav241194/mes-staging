@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { transform } from "esbuild";
@@ -15,6 +15,7 @@ import {
   CONTOUR_ADMIN_CLIENT_ACTION_IDS,
   CONTOUR_ADMIN_SCENARIO_ACTIONS,
 } from "../src/modules/contour_admin/command_contract.js";
+import { createContourAdminReactIslandHost } from "../src/modules/contour_admin/react_island_host.js";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_CONTOUR_ADMIN, false);
@@ -26,17 +27,32 @@ const script = renderRuntimeConfigScript({ MES_REACT_CONTOUR_ADMIN: "1", MES_REA
 assert.match(script, /"MES_REACT_CONTOUR_ADMIN":true/);
 assert.match(script, /"MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak/);
-const [app, host, owner, commandContract, productionModel, endpoint, scenario, runtimePolicy] = await Promise.all([
+const [app, host, owner, commandContract, productionModel, endpoint, island, scenario, runtimePolicy] = await Promise.all([
   readFile("src/app.js", "utf8"),
   readFile("src/modules/contour_admin/react_island_host.js", "utf8"),
   readFile("src/modules/contour_admin/server_owner_client.js", "utf8"),
   readFile("src/modules/contour_admin/command_contract.js", "utf8"),
   readFile("experiments/react-migration/src/modules/contour-admin/production-model.ts", "utf8"),
   readFile("scripts/contour-admin-endpoint.mjs", "utf8"),
+  readFile("experiments/react-migration/src/contour-admin-island.tsx", "utf8"),
   readFile("experiments/react-migration/src/modules/contour-admin/ContourAdminScenario.tsx", "utf8"),
   readFile("react-runtime-policy.json", "utf8").then(JSON.parse),
 ]);
 assert.equal(runtimePolicy.surfaces.contourAdmin, "react", "current Contour Admin runtime must be permanent React");
+const makeHost = (accessMode, { adminHostReady = true, featureFlagEnabled = true, runtimeMode = "react", serverReadFailure = "" } = {}) => createContourAdminReactIslandHost({
+  getActivation: () => ({ accessMode, adminHostReady, featureFlagEnabled, policyId: "qa", runtimeMode, serverReadFailure }),
+  getPayload: () => ({}),
+  getTargetRoot: () => null,
+});
+const permanentHost = makeHost("react");
+assert.deepEqual(permanentHost.prepareRender(), { activateReact: true, reason: "eligible" });
+assert.match(permanentHost.renderTarget(), /data-react-island-runtime-mode="react"[^]*data-react-island-state="loading"/);
+const disabledHost = makeHost("legacy", { featureFlagEnabled: false, runtimeMode: "legacy" });
+assert.deepEqual(disabledHost.prepareRender(), { activateReact: false, reason: "react-required" });
+assert.match(disabledHost.renderTarget(), /data-react-island-runtime-mode="react"[^]*data-react-island-state="error"[^]*react-required/);
+const publicHost = makeHost("react", { adminHostReady: false });
+assert.deepEqual(publicHost.prepareRender(), { activateReact: false, reason: "admin-host-required" });
+assert.match(publicHost.renderTarget(), /data-react-island-state="error"[^]*admin-host-required/);
 assert.match(app, /react-contour-admin-write/);
 assert.match(app, /surfaceId: "contourAdmin"/);
 assert.match(app, /return \{ capabilities: \{ executeOps: activation\.accessMode === "react" \|\| getContourAdminReactLocalQaOverrides\(\)\.writeEvaluation \} \}/);
@@ -54,7 +70,8 @@ assert.match(host, /write-evaluation/);
 assert.match(host, /canFallbackToLegacy: \(\) => false/);
 assert.match(host, /if \(activation\.accessMode === "react"\) return ""/);
 assert.match(host, /admin-host-required/);
-assert.match(host, /evaluation-disabled/);
+assert.match(host, /react-required/);
+assert.doesNotMatch(host, /evaluation-disabled|runtimeMode[^\n]*"legacy"/);
 assert.doesNotMatch(host, /requestLegacyRender|onRequestLegacy/);
 assert.match(host, /executeCommand/);
 assert.match(owner, /executeContourAdminServerAction/);
@@ -70,8 +87,10 @@ assert.match(endpoint, /deployExecuted: false/);
 assert.match(endpoint, /await handle\.sync\(\)/);
 assert.match(endpoint, /await directoryHandle\.sync\(\)/);
 assert.doesNotMatch(scenario, /fetch\(|\/api\/contour-admin\/action|backup-shared-state\.mjs|promote-contour\.mjs/);
-assert.doesNotMatch(scenario, /onRequestLegacy\?\./);
+assert.doesNotMatch(island, /onRequestLegacy/);
+assert.doesNotMatch(scenario, /onRequestLegacy/);
 assert.match(scenario, /data-contour-admin-confirm-execute/);
+await assert.rejects(access("src/modules/contour_admin/render.js"), (error) => error?.code === "ENOENT", "same-release Contour Admin renderer must be physically absent");
 
 const compiledProductionModel = await transform(productionModel, { loader: "ts", format: "esm", target: "es2022" });
 const productionModelModule = await import(`data:text/javascript;base64,${Buffer.from(compiledProductionModel.code).toString("base64")}`);

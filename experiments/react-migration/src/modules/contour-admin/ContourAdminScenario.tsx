@@ -6,7 +6,7 @@ export type ContourAdminReactCommand = { type: "execute-ops"; scenarioId: string
 interface CommandResult { ok?: boolean; label?: string; message?: string; code?: number | string; durationMs?: number; }
 interface PendingCommand { scenario: Scenario; command: ContourAdminCommand; }
 
-export function ContourAdminScenario({ payload, onCommand }: { payload: unknown; onCommand?(command: ContourAdminReactCommand): Promise<CommandResult | void>; onRequestLegacy?(scope?: string): void }) {
+export function ContourAdminScenario({ payload, onCommand }: { payload: unknown; onCommand?(command: ContourAdminReactCommand): Promise<CommandResult | void> }) {
   const model = useMemo(() => adaptContourAdminPayload(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.contours[0]?.id || "");
   const [pending, setPending] = useState<PendingCommand | null>(null);

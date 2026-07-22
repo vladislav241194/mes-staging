@@ -283,7 +283,16 @@ const CORE_MODULE_BLUEPRINTS = [
     shellClassName: "contour-admin-app-shell", pageClassName: "contour-admin-page", ariaLabel: "Контуры", contractMode: "protected",
     visualWave: "protected", parity: { family: "admin-preview", shell: "standard", page: "full", header: "required", skipActionVariants: true },
     regression: { type: "protected-admin-contract", hasTable: true, hasActions: true },
-    capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/contour_admin/render.js"],
+    capabilities: { table: true, actions: true },
+    sourceFiles: [
+      "src/modules/contour_admin/react_island_host.js",
+      "src/modules/contour_admin/server_owner_client.js",
+      "src/modules/contour_admin/command_contract.js",
+      "experiments/react-migration/src/contour-admin-island.tsx",
+      "experiments/react-migration/src/modules/contour-admin/ContourAdminScenario.tsx",
+      "experiments/react-migration/src/modules/contour-admin/adapter.ts",
+      "experiments/react-migration/src/modules/contour-admin/production-model.ts",
+    ],
     ownership: { api: ["/api/contour-admin/action"], qa: ["scripts/security-route-qa.mjs"] },
   }),
   coreBlueprint({

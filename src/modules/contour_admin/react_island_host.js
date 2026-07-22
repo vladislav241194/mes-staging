@@ -1,7 +1,7 @@
 import { createReactIslandHost } from "../react_island_host.js";
 const CONTOUR_ADMIN_REACT_TARGET = "[data-react-contour-admin-island]";
 const CONTOUR_ADMIN_REACT_BUNDLE_VERSION = "__MES_CONTOUR_ADMIN_REACT_BUNDLE_VERSION__";
-const CONTOUR_ADMIN_FAILURE_REASONS = new Set(["admin-host-required", "evaluation-disabled", "model-unavailable", "mount-error", "render-error"]);
+const CONTOUR_ADMIN_FAILURE_REASONS = new Set(["admin-host-required", "model-unavailable", "mount-error", "react-required", "render-error"]);
 
 function normalizeFailureReason(value) {
   const reason = String(value || "");
@@ -9,10 +9,11 @@ function normalizeFailureReason(value) {
 }
 
 function renderContourAdminTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
-  const runtimeMode = activation.runtimeMode === "react" ? "react" : "evaluation";
-  const inactiveReason = activation.featureFlagEnabled === true ? "" : "evaluation-disabled";
-  const state = failureReason || inactiveReason || shellState?.state === "error" ? "error" : "loading";
-  const reason = normalizeFailureReason(failureReason || shellState?.reason || inactiveReason || "");
+  const runtimeMode = activation.runtimeMode === "evaluation" ? "evaluation" : "react";
+  const reactRequired = activation.featureFlagEnabled !== true
+    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode);
+  const state = failureReason || reactRequired || shellState?.state === "error" ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || (reactRequired ? "react-required" : ""));
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>Администрирование временно недоступно</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем контуры</strong><p>Получаем карту окружений и защищённые Ops-сценарии…</p></section>';
@@ -28,6 +29,10 @@ export function createContourAdminReactIslandHost({ getActivation, getPayload, g
     canFallbackToLegacy: () => false,
     getShellState: (activation) => {
       if (!activation.adminHostReady) return { state: "error", stage: "read", reason: "admin-host-required" };
+      if (activation.featureFlagEnabled !== true
+        || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) {
+        return { state: "error", stage: "activation", reason: "react-required" };
+      }
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
       return null;
@@ -36,10 +41,10 @@ export function createContourAdminReactIslandHost({ getActivation, getPayload, g
     targetSelector: CONTOUR_ADMIN_REACT_TARGET,
     renderTarget: renderContourAdminTarget,
     getIneligibilityReason: (activation) => {
-      if (!activation.featureFlagEnabled) return "disabled";
-      if (activation.accessMode === "react") return "";
       if (!activation.adminHostReady) return "admin-host-required";
-      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
+      if (!activation.featureFlagEnabled) return "react-required";
+      if (activation.accessMode === "react") return "";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "react-required";
       return "";
     },
     loadIsland: async () => {
