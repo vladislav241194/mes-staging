@@ -1733,6 +1733,42 @@ This block supersedes `.57` as the live Pilot pointer and marks Timesheet as
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: retire the orphaned Contour Admin renderer while keeping
-its admin-only route, protected Ops API, RBAC, audit persistence and root-gated
-rollback owners intact.
+## Contour Admin legacy retirement 2026-07-22: release `.59`
+
+This block supersedes `.58` as the live Pilot pointer and marks Contour Admin
+as `✅ FULL REACT` in the accelerated renderer-retirement track.
+
+- Active Pilot is `v.1.500.59-77464c0` at exact commit
+  `77464c04fa647679f115207478669d26ef02c200`; immediate previous is
+  `v.1.500.58-1ce73a7` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `bd13732319c598e1594f4258a5d39b56666b1acc1c81d41fa4f657ca003bb8a3` and
+  `76baf4f38cd9c79191a503359e56b70ba683823de2cb6107321fea7ec41032a2`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Local/public health report `ok`, version `v.1.500.59`, shared state `ready`,
+  zero active evaluation/legacy surfaces and no effective `MES_REACT_*` flags
+  or React systemd drop-ins. The service is active and `/srv/mes/pilot/app`
+  resolves to `.59`.
+- `src/modules/contour_admin/render.js`, stale island browser QA and unused
+  production legacy callback ports were removed. The full cut deletes 631
+  lines and adds 61 focused owner/fail-closed lines.
+- `ADMIN_ONLY`, public/admin navigation filtering, protected endpoint, server
+  owner, command allowlist, admin auth/route guards, durable audit fsync and
+  root-owned evaluation scripts remain present and guarded.
+- Invalid activation stays in a React-owned `react-required` error shell;
+  public-host access fails closed as `admin-host-required`. There is no
+  same-release renderer or callback.
+- Strict React TypeScript, runtime/RBAC/origin/confirmation/durable-request,
+  rollout ops, UI contract, module/feature registry, deterministic build,
+  mixed-runtime and diff gates passed. Independent review returned GO.
+  Visual/browser QA was deliberately skipped.
+- Immediate previous `.58` passed rollback dry-run. The sealed legacy `.18`
+  pointer remains preserved behind the existing compatibility guards.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: inventory the remaining normal-runtime JavaScript owners
+and select the smallest cut that removes real legacy without deleting the
+intentional immutable-release rollback boundary.

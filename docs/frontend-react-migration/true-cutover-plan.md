@@ -439,6 +439,32 @@ Immediate rollback dry-run точно возвращает `.57`; pinned legacy 
 сохранён. Implementation остаётся 99%, strict acceptance — 50%. Blueprint UI
 не используется.
 
+Release `v.1.500.59-77464c0` активирован на Pilot из точного commit
+`77464c04fa647679f115207478669d26ef02c200`. Маркер завершения:
+`✅ FULL REACT — Contour Admin`. Orphan
+`src/modules/contour_admin/render.js`, stale island browser QA и неиспользуемые
+production legacy callback ports физически удалены. Полный cut удаляет 631
+строку и добавляет 61 строку React ownership/fail-closed guards.
+
+Admin-only scope, public/admin navigation filtering, protected Ops endpoint,
+server owner, command allowlist, Basic/Admin Auth route guards, durable audit
+sync и root-owned evaluation scripts сохранены. Host при неверной активации
+остаётся в React shell с `react-required`, а на публичном host — с
+`admin-host-required`; same-release legacy fallback отсутствует.
+
+Local/public health `ok`, версия `v.1.500.59`, shared state `ready`, evaluation
+и runtime legacy surfaces пусты; service/pointer указывают на `.59`, effective
+`MES_REACT_*` flags и React drop-ins отсутствуют. Protected owners физически
+присутствуют в sealed release. Source/dist SHA-256 —
+`bd13732319c598e1594f4258a5d39b56666b1acc1c81d41fa4f657ca003bb8a3` и
+`76baf4f38cd9c79191a503359e56b70ba683823de2cb6107321fea7ec41032a2`.
+Strict React TypeScript, runtime/RBAC/origin/confirmation/durable-request,
+rollout ops, UI contract, module/feature registries, deterministic build и
+mixed-runtime gates прошли; independent review дал GO. Visual/browser QA
+намеренно пропущен. Immediate rollback dry-run точно возвращает `.58`; pinned
+legacy `.18` сохранён. Implementation остаётся 99%, strict acceptance — 50%.
+Blueprint UI не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,
