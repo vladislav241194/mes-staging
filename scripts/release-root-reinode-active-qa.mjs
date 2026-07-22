@@ -283,6 +283,9 @@ try {
     join(publicCopyRelease, "release-manifest.json"),
     await readFile(join(source.releasePath, "release-manifest.json")),
   );
+  await mkdir(join(publicCopyApp, "node_modules", "postgres", "src"), { recursive: true, mode: 0o700 });
+  await writeFile(join(publicCopyApp, "node_modules", "postgres", "package.json"), "{}\n", { mode: 0o600 });
+  await writeFile(join(publicCopyApp, "node_modules", "postgres", "src", "index.js"), "export {};\n", { mode: 0o600 });
   await normalizePublicReleasePayloadModes({ releasePath: publicCopyRelease });
   assert.equal((await stat(publicCopyRelease)).mode & 0o777, 0o755);
   assert.equal((await stat(publicCopyApp)).mode & 0o777, 0o755);
@@ -290,6 +293,10 @@ try {
   assert.equal((await stat(join(publicCopyApp, "src"))).mode & 0o777, 0o755);
   assert.equal((await stat(join(publicCopyApp, "src", "fixture.txt"))).mode & 0o777, 0o444);
   assert.equal((await stat(join(publicCopyApp, "scripts", "executable-fixture.sh"))).mode & 0o777, 0o555);
+  assert.equal((await stat(join(publicCopyApp, "node_modules"))).mode & 0o777, 0o755);
+  assert.equal((await stat(join(publicCopyApp, "node_modules", "postgres", "src"))).mode & 0o777, 0o755);
+  assert.equal((await stat(join(publicCopyApp, "node_modules", "postgres", "package.json"))).mode & 0o777, 0o444);
+  assert.equal((await stat(join(publicCopyApp, "node_modules", "postgres", "src", "index.js"))).mode & 0o777, 0o444);
   const privatePaths = [
     "bootstrap-snapshot.json",
     "dist/bootstrap-snapshot.json",
@@ -449,9 +456,20 @@ try {
   assert.equal(trustedActiveRecord.releaseId, releaseId);
   assert.equal(trustedActiveRecord.manifest.sourceTreeSha256, source.anchors.expectedSourceSha256);
   assert.deepEqual(trustedActiveRecord.runtimePolicy.reactSurfaces.sort(), [
+    "authPicker",
+    "boards",
     "componentTypes",
+    "contourAdmin",
+    "employeeDesktop",
+    "gantt",
+    "nomenclature",
     "nomenclatureTypes",
     "operations",
+    "planningWorkbench",
+    "roles",
+    "shiftMasterBoard",
+    "shiftWorkOrders",
+    "specifications2",
     "statuses",
     "structureEmployees",
     "structureEquipment",
@@ -460,6 +478,7 @@ try {
     "structurePositions",
     "structureResponsibilityPolicies",
     "structureWorkCenters",
+    "timesheet",
     "weeklyProductionControl",
   ]);
 

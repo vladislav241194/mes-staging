@@ -661,7 +661,10 @@ async function normalizePublicPathModes(path, excludedPaths) {
 export async function normalizePublicReleasePayloadModes({ releasePath }) {
   const appPath = join(releasePath, "app");
   const excludedPaths = new Set(EXPECTED_PRIVATE_BOOTSTRAP_PATHS.map((path) => join(appPath, path)));
-  for (const relativePath of [...EXPECTED_RUNTIME_INCLUDES, "dist"]) {
+  // Production dependencies are installed into a root-only build scratch.
+  // Normalize the renamed dependency tree too, otherwise the runtime user
+  // cannot traverse node_modules even though the release seal itself passes.
+  for (const relativePath of [...EXPECTED_RUNTIME_INCLUDES, "dist", "node_modules"]) {
     await normalizePublicPathModes(join(appPath, relativePath), excludedPaths);
   }
   await chmod(appPath, 0o755);
