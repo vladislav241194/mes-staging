@@ -1531,7 +1531,53 @@ either partial module to complete.
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: remove the final Roles legacy renderer/service and
-`requestLegacyRender` bridge while leaving the module honestly `PARTIAL` and
-fail-closed for unavailable access-control PostgreSQL writes. Do not count the
-mocked Roles browser PUT as production-owner evidence.
+## Roles legacy retirement 2026-07-22: release `.54`
+
+This block supersedes `.53` as the live Pilot pointer and removes the final
+app-level same-release legacy-render callback without claiming a missing
+access-control write owner.
+
+- Active Pilot is `v.1.500.54-48ee37f` at exact commit
+  `48ee37f8d72363180f53c0e6bb595cdddc3b07b4`; immediate previous is
+  `v.1.500.53-a82f24e` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `b0022836ac6be0457593385e85bf661a2ee24ce28596d1afb4918b033391044b` and
+  `d62be48181b52b632fde64a7203d1925b6bd3af07df9c3a128985f451a833f86`.
+  Git provenance is `fresh-upstream-fetch`; staging and activation resolved
+  the same sealed commit and runtime-policy SHA
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Local/public health report `ok`, version `v.1.500.54`, shared state `ready`,
+  zero active evaluation surfaces and zero runtime legacy surfaces. The
+  service is active and `/srv/mes/pilot/app` resolves to `.54`.
+- Deleted production compatibility source:
+  `src/modules/access_roles/render.js` (672 lines) and `service.js` (225), plus
+  their lazy loader, event binder and obsolete local writers. Mocked browser
+  PUT/readback QA and the deleted legacy Roles functional QA were retired.
+  The complete cut removes 2,597 lines and adds 293 focused React/server-
+  contract lines.
+- `src/app.js` now has zero `requestLegacyRender` definitions. Roles always
+  renders the React fail-closed target. The full typed public command port is
+  preserved, but every client write is classified `serverBlocked`: the real
+  server still rejects `access-control` until bounded delta invariants, actor
+  authorization and durable `readOnly`/effective-window/scope storage exist.
+  The module remains honestly `PARTIAL`, `productionReady:false`.
+- All three broad asynchronous smoke gates now wait for the Roles island
+  `ready` commit and a `hard-v1` `ModulePage`, preventing the loading shell
+  from being accepted as module coverage. Independent review returned GO.
+- Strict React TypeScript, recursive syntax (621 JS/MJS files), Roles
+  classification/runtime/domain/authorization gates, deterministic build,
+  cutover ledger, built-dist runtime policy, UI contract, feature registry and
+  `git diff --check` passed. Visual/browser acceptance was deliberately not
+  run under the accelerated profile.
+- Immediate previous `.53` passed rollback dry-run. The sealed legacy `.18`
+  manifest also verifies, but its switch remains correctly blocked by the
+  active Specifications 2 attachments/Work Orders/publication command owners;
+  do not bypass this compatibility guard.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: delete the orphaned Shift Master Board legacy renderer
+and its dead loader (about 4.1k lines). The normal route already uses the React
+host and command owner; keep the module completion marker and server owners,
+skip visual QA, and retain immutable release rollback.

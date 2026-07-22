@@ -321,6 +321,31 @@ dist и boot QA прошли. Visual snapshot QA и authenticated Pilot lifecycl
 Planning empty-fixture contract. Implementation остаётся 99%, strict
 acceptance — 50%. Blueprint UI не используется.
 
+Release `v.1.500.54-48ee37f` активирован на Pilot из точного commit
+`48ee37f8d72363180f53c0e6bb595cdddc3b07b4`. Последние Roles same-release
+legacy renderer/service физически удалены вместе с lazy loader, binder и
+локальными compatibility writers; весь cut удаляет 2 597 строк при 293 строках
+новых React/server-contract guards. В `src/app.js` теперь ноль определений
+`requestLegacyRender`. Roles всегда остаётся в React fail-closed runtime, но
+честно помечен `PARTIAL`, `productionReady:false`: все клиентские команды
+`serverBlocked`, потому что настоящий server owner для `access-control` не
+авторизован и durable `readOnly`, effective windows и responsibility scopes
+ещё не сохраняются.
+
+Local/public health `ok`, версия `v.1.500.54`, shared state `ready`, evaluation
+и runtime legacy surfaces пусты; service/pointer указывают на `.54`.
+Source/dist SHA-256 —
+`b0022836ac6be0457593385e85bf661a2ee24ce28596d1afb4918b033391044b` и
+`d62be48181b52b632fde64a7203d1925b6bd3af07df9c3a128985f451a833f86`.
+Strict TypeScript, recursive syntax, Roles runtime/classification/domain/RBAC,
+cutover, built-dist policy, UI contract и feature registry прошли; три broad
+smoke wait-функции теперь ждут Roles `ready` + `hard-v1 ModulePage`.
+Independent review дал GO. Visual/browser acceptance намеренно пропущен.
+Immediate rollback dry-run точно возвращает `.53`. Pinned legacy `.18`
+запечатан, но его switch правильно блокируется активными Specifications 2
+command owners до штатной root-controlled деактивации. Implementation остаётся
+99%, strict acceptance — 50%. Blueprint UI не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,
