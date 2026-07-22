@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap, SystemState } from "../../ui/components";
 import { adaptSpecifications2Payload } from "./adapter";
@@ -40,6 +40,7 @@ export function Specifications2Scenario({ payload, onCommand }: { payload: unkno
   const [publishing, setPublishing] = useState(false);
   const [workOrderDraft, setWorkOrderDraft] = useState<{ routeId: string; quantity: string } | null>(null);
   const [creatingWorkOrder, setCreatingWorkOrder] = useState(false);
+  const creatingWorkOrderRef = useRef(false);
   const [selectingEntryId, setSelectingEntryId] = useState("");
   const [selectionError, setSelectionError] = useState("");
   const selected = model.selectedEntry;
@@ -103,14 +104,15 @@ export function Specifications2Scenario({ payload, onCommand }: { payload: unkno
     finally { setPublishing(false); }
   };
   const createWorkOrder = async () => {
-    if (!selected || !revision || !workOrderDraft || !onCommand || creatingWorkOrder) return;
+    if (!selected || !revision || !workOrderDraft || !onCommand || creatingWorkOrderRef.current) return;
+    creatingWorkOrderRef.current = true;
     setCreatingWorkOrder(true); setCommandError("");
     try {
       const result = await onCommand({ type: "create-work-order", payload: { entryId: selected.id, revisionId: revision.id, confirmRevisionId: revision.id, routeSourceDraftId: workOrderDraft.routeId, quantity: Number(workOrderDraft.quantity) } });
       if (result?.ok === false) setCommandError(result.message || "Не удалось создать заказ-наряд.");
       else setWorkOrderDraft(null);
     } catch (error) { setCommandError(error instanceof Error ? error.message : "Не удалось создать заказ-наряд."); }
-    finally { setCreatingWorkOrder(false); }
+    finally { creatingWorkOrderRef.current = false; setCreatingWorkOrder(false); }
   };
   return <ModulePage
     header={<ModuleHeader eyebrow="Технологии" title="Спецификации 2.0" badge={<span className="lab-badge">React + TypeScript · основной UI</span>} />}

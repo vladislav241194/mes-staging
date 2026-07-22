@@ -68,7 +68,7 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 
 ## Ускоренный implementation checkpoint 2026-07-22
 
-Отдельный показатель реализации составляет **95%**, тогда как строгая
+Отдельный показатель реализации составляет **97%**, тогда как строгая
 evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
 верхнеуровневых маршрутов уже имеют React UI: **10 complete**, **4 partial** и
 **2 явных prototype**. Маркер `React TS` показывается только на десяти complete
@@ -117,6 +117,19 @@ Production Structure больше не загружает legacy matrix renderer
 диагностики: read-only экран получает только компактные исходные строки и
 серверный migration report, тогда как полный старый модуль доступен исключительно
 после явного отклонения permanent React.
+
+Gantt permanent path теперь получает raw PostgreSQL runtime projection и строит
+строки, упрощённую геометрию и последовательные зависимости собственной strict
+TypeScript моделью. Он возвращается до загрузки `gantt_runtime/render.js`.
+Маркер в заголовке честно показывает `React TS · прототип`: точные календари,
+physical split slots, drag/resize, dependency editing и optimization отложены.
+
+Specifications 2.0 permanent path больше не загружает
+`specifications2/render.js`: реестр и immutable PostgreSQL revision читает typed
+production model, а выбор и создание заказ-наряда обслуживает отдельный owner.
+Чтобы ускоренный cutover не создавал ложную parity, draft edit/publication,
+структурные операции, маршруты и вложения явно заблокированы до независимых
+server owners. Evaluation/legacy ветка сохранена только для rollback.
 
 Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной
 волне отложены владельцем и не засчитываются как Pilot acceptance. До

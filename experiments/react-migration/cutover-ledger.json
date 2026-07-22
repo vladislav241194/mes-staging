@@ -3,9 +3,9 @@
   "updatedAt": "2026-07-22",
   "baselineProgress": 46,
   "currentProgress": 50,
-  "implementationProgress": 95,
+  "implementationProgress": 97,
   "implementationProgressUpdatedAt": "2026-07-22",
-  "implementationProgressBasis": "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; accelerated normal-path cutover is 95%, while strict Pilot acceptance remains separate at 50%.",
+  "implementationProgressBasis": "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; Gantt and Specifications 2.0 no longer load legacy models on the permanent path, bringing accelerated implementation to 97%, while strict Pilot acceptance remains separate at 50%.",
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
@@ -239,7 +239,7 @@
     },
     { "id": "shiftMasterBoard", "routeId": "shiftMasterBoard", "entry": "experiments/react-migration/src/shift-master-board-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "create-carryover", "cancel-carryover", "print", "manual-lane-move"], "missing": [] } },
     { "id": "shiftWorkOrders", "routeId": "shiftWorkOrders", "entry": "experiments/react-migration/src/shift-work-orders-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["open-workshop", "assign", "save-fact", "correct-fact", "print-szn", "print-package"], "missing": [] } },
-    { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-entry", "edit-draft-row", "publish-revision", "create-work-order"], "missing": ["add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
+    { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-entry", "create-work-order"], "blocked": ["edit-draft-row", "publish-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"], "missing": ["edit-draft-row", "publish-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
     { "id": "statuses", "routeId": "directories", "entry": "experiments/react-migration/src/statuses-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-custom", "delete-custom"], "missing": [] } },
     { "id": "structureEmployees", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-employees-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureEquipment", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-equipment-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
@@ -273,10 +273,10 @@
       "functionalStatus": "partial",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["server owner/API for add-row, remove-row and reparent-row", "server owner/API for attachment binding", "server owner/API for route and norm editing", "Pilot publication and work-order lifecycle"]
+      "remainingScopes": ["restore draft-row edit and publication through an independent server owner", "server owner/API for add-row, remove-row and reparent-row", "server owner/API for attachment binding", "server owner/API for route and norm editing", "Pilot publication and work-order lifecycle"]
     },
     {
       "id": "planning",
@@ -299,10 +299,10 @@
       "functionalStatus": "partial",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["server-owned calendar refresh", "server-owned dependency editing", "server-owned drag and resize commands", "server-owned optimization", "typed geometry/model independence", "Pilot schedule lifecycle and permanent acceptance"]
+      "remainingScopes": ["server-owned calendar refresh", "server-owned dependency editing", "server-owned drag and resize commands", "server-owned optimization", "exact calendar, physical-slot and dependency-geometry parity", "Pilot schedule lifecycle and permanent acceptance"]
     },
     {
       "id": "weeklyProductionControl",

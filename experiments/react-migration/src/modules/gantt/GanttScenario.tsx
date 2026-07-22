@@ -75,7 +75,7 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
     }
   };
 
-  return <ModulePage header={<ModuleHeader eyebrow="Планирование" title="Диаграмма Ганта" badge={<span className="lab-badge">PostgreSQL · {model.canEditSchedule ? "command" : "read-only React"}</span>} />}>
+  return <ModulePage header={<ModuleHeader eyebrow="Планирование" title="Диаграмма Ганта" badge={<><span className="lab-badge" data-react-prototype-marker title="Обычный интерфейс переведён на React + TypeScript; точная геометрия и отложенные команды ещё не приняты">React TS · прототип</span><span className="lab-badge">PostgreSQL · {model.canEditSchedule ? "command" : "read-only"}</span></>} />}>
     <section aria-busy={navigating} className="gantt-react-toolbar">
       <label className="gantt-react-period" data-gantt-react-period><span>Период</span><input disabled={!onNavigate || navigating} onChange={(event) => void navigate({ type: "set-window-start", value: event.currentTarget.value })} type="date" value={model.windowStartDate} /><small>до {model.windowEndDate}</small></label>
       <div className="gantt-react-scale" data-gantt-react-scale-group role="group" aria-label="Масштаб времени">{model.scaleOptions.map((option) => <button aria-pressed={model.scale === option.id} className={model.scale === option.id ? "is-active" : ""} data-gantt-react-scale={option.id} disabled={!onNavigate || navigating} key={option.id} onClick={() => void navigate({ type: "set-scale", scale: option.id })} type="button">{option.label}</button>)}</div>
@@ -94,7 +94,7 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
     </section>
     <MetricGrid label="Сводка графика"><MetricCard label="Маршруты" value={model.routeCount} /><MetricCard label="Строки" value={model.rows.length} /><MetricCard label="Слоты" value={model.slotCount} /><MetricCard label="Зависимости" value={model.dependencyCount} /></MetricGrid>
     <section className="gantt-react-grid">
-      <Panel heading={<div className="panel-heading"><div><p>Готовая геометрия legacy-runtime</p><h2>Производственный план</h2></div><StatusToken label={model.canEditSchedule ? "Изменение старта" : "Только просмотр"} tone={model.canEditSchedule ? "success" : "neutral"} /></div>}>
+      <Panel heading={<div className="panel-heading"><div><p>Упрощённая геометрия React TS</p><h2>Производственный план</h2></div><StatusToken label={model.canEditSchedule ? "Изменение старта" : "Только просмотр"} tone={model.canEditSchedule ? "success" : "neutral"} /></div>}>
         <div className="gantt-react-scroll" data-ui-component="GanttRuntime">
           <div className="gantt-react-canvas" data-ui-component="GanttCanvas" style={{ "--gantt-left": `${model.leftWidth}px`, "--gantt-width": `${model.timelineWidth}px`, "--gantt-height": `${model.totalHeight}px`, "--gantt-timeline-height": `${model.timelineHeight}px` } as CSSProperties}>
             <div className="gantt-react-timeline" data-ui-component="GanttTimeline"><div className="gantt-react-corner">Маршруты и ресурсы</div><div className="gantt-react-ticks">{model.ticks.map((tick) => <div className={tick.weekend ? "is-weekend" : ""} key={tick.id} style={{ left: tick.left, width: tick.width }}><strong>{tick.label}</strong><small>{tick.sublabel}</small></div>)}</div></div>

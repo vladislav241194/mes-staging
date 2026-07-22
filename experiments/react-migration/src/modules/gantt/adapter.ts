@@ -1,3 +1,8 @@
+import {
+  buildGanttProductionModel,
+  isGanttProductionInput,
+} from "./production-model";
+
 const record = (value: unknown): Record<string, any> => value && typeof value === "object" ? value as Record<string, any> : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const text = (value: unknown, fallback = ""): string => String(value ?? fallback).trim();
@@ -19,8 +24,12 @@ const dateInput = (value: unknown, fallback = ""): string => {
 
 export function adaptGanttPayload(payload: unknown) {
   const root = record(payload);
-  const source = record(root.model || payload);
   const capabilities = record(root.capabilities);
+  const productionInput = record(root.productionModel);
+  if (Object.keys(productionInput).length ? isGanttProductionInput(productionInput) : isGanttProductionInput(root)) {
+    return buildGanttProductionModel(Object.keys(productionInput).length ? productionInput : root, capabilities);
+  }
+  const source = record(root.model || payload);
   const rows = list(source.rows).map((raw, rowIndex): GanttRowModel => {
     const row = record(raw);
     const id = text(row.id, `row-${rowIndex + 1}`);

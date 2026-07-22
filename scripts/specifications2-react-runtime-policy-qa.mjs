@@ -14,9 +14,11 @@ assert.match(script, /"MES_REACT_SPECIFICATIONS2":true/);
 assert.match(script, /"MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak|ADMIN_PASSWORD/);
 
-const [appSource, hostSource, scenarioSource, policy, ledger] = await Promise.all([
+const [appSource, hostSource, ownerSource, productionModelSource, scenarioSource, policy, ledger] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/specifications2/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/specifications2/production_owner.js", import.meta.url), "utf8"),
+  readFile(new URL("../experiments/react-migration/src/modules/specifications2/production-model.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/specifications2/Specifications2Scenario.tsx", import.meta.url), "utf8"),
   readFile(new URL("../react-runtime-policy.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../experiments/react-migration/cutover-ledger.json", import.meta.url), "utf8").then(JSON.parse),
@@ -33,6 +35,11 @@ assert(REACT_RUNTIME_PERMANENT_CONSUMERS.includes("specifications2"), "Specifica
 assert.match(appSource, /surfaceId: "specifications2"/);
 assert.match(appSource, /runtimeActivation\.runtimeMode === "react"/);
 assert.match(appSource, /canEditSpecifications2WithSignedRole/);
+assert.match(appSource, /createSpecifications2ProductionOwner/);
+assert.match(appSource, /ensureSpecifications2ProductionModule/);
+assert.match(appSource, /productionPayload: getSpecifications2ProductionPayload|const productionPayload = getSpecifications2ProductionPayload/);
+assert.match(appSource, /getReactRuntimeMode\("specifications2"\) === "react"[\s\S]*ensureSpecifications2ProductionModule\(\)[\s\S]*else ensureSpecifications2Module\(\)/);
+assert.doesNotMatch(`${ownerSource}\n${productionModelSource}`, /specifications2\/render\.js|getSpecifications2ReactModel\s*\(/);
 assert.match(hostSource, /canFallbackToLegacy: \(activation\) => activation\.accessMode !== "react"/);
 assert.match(hostSource, /if \(activation\.accessMode === "react"\) return ""/);
 assert.doesNotMatch(scenarioSource, /onRequestLegacy|Открываем legacy|Вложения в legacy/);
@@ -42,9 +49,11 @@ for (const label of ["Загрузить XLSX · недоступно", "Стр�
 const island = ledger.islands.find((entry) => entry.id === "specifications2");
 const module = ledger.modules.find((entry) => entry.id === "specifications2");
 assert.equal(island.normalActionFallback, false);
-assert.deepEqual(island.commands.missing, ["add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"]);
+assert.deepEqual(island.commands.missing, ["edit-draft-row", "publish-revision", "add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"]);
 assert.equal(module.runtimeMode, "react");
 assert.equal(module.visibleLegacyRendererPath, false);
+assert.equal(module.runtimeLegacyModelDependency, false);
+assert.equal(module.normalLegacyPath, false);
 assert.equal(module.functionalStatus, "partial", "owner gaps must keep the completion marker partial");
 assert.equal(ledger.currentProgress, 50, "implementation cutover must not inflate audited Pilot progress");
 console.log("Specifications 2.0 React runtime policy QA: OK");

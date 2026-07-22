@@ -116,6 +116,7 @@ import { createContourAdminReactIslandHost } from "./modules/contour_admin/react
 import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.js";
 import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
+import { createSpecifications2ProductionOwner } from "./modules/specifications2/production_owner.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
@@ -214,7 +215,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.40";
+const APP_VERSION_FALLBACK = "v.1.500.41";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -3101,13 +3102,42 @@ let specifications2ModuleError = "";
 let specifications2RevisionsReadModel = null;
 let specifications2PublishCommands = null;
 let specifications2AttachmentCommands = null;
+let specifications2ProductionModuleLoad = null;
+let specifications2ProductionModuleReady = false;
+let specifications2ProductionModuleError = "";
+let specifications2ProductionOwner = null;
+let specifications2ProductionWorkOrderCommands = null;
+let buildSpecifications2ProductionFingerprint = (entry = {}) => String(entry?.publication?.fingerprint || "");
+function readSpecifications2ProductionStore() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SPECIFICATIONS2_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+function writeSpecifications2ProductionStore(store = {}) {
+  try {
+    localStorage.setItem(SPECIFICATIONS2_STORAGE_KEY, JSON.stringify(store));
+    if (typeof window.__MES_SCHEDULE_SHARED_STATE_PUSH__ === "function") {
+      window.__MES_SCHEDULE_SHARED_STATE_PUSH__("specifications2");
+    } else {
+      window.dispatchEvent(new CustomEvent("mes:shared-state-change", { detail: { reason: "specifications2" } }));
+    }
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
 function getSpecifications2PublishedRevision(sourceEntryId) {
   return specifications2RevisionsReadModel?.getBySource?.(sourceEntryId) || null;
 }
 async function refreshSpecifications2PublishedRevision(sourceEntryId, { force = false } = {}) {
   const normalizedSourceEntryId = String(sourceEntryId || "").trim();
   if (!normalizedSourceEntryId) return { ok: false, changed: false };
-  await ensureSpecifications2Module();
+  await (getReactRuntimeMode("specifications2") === "react"
+    ? ensureSpecifications2ProductionModule()
+    : ensureSpecifications2Module());
   const beforeRefresh = getSpecifications2PublishedRevision(normalizedSourceEntryId);
     const completionChangesEligibility = Boolean(beforeRefresh?.loading)
       || (!beforeRefresh?.fetchedAt && !beforeRefresh?.item && !beforeRefresh?.error);
@@ -3122,6 +3152,68 @@ async function refreshSpecifications2PublishedRevision(sourceEntryId, { force = 
 function hydrateSpecifications2PublishedRevision(entry) {
   if (!entry?.publication?.revision || !entry?.id) return;
   void refreshSpecifications2PublishedRevision(entry.id);
+}
+function getSpecifications2ProductionPayload() {
+  return specifications2ProductionOwner?.getPayload?.() || {
+    productionModel: {
+      specifications2Store: readSpecifications2ProductionStore(),
+      publishedRevisionState: { item: null, loading: null, error: specifications2ProductionModuleError },
+      currentFingerprintByEntryId: {},
+      workOrderCapability: { enabled: false, primaryPostgres: false, error: specifications2ProductionModuleError },
+    },
+    capabilities: { draftEdit: false, publication: false, workOrder: false },
+  };
+}
+function ensureSpecifications2ProductionModule() {
+  if (specifications2ProductionModuleLoad) return specifications2ProductionModuleLoad;
+  hydrateSharedStateForModule("specifications2", [DIRECTORY_STORAGE_KEY]);
+  void runtimeStateService?.hydrateSharedStateValues?.([SPECIFICATIONS2_STORAGE_KEY]).then((hydrated) => {
+    if (hydrated && ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+  });
+  specifications2ProductionModuleLoad = Promise.all([
+    import("./modules/specifications2/publication.js"),
+    import("./modules/domain_api/specifications2_revisions_read_model.js"),
+    import("./modules/domain_api/specifications2_work_order_commands.js"),
+  ])
+    .then(([
+      { buildSpecifications2ReleaseFingerprint },
+      { createSpecifications2RevisionsReadModel },
+      { createSpecifications2WorkOrderCommands },
+    ]) => {
+      specifications2ProductionModuleError = "";
+      specifications2RevisionsReadModel ||= createSpecifications2RevisionsReadModel();
+      specifications2ProductionWorkOrderCommands ||= createSpecifications2WorkOrderCommands();
+      buildSpecifications2ProductionFingerprint = buildSpecifications2ReleaseFingerprint;
+      specifications2ProductionOwner = createSpecifications2ProductionOwner({
+        getStore: readSpecifications2ProductionStore,
+        writeStore: writeSpecifications2ProductionStore,
+        getPublishedRevisionState: getSpecifications2PublishedRevision,
+        hydratePublishedRevision: hydrateSpecifications2PublishedRevision,
+        getCurrentFingerprint: (entry) => {
+          try {
+            return buildSpecifications2ProductionFingerprint(entry);
+          } catch (_error) {
+            return String(entry?.publication?.fingerprint || "");
+          }
+        },
+        getWorkOrderCapability: () => specifications2ProductionWorkOrderCommands?.getCapability?.() || { enabled: false, primaryPostgres: false },
+        createWorkOrder: (input) => specifications2ProductionWorkOrderCommands.createWorkOrder(input),
+      });
+      specifications2ProductionModuleReady = true;
+      void specifications2ProductionWorkOrderCommands.refreshCapability().then(() => {
+        if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      });
+      if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      return true;
+    })
+    .catch((error) => {
+      specifications2ProductionModuleReady = false;
+      specifications2ProductionModuleError = error?.message || "model-unavailable";
+      console.error("Не удалось загрузить React production model Спецификации 2.0", error);
+      if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      return false;
+    });
+  return specifications2ProductionModuleLoad;
 }
 normalizeLookupText = (value) => String(value || "").trim().toLowerCase();
 function bindSpekiEvents(...args) { return appEventsService.bindSpekiEvents(...args); }
@@ -6184,7 +6276,8 @@ function getSpecifications2ReactActivation() {
     evaluationRequested: isSpecifications2ReactEvaluationRequested(),
     localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
   });
-  const model = specifications2ModuleReady ? getSpecifications2ReactModel() : null;
+  const permanentReact = runtimeActivation.runtimeMode === "react";
+  const model = !permanentReact && specifications2ModuleReady ? getSpecifications2ReactModel() : null;
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -6192,9 +6285,11 @@ function getSpecifications2ReactActivation() {
       : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
         : runtimeActivation.accessMode,
-    moduleReady: specifications2ModuleReady,
-    serverReadReady: model?.serverStatus === "ready",
-    serverReadFailure: specifications2ModuleError ? "model-unavailable" : "",
+    moduleReady: permanentReact ? specifications2ProductionModuleReady : specifications2ModuleReady,
+    serverReadReady: permanentReact ? specifications2ProductionModuleReady : model?.serverStatus === "ready",
+    serverReadFailure: permanentReact
+      ? specifications2ProductionModuleError ? "model-unavailable" : ""
+      : specifications2ModuleError ? "model-unavailable" : "",
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
@@ -6206,6 +6301,18 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
   getPayload: () => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
     const activation = getSpecifications2ReactActivation();
+    if (activation.accessMode === "react") {
+      const productionPayload = getSpecifications2ProductionPayload();
+      return {
+        ...productionPayload,
+        capabilities: {
+          ...productionPayload.capabilities,
+          draftEdit: false,
+          publication: false,
+          workOrder: canEditSpecifications2WithSignedRole() && productionPayload.capabilities?.workOrder === true,
+        },
+      };
+    }
     const model = getSpecifications2ReactModel();
     const permanentWrite = activation.accessMode === "react" && canEditSpecifications2WithSignedRole();
     const publicationCapability = specifications2PublishCommands?.getCapability?.() || {};
@@ -6220,8 +6327,25 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
-    const localQa = getSpecifications2ReactLocalQaOverrides();
+    const activation = getSpecifications2ReactActivation();
     const payload = command.payload || {};
+    if (activation.accessMode === "react") {
+      if (!specifications2ProductionOwner) return { ok: false, message: "React production model Specifications 2.0 ещё загружается." };
+      if (command.type === "create-work-order" && !canEditSpecifications2WithSignedRole()) {
+        return { ok: false, message: "Нет права создавать заказ-наряд из спецификации." };
+      }
+      const result = await specifications2ProductionOwner.execute(command);
+      if (result?.ok && command.type === "select-entry" && result.changed) {
+        render({ skipRememberScroll: true });
+      }
+      if (result?.ok && command.type === "create-work-order") {
+        notifySaveSuccess(result.created
+          ? "Серверный заказ-наряд создан и передан в планирование"
+          : "Существующий серверный заказ-наряд открыт без дублирования");
+      }
+      return result;
+    }
+    const localQa = getSpecifications2ReactLocalQaOverrides();
     if (command.type === "select-entry") {
       const entryId = String(payload.entryId || "").trim();
       const model = getSpecifications2ReactModel();
@@ -6336,7 +6460,7 @@ function getGanttReactActivation() {
   }
   return {
     ...runtimeActivation,
-    runtimeReady: Boolean(ganttRuntime?.isReady?.() && ganttReactModel),
+    runtimeReady: Boolean(ganttReactModel) && (runtimeActivation.runtimeMode === "react" || Boolean(ganttRuntime?.isReady?.())),
     serverReadReady: planningRuntimeProjectionState.status === "server",
     serverReadFailure: runtimeActivation.runtimeMode === "react" && planningRuntimeProjectionState.status === "fallback"
       ? "read-unavailable"
@@ -6366,9 +6490,27 @@ function canGanttReactReschedule(activation = getGanttReactActivation()) {
     && activation.signedServerSessionReady === true
     && activation.signedSlotScheduleCapabilityReady === true;
 }
+function getGanttReactProductionInput() {
+  const projection = planningRuntimeProjectionReadModel?.getProjection?.() || null;
+  if (!projection || planningRuntimeProjectionState.status !== "server") return null;
+  const registries = getSystemDomainsRegistries();
+  return {
+    projection,
+    workCenters: Array.isArray(registries.workCenters) ? registries.workCenters : [],
+    ui: {
+      scale: ui.scale,
+      windowStart: ui.windowStart,
+      ganttZoom: ui.ganttZoom,
+      expandedRouteIds: Array.from(ui.expandedProjects || []),
+      ganttShowQuantity: ui.ganttShowQuantity,
+    },
+  };
+}
 const ganttReactIslandHost = createGanttReactIslandHost({
   getActivation: getGanttReactActivation,
-  getPayload: () => ({ model: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule() } }),
+  getPayload: () => getReactRuntimeMode("gantt") === "react"
+    ? { productionModel: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule() } }
+    : { model: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule() } },
   getTargetRoot: () => app,
   requestLegacyRender: () => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); },
   navigate: async (navigation = {}) => {
@@ -6407,9 +6549,10 @@ const ganttReactIslandHost = createGanttReactIslandHost({
     if (planningRuntimeProjectionState.status !== "server") return { ok: false, message: "PostgreSQL-проекция графика недоступна." };
     if (!authorizeSystemDomainAction("planning", "edit")) return { ok: false, message: "Нет права изменять производственный график." };
     const slotId = String(command.slotId || "").trim(); const routeId = String(command.routeId || "").trim(); const operationId = String(command.operationId || "").trim();
-    const projectedSlot = (ganttReactModel?.rows || []).flatMap((row) => row.slots || []).find((slot) => slot.id === slotId && !slot.aggregate);
+    const projection = planningRuntimeProjectionReadModel?.getProjection?.() || null;
+    const projectedSlot = (projection?.slots || []).find((slot) => String(slot?.id || "") === slotId);
     const stateSlot = (planningState?.slots || []).find((slot) => String(slot.id || "") === slotId);
-    if (!projectedSlot || !stateSlot || projectedSlot.routeId !== routeId || String(projectedSlot.operationId || "") !== operationId || String(stateSlot.routeStepId || stateSlot.operationId || "") !== operationId) return { ok: false, message: "Слот больше не соответствует выбранной операции." };
+    if (!projectedSlot || !stateSlot || String(projectedSlot.routeId || projectedSlot.planningOrderId || "") !== routeId || String(projectedSlot.routeStepId || projectedSlot.operationId || "") !== operationId || String(stateSlot.routeStepId || stateSlot.operationId || "") !== operationId) return { ok: false, message: "Слот больше не соответствует выбранной операции." };
     if (stateSlot.locked || stateSlot.isLocked || isGanttSlotCompleted(stateSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
     const plannedStart = new Date(String(command.plannedStart || ""));
     if (Number.isNaN(plannedStart.getTime()) || plannedStart.getFullYear() < 2000 || plannedStart.getFullYear() > 2100) return { ok: false, message: "Дата начала операции некорректна." };
@@ -11421,12 +11564,18 @@ function initializeModuleRuntime() {
     },
     specifications2: {
       render: () => {
-        ensureSpecifications2Module();
+        const permanentReact = getReactRuntimeMode("specifications2") === "react";
+        if (permanentReact) ensureSpecifications2ProductionModule();
+        else ensureSpecifications2Module();
         const reactDecision = specifications2ReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return specifications2ReactIslandHost.renderTarget();
+        if (permanentReact) return specifications2ReactIslandHost.renderTarget();
         return renderSpecifications2Page();
       },
-      bind: () => { if (!specifications2ReactIslandHost.isReactEligible()) bindSpecifications2Events(); },
+      bind: () => {
+        if (getReactRuntimeMode("specifications2") === "react" || specifications2ReactIslandHost.isReactEligible()) return;
+        bindSpecifications2Events();
+      },
       afterRender: () => { void specifications2ReactIslandHost.mount(); },
     },
     authPrototype: {
@@ -11981,6 +12130,13 @@ function renderCurrentModule(options = {}) {
       return;
     }
 
+    if (ganttPermanentReact) {
+      ganttReactModel = getGanttReactProductionInput();
+      ganttReactRuntimeError = ganttReactModel ? "" : "model-unavailable";
+      renderGanttReactShell();
+      return;
+    }
+
     if (!ganttRuntime.isReady()) {
       if (!ganttReactRuntimeError) void ganttRuntime.load()
         .then(() => {
@@ -11989,11 +12145,6 @@ function renderCurrentModule(options = {}) {
         })
         .catch((error) => {
           console.error("[MES] Gantt runtime failed to load", error);
-          if (ganttPermanentReact) {
-            ganttReactRuntimeError = "model-unavailable";
-            render({ skipRememberScroll: true });
-            return;
-          }
           app.innerHTML = renderUiAppShell({
             pageId: "gantt",
             className: "planning-app-shell planning-gantt-shell",
@@ -12005,11 +12156,6 @@ function renderCurrentModule(options = {}) {
           });
           bindGlobalNavigation();
         });
-      if (ganttPermanentReact) {
-        ganttReactModel = null;
-        renderGanttReactShell();
-        return;
-      }
       app.innerHTML = renderUiAppShell({
         pageId: "gantt",
         className: "planning-app-shell planning-gantt-shell",
