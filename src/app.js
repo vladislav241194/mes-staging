@@ -74,7 +74,7 @@ import {
   escapeHtml,
   joinUiClasses,
   normalizeUiTone,
-} from "./ui/html.js";
+} from "./ui/html.ts";
 import { createAppInteractionsModule } from "./modules/app_interactions/render.js";
 import { createProductsCompatibilityRuntime } from "./modules/products/compatibility_runtime.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.67";
+const APP_VERSION_FALLBACK = "v.1.500.68";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

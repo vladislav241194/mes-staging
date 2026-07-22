@@ -1,4 +1,4 @@
-import { formatPersonDisplayName } from "../../ui/formatters.js";
+import { formatPersonDisplayName } from "../../ui/formatters.ts";
 
 export function getRouteTaskTypeLabel(task = {}) {
   if (task?.isMain) return "маршрут";

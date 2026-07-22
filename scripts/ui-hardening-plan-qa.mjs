@@ -48,7 +48,7 @@ const [
   read("scripts/design-qa-snapshots.mjs"),
   read("package.json"),
   read("scripts/build.mjs"),
-  read("src/ui/html.js"),
+  read("src/ui/html.ts"),
   read("src/ui/components.js"),
   read("styles/ui/actions.css"),
   read("styles/ui/status.css"),

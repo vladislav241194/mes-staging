@@ -1,14 +1,59 @@
-import { createUiRenderers } from "../src/ui/components.js";
-import { escapeAttribute, escapeHtml, joinUiClasses, normalizeUiTone } from "../src/ui/html.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-ui-render-helpers-"));
+let typedUi;
+try {
+  const output = join(temporaryRoot, "ui-render-helpers.mjs");
+  await build({
+    stdin: {
+      contents: [
+        'export { createUiRenderers } from "./src/ui/components.js";',
+        'export { escapeAttribute, escapeHtml, isKnownUiSignalTone, joinUiClasses, normalizeUiTone } from "./src/ui/html.ts";',
+      ].join("\n"),
+      resolveDir: fileURLToPath(new URL("..", import.meta.url)),
+      sourcefile: "ui-render-helpers-entry.mjs",
+      loader: "js",
+    },
+    outfile: output,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+    logLevel: "silent",
+  });
+  typedUi = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
+} finally {
+  await rm(temporaryRoot, { recursive: true, force: true });
+}
+
+const {
+  createUiRenderers,
+  escapeAttribute,
+  escapeHtml,
+  isKnownUiSignalTone,
+  joinUiClasses,
+  normalizeUiTone,
+} = typedUi;
 
 const icon = (name) => `<svg data-smoke-icon="${escapeAttribute(name)}"></svg>`;
 const ui = createUiRenderers({ icon });
 const failures = [];
 
 assertEqual(escapeHtml("<b>MES</b> & \"quote\""), "&lt;b&gt;MES&lt;/b&gt; &amp; &quot;quote&quot;", "escapeHtml escapes HTML");
+assertEqual(escapeHtml(null), "", "escapeHtml preserves null as empty text");
+assertEqual(escapeHtml(0), "0", "escapeHtml preserves numeric zero");
 assertEqual(escapeAttribute("\"quoted\" & <tag>"), "&quot;quoted&quot; &amp; &lt;tag&gt;", "escapeAttribute escapes attributes");
+assertEqual(escapeAttribute("line 1\nline 2"), "line 1 line 2", "escapeAttribute replaces line feeds");
 assertEqual(joinUiClasses("a", "", null, "b", false, "c"), "a b c", "joinUiClasses filters empty values");
+assertEqual(joinUiClasses(" a  b ", 0, ["c", "d"]), "a b c,d", "joinUiClasses preserves legacy string coercion");
+assertEqual(isKnownUiSignalTone("system-error"), true, "isKnownUiSignalTone accepts registered system tone");
+assertEqual(isKnownUiSignalTone(" success "), false, "isKnownUiSignalTone remains an exact membership check");
 assertEqual(normalizeUiTone("success"), "success", "normalizeUiTone preserves known success tone");
+assertEqual(normalizeUiTone(" success "), "success", "normalizeUiTone trims a known tone");
 assertEqual(normalizeUiTone("unknown-tone"), "neutral", "normalizeUiTone falls back to neutral");
 
 check("ActionButton primary", ui.renderUiActionButton({

@@ -1,10 +1,17 @@
-export function formatDecimalNumber(value, digits = 1) {
+export interface PersonDisplayNameOptions {
+  fallback?: string;
+}
+
+export function formatDecimalNumber(value: unknown, digits: number = 1): string {
   const number = Number(value || 0);
   const rounded = Math.round(number * 10 ** digits) / 10 ** digits;
   return rounded.toLocaleString("ru-RU", { maximumFractionDigits: digits });
 }
 
-export function formatRussianCount(value = 0, forms = ["", "", ""]) {
+export function formatRussianCount(
+  value: unknown = 0,
+  forms: readonly string[] = ["", "", ""],
+): string {
   const normalized = Math.max(0, Math.trunc(Number(value || 0)));
   const mod100 = normalized % 100;
   const mod10 = normalized % 10;
@@ -18,29 +25,32 @@ export function formatRussianCount(value = 0, forms = ["", "", ""]) {
   return `${normalized.toLocaleString("ru-RU")} ${word || ""}`.trim();
 }
 
-export function formatPlanningOperationCount(value = 0) {
+export function formatPlanningOperationCount(value: unknown = 0): string {
   return formatRussianCount(value, ["операция", "операции", "операций"]);
 }
 
-export function formatPlanningProblemCount(value = 0) {
+export function formatPlanningProblemCount(value: unknown = 0): string {
   return formatRussianCount(value, ["проблема", "проблемы", "проблем"]);
 }
 
-export function formatPlanningObjectCount(value = 0) {
+export function formatPlanningObjectCount(value: unknown = 0): string {
   return formatRussianCount(value, ["объект", "объекта", "объектов"]);
 }
 
-function isRussianPersonNamePart(value = "") {
+function isRussianPersonNamePart(value: unknown = ""): boolean {
   return /^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?$/.test(String(value || "").trim());
 }
 
-function isRussianPatronymicPart(value = "") {
+function isRussianPatronymicPart(value: unknown = ""): boolean {
   const part = String(value || "").trim();
   return isRussianPersonNamePart(part)
     && /(вич|ич|вна|чна|инич|инична|оглы|кызы)$/i.test(part);
 }
 
-export function formatPersonDisplayName(value = "", options = {}) {
+export function formatPersonDisplayName(
+  value: unknown = "",
+  options: PersonDisplayNameOptions = {},
+): string {
   const fallback = options.fallback || "";
   const parts = String(value || "")
     .replace(/\s+/g, " ")

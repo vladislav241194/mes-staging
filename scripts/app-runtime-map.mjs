@@ -267,7 +267,7 @@ function suggestTarget(name, type, risk) {
     return "src/ui/components.js";
   }
   if (type === "pure-format-helper") {
-    return "src/ui/html.js or src/ui/format.js";
+    return "src/ui/html.ts or src/ui/formatters.ts";
   }
   if (type === "overlay-renderer") {
     return "src/ui/overlays.js or module render file";

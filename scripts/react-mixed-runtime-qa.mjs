@@ -43,6 +43,8 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/shift_work_orders/production_model.ts",
   "src/modules/specifications2/production_owner.ts",
   "src/types.ts",
+  "src/ui/formatters.ts",
+  "src/ui/html.ts",
   "src/ui/long_task_overlay.ts",
 ], "active src TypeScript must grow only through explicitly audited production boundaries");
 assert(activeJavaScriptLines < 80_000, "active JavaScript inventory regrew above the audited post-retirement ceiling");

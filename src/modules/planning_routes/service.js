@@ -1,4 +1,4 @@
-import { formatPlanningOperationCount } from "../../ui/formatters.js";
+import { formatPlanningOperationCount } from "../../ui/formatters.ts";
 import { calculateOperationPlannedQuantity } from "../../domain/planning_quantity.js";
 import { createPlanningWorkingCalendarOwner } from "../planning_core/working_calendar_owner.js";
 import { focusPlanningRoute } from "./gantt_navigation_owner.js";

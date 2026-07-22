@@ -3,7 +3,7 @@ import {
   escapeHtml,
   joinUiClasses,
   normalizeUiTone,
-} from "./html.js";
+} from "./html.ts";
 
 const DEFAULT_UI_MODULE_CONTRACTS = ["ops-soft-v1", "visual-parity-v2"];
 

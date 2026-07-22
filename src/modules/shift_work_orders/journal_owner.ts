@@ -2,7 +2,7 @@ import {
   buildShiftWorkOrdersProductionModel,
   type ShiftWorkOrderRow,
 } from "./production_model.ts";
-import { formatPersonDisplayName } from "../../ui/formatters.js";
+import { formatPersonDisplayName } from "../../ui/formatters.ts";
 
 interface ShiftWorkOrderJournalOwnerOptions {
   getProductionInput?: () => unknown;

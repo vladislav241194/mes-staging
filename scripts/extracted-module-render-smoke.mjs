@@ -1,9 +1,40 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
 import { renderDispatchModulePage } from "../src/modules/dispatch/render.js";
 import { createStructureEmployeesReactIslandHost } from "../src/modules/production_structure_matrix/react_island_host.js";
-import { createUiRenderers } from "../src/ui/components.js";
 import { createMesModulePatternRenderer } from "../src/ui/module_patterns.js";
 import { getMesModuleBlueprintDefinition } from "../src/module_registry.js";
-import { escapeAttribute } from "../src/ui/html.js";
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-extracted-render-ui-"));
+let typedUi;
+try {
+  const output = join(temporaryRoot, "ui-render-runtime.mjs");
+  await build({
+    stdin: {
+      contents: [
+        'export { createUiRenderers } from "./src/ui/components.js";',
+        'export { escapeAttribute } from "./src/ui/html.ts";',
+      ].join("\n"),
+      resolveDir: fileURLToPath(new URL("..", import.meta.url)),
+      sourcefile: "extracted-render-ui-entry.mjs",
+      loader: "js",
+    },
+    outfile: output,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+    logLevel: "silent",
+  });
+  typedUi = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
+} finally {
+  await rm(temporaryRoot, { recursive: true, force: true });
+}
+
+const { createUiRenderers, escapeAttribute } = typedUi;
 
 const failures = [];
 const renderers = createUiRenderers({

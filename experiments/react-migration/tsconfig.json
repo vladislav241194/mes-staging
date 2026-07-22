@@ -26,6 +26,8 @@
     "../../src/modules/shift_work_orders/journal_owner.ts",
     "../../src/modules/specifications2/production_owner.ts",
     "../../src/types.ts",
+    "../../src/ui/formatters.ts",
+    "../../src/ui/html.ts",
     "../../src/ui/long_task_overlay.ts"
   ]
 }

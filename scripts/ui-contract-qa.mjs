@@ -32,7 +32,7 @@ const paths = {
   hardRuntimeLegacyRoadmapDocs: path.join(rootDir, "docs", "hard-ui-runtime-legacy-roadmap-v2.md"),
   bootstrapSnapshot: path.join(rootDir, "bootstrap-snapshot.json"),
   uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
-  uiHtml: path.join(rootDir, "src", "ui", "html.js"),
+  uiHtml: path.join(rootDir, "src", "ui", "html.ts"),
   uiComponents: path.join(rootDir, "src", "ui", "components.js"),
   accessRolesModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "roles", "adapter.ts"),
   ganttRuntimeModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "gantt", "GanttScenario.tsx"),

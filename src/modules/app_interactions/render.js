@@ -1,4 +1,4 @@
-import { formatDecimalNumber } from "../../ui/formatters.js";
+import { formatDecimalNumber } from "../../ui/formatters.ts";
 
 export function createAppInteractionsModule(dependencies = {}) {
   const {
