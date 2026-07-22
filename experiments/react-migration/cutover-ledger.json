@@ -23,9 +23,10 @@
       "structureWorkCenters",
       "structureEquipment",
       "structureResponsibilityPolicies",
-      "shiftWorkOrders"
+      "shiftWorkOrders",
+      "timesheet"
     ],
-    "runtimePolicySha256": "12cf00a6cc976f8ad7c2c1eb2cf415fcb08c46708dc4cfc32d65f650cd413a19",
+    "runtimePolicySha256": "869b342901f40fc9cbb9a69a6dd976b0f1edbc86d922e60bcc25dfa8ef36e24a",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -236,7 +237,7 @@
     { "id": "structurePositions", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-positions-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureResponsibilityPolicies", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-responsibility-policies-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureWorkCenters", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-work-centers-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
-    { "id": "timesheet", "routeId": "timesheet", "entry": "experiments/react-migration/src/timesheet-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["set-view", "move-period", "save-attendance", "remove-attendance", "save-schedule", "remove-schedule"], "missing": [] } },
+    { "id": "timesheet", "routeId": "timesheet", "entry": "experiments/react-migration/src/timesheet-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["set-view", "move-period", "save-attendance", "remove-attendance", "save-schedule", "remove-schedule"], "missing": ["production-write-rollout"] } },
     { "id": "weeklyProductionControl", "routeId": "weeklyProductionControl", "entry": "experiments/react-migration/src/weekly-production-control-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": [], "missing": [] } }
   ],
   "modules": [
@@ -374,13 +375,13 @@
       "navigationScope": "user",
       "scenarios": ["timesheet"],
       "reactSurface": "production-island",
-      "functionalStatus": "complete",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
+      "functionalStatus": "partial",
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["Pilot attendance lifecycle", "Pilot schedule lifecycle", "permanent React runtime"]
+      "remainingScopes": ["production Timesheet command-surface eligibility", "employee-scoped RBAC acceptance", "Pilot attendance lifecycle", "Pilot schedule lifecycle", "typed owner/model independence", "permanent Pilot acceptance"]
     },
     {
       "id": "roles",

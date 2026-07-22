@@ -19,6 +19,7 @@ export const REACT_RUNTIME_PERMANENT_CONSUMERS = Object.freeze([
   "structureResponsibilityPolicies",
   "structureMigrationDiagnostics",
   "weeklyProductionControl",
+  "timesheet",
   "shiftWorkOrders",
   "authPicker",
 ]);

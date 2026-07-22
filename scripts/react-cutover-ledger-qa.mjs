@@ -361,6 +361,7 @@ if (candidatePolicy) {
     "structurePositions",
     "structureResponsibilityPolicies",
     "structureWorkCenters",
+    "timesheet",
   ], "the current candidate must contain every accelerated permanent React surface awaiting Pilot acceptance");
   assert(unique(candidateSurfaceIds) && candidateSurfaceIds.length > 0, "candidate surface IDs must be non-empty and unique");
   assert(candidateSurfaceIds.every((surfaceId) => acceptanceIds.includes(surfaceId)), "every candidate must map to an audited scenario");

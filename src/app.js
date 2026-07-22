@@ -4461,10 +4461,27 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
   getActivation: () => {
     const localQa = getTimesheetReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_TIMESHEET_READ_ONLY_EVALUATION === true;
+    const runtimeActivation = resolveReactRuntimeActivation({
+      surfaceId: "timesheet",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_TIMESHEET === true && serverEvaluationAllowed,
+      evaluationRequested: isTimesheetReactEvaluationRequested(),
+      localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+    });
+    const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+      ? "read-unavailable"
+      : systemDomainsServerReadState.status === "server" && !systemDomainsState
+        ? "model-unavailable"
+        : "";
     return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_TIMESHEET === true || localQa.featureFlagEnabled,
+      ...runtimeActivation,
       serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isTimesheetReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      serverReadFailure,
+      accessMode: runtimeActivation.runtimeMode === "react"
+        ? "react"
+        : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
+          ? "write-evaluation"
+          : runtimeActivation.accessMode,
+      policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
     };
   },
   getPayload: () => {
@@ -10647,7 +10664,7 @@ function initializeModuleRuntime() {
         if (reactDecision.activateReact) return timesheetReactIslandHost.renderTarget();
         return renderTimesheetPage();
       },
-      renderModals: () => renderTimesheetEditorModal(),
+      renderModals: () => timesheetReactIslandHost.isReactEligible() ? "" : renderTimesheetEditorModal(),
       bind: () => { if (!timesheetReactIslandHost.isReactEligible()) bindTimesheetEvents(); },
       afterRender: () => { void timesheetReactIslandHost.mount(); },
     },

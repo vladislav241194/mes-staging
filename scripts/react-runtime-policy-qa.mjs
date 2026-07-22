@@ -50,6 +50,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "structureResponsibilityPolicies",
   "structureMigrationDiagnostics",
   "weeklyProductionControl",
+  "timesheet",
   "shiftWorkOrders",
   "authPicker",
 ], "permanent allowlist must stay explicit and limited to fully wired consumers");
@@ -83,6 +84,7 @@ if (candidatePolicy) {
     "structurePositions",
     "structureResponsibilityPolicies",
     "structureWorkCenters",
+    "timesheet",
   ], "this candidate policy must contain every accelerated permanent React surface awaiting Pilot acceptance");
   assert.equal(candidatePolicy.runtimePolicySha256, policy.sha256, "candidate evidence contract must bind the exact current policy bytes");
   assert.equal(candidatePolicy.baseAcceptedRelease, ledger.acceptedPilotRelease, "candidate must name the accepted release it extends");

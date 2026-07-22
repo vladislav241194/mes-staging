@@ -17,7 +17,7 @@
     "structureMigrationDiagnostics": "react",
     "roles": "evaluation",
     "weeklyProductionControl": "react",
-    "timesheet": "evaluation",
+    "timesheet": "react",
     "planningWorkbench": "evaluation",
     "shiftWorkOrders": "react",
     "shiftMasterBoard": "evaluation",
