@@ -2678,6 +2678,7 @@ let renderContourAdminPage = () => renderUiModulePage({
 });
 let contourAdminModuleLoad = null;
 let contourAdminModuleReady = false;
+let contourAdminModuleError = null;
 
 function initializeContourAdminModule(factory) {
   ({
@@ -2711,6 +2712,7 @@ function ensureContourAdminModule() {
       if (ui.activeModule === "contourAdmin") render();
     })
     .catch((error) => {
+      contourAdminModuleError = error;
       console.error("Не удалось загрузить модуль администрирования", error);
       renderContourAdminPage = () => renderUiModulePage({
         ariaLabel: "Администрирование контура",
@@ -5545,21 +5547,38 @@ function isContourAdminReactEvaluationRequested() {
   if (!isAdminRuntimeHost()) return false;
   return new URLSearchParams(window.location.search).get("react-contour-admin-evaluation") === "1";
 }
+function getContourAdminReactActivation() {
+  const localQa = getContourAdminReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "contourAdmin",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN === true && serverEvaluationAllowed,
+    evaluationRequested: isContourAdminReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  return {
+    ...runtimeActivation,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    adminHostReady: isAdminRuntimeHost() && contourAdminModuleReady,
+    serverReadFailure: contourAdminModuleError ? "model-unavailable" : "",
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
 const contourAdminReactIslandHost = createContourAdminReactIslandHost({
-  getActivation: () => {
-    const localQa = getContourAdminReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN === true || localQa.featureFlagEnabled,
-      adminHostReady: isAdminRuntimeHost() && contourAdminModuleReady,
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isContourAdminReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
-    };
+  getActivation: getContourAdminReactActivation,
+  getPayload: () => {
+    const activation = getContourAdminReactActivation();
+    return { model: getContourAdminModel(), capabilities: { executeOps: activation.accessMode === "react" || getContourAdminReactLocalQaOverrides().writeEvaluation } };
   },
-  getPayload: () => ({ model: getContourAdminModel(), capabilities: { executeOps: getContourAdminReactLocalQaOverrides().writeEvaluation } }),
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getContourAdminReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "execute-ops") return { ok: false, message: "Защищённая Ops-команда недоступна." };
+    const activation = getContourAdminReactActivation();
+    if ((activation.accessMode !== "react" && !localQa.writeEvaluation) || command.type !== "execute-ops") return { ok: false, message: "Защищённая Ops-команда недоступна." };
     if (command.confirmed !== true) return { ok: false, confirmationRequired: true, message: "Подтвердите защищённую операцию." };
     const actionId = String(command.actionId || "").trim();
     const scenarioId = String(command.scenarioId || "").trim();

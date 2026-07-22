@@ -25,6 +25,6 @@
     "specifications2": "evaluation",
     "gantt": "evaluation",
     "authPicker": "react",
-    "contourAdmin": "evaluation"
+    "contourAdmin": "react"
   }
 }
