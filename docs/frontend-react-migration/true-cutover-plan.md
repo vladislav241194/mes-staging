@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.72-4c052bc`
+Текущий accelerated Pilot release: `v.1.500.73-36727f3`
 
 ## Исправление прежней оценки
 
@@ -982,6 +982,34 @@ Structure Migration Diagnostics. Responsive/narrow Pilot-приёмка дока
 
 Следующий accelerated batch: типизировать `4–6` оставшихся browser-only island
 host wrappers одним release.
+
+## React policy host strict TypeScript batch 2026-07-22: release `.73`
+
+- Pilot активирован на `v.1.500.73-36727f3`; source/dist SHA-256 —
+  `584fbdd2de01f8ef25719d00e44d748e75d1ea9dacd7affb581447413b8be54a` и
+  `b71cf09c4ba7782b0115d52d7c522f86c7511fb98f4418c0ee3de346f23d22bb`.
+- Пять policy wrappers переведены из JavaScript в strict TypeScript одним
+  пакетом: Contour Admin, Auth Picker, Gantt, Planning Workbench и Weekly
+  Production Control. Старые `.js` файлы отсутствуют; app, build, ownership
+  registries и QA используют typed paths.
+- Активный JavaScript уменьшен с `50 504` до `50 155` строк и со `100` до `95`
+  файлов; strict inventory вырос с `33` до `38` TypeScript-файлов. Layout,
+  runtime policies, API/schema, PostgreSQL authority и команды не менялись.
+- Typecheck, syntax, focused policy/lazy/runtime QA, React cutover/runtime
+  policy, module/feature registries, deterministic build, artifact
+  marker/specifier checks и `git diff --check` прошли; независимый P1/P2
+  review — `GO`. Визуальный/browser QA для механического пакета не выполнялся.
+- Service/health/pointer подтверждают `.73`, shared state `ready`, все 25
+  surfaces — React, evaluation/legacy surfaces, effective `MES_REACT_*` flags
+  и evaluation drop-ins отсутствуют. Immediate `.72` прошёл rollback dry-run;
+  sealed `.18` сохранён, Staging остался на `v.1.499.70-c3b4059`.
+- Completion markers и Pilot acceptance не менялись: implementation checkpoint
+  остаётся `99%`, честный evidence-weighted прогресс — `50%`. Blueprint UI не
+  используется.
+
+Следующий accelerated batch: совместно типизировать bounded Shift Execution,
+Roles и Nomenclature/Boards wrappers; Directories и Production Structure
+оставить отдельными scope, если dynamic mount contracts требуют изоляции.
 
 Статус 2026-07-21: исторические rollback chains `.21 -> .20 -> .21` и
 `.21 -> .18 -> .19 -> .20 -> .21` сохранены как evidence своей контрольной

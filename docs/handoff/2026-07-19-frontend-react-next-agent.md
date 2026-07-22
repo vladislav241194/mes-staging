@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.72-4c052bc`; последний strict-accepted release остаётся
+> `v.1.500.73-36727f3`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.72-4c052bc`; immediate previous:
-  `v.1.500.71-dc067b3`; pinned legacy:
+- Активный accelerated release: `v.1.500.73-36727f3`; immediate previous:
+  `v.1.500.72-4c052bc`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -148,7 +148,7 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
    закрытия одного из partial production-сценариев с owner-backed parity.
 5. Не заявлять live parity для Boards/BOM или Responsibility Policies на пустом
    наборе. Для записи нужен отдельный disposable record и явная cleanup-проверка.
-6. Сохранять `.71` как immediate rollback и sealed `.18` как legacy baseline;
+6. Сохранять `.72` как immediate rollback и sealed `.18` как legacy baseline;
    не добавлять evaluation flags и не обходить compatibility guard.
 
 ## Важные ограничения
@@ -2355,3 +2355,40 @@ layout, backend authority or command behavior.
 
 Next accelerated batch: type `4–6` of the remaining browser-only island host
 wrappers, keeping one focused QA/review/release/handoff cycle.
+
+## React policy host strict TypeScript batch 2026-07-22: release `.73`
+
+This block supersedes `.72` as the live Pilot pointer. It moves five policy
+wrappers to strict TypeScript without changing their layout, activation policy,
+fallback rules, command authority or module completion status.
+
+- Active Pilot is `v.1.500.73-36727f3` at exact commit
+  `36727f3de5b12dd1ba29f0929be2c04aae19efa3`; immediate previous is
+  `v.1.500.72-4c052bc`, pinned legacy remains `v.1.500.18-93d02ed`, and
+  Staging remains `v.1.499.70-c3b4059`.
+- Source/dist SHA-256 are
+  `584fbdd2de01f8ef25719d00e44d748e75d1ea9dacd7affb581447413b8be54a` and
+  `b71cf09c4ba7782b0115d52d7c522f86c7511fb98f4418c0ee3de346f23d22bb`.
+- Contour Admin, Auth Picker, Gantt, Planning Workbench and Weekly Production
+  Control hosts now execute from strict `.ts`; their five old `.js` files are
+  absent. App, build, ownership registries and direct source-path QA use the
+  typed paths.
+- Active JavaScript fell from `50,504` to `50,155` lines and from `100` to
+  `95` files; strict production inventory grew from `33` to `38` TypeScript
+  files. No module completion marker changed.
+- Strict typecheck, syntax, focused policy/lazy/runtime contracts, React
+  cutover/runtime policy, module/feature registries, clean build, artifact
+  marker/specifier checks and `git diff --check` passed. Independent review
+  returned `GO` with no P1/P2. No visual/browser QA was claimed for this
+  mechanical batch.
+- Local/public health report `ok`, version `v.1.500.73`, shared state `ready`,
+  all 25 surfaces React, zero evaluation/legacy surfaces, no effective
+  `MES_REACT_*` flags and no evaluation drop-ins. `.72` passed rollback
+  dry-run; sealed `.18` remains unchanged.
+- Implementation remains `99%`; honest evidence-weighted progress remains
+  `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: type the compatible Shift Execution, Roles and
+Nomenclature/Boards host wrappers in one bounded release; keep Directories and
+the larger Production Structure host as separate follow-up scopes if the
+focused preflight confirms their dynamic mount contracts need isolation.
