@@ -135,4 +135,10 @@ for (const file of ["activate-directory-cluster-commands.sh", "deactivate-direct
 }
 const bridge = await readFile(new URL("../ops/postgres/deactivate-staged-candidate-command-surfaces.sh", import.meta.url), "utf8");
 assert(bridge.includes("50-directory-cluster-commands.conf") && bridge.includes("DIRECTORY_CLUSTER_SERVER_COMMANDS"));
+assert(bridge.includes("request_optional_directory_capability")
+  && bridge.includes('404) printf')
+  && bridge.includes('"serverCommandsConfigured":false')
+  && bridge.includes("request_optional_directory_capability /api/v1/directory/nomenclature-types/capabilities")
+  && bridge.includes("request_optional_directory_capability /api/v1/directory/boards/capabilities"),
+"the staged bridge must accept only an exact predecessor 404 as an explicit Directory command-OFF compatibility proof");
 console.log("Directory Cluster release command contract QA: OK");

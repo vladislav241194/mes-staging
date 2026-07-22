@@ -113,6 +113,24 @@ request_internal_api() {
     -H 'Host: mes-internal' "${INTERNAL_ORIGIN}$1"
 }
 
+# The predecessor may predate the read-only Directory capability routes. A
+# strict 404 is still a valid command-OFF proof because the bridge already
+# rejected every unmanaged enable flag and the running process environment is
+# checked independently below. Any other response remains fail-closed.
+request_optional_directory_capability() {
+  local endpoint="$1" body status
+  body="$(mktemp /tmp/mes-directory-capability.XXXXXX)"
+  status="$(curl --silent --show-error --connect-timeout 2 --max-time 5 \
+    -o "$body" -w '%{http_code}' -H 'Host: mes-internal' \
+    "${INTERNAL_ORIGIN}${endpoint}" || true)"
+  case "$status" in
+    200) cat "$body" ;;
+    404) printf '%s' '{"ok":true,"capabilities":{"serverCommandsConfigured":false},"compatibility":"predecessor-route-unavailable"}' ;;
+    *) rm -f "$body"; return 1 ;;
+  esac
+  rm -f "$body"
+}
+
 pre_consistency="$(request_internal_api /api/v1/system-domains/consistency)"
 /usr/bin/node "$POLICY" system-domains-primary-tombstone "$pre_consistency" || {
   echo "Refusing pre-activation deactivation without the durable PostgreSQL-primary System Domains tombstone proof." >&2
@@ -167,8 +185,8 @@ for attempt in $(seq 1 12); do
   readiness="$(request_internal_api /api/v1/domain-readiness 2>/dev/null || true)"
   system_capabilities="$(request_internal_api /api/v1/system-domains/capabilities 2>/dev/null || true)"
   shift_capabilities="$(request_internal_api /api/v1/workshop/shift-execution/capabilities 2>/dev/null || true)"
-  directory_types_capabilities="$(request_internal_api /api/v1/directory/nomenclature-types/capabilities 2>/dev/null || true)"
-  directory_boards_capabilities="$(request_internal_api /api/v1/directory/boards/capabilities 2>/dev/null || true)"
+  directory_types_capabilities="$(request_optional_directory_capability /api/v1/directory/nomenclature-types/capabilities 2>/dev/null || true)"
+  directory_boards_capabilities="$(request_optional_directory_capability /api/v1/directory/boards/capabilities 2>/dev/null || true)"
   post_consistency="$(request_internal_api /api/v1/system-domains/consistency 2>/dev/null || true)"
   payload="$(/usr/bin/node --input-type=module -e '
     const [readiness, systemDomainsCapabilities, shiftCapabilities, directoryNomenclatureTypesCapabilities, directoryBoardsCapabilities, processEnvironment] = process.argv.slice(1);
