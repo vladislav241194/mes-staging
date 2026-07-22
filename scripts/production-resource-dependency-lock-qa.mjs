@@ -82,8 +82,13 @@ assert.match(sources["domain-api.mjs"], /systemDomainsProductionStructureImpactR
 assert.match(sources["domain-api.mjs"], /createSystemDomainsRepository\(\{ databaseUrl, transactionSql \}\)/, "get/impact/replace must bind to the exact lock transaction");
 assert.match(
   sources["domain-api.mjs"],
-  /surface !== "production-structure"[\s\S]+system-domains-surface-not-server-authorized/,
-  "manual or stale flags must not reopen Timesheet or Access Control without server RBAC/invariants",
+  /surface === "access-control"[\s\S]+system-domains-surface-not-server-authorized/,
+  "manual or stale flags must not reopen Access Control without its server RBAC and delta invariants",
+);
+assert.match(
+  sources["domain-api.mjs"],
+  /surface === "timesheet"[\s\S]+validateSystemDomainsTimesheetDelta[\s\S]+systemDomainsTimesheetAuthorizationResolver/,
+  "Timesheet must remain behind its bounded delta validator and target-scoped employee authorization",
 );
 const impactCall = sources["domain-api.mjs"].indexOf("impact = typeof systemDomainsProductionStructureImpactResolver");
 const productionLockCall = sources["domain-api.mjs"].indexOf("commandCommit = await systemDomainsProductionStructureLockRunner", impactCall);
