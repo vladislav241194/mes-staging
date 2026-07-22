@@ -3,7 +3,8 @@ import { createHmac } from "node:crypto";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { transform } from "esbuild";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build, transform } from "esbuild";
 import {
   CONTOUR_ADMIN_SERVER_ACTIONS,
   CONTOUR_ADMIN_SERVER_ACTION_IDS,
@@ -11,12 +12,53 @@ import {
   handleContourAdminActionRequest,
   inspectContourAdminMutationRequest,
 } from "./contour-admin-endpoint.mjs";
-import {
-  CONTOUR_ADMIN_CLIENT_ACTION_IDS,
-  CONTOUR_ADMIN_SCENARIO_ACTIONS,
-} from "../src/modules/contour_admin/command_contract.js";
 import { createContourAdminReactIslandHost } from "../src/modules/contour_admin/react_island_host.js";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+
+async function loadTypedContourAdminModules() {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-contour-admin-typed-"));
+  try {
+    const commandContractOutput = join(temporaryRoot, "command-contract.mjs");
+    const serverOwnerOutput = join(temporaryRoot, "server-owner-client.mjs");
+    await Promise.all([
+      build({
+        entryPoints: [fileURLToPath(new URL("../src/modules/contour_admin/command_contract.ts", import.meta.url))],
+        outfile: commandContractOutput,
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node20",
+        logLevel: "silent",
+      }),
+      build({
+        entryPoints: [fileURLToPath(new URL("../src/modules/contour_admin/server_owner_client.ts", import.meta.url))],
+        outfile: serverOwnerOutput,
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node20",
+        logLevel: "silent",
+      }),
+    ]);
+    const [commandContract, serverOwner] = await Promise.all([
+      import(`${pathToFileURL(commandContractOutput).href}?qa=${Date.now()}`),
+      import(`${pathToFileURL(serverOwnerOutput).href}?qa=${Date.now()}`),
+    ]);
+    return {
+      CONTOUR_ADMIN_CLIENT_ACTION_IDS: commandContract.CONTOUR_ADMIN_CLIENT_ACTION_IDS,
+      CONTOUR_ADMIN_SCENARIO_ACTIONS: commandContract.CONTOUR_ADMIN_SCENARIO_ACTIONS,
+      executeContourAdminServerAction: serverOwner.executeContourAdminServerAction,
+    };
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+}
+
+const {
+  CONTOUR_ADMIN_CLIENT_ACTION_IDS,
+  CONTOUR_ADMIN_SCENARIO_ACTIONS,
+  executeContourAdminServerAction,
+} = await loadTypedContourAdminModules();
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_CONTOUR_ADMIN, false);
 assert.equal(disabled.MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION, false);
@@ -30,8 +72,8 @@ assert.doesNotMatch(script, /must-not-leak/);
 const [app, host, owner, commandContract, productionModel, endpoint, island, scenario, runtimePolicy] = await Promise.all([
   readFile("src/app.js", "utf8"),
   readFile("src/modules/contour_admin/react_island_host.js", "utf8"),
-  readFile("src/modules/contour_admin/server_owner_client.js", "utf8"),
-  readFile("src/modules/contour_admin/command_contract.js", "utf8"),
+  readFile("src/modules/contour_admin/server_owner_client.ts", "utf8"),
+  readFile("src/modules/contour_admin/command_contract.ts", "utf8"),
   readFile("experiments/react-migration/src/modules/contour-admin/production-model.ts", "utf8"),
   readFile("scripts/contour-admin-endpoint.mjs", "utf8"),
   readFile("experiments/react-migration/src/contour-admin-island.tsx", "utf8"),
@@ -78,6 +120,15 @@ assert.match(owner, /executeContourAdminServerAction/);
 assert.match(owner, /fetchImpl\("\/api\/contour-admin\/action"/);
 assert.match(owner, /credentials: "same-origin"/);
 assert.match(commandContract, /"deploy-to-pilot": Object\.freeze\(\["request-deploy-to-pilot"\]\)/);
+const serverOwnerResult = await executeContourAdminServerAction("backup-stage-shared-state", {
+  confirmed: true,
+  fetchImpl: async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, status: "completed" }),
+  }),
+});
+assert.equal(serverOwnerResult.ok, true, "the typed Contour Admin owner must preserve successful Ops responses");
 assert.match(productionModel, /buildContourAdminProductionModel/);
 assert.match(productionModel, /actionId: "request-deploy-to-pilot"/);
 assert.doesNotMatch(productionModel, /render\.js|src\/app\.js|localStorage|sessionStorage/);

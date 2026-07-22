@@ -200,7 +200,7 @@ const CORE_MODULE_BLUEPRINTS = [
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: READ_ONLY_ACCESS, master: ["view", "print"], dispatcher: READ_ONLY_ACCESS },
     capabilities: { table: true, tree: true, actions: true, overlays: ["print-preview", "issue-photo"] }, sourceFiles: [
       "src/modules/shift_work_orders/react_island_host.js",
-      "src/modules/shift_work_orders/journal_owner.js",
+      "src/modules/shift_work_orders/journal_owner.ts",
       "src/modules/shift_work_orders/production_model.ts",
       "experiments/react-migration/src/shift-work-orders-island.tsx",
       "experiments/react-migration/src/modules/shift-work-orders/adapter.ts",
@@ -303,8 +303,8 @@ const CORE_MODULE_BLUEPRINTS = [
     capabilities: { table: true, actions: true },
     sourceFiles: [
       "src/modules/contour_admin/react_island_host.js",
-      "src/modules/contour_admin/server_owner_client.js",
-      "src/modules/contour_admin/command_contract.js",
+      "src/modules/contour_admin/server_owner_client.ts",
+      "src/modules/contour_admin/command_contract.ts",
       "experiments/react-migration/src/contour-admin-island.tsx",
       "experiments/react-migration/src/modules/contour-admin/ContourAdminScenario.tsx",
       "experiments/react-migration/src/modules/contour-admin/adapter.ts",

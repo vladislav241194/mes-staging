@@ -1,8 +1,39 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
-import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "../src/modules/shift_work_orders/journal_owner.js";
+
+async function loadTypedShiftWorkOrderJournalOwner() {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-shift-work-orders-journal-owner-"));
+  try {
+    const output = join(temporaryRoot, "journal-owner.mjs");
+    await build({
+      entryPoints: [fileURLToPath(new URL("../src/modules/shift_work_orders/journal_owner.ts", import.meta.url))],
+      outfile: output,
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      target: "node20",
+      logLevel: "silent",
+    });
+    const module = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
+    return {
+      createShiftWorkOrderJournalOwner: module.createShiftWorkOrderJournalOwner,
+      formatShiftWorkOrderPersonName: module.formatShiftWorkOrderPersonName,
+    };
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+}
+
+const {
+  createShiftWorkOrderJournalOwner,
+  formatShiftWorkOrderPersonName,
+} = await loadTypedShiftWorkOrderJournalOwner();
 
 function section(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -42,7 +73,7 @@ await assert.rejects(
 );
 const appSource = await readFile("src/app.js", "utf8");
 const hostSource = await readFile("src/modules/shift_work_orders/react_island_host.js", "utf8");
-const journalOwnerSource = await readFile("src/modules/shift_work_orders/journal_owner.js", "utf8");
+const journalOwnerSource = await readFile("src/modules/shift_work_orders/journal_owner.ts", "utf8");
 const scenarioSource = await readFile("experiments/react-migration/src/modules/shift-work-orders/ShiftWorkOrdersScenario.tsx", "utf8");
 assert.match(appSource, /surfaceId: "shiftWorkOrders"/);
 assert.match(appSource, /activation\.accessMode === "react" \|\| localQa\.writeEvaluation/);

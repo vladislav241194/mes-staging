@@ -1,23 +1,33 @@
-const DEFAULT_OPTIONS = {
+interface LongTaskOptions {
+  title: string;
+  detail: string;
+  revealDelayMs: number;
+  minimumVisibleMs: number;
+}
+
+const DEFAULT_OPTIONS: Readonly<LongTaskOptions> = {
   title: "Сервис выполняет расчёт",
   detail: "Пожалуйста, не закрывайте страницу",
   revealDelayMs: 180,
   minimumVisibleMs: 420,
 };
 
-let overlay = null;
+let overlay: HTMLElement | null = null;
 let activeTaskId = 0;
 
-function ensureOverlay() {
+function ensureOverlay(): HTMLElement {
   if (overlay?.isConnected) return overlay;
-  overlay = document.querySelector(".mes-long-task-overlay");
-  if (overlay) return overlay;
-  overlay = document.createElement("section");
-  overlay.className = "mes-long-task-overlay";
-  overlay.setAttribute("role", "status");
-  overlay.setAttribute("aria-live", "polite");
-  overlay.setAttribute("aria-hidden", "true");
-  overlay.innerHTML = `
+  const existingOverlay = document.querySelector<HTMLElement>(".mes-long-task-overlay");
+  if (existingOverlay) {
+    overlay = existingOverlay;
+    return existingOverlay;
+  }
+  const createdOverlay = document.createElement("section");
+  createdOverlay.className = "mes-long-task-overlay";
+  createdOverlay.setAttribute("role", "status");
+  createdOverlay.setAttribute("aria-live", "polite");
+  createdOverlay.setAttribute("aria-hidden", "true");
+  createdOverlay.innerHTML = `
     <div class="mes-long-task-card">
       <span class="mes-long-task-kicker">MES · обработка данных</span>
       <div class="mes-long-task-spinner" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -27,21 +37,28 @@ function ensureOverlay() {
       <small>Интерфейс продолжит работу автоматически</small>
     </div>
   `;
-  document.body.append(overlay);
-  return overlay;
+  document.body.append(createdOverlay);
+  overlay = createdOverlay;
+  return createdOverlay;
 }
 
-function wait(ms) {
+function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-export async function runLongTask(task, options = {}) {
+export async function runLongTask<T>(
+  task: (() => T | PromiseLike<T>) | null | undefined,
+  options: Partial<LongTaskOptions> = {},
+): Promise<T | undefined> {
   if (typeof task !== "function") return undefined;
   const settings = { ...DEFAULT_OPTIONS, ...options };
   const taskId = ++activeTaskId;
   const element = ensureOverlay();
-  element.querySelector("[data-mes-long-task-title]").textContent = settings.title;
-  element.querySelector("[data-mes-long-task-detail]").textContent = settings.detail;
+  const titleElement = element.querySelector<HTMLElement>("[data-mes-long-task-title]");
+  const detailElement = element.querySelector<HTMLElement>("[data-mes-long-task-detail]");
+  if (!titleElement || !detailElement) throw new Error("Long task overlay template is incomplete");
+  titleElement.textContent = settings.title;
+  detailElement.textContent = settings.detail;
   element.classList.add("is-pending");
   element.setAttribute("aria-hidden", "false");
 

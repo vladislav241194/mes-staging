@@ -1,5 +1,14 @@
-import { buildShiftWorkOrdersProductionModel } from "./production_model.ts";
+import {
+  buildShiftWorkOrdersProductionModel,
+  type ShiftWorkOrderRow,
+} from "./production_model.ts";
 import { formatPersonDisplayName } from "../../ui/formatters.js";
+
+interface ShiftWorkOrderJournalOwnerOptions {
+  getProductionInput?: () => unknown;
+  getCapabilities?: () => unknown;
+  onSelectedRow?: (row: ShiftWorkOrderRow) => void;
+}
 
 const EMPTY_JOURNAL = Object.freeze({
   rows: [],
@@ -11,7 +20,7 @@ const EMPTY_JOURNAL = Object.freeze({
   readModelCoverage: null,
 });
 
-export function formatShiftWorkOrderPersonName(value = "") {
+export function formatShiftWorkOrderPersonName(value: unknown = ""): string {
   return formatPersonDisplayName(value, { fallback: "Исполнитель" });
 }
 
@@ -19,7 +28,7 @@ export function createShiftWorkOrderJournalOwner({
   getProductionInput = () => ({}),
   getCapabilities = () => ({}),
   onSelectedRow = () => {},
-} = {}) {
+}: ShiftWorkOrderJournalOwnerOptions = {}) {
   return Object.freeze({
     getViewModel() {
       const model = buildShiftWorkOrdersProductionModel(getProductionInput(), getCapabilities());

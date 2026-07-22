@@ -1,4 +1,18 @@
-export async function executeContourAdminServerAction(actionId = "", { confirmed = false, fetchImpl = globalThis.fetch } = {}) {
+type UnknownRecord = Record<string, unknown>;
+
+interface ContourAdminServerActionOptions {
+  confirmed?: boolean;
+  fetchImpl?: typeof globalThis.fetch;
+}
+
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+export async function executeContourAdminServerAction(
+  actionId: unknown = "",
+  { confirmed = false, fetchImpl = globalThis.fetch }: ContourAdminServerActionOptions = {},
+) {
   const normalizedActionId = String(actionId || "").trim();
   if (!normalizedActionId || typeof fetchImpl !== "function") {
     return { ok: false, error: "Защищённый Ops API недоступен." };
@@ -12,7 +26,7 @@ export async function executeContourAdminServerAction(actionId = "", { confirmed
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: normalizedActionId, confirm: confirmed ? normalizedActionId : "" }),
     });
-    const payload = await response.json().catch(() => ({ ok: false, error: "Не удалось прочитать ответ сервера" }));
+    const payload = asRecord(await response.json().catch(() => ({ ok: false, error: "Не удалось прочитать ответ сервера" })));
     return response.ok && payload?.ok === true
       ? payload
       : { ...payload, ok: false, error: String(payload?.error || `Ops API ответил ${response.status}`) };

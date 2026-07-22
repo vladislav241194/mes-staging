@@ -1,6 +1,6 @@
-import { createDefaultPlanningState } from "./data.js";
+import { createDefaultPlanningState } from "./data.ts";
 import { DEFAULT_PRODUCTION_WORK_CENTERS } from "./production_structure_default_work_centers.js";
-import { SLOT_STATUSES, STATUS_LABELS } from "./types.js";
+import { SLOT_STATUSES, STATUS_LABELS } from "./types.ts";
 import {
   buildMesFlowEvent,
   buildMesDocumentContract,
@@ -67,7 +67,7 @@ import {
 import { createMesModuleRuntime } from "./module_runtime.js";
 import { createGeneratedModuleRuntimeAdapters } from "./generated/module_runtime_index.js";
 import { createUiRenderers } from "./ui/components.js";
-import { runLongTask } from "./ui/long_task_overlay.js";
+import { runLongTask } from "./ui/long_task_overlay.ts";
 import { createMesModulePatternRenderer } from "./ui/module_patterns.js";
 import {
   escapeAttribute,
@@ -97,7 +97,7 @@ import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/re
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
-import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.js";
+import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.ts";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import {
   createShiftMasterBoardCommandOwner,
@@ -109,8 +109,8 @@ import { createMarkingApiClient } from "./modules/marking/api_client.ts";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson } from "./modules/auth_render/access_role_resolver.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
-import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.js";
-import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.js";
+import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.ts";
+import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.ts";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
 import { createSpecifications2ProductionOwner } from "./modules/specifications2/production_owner.ts";
 import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.66";
+const APP_VERSION_FALLBACK = "v.1.500.67";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

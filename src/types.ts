@@ -33,9 +33,11 @@ export const SLOT_STATUSES = [
   "completed",
   "overdue",
   "problem",
-];
+] as const;
 
-export const STATUS_LABELS = {
+export type SlotStatus = (typeof SLOT_STATUSES)[number];
+
+export const STATUS_LABELS: Readonly<Record<SlotStatus, string>> = {
   planned: "Запланировано",
   in_progress: "В работе",
   paused: "Пауза",

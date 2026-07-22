@@ -104,7 +104,7 @@ const MODULE_FEATURE_OVERRIDES = {
     css: ["styles/layers/60-operational-modules.css"],
     files: [
       "src/modules/shift_work_orders/react_island_host.js",
-      "src/modules/shift_work_orders/journal_owner.js",
+      "src/modules/shift_work_orders/journal_owner.ts",
       "src/modules/shift_work_orders/production_model.ts",
       "experiments/react-migration/src/shift-work-orders-island.tsx",
       "experiments/react-migration/src/modules/shift-work-orders/adapter.ts",
@@ -176,8 +176,8 @@ const MODULE_FEATURE_OVERRIDES = {
     api: ["/api/contour-admin/action"],
     files: [
       "src/modules/contour_admin/react_island_host.js",
-      "src/modules/contour_admin/server_owner_client.js",
-      "src/modules/contour_admin/command_contract.js",
+      "src/modules/contour_admin/server_owner_client.ts",
+      "src/modules/contour_admin/command_contract.ts",
       "experiments/react-migration/src/contour-admin-island.tsx",
       "experiments/react-migration/src/modules/contour-admin/ContourAdminScenario.tsx",
       "experiments/react-migration/src/modules/contour-admin/adapter.ts",
