@@ -1772,3 +1772,49 @@ as `✅ FULL REACT` in the accelerated renderer-retirement track.
 Next accelerated cut: inventory the remaining normal-runtime JavaScript owners
 and select the smallest cut that removes real legacy without deleting the
 intentional immutable-release rollback boundary.
+
+## Structure and archived renderer retirement 2026-07-22: release `.60`
+
+This block supersedes `.59` as the live Pilot pointer and marks Structure and
+employees as `✅ FULL REACT` in the accelerated renderer-retirement track.
+
+- Active Pilot is `v.1.500.60-af0cd28` at exact commit
+  `af0cd28170c4015d6cd4fa90ae10ea183597eedb`; immediate previous is
+  `v.1.500.59-77464c0` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `d5d98241c9c059791d9108344b3f0d46c20ea052a74d7dc444899fba3156e98c` and
+  `aee18d5815bb055bce5b0633e4070ac3ccd130ee0e9c0c160fa226f4a9f884e3`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Public health reports `ok`, version `v.1.500.60`, shared state `ready`, zero
+  active evaluation/legacy surfaces and no effective `MES_REACT_*` flags or
+  React systemd drop-ins. Service is active and `/srv/mes/pilot/app` resolves
+  to `.60`.
+- The retired Structure renderer/legacy QA and orphan renderers for
+  `employees`, `planning_table`, `shop_map`, `supply`, and `visual_system`
+  are absent from both sealed source and dist. The cut deletes 3,189 lines and
+  adds 104 focused ownership/QA/rollback-contract lines.
+- Module and feature metadata point to the React host, server capabilities and
+  seven typed islands. `qa:structure` executes consolidation, all seven
+  fail-closed host factories and strict React TypeScript.
+- Independent review found the retained Dispatch rollback renderer no longer
+  satisfied its required header/page contract. It now renders an explicit
+  ModuleHeader, disabled SystemState and both existing rollback CSS owners;
+  its executable smoke and source guard pass.
+- Structure/auth, UI table, module/feature, legacy/syntax, deterministic build,
+  mixed-runtime and diff gates passed. Independent review returned GO.
+  Visual/browser QA was deliberately skipped.
+- Immediate previous `.59` passed rollback dry-run. The sealed legacy `.18`
+  record remains pinned, but a direct legacy-baseline dry-run is intentionally
+  blocked while the active Specifications 2 attachment/work-order/publication
+  command drop-ins are ON. A real legacy switch must first use the active
+  release's root-owned deactivation scripts and prove those commands OFF.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: prune and rename the live
+`src/modules/products/render.js` compatibility runtime without claiming a new
+FULL REACT module, then move Nomenclature save/delete ownership to a typed
+command owner. Do not delete the file wholesale: Planning, Routes, Auth and BOM
+still consume 49 of its exported bindings.

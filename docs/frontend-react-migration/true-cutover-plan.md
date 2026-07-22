@@ -465,16 +465,38 @@ mixed-runtime gates прошли; independent review дал GO. Visual/browser Q
 legacy `.18` сохранён. Implementation остаётся 99%, strict acceptance — 50%.
 Blueprint UI не используется.
 
-Source cut `.60` подготовлен с маркером
+Release `v.1.500.60-af0cd28` активирован на Pilot из точного commit
+`af0cd28170c4015d6cd4fa90ae10ea183597eedb`. Маркер завершения:
 `✅ FULL REACT — Structure & employees`. Same-release renderer
 `src/modules/production_structure_matrix/render.js`, его legacy QA и пять
 доказанных orphan-renderer файлов (`employees`, `planning_table`, `shop_map`,
-`supply`, `visual_system`) физически удалены. `qa:structure`, module/feature
-metadata и extracted smoke теперь привязаны к permanent React + TypeScript
-host/islands; consolidation gate проверяет физическое отсутствие renderer и
-запрещает возврат его metadata-ссылок. CSS/assets не менялись, visual/browser
-QA намеренно пропущен. До commit/stage/activation этот блок не считается
-новой Pilot-приёмкой: strict acceptance остаётся `50%`.
+`supply`, `visual_system`) физически удалены из source и dist. Полный cut
+удаляет 3 189 строк при 104 строках registry/QA/rollback ownership.
+
+`qa:structure`, module/feature metadata и extracted smoke теперь привязаны к
+permanent React + TypeScript host/islands. Consolidation gate проверяет
+физическое отсутствие renderer и metadata-ссылок, а executable gate запускает
+все семь fail-closed React-host. Independent review дополнительно обнаружил и
+помог устранить протухший Dispatch rollback renderer: он снова удовлетворяет
+обязательному ModuleHeader contract и сохраняет обе rollback CSS-класса.
+
+Public health `ok`, версия `v.1.500.60`, shared state `ready`, evaluation и
+runtime legacy surfaces пусты; service/pointer указывают на `.60`, effective
+`MES_REACT_*` flags и React drop-ins отсутствуют. Source/dist SHA-256 —
+`d5d98241c9c059791d9108344b3f0d46c20ea052a74d7dc444899fba3156e98c` и
+`aee18d5815bb055bce5b0633e4070ac3ccd130ee0e9c0c160fa226f4a9f884e3`.
+Structure consolidation/seven-host runtime, strict React TypeScript,
+authorization, extracted Dispatch rollback, UI table, module/feature,
+legacy/syntax, deterministic build и mixed-runtime gates прошли; independent
+review дал GO. Visual/browser QA намеренно пропущен.
+
+Immediate rollback dry-run точно возвращает `.59`. Pinned legacy `.18`
+сохранён, но прямой `legacy-baseline` dry-run честно заблокирован активными
+Specifications 2 command drop-ins `50-specifications2-attachments.conf`,
+`63-specifications2-work-orders.conf` и `64-specifications2-publication.conf`;
+перед реальным legacy rollback их требуют отключить root-owned scripts.
+Implementation остаётся 99%, strict acceptance — 50%. Blueprint UI не
+используется.
 
 ## Что проверено 2026-07-21
 
