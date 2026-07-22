@@ -13,7 +13,9 @@ import {
   summarizeReactRuntimePolicy,
 } from "./react-runtime-policy.mjs";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
-import { getReactRuntimeMode, resolveReactRuntimeActivation } from "../src/modules/react_runtime_policy.js";
+import { loadReactRuntimePolicyBrowserModule } from "./react-runtime-policy-browser-loader.mjs";
+
+const { getReactRuntimeMode, resolveReactRuntimeActivation } = await loadReactRuntimePolicyBrowserModule();
 
 const projectRoot = join(import.meta.dirname, "..");
 const requireDist = process.argv.includes("--require-dist");

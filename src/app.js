@@ -93,7 +93,7 @@ import { prepareAdditionalRoleAssignment } from "./modules/access_roles/multiple
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
-import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
+import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.ts";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.68";
+const APP_VERSION_FALLBACK = "v.1.500.69";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

@@ -5,7 +5,9 @@ import { join } from "node:path";
 
 import { getPublicRuntimeConfig } from "./shared-state-storage.mjs";
 import { getPublicReactRuntimePolicy, loadReactRuntimePolicy } from "./react-runtime-policy.mjs";
-import { resolveReactRuntimeActivation } from "../src/modules/react_runtime_policy.js";
+import { loadReactRuntimePolicyBrowserModule } from "./react-runtime-policy-browser-loader.mjs";
+
+const { resolveReactRuntimeActivation } = await loadReactRuntimePolicyBrowserModule();
 import {
   createDirectoryComponentTypesReactIslandHost,
   createDirectoryNomenclatureTypesReactIslandHost,

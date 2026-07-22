@@ -249,7 +249,7 @@
     "qa:react-completion-marker": "node scripts/react-completion-marker-qa.mjs",
     "qa:react-cutover": "npm run qa:react-completion-marker && node scripts/react-cutover-ledger-qa.mjs && node scripts/react-mixed-runtime-qa.mjs && node scripts/roles-cutover-classification-qa.mjs && npm run qa:products-compatibility-runtime",
     "qa:react-mixed-runtime": "node scripts/react-mixed-runtime-qa.mjs",
-    "qa:react-runtime-policy": "node scripts/react-runtime-policy-qa.mjs",
+    "qa:react-runtime-policy": "node scripts/react-runtime-policy-browser-runtime-qa.mjs && node scripts/react-runtime-policy-qa.mjs",
     "qa:nonvisual": "npm run qa:stabilize && npm run qa:functional",
     "qa:night": "npm run qa:stabilize && npm run qa:functional && npm run qa:visual",
     "preview": "node scripts/preview-dist.mjs",

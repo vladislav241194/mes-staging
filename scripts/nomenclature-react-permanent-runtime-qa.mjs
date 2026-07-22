@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 
 import { createReactIslandHost } from "../src/modules/react_island_host.js";
 import { createNomenclatureReactIslandHost } from "../src/modules/nomenclature/react_island_host.js";
-import { resolveReactRuntimeActivation } from "../src/modules/react_runtime_policy.js";
+import { loadReactRuntimePolicyBrowserModule } from "./react-runtime-policy-browser-loader.mjs";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+
+const { resolveReactRuntimeActivation } = await loadReactRuntimePolicyBrowserModule();
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
