@@ -21,6 +21,7 @@ PILOT_ACTIVE_RECORD="${PILOT_RELEASES}/active-release.json"
 INSTALLED_ROOT="/usr/local/libexec/mes/active-bundle"
 AUTHORITY_FD=9
 IDENTITY_FD=8
+INPUT_FD=7
 FLOCK_CONFLICT_STATUS=200
 OWNER_REENTRY_ENV="MES_RELEASE_AUTHORITY_LOCK_OWNER_REENTRY"
 OWNER_MARKER_ENV="MES_RELEASE_AUTHORITY_LOCK_OWNER_MARKER"
@@ -465,14 +466,23 @@ trap 'forward_signal HUP 129 HUP' HUP
 trap 'forward_signal INT 130 TERM' INT
 trap 'forward_signal TERM 143 TERM' TERM
 
+# Bash redirects stdin of an asynchronous command to /dev/null when job
+# control is disabled unless an explicit redirection is present. Activation
+# intentionally streams its root transaction over stdin, so preserve the
+# caller's read end on the reserved descriptor 7 for the owner child.
+[[ ! -e "/proc/$$/fd/${INPUT_FD}" ]] \
+  || { echo "Release authority stdin descriptor ${INPUT_FD} is already in use." >&2; exit 74; }
+eval "exec ${INPUT_FD}<&0"
 /usr/bin/setsid /usr/bin/env \
   "${OWNER_REENTRY_ENV}=1" \
   "${OWNER_MARKER_ENV}=${owner_marker}" \
   /usr/bin/flock --exclusive --nonblock \
     --conflict-exit-code "$FLOCK_CONFLICT_STATUS" --no-fork \
     "$LOCK_FILE" /usr/bin/env -u BASH_ENV -u ENV -u CDPATH \
-      /bin/bash --noprofile --norc "$(readlink -f -- "$0")" "${original_arguments[@]}" &
+      /bin/bash --noprofile --norc "$(readlink -f -- "$0")" "${original_arguments[@]}" \
+      0<&"$INPUT_FD" &
 child_pid=$!
+eval "exec ${INPUT_FD}<&-"
 set +e
 wait "$child_pid"
 child_status=$?

@@ -14,6 +14,8 @@ const [source, sharedSource] = await Promise.all([
 ]);
 
 assert.match(source, /IDENTITY_LOCK="\$\{LOCK_PARENT\}\/pilot-runtime-uid-isolation\.lock"/);
+assert.match(source, /INPUT_FD=7[\s\S]*eval "exec \$\{INPUT_FD\}<&0"[\s\S]*0<&"\$INPUT_FD" &[\s\S]*eval "exec \$\{INPUT_FD\}<&-"/,
+  "the release authority owner must explicitly preserve streamed activation stdin across its asynchronous launcher");
 assert.match(source, /pid="\$\(intent_value "\$RUNTIME_INTENT" PID\)"/);
 assert.match(source, /start_ticks="\$\(intent_value "\$RUNTIME_INTENT" START_TICKS\)"/);
 assert.match(source, /intent="\$\(intent_value "\$RUNTIME_INTENT" INTENT\)"/);
