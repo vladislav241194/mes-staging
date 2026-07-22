@@ -357,6 +357,7 @@ if (candidatePolicy) {
     "nomenclatureTypes",
     "operations",
     "planningWorkbench",
+    "roles",
     "shiftMasterBoard",
     "shiftWorkOrders",
     "statuses",

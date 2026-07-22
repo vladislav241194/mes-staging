@@ -19,6 +19,7 @@
       "gantt",
       "operations",
       "planningWorkbench",
+      "roles",
       "nomenclatureTypes",
       "statuses",
       "structureEmployees",
@@ -31,7 +32,7 @@
       "shiftMasterBoard",
       "timesheet"
     ],
-    "runtimePolicySha256": "8da622c6f71dee7bb5d7ccfab9bd684213ce8a6ad57c5ec6d922aa7eb76021c7",
+    "runtimePolicySha256": "4f3ef950fac47d3638318f06e84eea76fcf62f9423b4d071fe06a8b8f56bbb76",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -395,12 +396,12 @@
       "scenarios": ["roles"],
       "reactSurface": "production-island",
       "functionalStatus": "partial",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["multiple-assignment owner contract", "effective-window persistence", "subject and assignment responsibility-scope persistence", "readOnly role persistence", "Pilot write lifecycle"]
+      "remainingScopes": ["multiple-assignment owner contract", "effective-window persistence and schema migration", "subject responsibility-scope owner and schema", "assignment responsibility-scope owner and schema", "readOnly role persistence owner and schema", "current-release Pilot read", "Pilot write lifecycle and cleanup", "rollback/reactivation acceptance"]
     },
     {
       "id": "contourAdmin",

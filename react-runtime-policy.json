@@ -15,7 +15,7 @@
     "structureEquipment": "react",
     "structureResponsibilityPolicies": "react",
     "structureMigrationDiagnostics": "react",
-    "roles": "evaluation",
+    "roles": "react",
     "weeklyProductionControl": "react",
     "timesheet": "react",
     "planningWorkbench": "react",

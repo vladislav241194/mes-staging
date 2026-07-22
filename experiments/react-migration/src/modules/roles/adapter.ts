@@ -32,6 +32,10 @@ interface EntityDto {
   positionId?: unknown;
   orgUnitId?: unknown;
   isPrimary?: unknown;
+  validFrom?: unknown;
+  validTo?: unknown;
+  effectiveFrom?: unknown;
+  effectiveTo?: unknown;
 }
 
 export interface RolesModuleDefinition {
@@ -50,6 +54,13 @@ export interface RoleAssignedEmployee {
 
 export interface RoleEmployeeOption extends RoleAssignedEmployee {
   currentRoleId: string;
+  assignmentBlockedReason: string;
+}
+
+export interface RoleBlockedOperation {
+  id: string;
+  label: string;
+  reason: string;
 }
 
 export interface AccessRoleReadItem {
@@ -77,7 +88,32 @@ export interface RolesReadModel {
   canEditDefaultScope: boolean;
   canEditLifecycle: boolean;
   canEditAssignments: boolean;
+  writableEmployeeCount: number;
+  blockedOperations: RoleBlockedOperation[];
 }
+
+const BLOCKED_OPERATION_DETAILS: Record<string, Omit<RoleBlockedOperation, "id">> = {
+  "multiple-assignment-owner": {
+    label: "Несколько ролей у сотрудника",
+    reason: "Заблокировано до появления серверного owner-контракта для набора назначений.",
+  },
+  "effective-window-persistence": {
+    label: "Период действия назначения",
+    reason: "Заблокировано до серверной схемы validFrom/validTo и команд изменения окна.",
+  },
+  "subject-responsibility-scope-persistence": {
+    label: "Область ответственности субъекта",
+    reason: "Заблокировано до отдельной серверной сущности и owner-команд.",
+  },
+  "assignment-responsibility-scope-persistence": {
+    label: "Область ответственности назначения",
+    reason: "Заблокировано до отдельной серверной сущности и owner-команд.",
+  },
+  "read-only-role-persistence": {
+    label: "Признак read-only роли",
+    reason: "Заблокировано до серверной миграции и команды изменения признака.",
+  },
+};
 
 function text(value: unknown): string {
   return String(value ?? "").trim();
@@ -191,13 +227,50 @@ export function adaptRoles(payload: unknown): RolesReadModel {
     item.allowedModuleCount = modules.filter((moduleItem) => roleAllows(item, moduleItem.id, "view")).length;
     return [item];
   });
-  const explicitRoleByEmployee = new Map(assignmentRows.map((assignment) => [text(assignment.employeeId || assignment.subjectId), text(assignment.roleId)]));
   const employeeOptions = employeeRows.flatMap((employee): RoleEmployeeOption[] => {
     const id = text(employee.id); if (!id) return [];
     const employment = employmentRows.find((row) => text(row.employeeId) === id && row.isPrimary !== false) || employmentRows.find((row) => text(row.employeeId) === id);
     const position = positions.get(text(employment?.positionId)); const orgUnit = orgUnits.get(text(employment?.orgUnitId));
-    return [{ id, name: text(employee.displayName || employee.name) || id, personnelNumber: text(employee.personnelNumber) || "—", positionLabel: text(position?.name || position?.label || position?.id) || "—", orgUnitLabel: text(orgUnit?.name || orgUnit?.label || orgUnit?.id) || "—", currentRoleId: explicitRoleByEmployee.get(id) || "" }];
+    const employeeAssignments = assignmentRows.filter((assignment) => text(assignment.employeeId || assignment.subjectId) === id);
+    const hasEffectiveWindow = employeeAssignments.some((assignment) => [
+      assignment.validFrom,
+      assignment.validTo,
+      assignment.effectiveFrom,
+      assignment.effectiveTo,
+    ].some((value) => text(value)));
+    const assignmentBlockedReason = employeeAssignments.length > 1
+      ? "Несколько назначений: изменение заблокировано до появления серверного owner-контракта."
+      : hasEffectiveWindow
+        ? "Назначение с периодом действия: изменение заблокировано до серверной поддержки effective window."
+        : "";
+    return [{
+      id,
+      name: text(employee.displayName || employee.name) || id,
+      personnelNumber: text(employee.personnelNumber) || "—",
+      positionLabel: text(position?.name || position?.label || position?.id) || "—",
+      orgUnitLabel: text(orgUnit?.name || orgUnit?.label || orgUnit?.id) || "—",
+      currentRoleId: employeeAssignments.length === 1 ? text(employeeAssignments[0]?.roleId) : "",
+      assignmentBlockedReason,
+    }];
   }).sort((left, right) => left.name.localeCompare(right.name, "ru") || left.id.localeCompare(right.id, "en"));
 
-  return { roles, modules, employees: employeeOptions, assignmentCount: assignmentRows.length, canEditMetadata: capabilities.metadataEdit === true, canEditGrants: capabilities.grantsEdit === true, canEditDefaultScope: capabilities.defaultScopeEdit === true, canEditLifecycle: capabilities.lifecycleEdit === true, canEditAssignments: capabilities.assignmentEdit === true };
+  const blockedOperations = (Array.isArray(capabilities.blockedOperations) ? capabilities.blockedOperations : [])
+    .flatMap((value): RoleBlockedOperation[] => {
+      const id = text(value);
+      const details = BLOCKED_OPERATION_DETAILS[id];
+      return id && details ? [{ id, ...details }] : [];
+    });
+  return {
+    roles,
+    modules,
+    employees: employeeOptions,
+    assignmentCount: assignmentRows.length,
+    canEditMetadata: capabilities.metadataEdit === true,
+    canEditGrants: capabilities.grantsEdit === true,
+    canEditDefaultScope: capabilities.defaultScopeEdit === true,
+    canEditLifecycle: capabilities.lifecycleEdit === true,
+    canEditAssignments: capabilities.assignmentEdit === true,
+    writableEmployeeCount: employeeOptions.filter((employee) => !employee.assignmentBlockedReason).length,
+    blockedOperations,
+  };
 }

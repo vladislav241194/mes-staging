@@ -5850,33 +5850,66 @@ function isRolesReactEvaluationRequested() {
   if (params.get("react-roles-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
-const rolesReactIslandHost = createRolesReactIslandHost({
-  getActivation: () => {
-    const localQa = getRolesReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_ROLES_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_ROLES === true || localQa.featureFlagEnabled,
-      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
-      accessMode: localQa.writeEvaluation
+function getRolesReactActivation() {
+  const localQa = getRolesReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_ROLES_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "roles",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_ROLES === true && serverEvaluationAllowed,
+    evaluationRequested: isRolesReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+    ? "read-unavailable"
+    : systemDomainsServerReadState.status === "server" && !systemDomainsState
+      ? "model-unavailable"
+      : "";
+  return {
+    ...runtimeActivation,
+    serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
+    serverReadFailure,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
-        : (serverEvaluationAllowed && isRolesReactEvaluationRequested()) || localQa.readOnlyEvaluation
-          ? "read-only-evaluation"
-          : "editor",
-    };
-  },
+        : runtimeActivation.accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+const rolesReactIslandHost = createRolesReactIslandHost({
+  getActivation: getRolesReactActivation,
   getPayload: () => {
     const localQa = getRolesReactLocalQaOverrides();
-    const commandReady = localQa.writeEvaluation
+    const permanentReact = getRolesReactActivation().accessMode === "react";
+    const writeEnabled = permanentReact || localQa.writeEvaluation;
+    const commandReady = writeEnabled
       && systemDomainsServerCommandState.status === "ready"
       && systemDomainsServerCommandState.enabled === true
       && systemDomainsServerCommandState.surfaces.includes("access-control")
       && authorizeSystemDomainAction("roles", "configure");
-    const assignmentReady = localQa.writeEvaluation
+    const assignmentReady = writeEnabled
       && systemDomainsServerCommandState.status === "ready"
       && systemDomainsServerCommandState.enabled === true
       && systemDomainsServerCommandState.surfaces.includes("access-control")
       && (getSystemDomainsRegistries().employees || []).some((employee) => authorizeSystemDomainAction("roles", "assign", getAccessControlEmployeeContext(employee.id)));
-    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady, defaultScopeEdit: commandReady, lifecycleEdit: commandReady, assignmentEdit: assignmentReady } };
+    return {
+      item: systemDomainsState,
+      moduleDefinitions: getModuleDefinitions(),
+      capabilities: {
+        metadataEdit: commandReady,
+        grantsEdit: commandReady,
+        defaultScopeEdit: commandReady,
+        lifecycleEdit: commandReady,
+        assignmentEdit: assignmentReady,
+        blockedOperations: [
+          "multiple-assignment-owner",
+          "effective-window-persistence",
+          "subject-responsibility-scope-persistence",
+          "assignment-responsibility-scope-persistence",
+          "read-only-role-persistence",
+        ],
+      },
+    };
   },
   getTargetRoot: () => app,
   requestLegacyRender: () => {
@@ -5884,7 +5917,8 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role", "set-assignment"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
+    const permanentReact = getRolesReactActivation().accessMode === "react";
+    if ((!permanentReact && !localQa.writeEvaluation) || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role", "set-assignment"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("access-control")) return { ok: false, message: "PostgreSQL-команда ролей недоступна." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     if (command.type === "set-assignment") {
@@ -5892,11 +5926,11 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       const employee = (getSystemDomainsRegistries().employees || []).find((item) => String(item.id || "") === employeeId);
       if (!employee || confirmEmployeeId !== employeeId) return { ok: false, message: "Подтверждение относится к другому сотруднику." };
       if (!authorizeSystemDomainAction("roles", "assign", getAccessControlEmployeeContext(employeeId))) return { ok: false, message: "Нет права назначать роль этому сотруднику." };
-      if (String(getAuthenticatedAccessPerson()?.id || "") === employeeId) return { ok: false, message: "Нельзя менять собственное явное назначение в React evaluation." };
+      if (String(getAuthenticatedAccessPerson()?.id || "") === employeeId) return { ok: false, message: "Нельзя менять собственное явное назначение в текущей сессии." };
       const assignments = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.employeeId || assignment.subjectId || "") === employeeId);
       const currentRoleId = assignments.length === 1 ? String(assignments[0].roleId || "") : "";
-      if (assignments.length > 1) return { ok: false, message: "У сотрудника несколько явных назначений; используйте legacy-интерфейс для разрешения конфликта." };
-      if (assignments.some((assignment) => [assignment.validFrom, assignment.validTo, assignment.effectiveFrom, assignment.effectiveTo].some((value) => String(value || "").trim()))) return { ok: false, message: "Назначение имеет период действия; измените его в legacy-интерфейсе." };
+      if (assignments.length > 1) return { ok: false, message: "Операция заблокирована: для нескольких назначений ещё нет серверного owner-контракта." };
+      if (assignments.some((assignment) => [assignment.validFrom, assignment.validTo, assignment.effectiveFrom, assignment.effectiveTo].some((value) => String(value || "").trim()))) return { ok: false, message: "Операция заблокирована: сервер ещё не поддерживает сохранение периода действия назначения." };
       if (currentRoleId !== expectedPreviousRoleId) return { ok: false, message: "Назначение сотрудника изменилось в другом сеансе." };
       if (nextRoleId && !(getSystemDomainsRegistries().accessRoles || []).some((item) => item.id === nextRoleId && item.isActive !== false)) return { ok: false, message: "Новая роль недоступна или деактивирована." };
       if (nextRoleId === currentRoleId) return { ok: false, message: "Назначение не изменилось." };
@@ -5929,7 +5963,7 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       if (confirmRoleId !== roleId) return { ok: false, message: "Подтверждение относится к другой роли." };
       if (reactivate ? role.isActive !== false : role.isActive === false) return { ok: false, message: reactivate ? "Роль уже активна." : "Роль уже деактивирована." };
       const roleAssignments = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.roleId || "") === roleId);
-      if (!reactivate && roleAssignments.length) return { ok: false, message: "Сначала переназначьте сотрудников: роль с назначениями нельзя деактивировать в React evaluation." };
+      if (!reactivate && roleAssignments.length) return { ok: false, message: "Сначала переназначьте сотрудников: роль с назначениями нельзя деактивировать." };
       const currentRoleIds = getAccessControlService()?.getEffectiveSubjectRoleAssignments(getAccessControlSubject()).map((assignment) => assignment.roleId) || [];
       if (!reactivate && currentRoleIds.includes(roleId)) return { ok: false, message: "Нельзя деактивировать роль текущего пользователя." };
       try {
@@ -10841,9 +10875,11 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("roles", { fallbackToLegacy: false });
         }
-        ensureAccessRolesModule();
+        const permanentReact = getReactRuntimeMode("roles") === "react";
+        if (!permanentReact) ensureAccessRolesModule();
         const reactDecision = rolesReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return rolesReactIslandHost.renderTarget();
+        if (permanentReact) return rolesReactIslandHost.renderTarget();
         return renderAccessRolesPage();
       },
       bind: () => {

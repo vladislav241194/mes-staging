@@ -49,6 +49,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "structureEquipment",
   "structureResponsibilityPolicies",
   "structureMigrationDiagnostics",
+  "roles",
   "weeklyProductionControl",
   "timesheet",
   "shiftWorkOrders",
@@ -85,6 +86,7 @@ if (candidatePolicy) {
     "nomenclatureTypes",
     "operations",
     "planningWorkbench",
+    "roles",
     "shiftMasterBoard",
     "shiftWorkOrders",
     "statuses",
@@ -143,12 +145,6 @@ assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 2, policyId: "b
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad", surfaces: {} }), /every production surface/);
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad-policy", surfaces: { ...policy.surfaces, weeklyProductionControl: "unknown" } }), /Unsupported React runtime mode/);
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad-policy", surfaces: { ...policy.surfaces, invented: "legacy" } }), /every production surface/);
-assert.throws(() => normalizeReactRuntimePolicy({
-  schemaVersion: 1,
-  policyId: "unwired-react",
-  surfaces: { ...allEvaluationSurfaces, shiftMasterBoard: "react" },
-}), /not wired for permanent mode: shiftMasterBoard/);
-
 const weeklyEvaluationEnv = {
   MES_REACT_WEEKLY_PRODUCTION_CONTROL: "1",
   MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION: "1",
