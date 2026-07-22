@@ -26,7 +26,7 @@ assert.deepEqual(SYSTEM_DOMAINS_TIMESHEET_AUTHORIZATION_CONTRACT, {
 });
 
 function publicCookie() {
-  const issuedAt = Math.floor(now.getTime() / 1000) - 1;
+  const issuedAt = Math.floor(Date.now() / 1000) - 1;
   const body = Buffer.from(JSON.stringify({ user: "user", scope: "public", iat: issuedAt, exp: issuedAt + 3600 }), "utf8").toString("base64url");
   const signature = createHmac("sha256", env.MES_PUBLIC_AUTH_SESSION_SECRET).update(body).digest("base64url");
   return `mes_user_session=${encodeURIComponent(`${body}.${signature}`)}`;

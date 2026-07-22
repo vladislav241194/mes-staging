@@ -2,7 +2,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 
 const TIMESHEET_REACT_TARGET = "[data-react-timesheet-island]";
 const TIMESHEET_REACT_BUNDLE_VERSION = "__MES_TIMESHEET_REACT_BUNDLE_VERSION__";
-const TIMESHEET_FAILURE_REASONS = new Set(["model-unavailable", "mount-error", "read-unavailable", "render-error"]);
+const TIMESHEET_FAILURE_REASONS = new Set(["model-unavailable", "mount-error", "react-required", "read-unavailable", "render-error"]);
 
 function normalizeFailureReason(value) {
   const reason = String(value || "");
@@ -10,9 +10,11 @@ function normalizeFailureReason(value) {
 }
 
 function renderTimesheetTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
-  const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "legacy";
-  const state = failureReason || shellState?.state === "error" ? "error" : "loading";
-  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+  const runtimeMode = activation.runtimeMode === "evaluation" ? "evaluation" : "react";
+  const reactRequired = activation.featureFlagEnabled !== true
+    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode);
+  const state = failureReason || reactRequired || shellState?.state === "error" ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || (reactRequired ? "react-required" : ""));
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем табель</strong><p>Получаем календарь и факты рабочего времени из PostgreSQL…</p></section>';
@@ -24,6 +26,10 @@ export function createTimesheetReactIslandHost({ getActivation, getPayload, getT
     getActivation, getPayload, getTargetRoot, reportError,
     canFallbackToLegacy: () => false,
     getShellState: (activation) => {
+      if (activation.featureFlagEnabled !== true
+        || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) {
+        return { state: "error", stage: "activation", reason: "react-required" };
+      }
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
       if (!activation.serverReadReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
@@ -33,10 +39,10 @@ export function createTimesheetReactIslandHost({ getActivation, getPayload, getT
     targetSelector: TIMESHEET_REACT_TARGET,
     renderTarget: renderTimesheetTarget,
     getIneligibilityReason: (activation) => {
-      if (!activation.featureFlagEnabled) return "disabled";
+      if (!activation.featureFlagEnabled) return "react-required";
       if (activation.accessMode === "react") return "";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "react-required";
       return "";
     },
     loadIsland: async () => {

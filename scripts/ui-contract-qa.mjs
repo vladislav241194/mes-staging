@@ -81,7 +81,6 @@ const browserQaScriptFiles = [
   "scripts/state-consistency-qa.mjs",
   "scripts/planning-labor-functional-qa.mjs",
   "scripts/boot-performance-qa.mjs",
-  "scripts/timesheet-functional-qa.mjs",
   "scripts/module-smoke-qa.mjs",
   "scripts/gantt-operational-layer-qa.mjs",
   "scripts/shift-operational-flow-functional-qa.mjs",
@@ -653,7 +652,6 @@ browserQaScriptFiles.forEach((file, index) => {
 [
   ["qa:state", "qa:state:inner"],
   ["qa:planning-labor", "qa:planning-labor:inner"],
-  ["qa:timesheet", "qa:timesheet:inner"],
   ["qa:gantt-operational", "qa:gantt-operational:inner"],
   ["qa:shift-flow", "qa:shift-flow:inner"],
   ["qa:auth", "qa:auth:inner"],
@@ -664,6 +662,10 @@ browserQaScriptFiles.forEach((file, index) => {
     fail(`scripts.${outerName} должен запускаться через ${expectedWrapper} и ${innerName}`);
   }
 });
+if (!packageJson.scripts?.["qa:timesheet:inner"]?.includes("timesheet-react-runtime-policy-qa.mjs")
+  || packageJson.scripts?.["qa:timesheet"] !== "npm run qa:timesheet:inner") {
+  fail("scripts.qa:timesheet должен запускать permanent React nonvisual gate без legacy browser wrapper");
+}
 if (packageJson.scripts?.["qa:roles"] !== "npm run qa:roles:inner"
   || !packageJson.scripts?.["qa:roles:inner"]?.includes("roles-react-runtime-policy-qa.mjs")) {
   fail("scripts.qa:roles должен запускать прямой nonvisual React/server-contract gate");

@@ -131,7 +131,21 @@ const MODULE_FEATURE_OVERRIDES = {
   timesheet: {
     css: ["styles/layers/60-operational-modules.css"],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
-    qa: ["scripts/timesheet-functional-qa.mjs", "scripts/ui-table-contract-audit.mjs"],
+    files: [
+      "src/modules/timesheet/react_island_host.js",
+      "experiments/react-migration/src/timesheet-island.tsx",
+      "experiments/react-migration/src/modules/timesheet/adapter.ts",
+      "experiments/react-migration/src/modules/timesheet/production-model.ts",
+      "experiments/react-migration/src/modules/timesheet/command-contract.ts",
+      "experiments/react-migration/src/modules/timesheet/TimesheetScenario.tsx",
+    ],
+    qa: [
+      "scripts/timesheet-react-runtime-policy-qa.mjs",
+      "scripts/timesheet-react-production-model-qa.mjs",
+      "scripts/personnel-calendar-domain-qa.mjs",
+      "scripts/system-domains-timesheet-delta-qa.mjs",
+    ],
+    removalContract: "Permanent React + TypeScript calendar and command surface; no same-release legacy renderer or action fallback.",
   },
   roles: {
     css: ["styles/layers/60-operational-modules.css"],

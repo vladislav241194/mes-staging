@@ -15,10 +15,11 @@ function functionSource(fileSource, functionName) {
   return fileSource.slice(start, next >= 0 ? next : fileSource.length);
 }
 
-const [app, structure, timesheet, roles, rolesAdapter, rolesHost, directories, events, server, publicAuth, domainApi, sharedState] = await Promise.all([
+const [app, structure, timesheetScenario, timesheetAdapter, roles, rolesAdapter, rolesHost, directories, events, server, publicAuth, domainApi, sharedState] = await Promise.all([
   source("src/app.js"),
   source("src/modules/production_structure_matrix/render.js"),
-  source("src/modules/timesheet/render.js"),
+  source("experiments/react-migration/src/modules/timesheet/TimesheetScenario.tsx"),
+  source("experiments/react-migration/src/modules/timesheet/adapter.ts"),
   source("experiments/react-migration/src/modules/roles/RolesScenario.tsx"),
   source("experiments/react-migration/src/modules/roles/adapter.ts"),
   source("src/modules/access_roles/react_island_host.js"),
@@ -48,8 +49,11 @@ expectations.forEach(([functionName, guard]) => {
 
 assert(functionSource(app, "canEditSystemDomainRegistry").includes('service?.can(subject, "productionStructureMatrix", "edit"'), "Structure mutations are not guarded by canonical can().");
 assert(structure.includes("canEditSystemDomainRegistry(registryId) === true"), "Structure UI does not consume the edit guard.");
-assert(timesheet.includes("canEditTimesheetEmployee(employee.timesheetId) === true"), "Timesheet editor does not expose read-only mode.");
-assert(timesheet.includes('reason: "access_denied"'), "Timesheet handlers do not fail closed on denied writes.");
+assert(timesheetScenario.includes("disabled={!canEditSchedule}"), "Timesheet schedule action does not fail closed without the projected capability.");
+assert(timesheetScenario.includes("disabled={!canEditDay}"), "Timesheet attendance action does not fail closed without the projected capability.");
+assert(!timesheetScenario.includes("onRequestLegacy"), "Timesheet must not expose an action fallback to the removed renderer.");
+assert(timesheetAdapter.includes("canEditAttendance: editableEmployeeIds.has(id)"), "Timesheet attendance writes do not require an explicit projected employee capability.");
+assert(timesheetAdapter.includes("canEditSchedule: scheduleEditableEmployeeIds.has(id)"), "Timesheet schedule writes do not require an explicit projected employee capability.");
 assert(roles.includes('data-react-parity-status="partial"'), "Access Roles React UI must remain explicitly partial.");
 assert(rolesAdapter.includes("canEditMetadata: capabilities.metadataEdit === true"), "Access Roles writes must require an explicit projected capability.");
 assert(rolesHost.includes("canFallbackToLegacy: () => false"), "Access Roles runtime must fail closed without a same-release renderer.");
