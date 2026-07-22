@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.63-f0e68dc`; последний strict-accepted release остаётся
+> `v.1.500.64-94b6375`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,13 +111,14 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный release: `v.1.500.63-f0e68dc`; immediate previous:
-  `v.1.500.62-7c0664f`; pinned legacy:
+- Активный accelerated release: `v.1.500.64-94b6375`; immediate previous:
+  `v.1.500.63-f0e68dc`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
-- Runtime policy содержит ровно две permanent React-поверхности:
-  `weeklyProductionControl` и `structureMigrationDiagnostics`; evaluation
-  residue отсутствует.
+- Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
+  zero legacy surfaces. Из них строгая current-release browser acceptance всё
+  ещё засчитана только для permanent Weekly; Diagnostics остаётся историческим
+  `.21` evidence, поэтому accelerated rollout не повышает общий процент.
 - Weekly `.26` имеет fresh authenticated read `25 x 11` и exact row-text parity
   с `.25`. Diagnostics не перепроверялся на `.26`; его browser evidence
   остаётся историческим `.21`.
@@ -1946,6 +1947,46 @@ removes a large diagnostic-only legacy data artifact from the browser graph.
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: convert
-`src/modules/specifications2/production_owner.js` to strict TypeScript, update
-its runtime/registry consumers and keep all server-first publication gates.
+## Specifications 2 strict production owner 2026-07-22: release `.64`
+
+This block supersedes `.63` as the live Pilot pointer. It advances strict
+TypeScript coverage without claiming that the still-partial Specifications 2
+module is complete.
+
+- Active Pilot is `v.1.500.64-94b6375` at exact commit
+  `94b63756504672f30cb4951fadbc6ee6ff9a6a8e`; immediate previous is
+  `v.1.500.63-f0e68dc` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `140420fd9fb16c8562459ee6183af3892550ce2e6034ce186d1a0930cd8e0f3d` and
+  `cc71a559ba7dcffb5126e18c8162a79a37a7c9978b4c5d07373a50c8b5092d46`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- `src/modules/specifications2/production_owner.js` is absent from sealed
+  source. Its strict `production_owner.ts` replacement preserves server-first
+  publication, exact fingerprint/revision guards, suppressed snapshot ACK,
+  forced PostgreSQL read-back, concurrent-edit preservation and fail-closed
+  recovery. Runtime and registries import only the TypeScript owner.
+- A structural `.d.ts` boundary types the still-JavaScript publication client
+  with `unknown`; no `any`, `ts-ignore` or data-stripping cast was added.
+  Active JavaScript fell from 53,740 to 53,422 lines.
+- Executable owner QA bundle the TypeScript owner to temporary Node 20 ESM.
+  Both passed on exact Node `20.19.5`; strict TypeScript, production-model,
+  server-first, publication authority/runtime policy, module/feature,
+  mixed-runtime, syntax, clean build and dist-policy gates passed. Independent
+  review returned GO with no P1/P2. Visual/browser QA was deliberately skipped.
+- Local/public health report `ok`, version `v.1.500.64`, shared state `ready`,
+  all 25 policy surfaces are React, evaluation/legacy surfaces are empty, and
+  no effective `MES_REACT_*` flags or React evaluation drop-ins remain.
+- Immediate previous `.63` passed rollback dry-run. Sealed legacy `.18`
+  remains attested; its dry-run correctly refuses while Specifications 2
+  attachment, Work Order and publication command drop-ins `50`, `63`, `64`
+  are ON. The guard was not bypassed.
+- Specifications 2 remains `PARTIAL`; no new `FULL REACT` marker is assigned.
+  Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: replace the Specifications 2 API client JavaScript
+boundary with strict TypeScript: publication commands, revision read model and
+work-order commands. Remove the temporary publication `.d.ts` shim and keep
+Node 20 executable QA through esbuild bundles.
