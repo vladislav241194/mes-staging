@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.69-4308c08`; последний strict-accepted release остаётся
+> `v.1.500.70-fb09aa4`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.69-4308c08`; immediate previous:
-  `v.1.500.68-5539716`; pinned legacy:
+- Активный accelerated release: `v.1.500.70-fb09aa4`; immediate previous:
+  `v.1.500.69-4308c08`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -2226,3 +2226,52 @@ Next accelerated batch: convert the six browser-only Domain API clients for
 System Domains, Planning and Shift Execution (701 JavaScript lines). They have
 no production server/Node consumer and are the best remaining LOC-to-blast
 ratio before the shared UI renderer and React-host batches.
+
+## Browser Domain API clients strict TypeScript 2026-07-22: release `.70`
+
+This block supersedes `.69` as the live Pilot pointer. It removes six
+browser-only API client/read-model JavaScript files without changing backend
+schema, command authority, layout or user-visible behavior.
+
+- Active Pilot is `v.1.500.70-fb09aa4` at exact commit
+  `fb09aa4218bf27709a86ee5d99fbf73697ac1689`; immediate previous is
+  `v.1.500.69-4308c08` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `a92db5ce566823f77cc90cd9a5a53bb78e020a985c9644bb6f1e34ee1fc13342` and
+  `92c8fc7936414497e7c1b3aa7eadd5f0ac36dc4eb6badfe044dc2d7c53aea48c`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- System Domains commands/read model, Planning period/runtime projection and
+  Shift Execution commands/dispatch projection now execute from strict `.ts`.
+  All six old `.js` files are absent; static and lazy app imports, strict
+  tsconfig, exact path assertions and mixed-runtime inventory use the typed
+  paths.
+- Behavior contracts remain intentionally different where required: System
+  Domains returns structured transport/auth/RBAC failures, Shift commands
+  reject for outbox retry except explicit 409 conflict, and idempotency keys,
+  quoted `If-Match`, ETag/304/TTL, single-flight caches, Weekly empty rows and
+  Dispatch scope/coverage authority are preserved.
+- A shared executable QA loader bundles each real TypeScript client for Node
+  20 in a unique temporary directory and removes it in `finally`. All six
+  client suites passed on exact Node `20.19.5`; no temporary directories
+  remained.
+- Strict typecheck, lazy/wiring contracts, mixed-runtime, focused client QA,
+  syntax, clean build and built-policy gates passed. Independent contract and
+  implementation reviews returned GO with no P1/P2. The broad historical
+  `experiments/react-migration/qa.mjs` still stops earlier on its pre-existing
+  stale print-view-model assertion; it was not weakened or counted as green.
+- Active JavaScript fell from 52,438 to 51,737 lines and from 117 to 111 files;
+  the strict inventory now contains 22 TypeScript files.
+- Activation completed through the fixed root boundary. The service is active,
+  the pointer resolves to `.70`, all 25 policy surfaces remain React and no
+  effective `MES_REACT_*` evaluation flags are configured.
+- Immediate previous `.69` passed rollback dry-run. The sealed legacy `.18`
+  pointer and its compatibility guard remain unchanged; no guard was bypassed.
+- No module completion marker changed. Implementation remains `99%`; strict
+  accepted evidence remains `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: type the shared browser renderer helpers
+`src/ui/components.js` and `src/ui/module_patterns.js` (595 JavaScript lines)
+without altering generated HTML or design. The broader React island-host layer
+follows after those shared contracts are typed.
