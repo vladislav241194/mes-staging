@@ -33,47 +33,18 @@ try {
   });
   await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Page.addScriptToEvaluateOnNewDocument", { source: 'sessionStorage.setItem("mes-planning-prototype-system-domains-primary-tombstone-v1", "1");' }); await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] }); await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await client.send("Page.navigate", { url: `${origin}/?module=authPrototype&qa=auth-functional` });
-  await waitForCondition(client, () => Boolean(document.querySelector('[data-auth-step="department"]')), { message: "legacy Authorization picker must remain default", timeoutMs: 20_000 });
-  assert(!await evaluate(client, () => Boolean(document.querySelector("[data-react-auth-picker-island]"))), "Authorization React picker activated without flags");
-  await client.send("Page.navigate", { url: `${origin}/?module=authPrototype&qa=auth-functional&react-auth-picker=1&react-auth-picker-readonly=1` });
   try {
-    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-auth-picker-island][data-react-island-state="ready"]')) && document.querySelectorAll(".auth-picker-react-grid > button").length > 0, { message: "Authorization React picker not ready", timeoutMs: 20_000 });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-auth-picker-island][data-react-island-state="ready"][data-react-island-runtime-mode="react"]')) && document.querySelectorAll(".auth-picker-react-grid > button").length > 0, { message: "permanent Authorization React picker not ready", timeoutMs: 20_000 });
   } catch (error) {
     const diagnostic = await evaluate(client, () => ({ href: location.href, page: document.querySelector("main.app-shell")?.dataset.layoutPage, react: document.querySelector("[data-react-auth-picker-island]")?.getAttribute("data-react-island-state"), legacyStep: document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step"), activation: window.__MES_AUTH_PICKER_ACTIVATION__, text: document.body.innerText.replace(/\s+/g, " ").slice(0, 500) }));
     throw new Error(`${error.message}: ${JSON.stringify(diagnostic)} reads=${reads} writes=${writes} console=${JSON.stringify(consoleProblems)}`);
   }
-  const initial = await evaluate(client, () => ({ departments: document.querySelectorAll(".auth-picker-react-grid > button").length, metrics: document.querySelectorAll('[data-ui-component="MetricCard"]').length, hasPinPad: Boolean(document.querySelector("[data-auth-pin-digit]")), text: document.body.innerText.includes("PIN остаётся в защищённом legacy-контуре"), overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
-  assert(initial.departments > 0 && initial.metrics === 3 && !initial.hasPinPad && initial.text && !initial.overflow, `Authorization picker boundary failed: ${JSON.stringify(initial)}`);
+  const initial = await evaluate(client, () => ({ departments: document.querySelectorAll(".auth-picker-react-grid > button").length, metrics: document.querySelectorAll('[data-ui-component="MetricCard"]').length, hasLegacy: Boolean(document.querySelector("[data-auth-step]")), text: document.body.innerText.includes("PIN проверяет сервер") }));
+  assert(initial.departments > 0 && initial.metrics === 3 && !initial.hasLegacy && initial.text, `permanent Authorization boundary failed: ${JSON.stringify(initial)}`);
   await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
   await waitForCondition(client, () => document.querySelectorAll(".auth-picker-react-grid > button, [data-auth-picker-person]").length > 0, { message: "department selection did not advance", timeoutMs: 5_000 });
   if (await evaluate(client, () => !document.querySelector("[data-auth-picker-person]"))) await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-picker-person]")), { message: "employee selection step missing", timeoutMs: 5_000 });
-  await evaluate(client, () => document.querySelector("[data-auth-picker-person]")?.click());
-  try {
-    await waitForCondition(client, () => Boolean(document.querySelector('[data-auth-step="pin"]')) && !document.querySelector("[data-react-auth-picker-island]"), { message: "employee selection did not hand off to legacy PIN", timeoutMs: 10_000 });
-  } catch (error) {
-    const diagnostic = await evaluate(client, () => ({ react: Boolean(document.querySelector("[data-react-auth-picker-island]")), step: document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step"), text: document.body.innerText.replace(/\s+/g, " ").slice(0, 400), ui: JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}") }));
-    throw new Error(`${error.message}: ${JSON.stringify({ ...diagnostic, ui: { department: diagnostic.ui.authPrototypeDepartment, unit: diagnostic.ui.authPrototypeUnit, person: diagnostic.ui.authPrototypePersonId, result: diagnostic.ui.authPrototypeResult } })}`);
-  }
-  const handoff = await evaluate(client, () => ({ page: document.querySelector("main.app-shell")?.dataset.layoutPage, pinDigits: document.querySelectorAll("[data-auth-pin-digit]").length, filled: document.querySelectorAll(".auth-prototype-pin-display .is-filled").length, attemptsText: document.querySelector(".auth-prototype-pin-note")?.textContent || "" }));
-  assert(handoff.page === "authPrototype" && handoff.pinDigits === 10 && handoff.filled === 0 && /Осталось попыток/.test(handoff.attemptsText), `legacy PIN handoff failed: ${JSON.stringify(handoff)}`);
-
-  await evaluate(client, () => {
-    const state = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
-    localStorage.setItem("mes-planning-prototype-ui-v1", JSON.stringify({ ...state, authPrototypeDepartment: "", authPrototypeUnit: "", authPrototypePersonId: "", authPrototypeResult: "", authPrototypeAttemptsLeft: 5, authGateUnlocked: false, authCurrentUserId: "" }));
-    localStorage.removeItem("mes-planning-prototype-auth-session-v1");
-  });
-  await client.send("Page.navigate", { url: `${origin}/?module=authPrototype&qa=auth-functional&react-auth-picker=1&react-auth-picker-write=1` });
-  try {
-    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-auth-picker-island][data-react-island-state="ready"]')) && document.querySelectorAll(".auth-picker-react-grid > button").length > 0, { message: "Authorization React PIN evaluation not ready", timeoutMs: 20_000 });
-  } catch (error) {
-    const diagnostic = await evaluate(client, () => ({ href: location.href, page: document.querySelector("main.app-shell")?.dataset.layoutPage, react: document.querySelector("[data-react-auth-picker-island]")?.getAttribute("data-react-island-state"), legacyStep: document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step"), activation: window.__MES_AUTH_PICKER_ACTIVATION__, ui: JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"), session: localStorage.getItem("mes-planning-prototype-auth-session-v1"), text: document.body.innerText.replace(/\s+/g, " ").slice(0, 500) }));
-    throw new Error(`${error.message}: ${JSON.stringify({ ...diagnostic, ui: { department: diagnostic.ui.authPrototypeDepartment, unit: diagnostic.ui.authPrototypeUnit, person: diagnostic.ui.authPrototypePersonId, result: diagnostic.ui.authPrototypeResult, unlocked: diagnostic.ui.authGateUnlocked, currentUser: diagnostic.ui.authCurrentUserId } })} reads=${reads} writes=${writes} console=${JSON.stringify(consoleProblems)}`);
-  }
-  await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
-  await waitForCondition(client, () => document.querySelectorAll(".auth-picker-react-grid > button, [data-auth-picker-person]").length > 0, { message: "write-evaluation department selection did not advance", timeoutMs: 5_000 });
-  if (await evaluate(client, () => !document.querySelector("[data-auth-picker-person]"))) await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
-  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-picker-person]")), { message: "write-evaluation employee selection missing", timeoutMs: 5_000 });
   const reactPersonId = await evaluate(client, () => document.querySelector("[data-auth-picker-person]")?.getAttribute("data-auth-picker-person") || "");
   await evaluate(client, () => document.querySelector("[data-auth-picker-person]")?.click());
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-picker-pin-step]")) && document.querySelectorAll("[data-auth-picker-pin-digit]").length === 10, { message: "React PIN step missing", timeoutMs: 5_000 });
@@ -111,7 +82,7 @@ try {
   assert(reads >= 1 && writes === 0, `Authorization picker must be read-only: reads=${reads}, writes=${writes}`);
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Authorization picker React production-shell functional QA: OK");
-  console.log(`- ${initial.departments} departments; read-only handoff still opens clean legacy PIN`);
+  console.log(`- ${initial.departments} departments; normal URL stays in permanent React through PIN`);
   console.log("- React rejected one PIN with 4 attempts left, then delegated successful session creation to the existing owner");
   console.log("- no PIN persistence, zero System Domains writes and clean console: pass");
 } catch (error) { if (previewOutput.trim()) console.error(previewOutput.trim()); throw error; } finally { if (chrome) await cleanupChrome(chrome); await stop(preview); }

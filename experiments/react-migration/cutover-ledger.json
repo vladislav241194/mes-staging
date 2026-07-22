@@ -10,6 +10,7 @@
   "candidatePolicy": {
     "status": "awaiting-pilot-acceptance",
     "surfaceIds": [
+      "authPicker",
       "nomenclature",
       "boards",
       "componentTypes",
@@ -24,7 +25,7 @@
       "structureResponsibilityPolicies",
       "shiftWorkOrders"
     ],
-    "runtimePolicySha256": "d6accd4a2440517618ddeee1d0490c11ed8a60553ed16c1d8be951894ad6e9a6",
+    "runtimePolicySha256": "12cf00a6cc976f8ad7c2c1eb2cf415fcb08c46708dc4cfc32d65f650cd413a19",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -193,7 +194,7 @@
     { "id": "shiftMasterV2", "routeId": "shiftMasterBoard", "surfaceId": "shiftMasterBoard" }
   ],
   "islands": [
-    { "id": "authPicker", "routeId": "authPrototype", "entry": "experiments/react-migration/src/auth-picker-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["submit-pin"], "missing": [] } },
+    { "id": "authPicker", "routeId": "authPrototype", "entry": "experiments/react-migration/src/auth-picker-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["submit-pin"], "missing": [] } },
     { "id": "boards", "routeId": "nomenclature", "entry": "experiments/react-migration/src/boards-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-board", "delete-board", "import-xlsx", "add-bom-row", "update-bom-row", "delete-bom-row"], "missing": [] } },
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["execute-ops"], "missing": ["deploy-request-owner-action"] } },
@@ -426,12 +427,12 @@
       "scenarios": ["authPicker"],
       "reactSurface": "production-island",
       "functionalStatus": "complete",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["Pilot PIN acceptance", "permanent React runtime"]
+      "remainingScopes": ["deferred Pilot PIN acceptance", "typed auth read-model extraction"]
     },
     {
       "id": "authSessionPrototype",

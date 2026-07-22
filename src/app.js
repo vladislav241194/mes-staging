@@ -5342,54 +5342,62 @@ function getAuthPickerReactLocalQaOverrides() {
 function isAuthPickerReactEvaluationRequested() {
   return new URLSearchParams(window.location.search).get("react-auth-picker-evaluation") === "1";
 }
+function getAuthPickerReactActivation() {
+  const localQa = getAuthPickerReactLocalQaOverrides();
+  const elevation = isNomenclatureEmployeeElevationActive();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "authPicker",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true && serverEvaluationAllowed,
+    evaluationRequested: isAuthPickerReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const permanentReact = runtimeActivation.accessMode === "react";
+  const accessMode = permanentReact
+    ? "react"
+    : elevation || localQa.writeEvaluation
+      ? "write-evaluation"
+      : runtimeActivation.accessMode;
+  // Evaluation may still use the sealed compatibility projection. Permanent
+  // React owns the route before data is ready and fails closed if PostgreSQL
+  // System Domains cannot provide the employee directory.
+  const preAuthEvaluationProjectionReady = accessMode === "read-only-evaluation" && serverEvaluationAllowed;
+  const activation = {
+    ...runtimeActivation,
+    featureFlagEnabled: permanentReact || elevation || runtimeActivation.featureFlagEnabled,
+    moduleReady: authModulesReady,
+    systemDomainsReady: elevation || (systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState)) || preAuthEvaluationProjectionReady,
+    serverReadFailure: permanentReact && systemDomainsServerReadState.status === "fallback" ? "read-unavailable" : "",
+    authGateReady: elevation || !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
+    pickerReady: permanentReact || elevation || (!ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult)),
+    accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+  if (localQa.featureFlagEnabled) window.__MES_AUTH_PICKER_ACTIVATION__ = activation;
+  return activation;
+}
 const authPickerReactIslandHost = createAuthPickerReactIslandHost({
-  getActivation: () => {
-    const localQa = getAuthPickerReactLocalQaOverrides();
-    const elevation = isNomenclatureEmployeeElevationActive();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION === true;
-    const accessMode = elevation
-      ? "write-evaluation"
-      : localQa.writeEvaluation
-      ? "write-evaluation"
-      : (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor";
-    // Both the System Domains API and its authority tombstone stay protected
-    // before PIN. The root-only rollout verifies PostgreSQL storage before it
-    // exposes this permission, then React consumes only the same allowlisted
-    // pre-auth directory projection already rendered by legacy.
-    const preAuthPrimaryProjectionReady = accessMode === "read-only-evaluation"
-      && serverEvaluationAllowed;
-    const activation = {
-      featureFlagEnabled: elevation || MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true || localQa.featureFlagEnabled,
-      moduleReady: authModulesReady,
-      systemDomainsReady: elevation || systemDomainsServerReadState.status === "server"
-        || preAuthPrimaryProjectionReady,
-      authGateReady: elevation || !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
-      pickerReady: elevation || (!ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult)),
-      accessMode,
-    };
-    if (localQa.featureFlagEnabled) window.__MES_AUTH_PICKER_ACTIVATION__ = activation;
-    return activation;
-  },
+  getActivation: getAuthPickerReactActivation,
   getPayload: () => {
     const localQa = getAuthPickerReactLocalQaOverrides();
     const elevation = isNomenclatureEmployeeElevationActive();
+    const permanentReact = getAuthPickerReactActivation().accessMode === "react";
     return {
       model: elevation ? getNomenclatureElevationAuthModel() : getAuthPrototypeReactModel(),
-      capabilities: { pinEntry: elevation || localQa.writeEvaluation },
-      authState: elevation || localQa.writeEvaluation ? { attemptsLeft: getAuthPrototypeAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
+      capabilities: { pinEntry: permanentReact || elevation || localQa.writeEvaluation },
+      authState: permanentReact || elevation || localQa.writeEvaluation ? { attemptsLeft: getAuthPrototypeAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
     };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getAuthPickerReactLocalQaOverrides();
     const elevation = isNomenclatureEmployeeElevationActive();
+    const permanentReact = getAuthPickerReactActivation().accessMode === "react";
     if (elevation && command.type === "cancel-elevation") {
       cancelNomenclatureEmployeeElevation();
       return { ok: true, authenticated: false, message: "Подтверждение отменено." };
     }
-    if ((!localQa.writeEvaluation && !elevation) || command.type !== "submit-pin") return { ok: false, message: "Ввод PIN в React недоступен." };
+    if ((!permanentReact && !localQa.writeEvaluation && !elevation) || command.type !== "submit-pin") return { ok: false, message: "Ввод PIN в React недоступен." };
     if (isAuthGateUnlocked() && !elevation) return { ok: false, message: "Сессия уже авторизована." };
     const personId = String(command.personId || "").trim();
     const pin = String(command.pin || "");

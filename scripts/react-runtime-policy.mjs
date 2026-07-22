@@ -20,6 +20,7 @@ export const REACT_RUNTIME_PERMANENT_CONSUMERS = Object.freeze([
   "structureMigrationDiagnostics",
   "weeklyProductionControl",
   "shiftWorkOrders",
+  "authPicker",
 ]);
 export const REACT_RUNTIME_SURFACE_IDS = Object.freeze([
   "nomenclature",

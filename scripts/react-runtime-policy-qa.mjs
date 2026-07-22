@@ -51,6 +51,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "structureMigrationDiagnostics",
   "weeklyProductionControl",
   "shiftWorkOrders",
+  "authPicker",
 ], "permanent allowlist must stay explicit and limited to fully wired consumers");
 const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
 assert.deepEqual(
@@ -68,6 +69,7 @@ assert.deepEqual(summarizeReactRuntimePolicy(policy).activeEvaluationSurfaces, [
 if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate policy must stay explicitly unaccepted");
   assert.deepEqual(candidateSurfaceIds, [
+    "authPicker",
     "boards",
     "componentTypes",
     "nomenclature",

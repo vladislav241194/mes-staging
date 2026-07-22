@@ -24,7 +24,7 @@
     "employeeDesktop": "evaluation",
     "specifications2": "evaluation",
     "gantt": "evaluation",
-    "authPicker": "evaluation",
+    "authPicker": "react",
     "contourAdmin": "evaluation"
   }
 }

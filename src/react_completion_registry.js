@@ -36,7 +36,7 @@ function defineCompletionEntry({ id, status, verification = DEFERRED, surfaceIds
 // `verification`, so deferred QA does not block accelerated implementation.
 // Contract QA binds both declarations to the ledger and runtime policy.
 export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
-  defineCompletionEntry({ id: "authPicker", status: PARTIAL }),
+  defineCompletionEntry({ id: "authPicker", status: COMPLETE }),
   defineCompletionEntry({ id: "boards", status: COMPLETE }),
   defineCompletionEntry({ id: "componentTypes", status: COMPLETE }),
   defineCompletionEntry({ id: "contourAdmin", status: PARTIAL }),
@@ -93,7 +93,7 @@ export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
     status: COMPLETE,
     surfaceIds: ["componentTypes", "operations", "nomenclatureTypes", "statuses"],
   }),
-  defineCompletionEntry({ id: "authPrototype", status: PARTIAL, surfaceIds: ["authPicker"] }),
+  defineCompletionEntry({ id: "authPrototype", status: COMPLETE, surfaceIds: ["authPicker"] }),
   defineCompletionEntry({ id: "authSessionPrototype", status: PARTIAL, surfaceIds: ["employeeDesktop"] }),
   defineCompletionEntry({ id: "marking", status: PARTIAL, surfaceIds: ["marking"] }),
 ]);

@@ -347,6 +347,7 @@ assert.deepEqual(
 if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate status must make pending acceptance explicit");
   assert.deepEqual(candidateSurfaceIds, [
+    "authPicker",
     "boards",
     "componentTypes",
     "nomenclature",
