@@ -50,11 +50,6 @@ const MODULE_FEATURE_OVERRIDES = {
     domains: ["xlsx-import-sandbox", "technology-preview", "explicit-production-release"],
     removalContract: "Drafts stay isolated. Production data may change only through an explicit append-only release; never mutate historical specifications, routes, work orders, slots or facts in place.",
   },
-  routes: {
-    css: ["styles/layers/50-nomenclature-routes-directories.css"],
-    storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
-    qa: ["scripts/ui-table-contract-audit.mjs"],
-  },
   planning: {
     css: ["styles/ui/planning-order.css", "styles/layers/70-planning-table-and-matrix.css"],
     files: [

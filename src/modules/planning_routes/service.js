@@ -2782,10 +2782,10 @@ function schedulePlanningRouteToGantt(routeId) {
       .slice(0, 4)
       .map((step) => `${Number(step.stepOrder || 0)}. ${step.operationName || "SMT-операция"}`)
       .join("\n");
-	    alert(`Не удалось передать заказ-наряд в Гант: выберите линию планирования для SMT-операций.\n${names}`);
-	    if (ui.activeModule !== "planning") ui.activeModule = "routes";
-	    ui.activeRouteId = route.id;
-	    ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
+    alert(`Не удалось передать заказ-наряд в Гант: выберите линию планирования для SMT-операций.\n${names}`);
+    ui.activeModule = route.sourceSpecifications2EntryId ? "specifications2" : "planning";
+    ui.activeRouteId = route.id;
+    ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
     persistUiState();
     render();
     return;

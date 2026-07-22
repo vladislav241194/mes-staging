@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.55";
+const APP_VERSION_FALLBACK = "v.1.500.56";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1427,153 +1427,6 @@ function getWeeklyPlanningPeriodBounds() {
   const fromAt = weekStart.toISOString();
   const toAt = weekEnd.toISOString();
   return { fromAt, toAt, key: `instant:${fromAt}|${toAt}` };
-}
-
-const routesRenderLoadingPage = () => renderUiModulePage({
-  ariaLabel: "Справочники и маршруты",
-  content: renderUiEmptyState({ title: "Загружаем модуль", description: "Экран откроется автоматически." }),
-});
-let getRouteTaskTypeLabel = () => "";
-let getWorkOrderPrintPackageViewModel = () => null;
-let renderDirectoryPage = () => routesRenderLoadingPage();
-let renderRoutePrintPreviewModal = () => "";
-let renderRouteTreeCell = () => "";
-let renderRoutesPage = () => routesRenderLoadingPage();
-let renderWorkOrderPrintPackageModal = () => "";
-let routesRenderModuleLoad = null;
-let routesRenderModuleError = null;
-function initializeRoutesRenderModule(factory) {
-  ({
-    getWorkOrderPrintPackageViewModel,
-    getRouteTaskTypeLabel,
-    renderDirectoryPage,
-    renderRoutePrintPreviewModal,
-    renderRouteTreeCell,
-    renderRoutesPage,
-    renderWorkOrderPrintPackageModal,
-  } = factory({
-  MAIN_ROUTE_TASK_ID,
-  escapeAttribute,
-  escapeHtml,
-  formatDateTimeShort,
-  formatReportNumber,
-  formatShiftWorkOrderPersonName: (...args) => formatShiftWorkOrderPersonName(...args),
-  getActiveRouteForModule,
-  getActiveSpecificationForModule,
-  getDefaultOperationMapItemForRouteKind,
-  getDirectoryColumnFilterOptions: (...args) => appEventsService.getDirectoryColumnFilterOptions(...args),
-  getDirectoryColumnFilterValues: (...args) => appEventsService.getDirectoryColumnFilterValues(...args),
-  getDirectoryData,
-  getDirectoryHealth: (...args) => appEventsService.getDirectoryHealth(...args),
-  getOperationMapItem,
-  getOperationMapRows,
-  getOperationRouteWorkCenterId,
-  getPlanningBoardsPerPanel,
-  getPlanningOrderObjectLabel,
-  getPlanningRouteQuantity,
-  getPlanningRouteTransferSummary,
-  getPlanningShiftDateLabel,
-  getProductionResourceWorkCenterId,
-  getProject,
-  getProjectDisplayName,
-  getResourceBaseCph,
-  getRouteBindingContext,
-  getRouteBindingModeForSelection,
-  getRouteBindingOptions,
-  getRouteBomList,
-  getRouteCardViewModel,
-  getRouteDocumentKind,
-  getRouteDocumentKindLabel,
-  getRouteDocumentKindShortLabel,
-  getRouteGenerationRoot,
-  getRouteInstructionWorkCenters,
-  getRouteLineageSubjectName,
-  getRouteLinkedChildDocuments,
-  getRouteModuleSelectionName,
-  getRouteModuleSelectionValue,
-  getRouteModuleStats,
-  getRouteParentRoute,
-  getRouteProductionContext,
-  getRouteProductionId,
-  getRouteRootRoute,
-  getRouteSpecification, getRoutesForModule,
-  getRouteStepEffectiveQuantityMultiplier,
-  getRouteStepLaborSnapshot,
-  getRouteStepPlanningCandidateWorkCenterIds,
-  getRouteStepPlanningTask,
-  getRouteStepQuantityForBatch,
-  getRouteStepTaskId,
-  getRouteStepsForModule,
-  getRouteStepsForTask,
-  getRouteTasksForModule,
-  getSelectedDirectoryRowIndex: (...args) => appEventsService.getSelectedDirectoryRowIndex(...args),
-  getShiftMasterEmployee,
-  getShiftWorkOrderJournalViewModel: (...args) => getShiftWorkOrderJournalViewModel(...args),
-  getSmtLineConfigurations,
-  getVisibleDirectoryGroups,
-  getVisibleDirectorySections,
-  getWorkCenter,
-  getWorkCenterUnitsPerHour,
-  getWorkOrderViewModel,
-  getStatusAuditInfo,
-  getStatusImpactMap,
-  getStatusImpactParts,
-  getStatusLifecycleModules,
-  getStatusNextDocumentView,
-  getStatusTransitionView,
-  formatDirectoryCell: (...args) => appEventsService.formatDirectoryCell(...args),
-  icon,
-  isManufacturingOutputReceiptRouteStep,
-  isSmtOperationWorkCenter,
-  isWarehouseWorkCenterId,
-  joinUiClasses,
-  mapLegacyWorkCenterId,
-  normalizeBoardsPerPanel,
-  normalizeDirectoryFilterSearch: (...args) => appEventsService.normalizeDirectoryFilterSearch(...args),
-  normalizeQuantity,
-  normalizeRouteBindingValue,
-  normalizeRouteStepCalculationFields,
-  normalizeShiftMasterBoardQuantity: (...args) => (
-    typeof normalizeShiftMasterBoardQuantity === "function"
-      ? normalizeShiftMasterBoardQuantity(...args)
-      : normalizeQuantity(args[0])
-  ),
-  renderDenseInlineSelect,
-  renderRouteStepFlowEditor, renderRouteStepFlowToggle, renderRouteStepFlowPanelRow, renderRouteStepLaborToggle, renderRouteStepLaborPanelRow,
-  renderRouteTaskOutputHint,
-  renderDirectoryEditorModal: (...args) => renderDirectoryEditorModal(...args),
-  renderDirectoryReaderModal: (...args) => renderDirectoryReaderModal(...args),
-  renderUiActionButton,
-  renderUiFormActions,
-  renderUiFormField,
-  renderUiFormGrid,
-  renderUiModalShell,
-  renderUiModuleHeader,
-  renderUiModulePage,
-  renderUiModuleSidebar, renderUiSidebarItem, renderUiPanelHead,
-  renderUiPanel, renderUiPanelBody, renderUiStatusToken, renderUiTableWrap, planningState, ui,
-  }));
-}
-
-function ensureRoutesRenderModule() {
-  if (routesRenderModuleLoad || routesRenderModuleError) return routesRenderModuleLoad;
-  // The directory renderer consumes a synchronous operation helper from the
-  // route event runtime. Load both chunks before publishing the renderer so a
-  // cold directory visit never renders against an uninitialized event facade.
-  routesRenderModuleLoad = Promise.all([
-    import("./modules/routes/render.js"),
-    ensureRoutesEvents(),
-  ])
-    .then(([{ createRoutesRenderModule }]) => {
-      initializeRoutesRenderModule(createRoutesRenderModule);
-      if (["directories", "routes"].includes(ui.activeModule)) render();
-    })
-    .catch((error) => {
-      routesRenderModuleError = error;
-      console.error("[MES routes] module load failed", error);
-      if (["directories", "routes"].includes(ui.activeModule)) render();
-    });
-  return routesRenderModuleLoad;
 }
 
 const shiftWorkOrderJournalOwner = createShiftWorkOrderJournalOwner({
@@ -10948,7 +10801,6 @@ operationalRuntimeService = createOperationalRuntimeServiceModule({
   getRouteStepsForModule,
   getRouteStepsForPlanningTask,
   getRouteStepsForTask,
-  getRouteTaskTypeLabel: (...args) => typeof getRouteTaskTypeLabel === "function" ? getRouteTaskTypeLabel(...args) : "объект",
   getRouteTaskInputObjectLabel,
   getRouteTaskProducedObjectLabel,
   getShiftMasterBoardModel,

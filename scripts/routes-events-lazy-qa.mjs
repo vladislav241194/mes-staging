@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createAppEventsServiceModule } from "../src/modules/app_events/service.js";
+import { getRouteTaskTypeLabel } from "../src/modules/operational_runtime/service.js";
 
 const assert = (value, message) => {
   if (!value) throw new Error(message);
@@ -26,8 +27,10 @@ assert(
   "App must pass a dedicated dynamic loader for route event handlers",
 );
 assert(
-  appSource.includes('import("./modules/routes/render.js"),\n    ensureRoutesEvents(),'),
-  "Directories must wait for route event initialization before publishing their renderer",
+  !appSource.includes('import("./modules/routes/render.js")')
+    && !appSource.includes("ensureRoutesRenderModule")
+    && !appSource.includes("routesRenderModuleLoad"),
+  "The retired Routes renderer and its loader must stay out of the application runtime",
 );
 assert(
   appEventsSource.includes("loadRoutesEventsModule ="),
@@ -82,6 +85,21 @@ assert(
     && appEventsSource.includes("function deleteDirectoryStateRow(sectionId, row)"),
   "The shared React Directory mutation core must remain available without loading the rollback UI",
 );
+
+const routeTaskTypeCases = [
+  [{ isMain: true, isOrphan: true, fulfillmentMode: "from_stock", type: "bom" }, "маршрут"],
+  [{ isOrphan: true, fulfillmentMode: "from_stock", type: "bom" }, "проверить"],
+  [{ fulfillmentMode: "from_stock", type: "bom" }, "склад"],
+  [{ type: "bom" }, "плата"],
+  [{ type: "specification" }, "состав изделия"],
+  [{ type: "assembly" }, "изготавливаемая позиция"],
+  [{ type: "nomenclature" }, "позиция"],
+  [{ type: "part" }, "позиция"],
+  [{ type: "unknown" }, "задача"],
+];
+for (const [task, expected] of routeTaskTypeCases) {
+  assert(getRouteTaskTypeLabel(task) === expected, `Route task label parity failed for ${JSON.stringify(task)}`);
+}
 
 let routeRuntimeLoadCount = 0;
 let interactionsDependencies = null;

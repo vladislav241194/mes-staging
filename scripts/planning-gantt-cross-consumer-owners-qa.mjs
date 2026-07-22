@@ -157,10 +157,9 @@ assert.equal(isPlanningRoutePersistenceConfirmed({ changed: false }), false, "An
 assert.equal(isPlanningRoutePersistenceConfirmed({ changed: false, blocked: true }), false, "A blocked snapshot must fail closed");
 assert.equal(isPlanningRoutePersistenceConfirmed(undefined), false, "A missing persistence receipt must fail closed");
 
-const [planningRoutesSource, planningCoreSource, routesRenderSource, productionModelSource, scenarioSource] = await Promise.all([
+const [planningRoutesSource, planningCoreSource, productionModelSource, scenarioSource] = await Promise.all([
   readFile(new URL("../src/modules/planning_routes/service.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/planning_core/service.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/routes/render.js", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/gantt/production-model.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/gantt/GanttScenario.tsx", import.meta.url), "utf8"),
 ]);
@@ -168,7 +167,12 @@ assert.equal(planningRoutesSource.includes("ganttRuntime"), false, "Planning rou
 assert.equal(planningRoutesSource.includes("focusRoute ="), false, "Planning routes must not accept the legacy focus facade");
 assert.equal(planningRoutesSource.includes("snapToWorkingTime ="), false, "Planning routes must not accept the legacy calendar facade");
 assert.equal(planningCoreSource.includes("routeMatchesGanttFilters"), false, "Planning core must not accept the legacy Gantt filter facade");
-assert.equal(routesRenderSource.includes("\n    distance,\n"), false, "Routes renderer must not retain the dead Gantt distance dependency");
+assert.equal(planningRoutesSource.includes('activeModule = "routes"'), false, "Planning failures must not navigate to the retired Routes module");
+assert.match(
+  planningRoutesSource,
+  /ui\.activeModule = route\.sourceSpecifications2EntryId \? "specifications2" : "planning";/,
+  "A missing SMT planning line must stay in Planning or navigate to the owning Specifications 2.0 surface",
+);
 const scheduleStart = planningRoutesSource.indexOf("function schedulePlanningRouteToGantt(routeId) {");
 const scheduleEnd = planningRoutesSource.indexOf("function cancelPlanningRoute(routeId)", scheduleStart);
 const scheduleSource = scheduleStart >= 0 && scheduleEnd > scheduleStart

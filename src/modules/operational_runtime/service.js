@@ -1,5 +1,16 @@
 import { formatPersonDisplayName } from "../../ui/formatters.js";
 
+export function getRouteTaskTypeLabel(task = {}) {
+  if (task?.isMain) return "маршрут";
+  if (task?.isOrphan) return "проверить";
+  if (task?.fulfillmentMode === "from_stock") return "склад";
+  if (task?.type === "bom") return "плата";
+  if (task?.type === "specification") return "состав изделия";
+  if (task?.type === "assembly") return "изготавливаемая позиция";
+  if (task?.type === "nomenclature" || task?.type === "part") return "позиция";
+  return "задача";
+}
+
 export function createOperationalRuntimeServiceModule(dependencies = {}) {
   const {
     ACCESS_ROLE_ACTIONS,
@@ -77,7 +88,6 @@ export function createOperationalRuntimeServiceModule(dependencies = {}) {
     getRouteStepsForModule,
     getRouteStepsForPlanningTask,
     getRouteStepsForTask,
-    getRouteTaskTypeLabel = (task = {}) => task?.type || "объект",
     getRouteTaskInputObjectLabel,
     getRouteTaskProducedObjectLabel,
     getShiftMasterBoardModel = () => ({ lanes: [] }),

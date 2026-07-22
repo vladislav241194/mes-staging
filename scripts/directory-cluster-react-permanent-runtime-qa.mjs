@@ -83,6 +83,17 @@ assert.doesNotMatch(hostSource, /allowPermanentReact|requestLegacyRender|onReque
 assert.match(hostSource, /onNavigateSection:\s*typeof navigateSection === "function"/, "direct typed section navigation must remain available without a legacy-return branch");
 
 const appSource = await readFile(join(projectRoot, "src/app.js"), "utf8");
+await assert.rejects(
+  readFile(join(projectRoot, "src/modules/routes/render.js"), "utf8"),
+  (error) => error?.code === "ENOENT",
+  "the retired Routes renderer source must stay absent",
+);
+await assert.rejects(
+  readFile(join(projectRoot, "src/modules/routes/directory_presentation.js"), "utf8"),
+  (error) => error?.code === "ENOENT",
+  "the orphan Directory presentation source must stay absent",
+);
+assert.doesNotMatch(appSource, /ensureRoutesRenderModule|routesRenderModuleLoad|modules\/routes\/render\.js/, "application boot must not retain the retired Routes renderer loader");
 for (const surfaceId of surfaceIds) assert.match(appSource, new RegExp(`surfaceId: "${surfaceId}"`), `${surfaceId}: app must resolve signed activation`);
 assert.equal((appSource.match(/navigateSection:\s*navigateDirectoryReactSection/g) || []).length, 4, "every Directory island must use direct React section navigation");
 assert.match(appSource, /getReactRuntimeMode\(surfaceId\) === "react" \|\| localWriteEvaluation === true/);

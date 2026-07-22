@@ -31,12 +31,19 @@ async function collectJsFiles(directory) {
 
 function collectLiteralIconNames(source) {
   const names = new Set();
-  for (const line of source.split("\n")) {
-    if (line.includes("icon(") || line.includes("getMesCustomIconName(")) {
-      // Calls frequently select between two literal names in a ternary. Keep
-      // both names rather than silently degrading the less common branch.
-      for (const match of line.matchAll(/["']([^"']+)["']/g)) names.add(match[1]);
-    }
+  // Read only literals inside the call argument. Scanning every quoted value
+  // on a source line breaks for icon calls nested in template literals (for
+  // example the legacy directory delete button) and can silently drop the
+  // real icon name after quote pairing crosses the nested template boundary.
+  for (const call of source.matchAll(/\b(?:icon|getMesCustomIconName)\s*\(([^)]*)\)/g)) {
+    // Calls frequently select between two literal names in a ternary. Keep
+    // both names rather than silently degrading the less common branch.
+    for (const match of call[1].matchAll(/["']([^"']+)["']/g)) names.add(match[1]);
+  }
+  // Custom MES icons have semantic fallbacks used when their optional SVG
+  // chunk is unavailable. Those literals sit outside getMesCustomIconName().
+  for (const fallback of source.matchAll(/\bgetMesCustomIconName\s*\([^)]*\)\s*\|\|\s*["']([^"']+)["']/g)) {
+    names.add(fallback[1]);
   }
   return names;
 }
@@ -55,6 +62,11 @@ export async function syncMesIconRuntimeRegistry() {
   const requestedNames = new Set([
     ...Object.values(MES_ICON_RUNTIME_ALIASES),
     ...MES_MODULE_BLUEPRINT_REGISTRY.map(({ icon }) => icon),
+    // Generated/minified current modules receive the icon renderer through a
+    // short local binding, so their edit/filter calls are not discoverable as
+    // literal `icon(...)` calls in source.
+    "edit",
+    "filter",
   ]);
   const files = await collectJsFiles(sourceRoot);
   for (const filePath of files) {
