@@ -26,6 +26,10 @@ assert(source.includes('const executableActivationScript = activationScript')
   && source.includes('{ input: executableActivationScript }'),
 "the root runner must remove JavaScript raw escapes from the two Bash lock expansions before execution");
 assert(source.includes('root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"'), "activation must use the atomically selected root-owned seal verifier");
+assert(source.includes('journal_helper="$(readlink -f -- "$journal_helper"')
+  && source.includes('/usr/local/libexec/mes/bundles/*/release-switch-journal.mjs')
+  && source.indexOf('journal_helper="$(readlink -f -- "$journal_helper"') < source.indexOf('--artifact="$journal_helper"'),
+"activation must verify and execute the canonical immutable journal-helper inode, not its active-bundle symlink");
 assert(source.indexOf('/usr/bin/node "$root_seal_helper" release') < source.indexOf('cd "$release_app_path"'), "candidate code must not execute before recursive root-seal verification");
 assert(source.includes('emit_failure_diagnostics 1 "service_restart_failed"'), "restart failures must emit diagnostics before rollback");
 assert(source.includes('emit_failure_diagnostics 1 "local_healthcheck_failed"'), "local health failures must emit diagnostics before rollback");
@@ -61,6 +65,7 @@ try {
     .replaceAll("/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs", rootSealHelperPath)
     .replaceAll("/usr/local/libexec/mes/active-bundle/release-verify.mjs", publicVerifierPath)
     .replaceAll("/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs", journalHelperPath)
+    .replaceAll("/usr/local/libexec/mes/bundles/*/release-switch-journal.mjs", journalHelperPath)
     .replace(/case "\$app_path:\$releases_path:\$service" in[\s\S]*?\nesac/, 'contour_name="staging"')
     .replace(/activation_phase="authority-rollout-lock"[\s\S]*?authority_lock_held=1\n/,
       'activation_phase="authority-rollout-lock"\nmkdir -p "$authority_lock_parent"\n: > "$authority_lock_file"\nauthority_lock_held=1\n')

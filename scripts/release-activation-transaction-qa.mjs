@@ -72,6 +72,7 @@ const activationShell = activationShellTemplate
   .replaceAll("/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs", rootSealHelperPath)
   .replaceAll("/usr/local/libexec/mes/active-bundle/release-verify.mjs", publicVerifierPath)
   .replaceAll("/usr/local/libexec/mes/active-bundle/release-switch-journal.mjs", journalHelperPath)
+  .replaceAll("/usr/local/libexec/mes/bundles/*/release-switch-journal.mjs", journalHelperPath)
   .replace(/case "\$app_path:\$releases_path:\$service" in[\s\S]*?\nesac/, 'contour_name="staging"')
   .replace(/activation_phase="authority-rollout-lock"[\s\S]*?authority_lock_held=1\n/,
     'activation_phase="authority-rollout-lock"\nmkdir -p "$authority_lock_parent"\n: > "$authority_lock_file"\nauthority_lock_held=1\n')

@@ -399,6 +399,11 @@ assert_no_pilot_runtime_transition_state \
   || fail_activation 1 "pilot_runtime_transition_recovery_pending"
 assert_no_active_evaluation \
   || fail_activation 1 "active_react_evaluation"
+journal_helper="$(readlink -f -- "$journal_helper" 2>/dev/null || true)"
+case "$journal_helper" in
+  /usr/local/libexec/mes/bundles/*/release-switch-journal.mjs) ;;
+  *) fail_activation 1 "release_switch_journal_helper_noncanonical" ;;
+esac
 /usr/bin/node "$root_seal_helper" artifact \
   --trusted-root="/usr/local/libexec/mes" --artifact="$journal_helper" >/dev/null \
   || fail_activation 1 "release_switch_journal_helper_untrusted"
