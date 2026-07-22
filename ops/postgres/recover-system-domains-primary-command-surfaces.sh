@@ -90,6 +90,14 @@ for file in \
 done
 
 assert_employee_auth_readiness() {
+  local attempt
+  for attempt in $(seq 1 12); do
+    if MES_PILOT_APP_DIR="$APP_DIR" MES_PILOT_SERVICE="$SERVICE" MES_PILOT_PORT="$PORT" \
+      "${APP_DIR}/ops/auth/assert-pilot-employee-auth-readiness.sh" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
   MES_PILOT_APP_DIR="$APP_DIR" MES_PILOT_SERVICE="$SERVICE" MES_PILOT_PORT="$PORT" \
     "${APP_DIR}/ops/auth/assert-pilot-employee-auth-readiness.sh" >/dev/null
 }

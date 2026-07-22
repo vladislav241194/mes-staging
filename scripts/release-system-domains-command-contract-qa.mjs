@@ -189,5 +189,10 @@ for (const file of [
   assert(source.includes("RELEASES_DIR") && source.includes("release-server-command-contract-verify.mjs"), `${file} must bind root lifecycle to an immutable verified release`);
   assert(source.includes("--contract=system-domains"), `${file} must require the exact System Domains marker contract`);
 }
+const recoverySource = await readFile(new URL("../ops/postgres/recover-system-domains-primary-command-surfaces.sh", import.meta.url), "utf8");
+assert(recoverySource.includes("for attempt in $(seq 1 12)")
+  && recoverySource.includes("assert-pilot-employee-auth-readiness.sh")
+  && recoverySource.includes("sleep 1"),
+"primary recovery must bound employee-auth readiness while the restarted HTTP listener opens");
 
 console.log("System Domains release command contract QA: OK");
