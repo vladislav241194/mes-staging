@@ -26,9 +26,10 @@
       "structureEquipment",
       "structureResponsibilityPolicies",
       "shiftWorkOrders",
+      "shiftMasterBoard",
       "timesheet"
     ],
-    "runtimePolicySha256": "7edb13cec499ac684c186cb0932414b5dc20f6a861020c14feaafbcc4cc2e484",
+    "runtimePolicySha256": "992b5238f47f79ca6b7459dfc84343040d28efb3da8db686081b6404d34b23a0",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -228,7 +229,7 @@
         }
       }
     },
-    { "id": "shiftMasterBoard", "routeId": "shiftMasterBoard", "entry": "experiments/react-migration/src/shift-master-board-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "create-carryover", "cancel-carryover", "print"], "missing": ["manual-lane-move"] } },
+    { "id": "shiftMasterBoard", "routeId": "shiftMasterBoard", "entry": "experiments/react-migration/src/shift-master-board-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["assign", "save-fact", "correct-fact", "create-carryover", "cancel-carryover", "print", "manual-lane-move"], "missing": [] } },
     { "id": "shiftWorkOrders", "routeId": "shiftWorkOrders", "entry": "experiments/react-migration/src/shift-work-orders-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["open-workshop", "assign", "save-fact", "correct-fact", "print-szn", "print-package"], "missing": [] } },
     { "id": "specifications2", "routeId": "specifications2", "entry": "experiments/react-migration/src/specifications2-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["edit-draft-row", "publish-revision", "create-work-order"], "missing": ["add-row", "remove-row", "reparent-row", "bind-attachment", "edit-route"] } },
     { "id": "statuses", "routeId": "directories", "entry": "experiments/react-migration/src/statuses-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-custom", "delete-custom"], "missing": [] } },
@@ -325,13 +326,13 @@
       "navigationScope": "user",
       "scenarios": ["shiftMasterBoard"],
       "reactSurface": "production-island",
-      "functionalStatus": "partial",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
+      "functionalStatus": "complete",
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["manual lane movement", "Pilot assignment/fact/carryover lifecycle", "permanent React runtime"]
+      "remainingScopes": ["Pilot assignment/fact/carryover lifecycle", "typed owner/model independence from legacy board adapters"]
     },
     {
       "id": "shiftWorkOrders",

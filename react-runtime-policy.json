@@ -20,7 +20,7 @@
     "timesheet": "react",
     "planningWorkbench": "react",
     "shiftWorkOrders": "react",
-    "shiftMasterBoard": "evaluation",
+    "shiftMasterBoard": "react",
     "employeeDesktop": "react",
     "specifications2": "evaluation",
     "gantt": "evaluation",

@@ -27,7 +27,7 @@ export interface ShiftMasterBoardModel {
   focus: "all" | "mine" | "open" | "attention";
   dateKey: string; masterId: string; masterLabel: string; masters: ShiftMasterBoardMasterOption[];
   plannedQuantity: number; assignedQuantity: number; factQuantity: number; openQuantity: number;
-  canAssign: boolean; canRecordFact: boolean;
+  canAssign: boolean; canRecordFact: boolean; canMoveLane: boolean;
 }
 
 const focus = (value: unknown): ShiftMasterBoardModel["focus"] => ["mine", "open", "attention"].includes(text(value)) ? text(value) as ShiftMasterBoardModel["focus"] : "all";
@@ -71,5 +71,5 @@ export function adaptShiftMasterBoardPayload(payload: unknown): ShiftMasterBoard
   const lanes = list(model.lanes).map((value, index): ShiftMasterBoardLane => { const lane = record(value); const laneId = text(lane.id, `lane-${index + 1}`); const laneRows = list(lane.rows).map((row) => rowsById.get(text(record(row).id))).filter(Boolean) as ShiftMasterBoardRow[]; return { id: laneId, label: text(lane.label, "Этап"), caption: text(lane.caption), tone: tone(lane.tone), rows: laneRows.length ? laneRows : rows.filter((row) => row.laneId === laneId) }; });
   const selectedId = text(record(model.selectedRow).id); const activeProfile = record(model.activeProfile);
   const masters = list(model.masterOptions).map((value): ShiftMasterBoardMasterOption => { const option = record(value); return { id: text(option.id), name: personName(option.name, "Мастер") }; }).filter((option) => Boolean(option.id));
-  return { windowLabel: text(record(model.window).label, "Текущая смена"), dateKey: text(model.dateKey), rows, lanes, selectedRow: rowsById.get(selectedId) || rows[0] || null, focus: focus(model.focus), masterId: text(activeProfile.id), masterLabel: `${personName(activeProfile.name, "Мастер")} · ${text(activeProfile.department, "Участок не указан")}`, masters, plannedQuantity: number(model.plannedQuantity), assignedQuantity: number(model.assignedQuantity), factQuantity: number(model.factQuantity), openQuantity: number(model.openQuantity), canAssign: capabilities.assignmentSave === true, canRecordFact: capabilities.factSave === true };
+  return { windowLabel: text(record(model.window).label, "Текущая смена"), dateKey: text(model.dateKey), rows, lanes, selectedRow: rowsById.get(selectedId) || rows[0] || null, focus: focus(model.focus), masterId: text(activeProfile.id), masterLabel: `${personName(activeProfile.name, "Мастер")} · ${text(activeProfile.department, "Участок не указан")}`, masters, plannedQuantity: number(model.plannedQuantity), assignedQuantity: number(model.assignedQuantity), factQuantity: number(model.factQuantity), openQuantity: number(model.openQuantity), canAssign: capabilities.assignmentSave === true, canRecordFact: capabilities.factSave === true, canMoveLane: capabilities.laneMove === true };
 }

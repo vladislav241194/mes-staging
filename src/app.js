@@ -5136,23 +5136,61 @@ function isShiftMasterBoardReactEvaluationRequested() {
   if (params.get("react-shift-master-board-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function getShiftMasterBoardReactActivation() {
+  const localQa = getShiftMasterBoardReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SHIFT_MASTER_BOARD_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "shiftMasterBoard",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_SHIFT_MASTER_BOARD === true && serverEvaluationAllowed,
+    evaluationRequested: isShiftMasterBoardReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const modulesReady = shiftMasterBoardModuleReady;
+  const boardRows = modulesReady ? getShiftMasterBoardModel()?.rows || [] : [];
+  const exactScopeUnavailable = modulesReady
+    && systemDomainsServerReadState.status === "server"
+    && shiftExecutionServerState.status === "idle"
+    && boardRows.length > 0
+    && !getShiftExecutionDispatchScope();
+  const serverReadFailure = shiftMasterBoardModuleError
+    ? "model-unavailable"
+    : exactScopeUnavailable
+      ? "model-unavailable"
+      : systemDomainsServerReadState.status === "fallback" || shiftExecutionServerState.status === "fallback"
+        ? "read-unavailable"
+        : "";
+  const legacyOverlayClosed = !ui.shiftMasterBoardPrintPreviewId
+    && !ui.shiftMasterBoardPendingAction
+    && !ui.shiftMasterBoardAssistOpen;
+  const authoritativeProjectionReady = shiftExecutionServerState.status === "ready"
+    && shiftExecutionServerState.primaryPostgres === true
+    && shiftExecutionServerState.schemaReady === true
+    && shiftExecutionServerState.coverageComplete === true;
+  const emptyProjectionReady = shiftExecutionServerState.status === "idle" && boardRows.length === 0;
+  return {
+    ...runtimeActivation,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    serverReadFailure,
+    serverReadReady: modulesReady
+      && systemDomainsServerReadState.status === "server"
+      && (authoritativeProjectionReady || emptyProjectionReady)
+      && (runtimeActivation.runtimeMode === "react" || legacyOverlayClosed),
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
 const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
-  getActivation: () => {
-    const localQa = getShiftMasterBoardReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SHIFT_MASTER_BOARD_READ_ONLY_EVALUATION === true;
-    const overlayClosed = !ui.shiftMasterBoardPrintPreviewId && !ui.shiftMasterBoardPendingAction && !ui.shiftMasterBoardAssistOpen;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_SHIFT_MASTER_BOARD === true || localQa.featureFlagEnabled,
-      serverReadReady: systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isShiftMasterBoardReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
-    };
-  },
+  getActivation: getShiftMasterBoardReactActivation,
   getPayload: () => {
-    const model = getShiftMasterBoardModel(); const localQa = getShiftMasterBoardReactLocalQaOverrides();
+    const model = getShiftMasterBoardModel(); const localQa = getShiftMasterBoardReactLocalQaOverrides(); const activation = getShiftMasterBoardReactActivation();
     const roleCanAssign = getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign");
     const roleCanRecordFact = getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit");
-    const commandsReady = localQa.writeEvaluation && shiftExecutionServerState.commandsEnabled === true;
-    return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact } };
+    const permanentOrWriteEvaluation = activation.accessMode === "react" || localQa.writeEvaluation;
+    const commandsReady = permanentOrWriteEvaluation && shiftExecutionServerState.commandsEnabled === true;
+    return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact, laneMove: permanentOrWriteEvaluation } };
   },
   getTargetRoot: () => app,
   openCarryover: (dateKey = "", carryoverId = "") => {
@@ -5212,10 +5250,17 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getShiftMasterBoardReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Изменения в React недоступны." };
+    const activation = getShiftMasterBoardReactActivation();
+    if (activation.accessMode !== "react" && !localQa.writeEvaluation) return { ok: false, message: "Изменения в React недоступны." };
     const rowId = String(command.rowId || "").trim(); const model = getShiftMasterBoardModel();
     const row = (model.allRows || []).find((item) => item.id === rowId) || null;
     if (!row) return { ok: false, message: "Задание больше не доступно на доске мастера." };
+    if (command.type === "move-lane") {
+      const result = moveShiftMasterBoardCardToLane(row.id, String(command.laneId || ""));
+      if (result?.ok === true) queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
+      return result;
+    }
+    if (shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "PostgreSQL-владелец сменных заданий временно недоступен." };
     if (command.type === "save-assignment") {
       return executeShiftExecutionAssignmentCommand(command, { activeModule: "shiftMasterBoard" });
     }
@@ -10803,7 +10848,9 @@ function initializeModuleRuntime() {
         if (reactDecision.activateReact) return shiftMasterBoardReactIslandHost.renderTarget();
         return renderShiftMasterBoardPage();
       },
-      renderModals: () => `${renderShiftMasterBoardSheetModal()}${renderShiftMasterBoardActionModal()}`,
+      renderModals: () => shiftMasterBoardReactIslandHost.isReactEligible()
+        ? ""
+        : `${renderShiftMasterBoardSheetModal()}${renderShiftMasterBoardActionModal()}`,
       bind: () => { if (!shiftMasterBoardReactIslandHost.isReactEligible()) bindShiftMasterBoardEvents(); },
       afterRender: () => { void shiftMasterBoardReactIslandHost.mount(); },
     },

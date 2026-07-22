@@ -21,6 +21,7 @@ export const REACT_RUNTIME_PERMANENT_CONSUMERS = Object.freeze([
   "weeklyProductionControl",
   "timesheet",
   "shiftWorkOrders",
+  "shiftMasterBoard",
   "authPicker",
   "planningWorkbench",
   "employeeDesktop",

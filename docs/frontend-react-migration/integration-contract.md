@@ -258,10 +258,11 @@ transfer contract and canonical carryover IDs. React navigates next/source
 shifts, corrects a fact, cancels the exact carryover and renders the physical-
 transfer result. SZN uses the existing lazy shared print renderer; the host
 validates the selected row and executor, records its print status and invokes
-`window.print()`. Read-only assignment/fact and manual lane movement return
-through `unsupported-scope`; date and permitted master navigation stay in React.
-Missing coverage, an open legacy
-overlay, editor access or a missing session request retains legacy.
+`window.print()`. Manual lane movement is a typed React command delegated to
+the existing board owner, which keeps lane validation and persistence outside
+React. Missing write authority fails closed inside React; permanent runtime
+read/model failures render a bounded React error state instead of reviving the
+legacy UI. Evaluation mode retains the immutable legacy rollback route.
 
 `mountEmployeeDesktopReactIsland(...)` owns the executor task view
 behind two false-by-default server permissions, PostgreSQL System Domains and
