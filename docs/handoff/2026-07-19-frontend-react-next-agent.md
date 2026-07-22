@@ -1818,3 +1818,50 @@ Next accelerated cut: prune and rename the live
 FULL REACT module, then move Nomenclature save/delete ownership to a typed
 command owner. Do not delete the file wholesale: Planning, Routes, Auth and BOM
 still consume 49 of its exported bindings.
+
+## Products compatibility runtime prune 2026-07-22: release `.61`
+
+This block supersedes `.60` as the live Pilot pointer. It deliberately does not
+claim another `FULL REACT` module: it removes misleading renderer ownership and
+dead compatibility code shared by several already migrated routes.
+
+- Active Pilot is `v.1.500.61-80b143c` at exact commit
+  `80b143cbddbf3835f120ade554eeca4b1dfc0a2e`; immediate previous is
+  `v.1.500.60-af0cd28` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `6f382e85758224d37adac150407be27bfae0d553dc6816e6eee2fa3f200a25ad` and
+  `014b2b5b233d52909c3a3daa208fc67495d0a28932ed57743be51226643cf68f`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Public health reports `ok`, version `v.1.500.61`, shared state `ready`, zero
+  active evaluation/legacy surfaces and no effective `MES_REACT_*` flags or
+  React systemd drop-ins. Service is active and `/srv/mes/pilot/app` resolves
+  to `.61`.
+- `products/render.js` is absent from sealed source/dist. Its remaining live
+  logic is `products/compatibility_runtime.js`: 1,456 lines, no UI-render
+  dependencies, exactly 49 app bindings. Active JavaScript fell from 64,982 to
+  63,934 lines; main bundle also shrank.
+- The code commit has 284 additions and 1,134 deletions. Most additions are the
+  executable runtime contract and rewired QA; the runtime itself lost the dead
+  Auth/UI/BOM branches and 34 unused public bindings.
+- First independent review returned NO-GO after finding four live helpers
+  removed by static pruning. Three BOM helpers and the scoped-route helper were
+  restored; slot helpers are injected from app. Behavior QA now executes BOM
+  result merge, component update through the lazy XLSX boundary and scoped
+  route selection. Focused checkJs has no unresolved-name diagnostics.
+- React cutover, Products contract, Nomenclature runtime/write boundary, lazy
+  XLSX, Routes/Planning, TypeScript, syntax, deterministic build, mixed-runtime
+  and diff gates passed. Final independent review returned GO. Visual/browser
+  QA was deliberately skipped.
+- Immediate previous `.60` passed rollback dry-run. The sealed legacy `.18`
+  record remains pinned behind the unchanged Specifications 2 compatibility
+  guards.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: remove the always-loaded obsolete
+`src/modules/app_interactions/directory_legacy.js` path and rename the remaining
+`app_interactions/render.js` service only after preserving global navigation,
+logout, confirm dispatch and Directory read-model helpers. Keep
+`saveDirectoryRow` / `deleteDirectoryStateRow` React command ownership.

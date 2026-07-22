@@ -498,6 +498,34 @@ Specifications 2 command drop-ins `50-specifications2-attachments.conf`,
 Implementation остаётся 99%, strict acceptance — 50%. Blueprint UI не
 используется.
 
+Release `v.1.500.61-80b143c` активирован на Pilot из точного commit
+`80b143cbddbf3835f120ade554eeca4b1dfc0a2e`. Этот cleanup намеренно не
+получает новый `FULL REACT` marker: он не завершает отдельный модуль, а
+сокращает общий compatibility runtime. Ложно названный
+`src/modules/products/render.js` переименован в
+`src/modules/products/compatibility_runtime.js`, очищен от UI-render
+dependencies и сокращён с 2 418 до 1 456 строк. Factory экспортирует ровно 49
+доказанно живых bindings; active JavaScript сокращён с 64 982 до 63 934 строк.
+
+Independent review первоначально дал NO-GO: prune удалил три BOM helper и один
+scoped-route helper, достижимые в startup/XLSX/Planning paths. Они восстановлены
+как внутренние функции; slot helpers теперь явно injected из app owner, а
+исполняемый gate проверяет merge существующего BOM-result, component update
+через lazy XLSX action и scoped-route resolution. Focused checkJs больше не
+находит `TS2304`/`TS2552`; повторный independent review дал GO.
+
+Public health `ok`, версия `v.1.500.61`, shared state `ready`, evaluation и
+runtime legacy surfaces пусты; service/pointer указывают на `.61`, effective
+`MES_REACT_*` flags и React drop-ins отсутствуют. Source/dist SHA-256 —
+`6f382e85758224d37adac150407be27bfae0d553dc6816e6eee2fa3f200a25ad` и
+`014b2b5b233d52909c3a3daa208fc67495d0a28932ed57743be51226643cf68f`.
+Products contract/behavior, Nomenclature runtime/write boundary, lazy XLSX,
+Routes/Planning, strict React TypeScript, syntax, full React cutover gate,
+deterministic build и mixed-runtime прошли. Visual/browser QA намеренно
+пропущен. Immediate rollback dry-run точно возвращает `.60`; pinned legacy
+`.18` сохранён за тем же Specifications 2 compatibility guard. Implementation
+остаётся 99%, strict acceptance — 50%. Blueprint UI не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,
