@@ -215,7 +215,7 @@ const registryById = new Map(MES_MODULE_BLUEPRINT_REGISTRY.map((module) => [modu
 
 const allowedReactSurfaces = new Set(["production-island", "mock-island", "missing"]);
 const allowedFunctionalStatuses = new Set(["complete", "partial", "read-only-complete", "placeholder", "mock"]);
-const allowedRuntimeModes = new Set(["legacy-default", "legacy-placeholder", "react-mock", "react"]);
+const allowedRuntimeModes = new Set(["legacy-default", "legacy-placeholder", "react-mock", "react-candidate", "react"]);
 for (const module of ledger.modules) {
   assert.equal(module.navigationScope, registryById.get(module.id)?.navigation.scope, `${module.id}: navigation scope must match the runtime registry`);
   assert(allowedReactSurfaces.has(module.reactSurface), `${module.id}: unsupported React surface`);
@@ -348,8 +348,12 @@ if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate status must make pending acceptance explicit");
   assert.deepEqual(candidateSurfaceIds, [
     "boards",
+    "componentTypes",
     "nomenclature",
+    "nomenclatureTypes",
+    "operations",
     "shiftWorkOrders",
+    "statuses",
     "structureEmployees",
     "structureEquipment",
     "structureOrgUnits",

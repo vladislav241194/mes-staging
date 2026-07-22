@@ -15,6 +15,7 @@ function createDirectoryReadIslandHost({
   getPayload,
   getTargetRoot,
   mountExport,
+  navigateSection,
   reportError,
   requestLegacyRender,
   executeCommand,
@@ -49,6 +50,11 @@ function createDirectoryReadIslandHost({
       loadedIsland[mountExport](target, payload, {
         onError,
         onReady,
+        onNavigateSection: allowPermanentReact
+          && getActivation?.().accessMode === "react"
+          && typeof navigateSection === "function"
+          ? (sectionId) => navigateSection(sectionId)
+          : undefined,
         onRequestLegacy: allowPermanentReact && getActivation?.().accessMode === "react"
           ? undefined
           : () => onRequestLegacy("legacy-directory"),
@@ -61,6 +67,7 @@ function createDirectoryReadIslandHost({
 export function createDirectoryComponentTypesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "component-types",
     bundleVersion: COMPONENT_TYPES_VERSION,
@@ -75,6 +82,7 @@ export function createDirectoryComponentTypesReactIslandHost(options = {}) {
 export function createDirectoryOperationsReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "operations",
     bundleVersion: OPERATIONS_VERSION,
@@ -104,6 +112,7 @@ export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
 export function createDirectoryStatusesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "statuses", bundleVersion: STATUSES_VERSION,
     className: "mes-react-nomenclature-island mes-react-directory-statuses-island", mountExport: "mountStatusesReactIsland",

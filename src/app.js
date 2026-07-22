@@ -5817,33 +5817,81 @@ function isDirectoryComponentTypesReactEvaluationRequested() {
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
 let directoryReactLegacyOverride = false;
+function resolveDirectoryReactActivation({
+  surfaceId,
+  evaluationFeatureEnabled,
+  evaluationRequested,
+  localQa,
+} = {}) {
+  const localEvaluationEnabled = localQa?.featureFlagEnabled === true
+    && (localQa.readOnlyEvaluation === true || localQa.writeEvaluation === true);
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId,
+    evaluationFeatureEnabled: evaluationFeatureEnabled === true,
+    evaluationRequested: evaluationRequested === true,
+    localQaEnabled: localEvaluationEnabled,
+  });
+  return {
+    ...runtimeActivation,
+    featureFlagEnabled: runtimeActivation.runtimeMode === "react"
+      || (!directoryReactLegacyOverride && runtimeActivation.featureFlagEnabled),
+    activeSection: normalizeDirectorySectionId(ui.activeDirectory),
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : localQa?.writeEvaluation === true && runtimeActivation.featureFlagEnabled
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+function canWriteDirectoryReactSurface(surfaceId, localWriteEvaluation, permission) {
+  return (getReactRuntimeMode(surfaceId) === "react" || localWriteEvaluation === true)
+    && permission === true
+    && !isNomenclatureServerCommandsPrimary();
+}
+function navigateDirectoryReactSection(sectionId) {
+  const normalizedSectionId = normalizeDirectorySectionId(sectionId);
+  if (!["componentTypes", "operations", "nomenclatureTypes", "statuses"].includes(normalizedSectionId)) return false;
+  ui.activeDirectory = normalizedSectionId;
+  ui.directoryEditor = null;
+  ui.directoryReader = null;
+  persistUiState();
+  if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  return true;
+}
 const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReactIslandHost({
   getActivation: () => {
     const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES === true || localQa.featureFlagEnabled),
-      activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: localQa.writeEvaluation
-        ? "write-evaluation"
-        : (serverEvaluationAllowed && isDirectoryComponentTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
-    };
+    return resolveDirectoryReactActivation({
+      surfaceId: "componentTypes",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES === true,
+      evaluationRequested: serverEvaluationAllowed && isDirectoryComponentTypesReactEvaluationRequested(),
+      localQa,
+    });
   },
   getPayload: () => {
     const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
-    const canWrite = localQa.writeEvaluation && canEditDirectorySection("componentTypes");
+    const canWrite = canWriteDirectoryReactSurface(
+      "componentTypes",
+      localQa.writeEvaluation,
+      canEditDirectorySection("componentTypes"),
+    );
     return { ...directoryState, capabilities: { createEdit: canWrite, delete: canWrite } };
   },
   getTargetRoot: () => app,
+  navigateSection: navigateDirectoryReactSection,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
   },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !canEditDirectorySection("componentTypes")) {
+    if (!canWriteDirectoryReactSurface(
+      "componentTypes",
+      localQa.writeEvaluation,
+      canEditDirectorySection("componentTypes"),
+    )) {
       return { ok: false, message: "Запись типов компонентов недоступна для текущей роли." };
     }
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
@@ -5907,19 +5955,20 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
   getActivation: () => {
     const localQa = getDirectoryOperationsReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS === true || localQa.featureFlagEnabled),
-      activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: localQa.writeEvaluation
-        ? "write-evaluation"
-        : (serverEvaluationAllowed && isDirectoryOperationsReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
-    };
+    return resolveDirectoryReactActivation({
+      surfaceId: "operations",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS === true,
+      evaluationRequested: serverEvaluationAllowed && isDirectoryOperationsReactEvaluationRequested(),
+      localQa,
+    });
   },
   getPayload: () => {
     const localQa = getDirectoryOperationsReactLocalQaOverrides();
-    const canWrite = localQa.writeEvaluation && canEditDirectorySection("operations");
+    const canWrite = canWriteDirectoryReactSurface(
+      "operations",
+      localQa.writeEvaluation,
+      canEditDirectorySection("operations"),
+    );
     const operations = getOperationMapRows();
     const deleteUsageById = Object.fromEntries(operations.map((operation) => {
       const usage = getOperationDeleteUsage(operation.id);
@@ -5945,13 +5994,18 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
     };
   },
   getTargetRoot: () => app,
+  navigateSection: navigateDirectoryReactSection,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
   },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryOperationsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !canEditDirectorySection("operations")) {
+    if (!canWriteDirectoryReactSurface(
+      "operations",
+      localQa.writeEvaluation,
+      canEditDirectorySection("operations"),
+    )) {
       return { ok: false, message: "Запись операций недоступна для текущей роли." };
     }
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
@@ -6218,6 +6272,7 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
     };
   },
   getTargetRoot: () => app,
+  navigateSection: navigateDirectoryReactSection,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
@@ -6294,34 +6349,44 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
   getActivation: () => {
     const localQa = getDirectoryStatusesReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_STATUSES === true || localQa.featureFlagEnabled),
-      activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: localQa.writeEvaluation
-        ? "write-evaluation"
-        : (serverEvaluationAllowed && isDirectoryStatusesReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
-    };
+    return resolveDirectoryReactActivation({
+      surfaceId: "statuses",
+      evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_STATUSES === true,
+      evaluationRequested: serverEvaluationAllowed && isDirectoryStatusesReactEvaluationRequested(),
+      localQa,
+    });
   },
   getPayload: () => {
     const localQa = getDirectoryStatusesReactLocalQaOverrides();
     return {
       statuses: getDirectoryData("statuses").rows,
       capabilities: {
-        createEditCustom: localQa.writeEvaluation && canEditCustomStatusDirectorySection(),
-        deleteCustom: localQa.writeEvaluation && canEditCustomStatusDirectorySection(),
+        createEditCustom: canWriteDirectoryReactSurface(
+          "statuses",
+          localQa.writeEvaluation,
+          canEditCustomStatusDirectorySection(),
+        ),
+        deleteCustom: canWriteDirectoryReactSurface(
+          "statuses",
+          localQa.writeEvaluation,
+          canEditCustomStatusDirectorySection(),
+        ),
       },
     };
   },
   getTargetRoot: () => app,
+  navigateSection: navigateDirectoryReactSection,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
   },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryStatusesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !canEditCustomStatusDirectorySection()) {
+    if (!canWriteDirectoryReactSurface(
+      "statuses",
+      localQa.writeEvaluation,
+      canEditCustomStatusDirectorySection(),
+    )) {
       return { ok: false, message: "Создание пользовательских статусов недоступно для текущей роли." };
     }
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};

@@ -26,6 +26,8 @@ h2 { font-size: 16px; }
 .filter-copy { display: grid; min-width: 0; gap: 2px; }
 .filter-copy > span, .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-copy small { color: #7a8b9d; font-size: 9px; font-weight: 450; }
+.react-directory-section-navigation { display: contents; }
+.react-directory-section-navigation-label { display: block; margin: 12px 8px 5px; padding-top: 9px; border-top: 1px solid #e3ebf3; color: #718296; font-size: 9px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
 .workspace-main { display: grid; min-width: 0; gap: 14px; }
 .panel, .detail { border-radius: 18px; overflow: hidden; }

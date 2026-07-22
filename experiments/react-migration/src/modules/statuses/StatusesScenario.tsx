@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
 import { useCommandRunner } from "../../ui/use-command";
+import { DirectorySectionNavigation, type DirectorySectionId } from "../directories/DirectorySectionNavigation";
 import { adaptStatusesModel, type StatusReadItem } from "./adapter";
 import { buildStatusFilters, filterStatuses, resolveVisibleStatus, type StatusFilter } from "./view-model";
 
@@ -31,9 +32,10 @@ export type StatusesReactCommand =
   | { type: "save-custom"; payload: CustomStatusDraft }
   | { type: "delete-custom"; payload: { itemId: string } };
 
-export function StatusesScenario({ payload, onCommand, onRequestLegacy }: {
+export function StatusesScenario({ payload, onCommand, onNavigateSection, onRequestLegacy }: {
   payload: unknown;
   onCommand?(command: StatusesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onNavigateSection?(sectionId: DirectorySectionId): void;
   onRequestLegacy?(): void;
 }) {
   const model = useMemo(() => adaptStatusesModel(payload), [payload]);
@@ -58,9 +60,10 @@ export function StatusesScenario({ payload, onCommand, onRequestLegacy }: {
   };
   const sidebar = <ModuleSidebar label="Статусы по области применения" title="Области">
     {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
+    <DirectorySectionNavigation activeId="statuses" onNavigate={onNavigateSection} />
     {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
   </ModuleSidebar>;
-  return <ModulePage header={<ModuleHeader eyebrow="Мастер-данные" title="Статусы" badge={<span className="lab-badge">{model.canCreateEditCustom ? `React · custom-status create/edit${model.canDeleteCustom ? "/delete" : ""} evaluation` : "React preview · только чтение"}</span>} />} sidebar={sidebar}>
+  return <ModulePage header={<ModuleHeader eyebrow="Мастер-данные" title="Статусы" badge={<span className="lab-badge">{model.canCreateEditCustom ? `React · custom-status create/edit${model.canDeleteCustom ? "/delete" : ""}` : "React · только чтение"}</span>} />} sidebar={sidebar}>
     <Panel heading={<div className="panel-heading"><div><h2>Единые статусы MES</h2><p>{visibleItems.length.toLocaleString("ru-RU")} в выбранной области</p></div><ActionButton disabled={!model.canCreateEditCustom} onClick={() => setDraft(createDraft())} title={model.canCreateEditCustom ? "Создать пользовательский статус" : "Системные контракты доступны только для чтения"}>Добавить пользовательский</ActionButton></div>}>
       {visibleItems.length ? <TableWrap><table><thead><tr><th>Область применения</th><th>Стартовый модуль</th><th>Где меняется</th><th>Контракт</th><th>Переход</th><th>Статус</th><th>Влияние</th></tr></thead>
         <tbody>{visibleItems.map((item) => <SelectableRow key={item.id} onSelect={() => setSelectedId(item.id)} selected={selected?.id === item.id}><td>{item.group}</td><td>{item.originModule}</td><td>{item.changeModule}</td><td>{item.contractView}</td><td>{item.transitionView}</td><td>{item.name}</td><td>{item.impactTableView}</td></SelectableRow>)}</tbody>

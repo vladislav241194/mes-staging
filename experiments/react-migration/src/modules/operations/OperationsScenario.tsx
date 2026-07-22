@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
 import { useCommandRunner } from "../../ui/use-command";
+import { DirectorySectionNavigation, type DirectorySectionId } from "../directories/DirectorySectionNavigation";
 import { adaptOperationsModel, type OperationReadItem } from "./adapter";
 import { buildOperationFilters, filterOperations, resolveVisibleOperation, type OperationFilter } from "./view-model";
 
@@ -25,9 +26,10 @@ export type OperationsReactCommand =
   | { type: "save"; payload: OperationDraft }
   | { type: "delete"; payload: { itemId: string } };
 
-export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
+export function OperationsScenario({ payload, onCommand, onNavigateSection, onRequestLegacy }: {
   payload: unknown;
   onCommand?(command: OperationsReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onNavigateSection?(sectionId: DirectorySectionId): void;
   onRequestLegacy?(): void;
 }) {
   const model = useMemo(() => adaptOperationsModel(payload), [payload]);
@@ -53,13 +55,14 @@ export function OperationsScenario({ payload, onCommand, onRequestLegacy }: {
     await runCommand({ type: "delete", payload: { itemId: draft.itemId } }, "Не удалось удалить операцию.");
   };
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""}` : "React · только чтение"}</span>} />;
   const sidebar = <ModuleSidebar label="Операции по рабочим центрам" title="Рабочие центры">
     {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
+    <DirectorySectionNavigation activeId="operations" onNavigate={onNavigateSection} />
     {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
   </ModuleSidebar>;
   return <ModulePage header={header} sidebar={sidebar}>
-    <Panel heading={<div className="panel-heading"><div><h2>Операции</h2><p>{visibleItems.length.toLocaleString("ru-RU")} в выбранном рабочем центре</p></div><ActionButton disabled={!model.canCreateEdit || !defaultWorkCenterId} onClick={() => setDraft(createDraft(defaultWorkCenterId))} title={model.canCreateEdit ? "Создать через существующую команду справочника" : "Write evaluation выключен"}>Добавить операцию</ActionButton></div>}>
+    <Panel heading={<div className="panel-heading"><div><h2>Операции</h2><p>{visibleItems.length.toLocaleString("ru-RU")} в выбранном рабочем центре</p></div><ActionButton disabled={!model.canCreateEdit || !defaultWorkCenterId} onClick={() => setDraft(createDraft(defaultWorkCenterId))} title={model.canCreateEdit ? "Создать через существующую команду справочника" : "Нет права на создание"}>Добавить операцию</ActionButton></div>}>
       {visibleItems.length ? <TableWrap><table>
         <thead><tr><th>Операция</th><th>Отдел</th><th>Статус</th></tr></thead>
         <tbody>{visibleItems.map((item) => <SelectableRow key={item.id} onSelect={() => setSelectedId(item.id)} selected={selected?.id === item.id}>

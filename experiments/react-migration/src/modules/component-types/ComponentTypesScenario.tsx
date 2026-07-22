@@ -3,6 +3,7 @@ import { ActionButton, DeleteConfirmation, DetailPanel, EmptyState, ModuleHeader
 import { formatRecordCount } from "../../ui/format";
 import { resolveAvailableFilter } from "../../ui/selection";
 import { useCommandRunner } from "../../ui/use-command";
+import { DirectorySectionNavigation, type DirectorySectionId } from "../directories/DirectorySectionNavigation";
 import { adaptComponentTypesModel, type ComponentTypeItem } from "./adapter";
 import { buildComponentTypeFilters, filterComponentTypes, formatDecimal, formatInteger, resolveVisibleComponentType, type ComponentTypeFilter } from "./view-model";
 
@@ -36,9 +37,10 @@ export type ComponentTypesReactCommand =
   | { type: "save"; payload: ComponentTypeDraft }
   | { type: "delete"; payload: { itemId: string } };
 
-export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: {
+export function ComponentTypesScenario({ payload, onCommand, onNavigateSection, onRequestLegacy }: {
   payload: unknown;
   onCommand?(command: ComponentTypesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onNavigateSection?(sectionId: DirectorySectionId): void;
   onRequestLegacy?(scope?: string): void;
 }) {
   const model = useMemo(() => adaptComponentTypesModel(payload), [payload]);
@@ -53,17 +55,18 @@ export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: 
   const selected = resolveVisibleComponentType(visibleItems, selectedId);
   const setDraftField = (field: keyof ComponentTypeDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Типы компонентов" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Типы компонентов" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""}` : "React · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Семейства компонентов" title="Семейства">
       {onRequestLegacy ? <SidebarItem active={false} count={4} key="directories" label="Все справочники" meta="Вернуться в legacy-контур" onClick={() => onRequestLegacy("legacy-directory")} /> : null}
+      <DirectorySectionNavigation activeId="componentTypes" onNavigate={onNavigateSection} />
       {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
     </ModuleSidebar>
   );
 
   return (
     <ModulePage header={header} sidebar={sidebar}>
-      <Panel heading={<div className="panel-heading"><div><h2>Типы</h2><p>{formatRecordCount(visibleItems.length)} в выбранном семействе</p></div><ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createDraft())} title={model.canCreateEdit ? "Создать через существующую команду справочника" : "Write evaluation выключен"}>Добавить тип</ActionButton></div>}>
+      <Panel heading={<div className="panel-heading"><div><h2>Типы</h2><p>{formatRecordCount(visibleItems.length)} в выбранном семействе</p></div><ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createDraft())} title={model.canCreateEdit ? "Создать через существующую команду справочника" : "Нет права на создание"}>Добавить тип</ActionButton></div>}>
         {visibleItems.length ? <TableWrap><table>
           <thead><tr><th>Тип</th><th>Корпус</th><th>Семейство</th><th>Коэф.</th><th>Комп./ч</th><th>Setup, сек</th><th>По умолч.</th><th>Статус</th></tr></thead>
           <tbody>{visibleItems.map((item) => <SelectableRow key={item.id} onSelect={() => setSelectedId(item.id)} selected={selected?.id === item.id}>
@@ -74,7 +77,7 @@ export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: 
 
       {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новый тип" : "Редактирование типа"}</h2><p>Команда выполняется существующим владельцем справочника</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
         {deletePending ? <DeleteConfirmation busy={saving} error={commandError} id="react-component-type-delete-title" onCancel={() => setDeletePending(false)} onConfirm={() => { void runCommand({ type: "delete", payload: { itemId: draft.itemId } }, "Не удалось удалить тип."); }} title="Удалить тип компонента?">
-          <p>Тип «{draft.name || "без названия"}» будет удалён тем же legacy-владельцем данных.</p>
+          <p>Тип «{draft.name || "без названия"}» будет удалён владельцем данных справочника.</p>
         </DeleteConfirmation> : <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void runCommand({ type: "save", payload: draft }, "Не удалось сохранить тип."); }}>
           <label><span>Тип</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
           <label><span>Корпус</span><input name="package" onChange={(event) => setDraftField("package", event.currentTarget.value)} value={draft.package} /></label>
@@ -86,7 +89,7 @@ export function ComponentTypesScenario({ payload, onCommand, onRequestLegacy }: 
           <label><span>Статус</span><input name="status" onChange={(event) => setDraftField("status", event.currentTarget.value)} value={draft.status} /></label>
           {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
           <div className="react-nomenclature-editor-actions">
-            {!draft.isNew ? <ActionButton disabled={!model.canDelete} onClick={() => { setDeletePending(true); clearCommandError(); }} title={model.canDelete ? "Удалить через существующую команду" : "Delete evaluation выключен"} variant="danger">Удалить</ActionButton> : null}
+            {!draft.isNew ? <ActionButton disabled={!model.canDelete} onClick={() => { setDeletePending(true); clearCommandError(); }} title={model.canDelete ? "Удалить через существующую команду" : "Нет права на удаление"} variant="danger">Удалить</ActionButton> : null}
             <button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : draft.isNew ? "Создать тип" : "Сохранить тип"}</button>
           </div>
         </form>}

@@ -37,6 +37,10 @@ assert.equal(Object.keys(policy.surfaces).length, 24);
 assert(REACT_RUNTIME_SURFACE_IDS.every((id) => ["legacy", "evaluation", "react"].includes(policy.surfaces[id])));
 assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "nomenclature",
+  "componentTypes",
+  "operations",
+  "nomenclatureTypes",
+  "statuses",
   "boards",
   "structureEmployees",
   "structurePositions",
@@ -65,8 +69,12 @@ if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate policy must stay explicitly unaccepted");
   assert.deepEqual(candidateSurfaceIds, [
     "boards",
+    "componentTypes",
     "nomenclature",
+    "nomenclatureTypes",
+    "operations",
     "shiftWorkOrders",
+    "statuses",
     "structureEmployees",
     "structureEquipment",
     "structureOrgUnits",

@@ -449,6 +449,10 @@ try {
   assert.equal(trustedActiveRecord.releaseId, releaseId);
   assert.equal(trustedActiveRecord.manifest.sourceTreeSha256, source.anchors.expectedSourceSha256);
   assert.deepEqual(trustedActiveRecord.runtimePolicy.reactSurfaces.sort(), [
+    "componentTypes",
+    "nomenclatureTypes",
+    "operations",
+    "statuses",
     "structureEmployees",
     "structureEquipment",
     "structureMigrationDiagnostics",
