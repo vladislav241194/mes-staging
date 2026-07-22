@@ -180,6 +180,9 @@
 .mes-react-gantt-island .gantt-react-toolbar { display:grid; grid-template-columns:minmax(170px,1fr) auto auto auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
 .mes-react-gantt-island .gantt-react-toolbar > div { display:grid; gap:3px; }
 .mes-react-gantt-island .gantt-react-toolbar span,.mes-react-gantt-island .gantt-react-label small { color:#718296; font-size:9px; }
+.mes-react-gantt-island .gantt-react-blocked-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 14px; border:1px dashed rgba(71,112,154,.25); border-radius:14px; background:#f8fafc; }
+.mes-react-gantt-island .gantt-react-blocked-actions p { flex:1 1 100%; margin:0; color:#718296; font-size:12px; }
+.mes-react-gantt-island .gantt-react-blocked-actions .action:disabled { opacity:.58; cursor:not-allowed; }
 .mes-react-gantt-island .gantt-react-period { display:grid; grid-template-columns:minmax(128px,170px) auto; align-items:end; gap:3px 8px; color:#718296; font-size:9px; }
 .mes-react-gantt-island .gantt-react-period span { grid-column:1/-1; }
 .mes-react-gantt-island .gantt-react-period small { align-self:center; color:#718296; white-space:nowrap; }

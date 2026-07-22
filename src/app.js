@@ -458,6 +458,7 @@ function isEmployeeServerAuthAvailable() {
     || isNomenclatureServerCommandsPrimary()
     || isDirectoryClusterServerCommandsPrimary()
     || isPlanningStartDateServerCommandsPrimary()
+    || getReactRuntimeMode("gantt") === "react"
     || ["structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies"]
       .some((surfaceId) => getReactRuntimeMode(surfaceId) === "react");
 }
@@ -4598,7 +4599,7 @@ function ensurePlanningCommandCapabilities({ force = false } = {}) {
         error: actorMatches ? "" : String(result?.error || "Серверные права Planning не подтверждены."),
       };
     }
-    if (appBootstrapped && ui?.activeModule === "planning") render({ skipRememberScroll: true });
+    if (appBootstrapped && ["planning", "gantt"].includes(ui?.activeModule)) render({ skipRememberScroll: true });
     return planningCommandCapabilitiesState;
   }).catch((error) => {
     planningCommandCapabilitiesState = {
@@ -4606,6 +4607,7 @@ function ensurePlanningCommandCapabilities({ force = false } = {}) {
       result: null,
       error: `Серверные права Planning недоступны: ${error?.message || String(error)}`,
     };
+    if (appBootstrapped && ["planning", "gantt"].includes(ui?.activeModule)) render({ skipRememberScroll: true });
     return planningCommandCapabilitiesState;
   }).finally(() => { planningCommandCapabilitiesPromise = null; });
   return planningCommandCapabilitiesPromise;
@@ -5704,6 +5706,7 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
   },
 });
 let ganttReactModel = null;
+let ganttReactRuntimeError = "";
 function getGanttReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -5716,27 +5719,73 @@ function isGanttReactEvaluationRequested() {
   if (params.get("react-gantt-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function getGanttReactActivation() {
+  const localQa = getGanttReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_GANTT_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "gantt",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_GANTT === true,
+    evaluationRequested: serverEvaluationAllowed && isGanttReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const authenticatedPerson = getAuthenticatedAccessPerson();
+  const signedServerActor = getEmployeeServerActor();
+  const signedServerSessionReady = employeeServerSessionState.authenticated === true
+    && Boolean(signedServerActor?.employeeId)
+    && String(signedServerActor.employeeId) === String(authenticatedPerson?.id || "");
+  const planningCapability = planningCommandCapabilitiesState.result;
+  const signedSlotScheduleCapabilityReady = planningCapability?.ok === true
+    && planningCapability.authenticated === true
+    && String(planningCapability.actor?.employeeId || "") === String(authenticatedPerson?.id || "")
+    && planningCapability.capabilities?.canEditPlanning === true
+    && planningCapability.capabilities?.slotScheduleEnabled === true;
+  const permanentWriteEligible = runtimeActivation.runtimeMode === "react"
+    && Boolean(authenticatedPerson)
+    && authorizeSystemDomainAction("planning", "edit")
+    && planningRuntimeProjectionState.status === "server";
+  if (runtimeActivation.runtimeMode === "react" && employeeServerSessionState.status === "idle") {
+    void reconcileEmployeeServerSession();
+  }
+  if (permanentWriteEligible && signedServerSessionReady && planningCommandCapabilitiesState.status === "idle") {
+    void ensurePlanningCommandCapabilities();
+  }
+  return {
+    ...runtimeActivation,
+    runtimeReady: Boolean(ganttRuntime?.isReady?.() && ganttReactModel),
+    serverReadReady: planningRuntimeProjectionState.status === "server",
+    serverReadFailure: runtimeActivation.runtimeMode === "react" && planningRuntimeProjectionState.status === "fallback"
+      ? "read-unavailable"
+      : "",
+    runtimeFailure: runtimeActivation.runtimeMode === "react" ? ganttReactRuntimeError : "",
+    postgresProjectionReady: planningRuntimeProjectionState.status === "server",
+    authenticatedAccess: Boolean(authenticatedPerson),
+    signedServerSessionReady,
+    signedSlotScheduleCapabilityReady,
+    permanentWriteEligible,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : localQa.writeEvaluation
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+function canGanttReactReschedule(activation = getGanttReactActivation()) {
+  const localQa = getGanttReactLocalQaOverrides();
+  if (localQa.writeEvaluation) {
+    return planningRuntimeProjectionState.status === "server"
+      && authorizeSystemDomainAction("planning", "edit");
+  }
+  return activation.accessMode === "react"
+    && activation.permanentWriteEligible === true
+    && activation.signedServerSessionReady === true
+    && activation.signedSlotScheduleCapabilityReady === true;
+}
 const ganttReactIslandHost = createGanttReactIslandHost({
-  getActivation: () => {
-    const localQa = getGanttReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_GANTT_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_GANTT === true || localQa.featureFlagEnabled,
-      runtimeReady: Boolean(ganttRuntime?.isReady?.() && ganttReactModel),
-      postgresProjectionReady: planningRuntimeProjectionState.status === "server",
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isGanttReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
-    };
-  },
-  getPayload: () => {
-    const localQa = getGanttReactLocalQaOverrides();
-    return { model: ganttReactModel, capabilities: { scheduleEdit: localQa.writeEvaluation && planningRuntimeProjectionState.status === "server" && authorizeSystemDomainAction("planning", "edit") } };
-  },
+  getActivation: getGanttReactActivation,
+  getPayload: () => ({ model: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule() } }),
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, scope = "") => {
-    const [action, slotId] = String(scope || "").split(":");
-    if (action === "slot" && slotId) ui.selectedSlotId = slotId;
-    if (ui.activeModule === "gantt") render({ skipRememberScroll: true });
-  },
+  requestLegacyRender: () => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); },
   navigate: async (navigation = {}) => {
     if (navigation.type === "set-window-start") {
       const value = String(navigation.value || "").trim();
@@ -5768,8 +5817,8 @@ const ganttReactIslandHost = createGanttReactIslandHost({
     return { ok: false, message: "Команда панели Ганта не поддерживается." };
   },
   executeCommand: async (command = {}) => {
-    const localQa = getGanttReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "reschedule-slot") return { ok: false, message: "Изменение графика в React недоступно." };
+    const activation = getGanttReactActivation();
+    if (!canGanttReactReschedule(activation) || command.type !== "reschedule-slot") return { ok: false, message: "Изменение графика недоступно без подтверждённого серверного владельца Planning." };
     if (planningRuntimeProjectionState.status !== "server") return { ok: false, message: "PostgreSQL-проекция графика недоступна." };
     if (!authorizeSystemDomainAction("planning", "edit")) return { ok: false, message: "Нет права изменять производственный график." };
     const slotId = String(command.slotId || "").trim(); const routeId = String(command.routeId || "").trim(); const operationId = String(command.operationId || "").trim();
@@ -5779,7 +5828,7 @@ const ganttReactIslandHost = createGanttReactIslandHost({
     if (stateSlot.locked || stateSlot.isLocked || isGanttSlotCompleted(stateSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
     const plannedStart = new Date(String(command.plannedStart || ""));
     if (Number.isNaN(plannedStart.getTime()) || plannedStart.getFullYear() < 2000 || plannedStart.getFullYear() > 2100) return { ok: false, message: "Дата начала операции некорректна." };
-    const result = await changePlanningSlotSchedule(routeId, operationId, plannedStart.toISOString(), { renderOnConflict: false });
+    const result = await changePlanningSlotSchedule(routeId, operationId, plannedStart.toISOString(), { renderOnConflict: false, requireServerCommand: true });
     if (!result?.applied) return { ok: false, message: result?.kind === "conflict" ? "График изменился в другом сеансе. Экран обновлён — проверьте слот и повторите." : "Начало операции не сохранено владельцем Planning." };
     queueMicrotask(() => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); });
     return { ok: true, id: slotId, plannedStart: result.slot?.plannedStart || plannedStart.toISOString() };
@@ -8313,6 +8362,12 @@ async function hydratePlanningAfterSharedSync({ metadataOnly = true } = {}) {
   // available.  In either case, never let Gantt render the pre-sync graph.
   if (ui?.activeModule === "gantt") {
     if (planningRuntimeProjectionState.status !== "fallback") return true;
+    if (getReactRuntimeMode("gantt") === "react") {
+      // Permanent Gantt never promotes the compatibility snapshot into its
+      // visible route. A failed PostgreSQL read remains a fail-closed error.
+      render({ skipRememberScroll: true });
+      return false;
+    }
     if (metadataOnly === false) {
       // runtime_state calls this hook only after it has atomically applied the
       // requested full Planning snapshot.  This is the explicit completion
@@ -8345,6 +8400,7 @@ function noteGanttPlanningProjectionModuleEntry() {
   }
 }
 function hasGanttPlanningProjectionReady() {
+  if (getReactRuntimeMode("gantt") === "react") return planningRuntimeProjectionState.status === "server";
   return planningRuntimeProjectionState.status === "server" || ganttPlanningFallbackReady;
 }
 async function ensureGanttPlanningSnapshotFallback() {
@@ -8375,10 +8431,12 @@ function ensureGanttPlanningRuntimeProjection() {
   if (ganttPlanningProjectionGateLoad) return ganttPlanningProjectionGateLoad;
   ganttPlanningProjectionGateLoad = (async () => {
     if (planningRuntimeProjectionState.status === "fallback") {
+      if (getReactRuntimeMode("gantt") === "react") return false;
       return ensureGanttPlanningSnapshotFallback();
     }
     const applied = await hydratePlanningRuntimeProjection();
     if (applied) return true;
+    if (getReactRuntimeMode("gantt") === "react") return false;
     return ensureGanttPlanningSnapshotFallback();
   })().then((ready) => {
     // Successful PostgreSQL hydration already performs the one required
@@ -11159,8 +11217,27 @@ function renderCurrentModule(options = {}) {
     }
 
     void ensureGanttPlanningRuntimeProjection();
+    const ganttPermanentReact = getReactRuntimeMode("gantt") === "react";
+    const renderGanttReactShell = () => {
+      const decision = ganttReactIslandHost.prepareRender();
+      if (!decision.activateReact) return false;
+      app.innerHTML = renderUiAppShell({
+        pageId: "gantt",
+        className: "planning-app-shell planning-gantt-shell",
+        blueprint: getMesModuleBlueprintDefinition("gantt"),
+        body: ganttReactIslandHost.renderTarget(),
+      });
+      bindGlobalNavigation();
+      void ganttReactIslandHost.mount();
+      return true;
+    };
 
     if (!hasGanttPlanningProjectionReady()) {
+      if (ganttPermanentReact) {
+        ganttReactModel = null;
+        renderGanttReactShell();
+        return;
+      }
       const fallbackUnavailable = planningRuntimeProjectionState.status === "fallback"
         && sharedStateStatus.enabled
         && ganttPlanningFallbackAttempted;
@@ -11180,10 +11257,18 @@ function renderCurrentModule(options = {}) {
     }
 
     if (!ganttRuntime.isReady()) {
-      void ganttRuntime.load()
-        .then(() => render({ skipRememberScroll: true }))
+      if (!ganttReactRuntimeError) void ganttRuntime.load()
+        .then(() => {
+          ganttReactRuntimeError = "";
+          render({ skipRememberScroll: true });
+        })
         .catch((error) => {
           console.error("[MES] Gantt runtime failed to load", error);
+          if (ganttPermanentReact) {
+            ganttReactRuntimeError = "model-unavailable";
+            render({ skipRememberScroll: true });
+            return;
+          }
           app.innerHTML = renderUiAppShell({
             pageId: "gantt",
             className: "planning-app-shell planning-gantt-shell",
@@ -11195,6 +11280,11 @@ function renderCurrentModule(options = {}) {
           });
           bindGlobalNavigation();
         });
+      if (ganttPermanentReact) {
+        ganttReactModel = null;
+        renderGanttReactShell();
+        return;
+      }
       app.innerHTML = renderUiAppShell({
         pageId: "gantt",
         className: "planning-app-shell planning-gantt-shell",
@@ -11223,16 +11313,7 @@ function renderCurrentModule(options = {}) {
       ? "snapshot-fallback"
       : planningRuntimeProjectionState.status;
     ganttReactModel = getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, ganttPlanningProjectionSource);
-    const ganttReactDecision = ganttReactIslandHost.prepareRender();
-    if (ganttReactDecision.activateReact) {
-      app.innerHTML = renderUiAppShell({
-        pageId: "gantt",
-        className: "planning-app-shell planning-gantt-shell",
-        blueprint: getMesModuleBlueprintDefinition("gantt"),
-        body: ganttReactIslandHost.renderTarget(),
-      });
-      bindGlobalNavigation();
-      void ganttReactIslandHost.mount();
+    if (renderGanttReactShell()) {
       recordRenderPhase("gantt React island", ganttDomStartedAt);
       return;
     }

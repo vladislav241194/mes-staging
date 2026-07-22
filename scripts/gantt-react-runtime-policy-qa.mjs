@@ -7,6 +7,7 @@ const planningCore = await readFile("src/modules/planning_core/service.js", "utf
 const scenario = await readFile("experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "utf8");
 const adapter = await readFile("experiments/react-migration/src/modules/gantt/adapter.ts", "utf8");
 const ledger = JSON.parse(await readFile("experiments/react-migration/cutover-ledger.json", "utf8"));
+const policy = JSON.parse(await readFile("react-runtime-policy.json", "utf8"));
 const { scaleConfig } = await import("../src/time.js");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
@@ -14,13 +15,16 @@ const legacyToolbar = runtime.match(/function renderToolbar\(\)[\s\S]*?\n}\n\nfu
 const adapterScaleIds = JSON.parse(adapter.match(/const GANTT_SCALES = (\[[^\]]+\]) as const/)?.[1] || "[]");
 const ganttLedger = ledger.islands.find((island) => island.id === "gantt");
 
-expect(app.includes('MES_REACT_GANTT === true'), "Gantt React activation must require an explicit server or local QA feature flag");
+expect(policy.surfaces?.gantt === "react", "Gantt normal route must be selected by the signed permanent React policy");
+expect(app.includes('surfaceId: "gantt"') && app.includes("resolveReactRuntimeActivation"), "Gantt activation must consume the signed runtime policy");
 expect(app.includes('planningRuntimeProjectionState.status === "server"'), "Gantt React activation must require the PostgreSQL runtime projection");
-expect(app.includes('react-gantt-evaluation'), "server-enabled Gantt React must still require a per-session evaluation request");
-expect(host.includes('["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)'), "Gantt React host must allow only explicit read or local write evaluation modes");
-expect(app.includes('params.get("react-gantt-write") === "1"'), "Gantt React schedule command must require the localhost QA write gate");
+expect(app.includes('react-gantt-evaluation'), "the isolated evaluation rollback route must remain available outside permanent mode");
+expect(host.includes('activation.accessMode === "react"') && host.includes('canFallbackToLegacy: (activation) => activation.accessMode !== "react"'), "permanent Gantt must be eligible and fail closed instead of selecting legacy");
+expect(host.includes("activation.serverReadFailure") && host.includes("activation.runtimeFailure") && host.includes("server-read-pending"), "permanent Gantt must own explicit loading, read-error and model-error shells");
+expect(app.includes('signedSlotScheduleCapabilityReady') && app.includes('planningCapability.capabilities?.slotScheduleEnabled === true'), "permanent slot reschedule must require the signed Planning owner capability");
+expect(app.includes('["planning", "gantt"].includes(ui?.activeModule)'), "signed Planning capability completion must refresh the permanent Gantt command surface");
 expect(app.includes('command.type !== "reschedule-slot"'), "Gantt React host must expose only the typed reschedule command");
-expect(app.includes("await changePlanningSlotSchedule(routeId, operationId, plannedStart.toISOString(), { renderOnConflict: false })"), "Gantt React must call the existing Planning schedule owner without unmounting typed conflict feedback");
+expect(app.includes("await changePlanningSlotSchedule(routeId, operationId, plannedStart.toISOString(), { renderOnConflict: false, requireServerCommand: true })"), "Gantt React must call the existing Planning schedule owner and forbid local write fallback");
 expect(app.includes('authorizeSystemDomainAction("planning", "edit")'), "Gantt React schedule command must recheck Planning edit authorization");
 expect(runtime.includes("function getGanttReactModel"), "legacy Gantt runtime must own the React geometry read model");
 expect(legacyToolbar.includes('id="periodStart"') && legacyToolbar.includes("data-scale=") && legacyToolbar.includes("data-gantt-zoom=") && legacyToolbar.includes("data-toggle-all-projects") && legacyToolbar.includes("data-toggle-gantt-quantity") && legacyToolbar.includes('id="todayButton"') && legacyToolbar.includes('id="refreshButton"'), "legacy toolbar evidence must identify each bounded local control and the separate refresh action");
@@ -34,7 +38,9 @@ expect(["set-window-start", "set-scale", "set-zoom", "jump-today", "toggle-expan
 expect(JSON.stringify(adapterScaleIds) === JSON.stringify(Object.keys(scaleConfig)), `typed Gantt scale list must exactly match scaleConfig (${Object.keys(scaleConfig).join(", ")})`);
 expect(scenario.includes("data-gantt-react-period") && scenario.includes("data-gantt-react-scale") && scenario.includes("data-gantt-react-zoom") && scenario.includes("data-gantt-react-toggle-expanded-routes") && scenario.includes("data-gantt-react-toggle-quantity") && scenario.includes("data-gantt-react-jump-today"), "React Gantt must render each safe local production-shell control");
 expect(!scenario.includes('type: "refresh"') && !scenario.includes("data-gantt-react-refresh"), "schedule-mutating refresh must remain outside this local React control slice");
-expect(!scenario.includes('onRequestLegacy?.("toolbar")'), "React Gantt toolbar must not use a normal user-action legacy fallback");
+expect(!scenario.includes("onRequestLegacy"), "React Gantt must not expose a normal user-action legacy fallback");
+expect(["refresh", "edit-dependency", "drag", "resize", "optimize"].every((action) => scenario.includes(`data-gantt-react-blocked-action=\"${action}\"`)), "ownerless Gantt mutations must be explicitly blocked in React");
+expect(scenario.includes("data-gantt-react-schedule-blocked"), "ownerless start-date sessions must remain visibly blocked in React instead of opening legacy editing");
 expect(host.includes("onNavigate: navigate ? (navigation) => navigate(navigation) : undefined"), "Gantt React host must wire typed toolbar navigation");
 expect(/navigate: async \(navigation = \{\}\)[\s\S]*navigation\.type === "set-window-start"[\s\S]*persistUiState\(\{ skipRememberScroll: true \}\)[\s\S]*navigation\.type === "set-scale"[\s\S]*navigation\.type === "set-zoom"[\s\S]*setGanttZoom\(navigation\.action\)/.test(app), "Gantt toolbar navigation must reuse the existing UI-state owner and zoom owner");
 expect(/navigation\.type === "jump-today"[\s\S]*jumpGanttToToday\(\)[\s\S]*navigation\.type === "toggle-expanded-routes"[\s\S]*toggleAllVisibleGanttRoutes\(\)[\s\S]*navigation\.type === "toggle-quantity"[\s\S]*toggleGanttQuantityVisibility\(\)/.test(app), "safe React display actions must route to the shared Planning UI-state owner");
@@ -42,11 +48,12 @@ expect(/function jumpGanttToToday\(\)[\s\S]*ui\.windowStart = toDateInput\(start
 expect(/querySelector\("#todayButton"\)[\s\S]*jumpGanttToToday\(\)[\s\S]*querySelector\("\[data-toggle-all-projects\]"\)[\s\S]*toggleAllVisibleGanttRoutes\(\)[\s\S]*querySelector\("\[data-toggle-gantt-quantity\]"\)[\s\S]*toggleGanttQuantityVisibility\(\)/.test(runtime), "legacy and React toolbars must share the same local action owner");
 expect(/querySelector\("#refreshButton"\)[\s\S]*rescheduleAllGanttSlotsByCurrentCalendars\(\)[\s\S]*persistState\(\)/.test(runtime), "refresh must remain classified as a schedule mutation, not a local toolbar action");
 expect(planningCore.includes('scale: scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale'), "all exposed Gantt scales, including weeks, must survive owner-state reload");
-expect(ganttLedger?.normalActionFallback === true, "Gantt must retain the declared read-only slot legacy rollback until that separate action is migrated");
+expect(ganttLedger?.normalActionFallback === false, "Gantt normal actions must not switch back to the live legacy renderer");
 expect(["set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"].every((command) => ganttLedger?.commands?.implemented?.includes(command)), "Gantt ledger must close only the six typed local control actions");
 expect(["refresh", "edit-dependency", "drag", "resize", "optimize"].every((command) => ganttLedger?.commands?.missing?.includes(command)), "Gantt ledger must keep every mutating toolbar/canvas action explicit");
+expect(["refresh", "edit-dependency", "drag", "resize", "optimize"].every((command) => ganttLedger?.commands?.blocked?.includes(command)), "Gantt ledger must distinguish blocked ownerless actions from legacy fallbacks");
 expect(!scenario.includes("getDependencyPairs") && !scenario.includes("planningState"), "React Gantt must not duplicate dependency or planning ownership");
-expect(!app.includes("MES_REACT_GANTT: true"), "Gantt React must remain disabled by default");
+expect(app.includes('getReactRuntimeMode("gantt") === "react"') && app.includes("if (ganttPermanentReact)"), "normal Gantt rendering and read fallback gates must branch on permanent React policy");
 expect(!app.includes("MES_REACT_GANTT_WRITE"), "Gantt React must not add a Pilot write flag");
 if (failures.length) { console.error(failures.map((failure) => `FAIL: ${failure}`).join("\n")); process.exit(1); }
 console.log("Gantt React runtime policy QA: OK");

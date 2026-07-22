@@ -352,6 +352,7 @@ if (candidatePolicy) {
     "componentTypes",
     "contourAdmin",
     "employeeDesktop",
+    "gantt",
     "nomenclature",
     "nomenclatureTypes",
     "operations",

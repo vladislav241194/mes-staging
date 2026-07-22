@@ -23,7 +23,7 @@
     "shiftMasterBoard": "react",
     "employeeDesktop": "react",
     "specifications2": "evaluation",
-    "gantt": "evaluation",
+    "gantt": "react",
     "authPicker": "react",
     "contourAdmin": "react"
   }

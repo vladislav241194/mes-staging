@@ -57,6 +57,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "planningWorkbench",
   "employeeDesktop",
   "contourAdmin",
+  "gantt",
 ], "permanent allowlist must stay explicit and limited to fully wired consumers");
 const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
 assert.deepEqual(
@@ -79,6 +80,7 @@ if (candidatePolicy) {
     "componentTypes",
     "contourAdmin",
     "employeeDesktop",
+    "gantt",
     "nomenclature",
     "nomenclatureTypes",
     "operations",
@@ -144,8 +146,8 @@ assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "b
 assert.throws(() => normalizeReactRuntimePolicy({
   schemaVersion: 1,
   policyId: "unwired-react",
-  surfaces: { ...allEvaluationSurfaces, gantt: "react" },
-}), /not wired for permanent mode: gantt/);
+  surfaces: { ...allEvaluationSurfaces, shiftMasterBoard: "react" },
+}), /not wired for permanent mode: shiftMasterBoard/);
 
 const weeklyEvaluationEnv = {
   MES_REACT_WEEKLY_PRODUCTION_CONTROL: "1",
