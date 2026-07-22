@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
 import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "../src/modules/shift_work_orders/journal_owner.js";
@@ -35,9 +35,15 @@ assert.deepEqual(disabledHost.prepareRender(), { activateReact: false, reason: "
 assert.match(disabledHost.renderTarget(), /data-react-island-state="error"[^]*react-required/, "a disabled current runtime must fail closed instead of rendering legacy");
 const releasePolicy = JSON.parse(await readFile("react-runtime-policy.json", "utf8"));
 assert.equal(releasePolicy.surfaces.shiftWorkOrders, "react", "release policy must select permanent Shift Work Orders");
+await assert.rejects(
+  access("src/modules/shift_work_orders/render.js"),
+  (error) => error?.code === "ENOENT",
+  "the retired Shift Work Orders renderer must be physically absent",
+);
 const appSource = await readFile("src/app.js", "utf8");
 const hostSource = await readFile("src/modules/shift_work_orders/react_island_host.js", "utf8");
 const journalOwnerSource = await readFile("src/modules/shift_work_orders/journal_owner.js", "utf8");
+const scenarioSource = await readFile("experiments/react-migration/src/modules/shift-work-orders/ShiftWorkOrdersScenario.tsx", "utf8");
 assert.match(appSource, /surfaceId: "shiftWorkOrders"/);
 assert.match(appSource, /activation\.accessMode === "react" \|\| localQa\.writeEvaluation/);
 assert.match(appSource, /productionModel: getShiftWorkOrdersProductionInput\(\)/);
@@ -52,6 +58,7 @@ assert.match(hostSource, /canFallbackToLegacy: \(\) => false/, "bundle and rende
 assert.doesNotMatch(hostSource, /requestLegacyRender/, "the current Shift Work Orders host must not expose a legacy callback");
 assert.match(journalOwnerSource, /buildShiftWorkOrdersProductionModel/, "shared journal consumers must use the React production model");
 assert.doesNotMatch(journalOwnerSource, /shift_work_orders\/render\.js/, "the shared journal owner must not import the retired renderer");
+assert.match(scenarioSource, /title="Печать СЗН"/, "the React journal must expose a stable print overlay probe trigger");
 
 let selectedRowId = "";
 const journalOwner = createShiftWorkOrderJournalOwner({

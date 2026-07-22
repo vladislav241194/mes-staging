@@ -98,9 +98,25 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   shiftWorkOrders: {
     css: ["styles/layers/60-operational-modules.css"],
+    files: [
+      "src/modules/shift_work_orders/react_island_host.js",
+      "src/modules/shift_work_orders/journal_owner.js",
+      "src/modules/shift_work_orders/production_model.ts",
+      "experiments/react-migration/src/shift-work-orders-island.tsx",
+      "experiments/react-migration/src/modules/shift-work-orders/adapter.ts",
+      "experiments/react-migration/src/modules/shift-work-orders/production-model.ts",
+      "experiments/react-migration/src/modules/shift-work-orders/ShiftWorkOrdersScenario.tsx",
+      "experiments/react-migration/src/modules/shift-work-orders/ShiftWorkOrderFactEditor.tsx",
+      "experiments/react-migration/src/modules/shift-work-orders/ShiftWorkOrderPrintPreviews.tsx",
+    ],
     storage: CORE_STATE_STORAGE_KEYS,
     api: ["/api/shared-state"],
-    qa: ["scripts/shift-operational-flow-functional-qa.mjs", "scripts/ui-table-contract-audit.mjs"],
+    qa: [
+      "scripts/shift-work-orders-react-runtime-policy-qa.mjs",
+      "scripts/shift-work-orders-react-production-model-qa.mjs",
+      "scripts/shift-master-board-command-owner-qa.mjs",
+      "scripts/shift-master-board-server-execution-bridge-qa.mjs",
+    ],
   },
   productionStructureMatrix: {
     css: ["styles/layers/70-planning-table-and-matrix.css"],
