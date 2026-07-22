@@ -62,9 +62,9 @@ function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftW
   if (scenario === "contourAdmin") return <ContourAdminScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "specifications2") return <Specifications2Scenario payload={payload} />;
   if (scenario === "roles") return <RolesReadScenario payload={payload} />;
-  if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "statuses") return <StatusesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "operations") return <OperationsScenario payload={payload} />;
+  if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} />;
+  if (scenario === "statuses") return <StatusesScenario payload={payload} />;
   return <NomenclatureScenario payload={payload} onRequestBoards={() => { location.search = "?scenario=boards"; }} />;
 }
 

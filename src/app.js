@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.50";
+const APP_VERSION_FALLBACK = "v.1.500.51";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -2186,9 +2186,7 @@ function updateProductionStructureMatrixRegistryUrl(registryId = "orgUnits") {
   if (nextUrl !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(null, "", nextUrl);
 }
 
-let bindProductionStructureMatrixEvents = () => {};
 let productionStructureMatrixActiveRegistry = getProductionStructureMatrixRegistryFromUrl() || "orgUnits";
-let setLegacyProductionStructureMatrixActiveRegistry = () => "orgUnits";
 function getProductionStructureMatrixActiveRegistry() {
   return productionStructureMatrixActiveRegistry;
 }
@@ -2201,18 +2199,10 @@ function syncProductionStructureMatrixActiveRegistry(registryId = "orgUnits") {
 }
 function setProductionStructureMatrixActiveRegistry(registryId = "orgUnits") {
   const normalized = syncProductionStructureMatrixActiveRegistry(registryId);
-  if (productionStructureMatrixModuleState.status === "ready") setLegacyProductionStructureMatrixActiveRegistry(normalized);
   persistUiState();
   return normalized;
 }
-let getProductionStructureMatrixRuntimeOverrides = () => normalizePlainRecord(ui?.productionStructureMatrixOverrides);
-let renderProductionStructureMatrixPage = () => renderUiModulePage({
-  ariaLabel: "Структура производства",
-  className: "production-structure-matrix-page",
-  content: renderUiEmptyState({ title: "Загружаем структуру производства", description: "Полная матрица открывается только по запросу." }),
-});
-let productionStructureMatrixModuleLoad = null;
-let productionStructureMatrixModuleState = { status: "idle", error: "" };
+const getProductionStructureMatrixRuntimeOverrides = () => normalizePlainRecord(ui?.productionStructureMatrixOverrides);
 let productionStructureMatrixData = { PRODUCTION_STRUCTURE_MATRIX_COLUMNS: [], PRODUCTION_STRUCTURE_MATRIX_ROWS: [] };
 let productionStructureDiagnosticsDataLoad = null;
 let productionStructureDiagnosticsDataState = { status: "idle", error: "" };
@@ -2232,88 +2222,6 @@ function ensureProductionStructureDiagnosticsData() {
       return null;
     });
   return productionStructureDiagnosticsDataLoad;
-}
-function initializeProductionStructureMatrixModule(factory, matrixData) {
-  productionStructureMatrixData = matrixData;
-  productionStructureDiagnosticsDataState = { status: "ready", error: "" };
-  const legacyModule = factory({
-  PRODUCTION_STRUCTURE_MATRIX_COLUMNS: matrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
-  PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS: matrixData.PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS,
-  PRODUCTION_STRUCTURE_MATRIX_ROWS: matrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS,
-  SHIFT_MASTER_ASSIGNMENT_SCOPE_MODES,
-  archiveSystemDomainEntity,
-  canEditSystemDomainRegistry,
-  escapeAttribute,
-  escapeHtml,
-  getApp: () => app,
-  getShiftMasterAssignableEmployees,
-  getShiftMasterAssignmentConfig,
-  getShiftMasterDefaultEmployeeScope,
-  getShiftMasterEmployeeRows,
-  getShiftMasterNormalizedWorkCenterId,
-  getShiftMasterProfile,
-  getShiftMasterProfiles,
-  getShiftMasterWorkCenterCatalog,
-  getSystemDomainsMigrationReport,
-  getSystemDomainsState,
-  getUi: () => ui,
-  getWorkCenter,
-  joinUiClasses,
-  normalizePlainRecord,
-  normalizeShiftMasterAssignmentScopeMode,
-  notifySaveSuccess,
-  onActiveRegistryChange: syncProductionStructureMatrixActiveRegistry,
-  persistUiState,
-  render,
-  renderUiActionButton,
-  renderUiEmptyState,
-  renderUiFormField,
-  renderUiFormGrid,
-  renderUiModuleHeader,
-  renderUiModulePage,
-  renderUiModuleSidebar,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiSidebarItem,
-  renderUiStatusToken,
-  renderUiTableControlAttributes,
-  renderUiTableWrap,
-  resetShiftMasterAssignmentMatrixConfig,
-  selected,
-  setShiftMasterAssignmentMatrixConfig,
-  setShiftMasterAssignmentMatrixEmployee,
-  sortShiftMasterAssignableEmployees,
-  syncProductionStructureMatrixToPlanningState,
-  upsertSystemDomainEntity,
-  });
-  bindProductionStructureMatrixEvents = legacyModule.bindProductionStructureMatrixEvents;
-  getProductionStructureMatrixRuntimeOverrides = legacyModule.getProductionStructureMatrixRuntimeOverrides;
-  renderProductionStructureMatrixPage = legacyModule.renderProductionStructureMatrixPage;
-  setLegacyProductionStructureMatrixActiveRegistry = legacyModule.setProductionStructureMatrixActiveRegistry;
-  setLegacyProductionStructureMatrixActiveRegistry(productionStructureMatrixActiveRegistry);
-}
-
-function ensureProductionStructureMatrixModule() {
-  if (productionStructureMatrixModuleLoad) return;
-  productionStructureMatrixModuleState = { status: "loading", error: "" };
-  productionStructureMatrixModuleLoad = Promise.all([
-    import("./modules/production_structure_matrix/render.js"),
-    import("./production_structure_matrix_data.js"),
-    ensureLegacyProductionStructure(),
-  ]).then(([{ createProductionStructureMatrixModule }, matrixData]) => {
-    initializeProductionStructureMatrixModule(createProductionStructureMatrixModule, matrixData);
-    productionStructureMatrixModuleState = { status: "ready", error: "" };
-    if (["productionStructureMatrix", "weeklyProductionControl", "timesheet"].includes(ui.activeModule)) render();
-  }).catch((error) => {
-    productionStructureMatrixModuleState = { status: "error", error: error?.message || "Production Structure Matrix module is unavailable" };
-    console.error("Не удалось загрузить структуру производства", error);
-    renderProductionStructureMatrixPage = () => renderUiModulePage({
-      ariaLabel: "Структура производства",
-      className: "production-structure-matrix-page",
-      content: renderUiEmptyState({ title: "Модуль недоступен", description: "Обновите страницу и повторите попытку." }),
-    });
-    if (["productionStructureMatrix", "weeklyProductionControl", "timesheet"].includes(ui.activeModule)) render();
-  });
 }
 
 let bindAccessRolesEvents = () => {};
@@ -3452,7 +3360,6 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
     return { ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureEmployees", "employees", getStructureEmployeesReactLocalQaOverrides()) };
   },
   getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
     if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureEmployees", "employees");
@@ -3560,7 +3467,6 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
   },
   getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structurePositions", "positions", getStructurePositionsReactLocalQaOverrides()) }),
   getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
     if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structurePositions", "positions");
@@ -3646,7 +3552,6 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
   },
   getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureOrgUnits", "orgUnits", getStructureOrgUnitsReactLocalQaOverrides()) }),
   getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
     if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureOrgUnits", "orgUnits");
@@ -3736,7 +3641,6 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
     return resolveProductionStructureRegistryActivation({ surfaceId: "structureWorkCenters", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureWorkCentersReactEvaluationRequested(), localQa });
   },
   getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureWorkCenters", "workCenters", getStructureWorkCentersReactLocalQaOverrides()) }), getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
     if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureWorkCenters", "workCenters");
@@ -3818,7 +3722,6 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
     return resolveProductionStructureRegistryActivation({ surfaceId: "structureEquipment", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureEquipmentReactEvaluationRequested(), localQa });
   },
   getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureEquipment", "equipment", getStructureEquipmentReactLocalQaOverrides()) }), getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
     if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureEquipment", "equipment");
@@ -3900,7 +3803,6 @@ const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibi
     return resolveProductionStructureRegistryActivation({ surfaceId: "structureResponsibilityPolicies", featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true, readOnlyEvaluationAllowed: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION === true, evaluationRequested: isStructureResponsibilityPoliciesReactEvaluationRequested(), localQa });
   },
   getPayload: () => ({ ...systemDomainsState, capabilities: getProductionStructureRegistryCapabilities("structureResponsibilityPolicies", "responsibilityPolicies", getStructureResponsibilityPoliciesReactLocalQaOverrides()) }), getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   navigateRegistry: navigateProductionStructureRegistry,
   executeCommand: async (command = {}) => {
     if (command.type === "request-elevation") return beginProductionStructureEmployeeElevation("structureResponsibilityPolicies", "responsibilityPolicies");
@@ -4006,7 +3908,6 @@ const structureMigrationDiagnosticsReactIslandHost = createStructureMigrationDia
     setProductionStructureMatrixActiveRegistry(PRODUCTION_STRUCTURE_REGISTRY_IDS.has(String(registryId || "")) ? registryId : "employees");
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
   },
-  requestLegacyRender: () => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
 });
 
 const productionStructureReactHosts = Object.freeze({ employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost });
@@ -5212,18 +5113,6 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     ui.shiftMasterBoardFocus = "mine";
     persistUiState();
     queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
-  },
-  requestLegacyRender: (_reason, scope = "") => {
-    const [action, rowId] = String(scope || "").split(":");
-    const model = shiftMasterBoardCommandOwner.getModel();
-    const row = (model.allRows || []).find((item) => item.id === rowId) || model.selectedRow || null;
-    if (row?.id) ui.shiftMasterBoardSelectedSlotId = row.id;
-    if (action === "print" && row?.id) {
-      ui.shiftMasterBoardPrintPreviewId = row.id;
-      ui.shiftMasterBoardPrintPreviewEmployeeId = row.boardAssignment?.executors?.[0]?.employeeId || "";
-    }
-    persistUiState();
-    if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });
   },
   executeCommand: async (command = {}) => {
     const localQa = getShiftMasterBoardReactLocalQaOverrides();
@@ -6476,7 +6365,6 @@ function isDirectoryComponentTypesReactEvaluationRequested() {
   if (params.get("react-directory-component-types-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
-let directoryReactLegacyOverride = false;
 function resolveDirectoryReactActivation({
   surfaceId,
   evaluationFeatureEnabled,
@@ -6494,7 +6382,7 @@ function resolveDirectoryReactActivation({
   return {
     ...runtimeActivation,
     featureFlagEnabled: runtimeActivation.runtimeMode === "react"
-      || (!directoryReactLegacyOverride && runtimeActivation.featureFlagEnabled),
+      || runtimeActivation.featureFlagEnabled,
     activeSection: normalizeDirectorySectionId(ui.activeDirectory),
     accessMode: runtimeActivation.runtimeMode === "react"
       ? "react"
@@ -6541,10 +6429,6 @@ const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReac
   },
   getTargetRoot: () => app,
   navigateSection: navigateDirectoryReactSection,
-  requestLegacyRender: (_reason, sectionId) => {
-    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
-    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
     if (!canWriteDirectoryReactSurface(
@@ -6655,10 +6539,6 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
   },
   getTargetRoot: () => app,
   navigateSection: navigateDirectoryReactSection,
-  requestLegacyRender: (_reason, sectionId) => {
-    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
-    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryOperationsReactLocalQaOverrides();
     if (!canWriteDirectoryReactSurface(
@@ -6885,7 +6765,7 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
     return {
       ...runtimeActivation,
       featureFlagEnabled: runtimeActivation.runtimeMode === "react"
-        || (!directoryReactLegacyOverride && runtimeActivation.featureFlagEnabled),
+        || runtimeActivation.featureFlagEnabled,
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
       accessMode: runtimeActivation.runtimeMode === "react"
         ? "react"
@@ -6940,10 +6820,6 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
   },
   getTargetRoot: () => app,
   navigateSection: navigateDirectoryReactSection,
-  requestLegacyRender: (_reason, sectionId) => {
-    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
-    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
     const exactReplay = nomenclatureTypesUncertainCommands.has(getNomenclatureTypesCommandIdempotencyKey(command));
@@ -7046,10 +6922,6 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
   },
   getTargetRoot: () => app,
   navigateSection: navigateDirectoryReactSection,
-  requestLegacyRender: (_reason, sectionId) => {
-    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
-    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getDirectoryStatusesReactLocalQaOverrides();
     if (!canWriteDirectoryReactSurface(
@@ -11104,27 +10976,15 @@ function initializeModuleRuntime() {
           nomenclatureTypes: directoryNomenclatureTypesReactIslandHost,
           statuses: directoryStatusesReactIslandHost,
         };
-        const activeReactHost = directoryReactHosts[normalizeDirectorySectionId(ui.activeDirectory)];
+        const activeReactHost = directoryReactHosts[normalizeDirectorySectionId(ui.activeDirectory)]
+          || directoryOperationsReactIslandHost;
         Object.values(directoryReactHosts).forEach((host) => {
           if (host !== activeReactHost) host.prepareRender();
         });
-        const reactDecision = activeReactHost?.prepareRender();
-        if (reactDecision?.activateReact) return activeReactHost.renderTarget();
-        // The large routes renderer is now an immutable rollback-only chunk.
-        // Permanent React directories own both their loading and error shells.
-        ensureRoutesRenderModule();
-        if (routesRenderModuleError) {
-          return renderMesModulePatternPage({
-            moduleId: "directories",
-            content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
-          });
-        }
-        return renderDirectoryPage();
+        activeReactHost.prepareRender();
+        return activeReactHost.renderTarget();
       },
-      bind: () => {
-        if (directoryComponentTypesReactIslandHost.isReactEligible() || directoryOperationsReactIslandHost.isReactEligible() || directoryNomenclatureTypesReactIslandHost.isReactEligible() || directoryStatusesReactIslandHost.isReactEligible()) return;
-        bindDirectoryEvents();
-      },
+      bind: () => {},
       afterRender: () => {
         void directoryComponentTypesReactIslandHost.mount();
         void directoryOperationsReactIslandHost.mount();
@@ -11223,15 +11083,10 @@ function initializeModuleRuntime() {
         const activeReactHost = getActiveProductionStructureReactHost();
         if (getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") ensureProductionStructureDiagnosticsData();
         Object.values(productionStructureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
-        const reactDecision = activeReactHost.prepareRender();
-        if (reactDecision.activateReact) return activeReactHost.renderTarget();
-        ensureProductionStructureMatrixModule();
-        return renderProductionStructureMatrixPage();
+        activeReactHost.prepareRender();
+        return activeReactHost.renderTarget();
       },
-      bind: () => {
-        if (getActiveProductionStructureReactHost().isReactEligible()) return;
-        bindProductionStructureMatrixEvents();
-      },
+      bind: () => {},
       afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); void structureOrgUnitsReactIslandHost.mount(); void structureWorkCentersReactIslandHost.mount(); void structureEquipmentReactIslandHost.mount(); void structureResponsibilityPoliciesReactIslandHost.mount(); void structureMigrationDiagnosticsReactIslandHost.mount(); },
     },
     timesheet: {
@@ -11319,23 +11174,11 @@ function initializeModuleRuntime() {
         }
         if (planningRuntimeProjectionState.status === "idle") void hydratePlanningRuntimeProjection();
         if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();
-        const reactDecision = shiftMasterBoardReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return shiftMasterBoardReactIslandHost.renderTarget();
-        // The immutable renderer remains available only when the signed
-        // runtime policy explicitly rejects permanent React.
-        ensureShiftMasterBoardModule();
-        if (shiftMasterBoardModuleError) {
-          return renderShiftMasterBoardShellState({
-            title: "Не удалось загрузить мастерскую",
-            description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
-          });
-        }
-        return renderShiftMasterBoardPage();
+        shiftMasterBoardReactIslandHost.prepareRender();
+        return shiftMasterBoardReactIslandHost.renderTarget();
       },
-      renderModals: () => shiftMasterBoardReactIslandHost.isReactEligible()
-        ? ""
-        : `${renderShiftMasterBoardSheetModal()}${renderShiftMasterBoardActionModal()}`,
-      bind: () => { if (!shiftMasterBoardReactIslandHost.isReactEligible()) bindShiftMasterBoardEvents(); },
+      renderModals: () => "",
+      bind: () => {},
       afterRender: () => { void shiftMasterBoardReactIslandHost.mount(); },
     },
     shiftWorkOrders: {

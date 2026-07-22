@@ -44,11 +44,10 @@ interface NomenclatureTypeDeletePayload {
     idempotencyKey: string;
 }
 
-export function NomenclatureTypesScenario({ payload, onCommand, onNavigateSection, onRequestLegacy }: {
+export function NomenclatureTypesScenario({ payload, onCommand, onNavigateSection }: {
   payload: unknown;
   onCommand?(command: NomenclatureTypesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
   onNavigateSection?(sectionId: DirectorySectionId): void;
-  onRequestLegacy?(): void;
 }) {
   const model = useMemo(() => adaptNomenclatureTypesModel(payload), [payload]);
   const filters = useMemo(() => buildNomenclatureTypeFilters(model.items), [model.items]);
@@ -109,7 +108,6 @@ export function NomenclatureTypesScenario({ payload, onCommand, onNavigateSectio
 
   const header = <ModuleHeader eyebrow="Технологии" title="Типы номенклатуры" badge={<span className="lab-badge" data-react-complete-marker>{model.canCreateEdit ? `React TS · ${writeCapabilityLabel}${model.canDelete ? "/delete" : ""}` : "React TS · только чтение"}</span>} />;
   const sidebar = <ModuleSidebar label="Типы номенклатуры по статусу" title="Статусы">
-    {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
     <DirectorySectionNavigation activeId="nomenclatureTypes" onNavigate={onNavigateSection} />
     {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
   </ModuleSidebar>;

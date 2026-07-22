@@ -63,20 +63,59 @@ for (const [surfaceId, factory] of Object.entries(factories)) {
   });
   assert.deepEqual(host.prepareRender(), { activateReact: true, reason: "eligible" }, `${surfaceId}: permanent host must be eligible`);
   assert.match(host.renderTarget(), new RegExp(`data-react-directory-${surfaceId === "componentTypes" ? "component-types" : surfaceId === "nomenclatureTypes" ? "nomenclature-types" : surfaceId}-island`));
+  assert.match(host.renderTarget(), /data-react-island-state="loading"/, `${surfaceId}: eligible host must expose its React loading target`);
+
+  const disabledHost = factory({
+    getActivation: () => ({ featureFlagEnabled: false, activeSection: surfaceId, accessMode: "legacy", runtimeMode: "disabled" }),
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(disabledHost.prepareRender(), { activateReact: false, reason: "disabled" }, `${surfaceId}: disabled activation must remain ineligible`);
+  assert.match(disabledHost.renderTarget(), /data-react-island-state="error"/, `${surfaceId}: an ineligible active route must render a deterministic error shell`);
+  assert.match(disabledHost.renderTarget(), /Код ошибки: disabled/, `${surfaceId}: fail-closed shell must expose the bounded policy reason`);
+  assert.equal(await disabledHost.mount(), false, `${surfaceId}: an ineligible active route must not mount or fall back to legacy`);
 }
 
 const hostSource = await readFile(join(projectRoot, "src/modules/directories/react_island_host.js"), "utf8");
-assert.equal((hostSource.match(/allowPermanentReact:\s*true/g) || []).length, 4, "all four Directory hosts must fail closed inside permanent React");
-assert.match(hostSource, /canFallbackToLegacy:\s*\(activation\)\s*=>\s*!\(allowPermanentReact && activation\.accessMode === "react"\)/);
-assert.match(hostSource, /onRequestLegacy:\s*allowPermanentReact && getActivation\?\.\(\)\.accessMode === "react"\s*\?\s*undefined/);
-assert.match(hostSource, /onNavigateSection:\s*allowPermanentReact[\s\S]*getActivation\?\.\(\)\.accessMode === "react"/, "direct section navigation must be permanent-only while evaluation retains its isolated legacy-return contract");
+assert.match(hostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/, "all four Directory hosts must fail closed for every activation mode");
+assert.match(hostSource, /getShellState:\s*\(activation\)[\s\S]*state:\s*"error"/, "the active host must own its ineligibility shell");
+assert.doesNotMatch(hostSource, /allowPermanentReact|requestLegacyRender|onRequestLegacy|legacy-directory/, "the shared Directory host must not expose a same-release legacy bridge");
+assert.match(hostSource, /onNavigateSection:\s*typeof navigateSection === "function"/, "direct typed section navigation must remain available without a legacy-return branch");
 
 const appSource = await readFile(join(projectRoot, "src/app.js"), "utf8");
 for (const surfaceId of surfaceIds) assert.match(appSource, new RegExp(`surfaceId: "${surfaceId}"`), `${surfaceId}: app must resolve signed activation`);
 assert.equal((appSource.match(/navigateSection:\s*navigateDirectoryReactSection/g) || []).length, 4, "every Directory island must use direct React section navigation");
 assert.match(appSource, /getReactRuntimeMode\(surfaceId\) === "react" \|\| localWriteEvaluation === true/);
 assert.match(appSource, /&& !isNomenclatureServerCommandsPrimary\(\)/, "generic Directory writes must fail closed while Nomenclature commands own the monolithic projection");
-assert.match(appSource, /const reactDecision = activeReactHost\?\.prepareRender\(\);[\s\S]*if \(reactDecision\?\.activateReact\) return activeReactHost\.renderTarget\(\);[\s\S]*ensureRoutesRenderModule\(\);/, "permanent Directory routes must choose React before loading the rollback renderer");
+assert.doesNotMatch(appSource, /directoryReactLegacyOverride|legacy-directory/, "application hosts must not retain a same-release Directory legacy bridge");
+const runtimeStart = appSource.indexOf("function initializeModuleRuntime()");
+const directoryRouteStart = appSource.indexOf("directories: {", runtimeStart);
+const directoryRouteEnd = appSource.indexOf("specifications2: {", directoryRouteStart);
+const directoryRouteSource = appSource.slice(directoryRouteStart, directoryRouteEnd);
+assert(runtimeStart >= 0 && directoryRouteStart > runtimeStart && directoryRouteEnd > directoryRouteStart, "Directory route boundary must be discoverable");
+assert.match(directoryRouteSource, /activeReactHost\.prepareRender\(\);\s*return activeReactHost\.renderTarget\(\);/, "the route must always select the active fail-closed React host");
+assert.match(directoryRouteSource, /bind:\s*\(\)\s*=>\s*\{\}/, "the permanent Directory route must not bind legacy DOM events");
+assert.doesNotMatch(directoryRouteSource, /ensureRoutesRenderModule|renderDirectoryPage|bindDirectoryEvents/, "the permanent Directory route must not enter the same-release routes renderer");
+
+const scenarioPaths = [
+  "modules/component-types/ComponentTypesScenario.tsx",
+  "modules/operations/OperationsScenario.tsx",
+  "modules/nomenclature-types/NomenclatureTypesScenario.tsx",
+  "modules/statuses/StatusesScenario.tsx",
+];
+for (const relativePath of scenarioPaths) {
+  const source = await readFile(join(projectRoot, "experiments/react-migration/src", relativePath), "utf8");
+  assert.doesNotMatch(source, /onRequestLegacy|legacy-контур|legacy-directory/, `${relativePath}: completed TS surface must not expose a legacy-return action`);
+  assert.match(source, /data-react-complete-marker/, `${relativePath}: React TS completion marker must remain visible`);
+  assert.match(source, /DirectorySectionNavigation/, `${relativePath}: typed deep-link navigation must remain intact`);
+  assert.match(source, /onCommand/, `${relativePath}: shared command owner bridge must remain intact`);
+}
+for (const relativePath of ["component-types-island.tsx", "operations-island.tsx", "nomenclature-types-island.tsx", "statuses-island.tsx"]) {
+  const source = await readFile(join(projectRoot, "experiments/react-migration/src", relativePath), "utf8");
+  assert.doesNotMatch(source, /onRequestLegacy/, `${relativePath}: TS mount bridge must not accept a legacy callback`);
+  assert.match(source, /onNavigateSection/, `${relativePath}: TS mount bridge must preserve typed navigation`);
+  assert.match(source, /onCommand/, `${relativePath}: TS mount bridge must preserve commands`);
+}
 
 const ledger = JSON.parse(await readFile(join(projectRoot, "experiments/react-migration/cutover-ledger.json"), "utf8"));
 const directoryModule = ledger.modules.find((module) => module.id === "directories");

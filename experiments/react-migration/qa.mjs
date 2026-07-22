@@ -1095,16 +1095,16 @@ try {
 
   const componentTypesIslandSource = await readFile(join(sourceRoot, "component-types-island.tsx"), "utf8");
   assert.match(componentTypesIslandSource, /export function mountComponentTypesReactIsland/);
-  assert.match(componentTypesIslandSource, /onRequestLegacy/);
+  assert.doesNotMatch(componentTypesIslandSource, /onRequestLegacy/, "permanent Component Types must not expose a legacy renderer callback");
   assert.match(componentTypesIslandSource, /onCommand/);
 
   const operationsIslandSource = await readFile(join(sourceRoot, "operations-island.tsx"), "utf8");
   assert.match(operationsIslandSource, /export function mountOperationsReactIsland/);
-  assert.match(operationsIslandSource, /onRequestLegacy/);
+  assert.doesNotMatch(operationsIslandSource, /onRequestLegacy/, "permanent Operations must not expose a legacy renderer callback");
 
   const nomenclatureTypesIslandSource = await readFile(join(sourceRoot, "nomenclature-types-island.tsx"), "utf8");
   assert.match(nomenclatureTypesIslandSource, /export function mountNomenclatureTypesReactIsland/);
-  assert.match(nomenclatureTypesIslandSource, /onRequestLegacy/);
+  assert.doesNotMatch(nomenclatureTypesIslandSource, /onRequestLegacy/, "permanent Nomenclature Types must not expose a legacy renderer callback");
   assert.match(nomenclatureTypesIslandSource, /onCommand/);
 
   const appEventsServiceSource = await readFile(join(repositoryRoot, "src/modules/app_events/service.js"), "utf8");
@@ -1115,7 +1115,7 @@ try {
 
   const statusesIslandSource = await readFile(join(sourceRoot, "statuses-island.tsx"), "utf8");
   assert.match(statusesIslandSource, /export function mountStatusesReactIsland/);
-  assert.match(statusesIslandSource, /onRequestLegacy/);
+  assert.doesNotMatch(statusesIslandSource, /onRequestLegacy/, "permanent Statuses must not expose a legacy renderer callback");
   assert.match(statusesIslandSource, /onCommand/);
 
   const specifications2IslandSource = await readFile(join(sourceRoot, "specifications2-island.tsx"), "utf8");
@@ -1327,12 +1327,12 @@ try {
   assert.deepEqual(
     makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "read-only-evaluation" }).prepareRender(),
     { activateReact: false, reason: "unsupported-scope" },
-    "other directory sections must remain legacy",
+    "an inactive Directory host must remain ineligible",
   );
   assert.deepEqual(
     makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "editor" }).prepareRender(),
     { activateReact: false, reason: "write-parity-incomplete" },
-    "directory editors must retain legacy commands",
+    "an unsupported Component Types access mode must fail closed before command dispatch",
   );
   const eligibleDirectoryComponentTypesHost = makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryComponentTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
@@ -1361,7 +1361,7 @@ try {
   assert.deepEqual(
     makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "editor" }).prepareRender(),
     { activateReact: false, reason: "write-parity-incomplete" },
-    "Operations editors must retain legacy commands",
+    "an unsupported Operations access mode must fail closed before command dispatch",
   );
   const eligibleDirectoryOperationsHost = makeDirectoryOperationsHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryOperationsHost.prepareRender(), { activateReact: true, reason: "eligible" });
@@ -1390,7 +1390,7 @@ try {
   assert.deepEqual(
     makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "nomenclatureTypes", accessMode: "editor" }).prepareRender(),
     { activateReact: false, reason: "write-parity-incomplete" },
-    "Nomenclature Types editors must retain legacy commands",
+    "an unsupported Nomenclature Types access mode must fail closed before command dispatch",
   );
   const eligibleDirectoryNomenclatureTypesHost = makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "nomenclatureTypes", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryNomenclatureTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
@@ -1468,8 +1468,8 @@ try {
   assert.match(productionAppSource, /getReactRuntimeMode\("structureEmployees"\) === "evaluation"[\s\S]*?\? "employees"/, "Cold Employees read/write evaluation must retain the Employees nested registry");
   assert.match(productionAppSource, /const PRODUCTION_STRUCTURE_REGISTRY_QUERY_PARAM = "structureRegistry"/, "Structure nested routing must use one canonical query parameter");
   assert.match(productionAppSource, /getProductionStructureMatrixRegistryFromUrl\(\)/, "Structure runtime must restore the canonical nested registry from the URL");
-  assert.match(productionAppSource, /if \(getActiveProductionStructureReactHost\(\)\.isReactEligible\(\)\) return;/, "An eligible nested React host must suppress only its own legacy event binding");
-  assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /productionStructureMatrix:\s*\{[\s\S]*?activeReactHost\.prepareRender\(\);\s*return activeReactHost\.renderTarget\(\);[\s\S]*?bind: \(\) => \{\}/, "Production Structure route must always use its fail-closed React host without legacy event binding");
+  assert.doesNotMatch(productionAppSource, /function ensureProductionStructureMatrixModule|function initializeProductionStructureMatrixModule|import\("\.\/modules\/production_structure_matrix\/render\.js"\)/, "Production Structure current runtime must not load its same-release legacy renderer");
   assert.match(productionAppSource, /structureEmployeesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId\)/, "Structure navigation must preserve the selected typed registry");
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_POSITIONS === true/);
@@ -1521,7 +1521,7 @@ try {
   assert.match(productionAppSource, /waitingForScheduledReadRetry/, "Weekly read errors must wait for the bounded retry instead of re-entering render immediately");
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /if \(!waitingForScheduledReadRetry\) hydrateWeeklyPlanningPeriod\(\);[\s\S]*?weeklyProductionControlReactIslandHost\.prepareRender\(\)[\s\S]*?if \(reactDecision\.activateReact\) return weeklyProductionControlReactIslandHost\.renderTarget\(\);[\s\S]*?ensureProductionStructureMatrixModule\(\);/, "Permanent Weekly must hydrate bounded owners and return its React shell before loading the legacy Structure renderer used only by rollback");
+  assert.match(productionAppSource, /if \(!waitingForScheduledReadRetry\) hydrateWeeklyPlanningPeriod\(\);[\s\S]*?weeklyProductionControlReactIslandHost\.prepareRender\(\);\s*return weeklyProductionControlReactIslandHost\.renderTarget\(\);/, "Permanent Weekly must hydrate bounded owners and return its React shell without loading the legacy Structure renderer");
   assert.match(productionAppSource, /projectSystemDomainWorkCenters\(systemDomainsState, \[\]\)/, "Permanent Weekly must project canonical System Domains without a legacy fallback seed");
   assert.match(productionAppSource, /getPayload: \(\) => \(\{ productionInput: getWeeklyProductionControlReadModelInput\(\) \}\)/, "Permanent Weekly must pass a strict raw DTO rather than the legacy model");
   assert.match(productionAppSource, /MES_REACT_ROLES === true/);
@@ -1595,6 +1595,8 @@ try {
   assert.match(structureProductionHostSource, /createStructureEquipmentReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructureResponsibilityPoliciesReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructureMigrationDiagnosticsReactIslandHost/);
+  assert.match(structureProductionHostSource, /canFallbackToLegacy: \(\) => false/);
+  assert.doesNotMatch(structureProductionHostSource, /requestLegacyRender|onRequestLegacy/, "Production Structure hosts must not expose a same-release legacy callback");
   const weeklyProductionControlHostSource = await readFile(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js"), "utf8");
   assert.match(weeklyProductionControlHostSource, /createReactIslandHost/);
   assert.match(weeklyProductionControlHostSource, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
@@ -1639,8 +1641,9 @@ try {
   assert.match(specifications2ProductionHostSource, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
   const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");
   assert.match(directoryComponentTypesHostSource, /createReactIslandHost/);
-  assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("legacy-directory"\)/);
-  assert.match(productionAppSource, /directoryReactLegacyOverride = true/);
+  assert.doesNotMatch(directoryComponentTypesHostSource, /onRequestLegacy|requestLegacyRender|legacy-directory/, "permanent Directory hosts must not expose a live legacy renderer path");
+  assert.match(directoryComponentTypesHostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/);
+  assert.doesNotMatch(productionAppSource, /directoryReactLegacyOverride|legacy-directory/, "the application must not retain a Directory legacy override bridge");
   assert.match(directoryComponentTypesHostSource, /createDirectoryOperationsReactIslandHost/);
   assert.match(directoryComponentTypesHostSource, /createDirectoryNomenclatureTypesReactIslandHost/);
   assert.match(directoryComponentTypesHostSource, /createDirectoryStatusesReactIslandHost/);

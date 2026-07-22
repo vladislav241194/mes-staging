@@ -5,8 +5,37 @@ const OPERATIONS_VERSION = "__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__";
 const NOMENCLATURE_TYPES_VERSION = "__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUNDLE_VERSION__";
 const STATUSES_VERSION = "__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__";
 
+const DIRECTORY_FAILURE_REASONS = new Set([
+  "disabled",
+  "mount-error",
+  "render-error",
+  "unsupported-scope",
+  "write-parity-incomplete",
+]);
+
+function normalizeFailureReason(value) {
+  const reason = String(value || "");
+  return DIRECTORY_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
+}
+
+function renderDirectoryTarget({ activation = {}, failureReason = "", shellState = null } = {}, {
+  className,
+  targetAttribute,
+}) {
+  const runtimeMode = activation.runtimeMode === "react"
+    ? "react"
+    : activation.runtimeMode === "evaluation"
+      ? "evaluation"
+      : "disabled";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+  const state = failureReason || shellState?.state === "error" ? "error" : "loading";
+  const content = state === "error"
+    ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
+    : "";
+  return `<div class="${className}" ${targetAttribute} data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite">${content}</div>`;
+}
+
 function createDirectoryReadIslandHost({
-  allowPermanentReact = false,
   allowWriteEvaluation = false,
   bundleName,
   bundleVersion,
@@ -17,47 +46,45 @@ function createDirectoryReadIslandHost({
   mountExport,
   navigateSection,
   reportError,
-  requestLegacyRender,
   executeCommand,
   scope,
   targetAttribute,
 }) {
   const targetSelector = `[${targetAttribute}]`;
+  const getIneligibilityReason = (activation) => {
+    if (!activation.featureFlagEnabled) return "disabled";
+    if (activation.activeSection !== scope) return "unsupported-scope";
+    if (activation.accessMode !== "read-only-evaluation"
+      && !(allowWriteEvaluation && activation.accessMode === "write-evaluation")
+      && activation.accessMode !== "react") return "write-parity-incomplete";
+    return "";
+  };
   return createReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
     reportError,
-    canFallbackToLegacy: (activation) => !(allowPermanentReact && activation.accessMode === "react"),
-    targetSelector,
-    renderTarget: `<div class="${className}" ${targetAttribute} data-react-island-state="loading" aria-live="polite"></div>`,
-    getIneligibilityReason: (activation) => {
-      if (!activation.featureFlagEnabled) return "disabled";
-      if (activation.activeSection !== scope) return "unsupported-scope";
-      if (activation.accessMode !== "read-only-evaluation"
-        && !(allowWriteEvaluation && activation.accessMode === "write-evaluation")
-        && !(allowPermanentReact && activation.accessMode === "react")) return "write-parity-incomplete";
-      return "";
+    canFallbackToLegacy: () => false,
+    getShellState: (activation) => {
+      const reason = getIneligibilityReason(activation);
+      return reason ? { state: "error", stage: "runtime", reason } : null;
     },
+    targetSelector,
+    renderTarget: (context) => renderDirectoryTarget(context, { className, targetAttribute }),
+    getIneligibilityReason,
     loadIsland: async () => {
       const islandUrl = new URL(`./react-islands/${bundleName}.js`, import.meta.url);
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
       islandUrl.searchParams.set("v", bundleVersion.startsWith("__MES_") ? deployVersion : bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => (
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => (
       loadedIsland[mountExport](target, payload, {
         onError,
         onReady,
-        onNavigateSection: allowPermanentReact
-          && getActivation?.().accessMode === "react"
-          && typeof navigateSection === "function"
+        onNavigateSection: typeof navigateSection === "function"
           ? (sectionId) => navigateSection(sectionId)
           : undefined,
-        onRequestLegacy: allowPermanentReact && getActivation?.().accessMode === "react"
-          ? undefined
-          : () => onRequestLegacy("legacy-directory"),
         onCommand: executeCommand ? (command) => executeCommand(command) : undefined,
       })
     ),
@@ -67,7 +94,6 @@ function createDirectoryReadIslandHost({
 export function createDirectoryComponentTypesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
-    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "component-types",
     bundleVersion: COMPONENT_TYPES_VERSION,
@@ -82,7 +108,6 @@ export function createDirectoryComponentTypesReactIslandHost(options = {}) {
 export function createDirectoryOperationsReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
-    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "operations",
     bundleVersion: OPERATIONS_VERSION,
@@ -97,7 +122,6 @@ export function createDirectoryOperationsReactIslandHost(options = {}) {
 export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
-    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "nomenclature-types",
     bundleVersion: NOMENCLATURE_TYPES_VERSION,
@@ -112,7 +136,6 @@ export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
 export function createDirectoryStatusesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
-    allowPermanentReact: true,
     allowWriteEvaluation: true,
     bundleName: "statuses", bundleVersion: STATUSES_VERSION,
     className: "mes-react-nomenclature-island mes-react-directory-statuses-island", mountExport: "mountStatusesReactIsland",

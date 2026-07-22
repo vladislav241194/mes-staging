@@ -4,11 +4,10 @@ import type { DirectorySectionId } from "./modules/directories/DirectorySectionN
 
 export interface ComponentTypesIslandOptions extends ReactMigrationIslandOptions {
   onNavigateSection?(sectionId: DirectorySectionId): void;
-  onRequestLegacy?(scope?: string): void;
   onCommand?(command: ComponentTypesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }
 
 export function mountComponentTypesReactIsland(target: HTMLElement, initialPayload: unknown, options: ComponentTypesIslandOptions = {}) {
-  const { onCommand, onNavigateSection, onRequestLegacy, ...runtimeOptions } = options;
-  return mountReactIsland(target, (payload) => <ComponentTypesScenario payload={payload} onCommand={onCommand} onNavigateSection={onNavigateSection} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions);
+  const { onCommand, onNavigateSection, ...runtimeOptions } = options;
+  return mountReactIsland(target, (payload) => <ComponentTypesScenario payload={payload} onCommand={onCommand} onNavigateSection={onNavigateSection} />, initialPayload, runtimeOptions);
 }

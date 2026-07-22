@@ -37,7 +37,7 @@ const owner = createAppEventsServiceModule({
   normalizeDirectorySectionId: (value) => value,
   notifySaveSuccess: () => {},
   persistDirectoryState: () => { persistCount += 1; },
-  persistDirectoryStateWithRemoval: async () => { removalPersistCount += 1; },
+  persistDirectoryStateWithRemoval: async () => { removalPersistCount += 1; return true; },
   persistState: () => {},
   persistUiState: () => {},
   recordDirectoryEntityDeletion: () => {},
@@ -46,9 +46,9 @@ const owner = createAppEventsServiceModule({
 assert.equal(owner.saveDirectoryRow("statuses", 0, { ...directoryState.statuses[0], name: "Взломан", statusAuthority: "user" }, { customStatusWrite: true }), false, "system Status must reject a forged authority marker");
 assert.equal(directoryState.statuses[0].name, "Черновик");
 assert.equal(owner.saveDirectoryRow("statuses", -1, { id: "custom-status-forged", name: "Без authority" }, { customStatusWrite: true }), false, "new custom Status must require the owner marker");
-assert.equal(owner.saveDirectoryRow("statuses", -1, { id: "custom-status-qa", statusAuthority: "user", name: "QA", code: "qa" }, { customStatusWrite: true }), undefined);
+assert.equal(owner.saveDirectoryRow("statuses", -1, { id: "custom-status-qa", statusAuthority: "user", name: "QA", code: "qa" }, { customStatusWrite: true }), true);
 assert.equal(directoryState.statuses.at(-1).name, "QA");
-assert.equal(owner.saveDirectoryRow("statuses", 2, { ...directoryState.statuses[2], name: "QA edited" }, { customStatusWrite: true }), undefined);
+assert.equal(owner.saveDirectoryRow("statuses", 2, { ...directoryState.statuses[2], name: "QA edited" }, { customStatusWrite: true }), true);
 assert.equal(directoryState.statuses[2].name, "QA edited");
 customWriteAllowed = false;
 assert.equal(owner.saveDirectoryRow("statuses", 2, { ...directoryState.statuses[2], name: "Forbidden" }, { customStatusWrite: true }), false, "RBAC denial must protect an existing custom Status");

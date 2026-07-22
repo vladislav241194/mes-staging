@@ -8,22 +8,20 @@ const expect = (condition, message) => { if (!condition) failures.push(message);
 expect(!source.includes('import { createShiftMasterBoardModule } from "./modules/shift_master_board/render.js";'),
   "Мастерская не должна оставаться статическим импортом стартового app.js");
 expect(source.includes('import("./modules/shift_master_board/render.js")'),
-  "Мастерская должна загружаться отдельным динамическим модулем");
-expect(source.includes('title: "Загружаем мастерскую"'),
-  "до загрузки Мастерской должен быть понятный экран ожидания");
-const shiftBoardShellStart = source.indexOf("function renderShiftMasterBoardShellState");
-const shiftBoardShellEnd = source.indexOf("renderShiftMasterBoardSheetModal", shiftBoardShellStart);
-const shiftBoardShell = shiftBoardShellStart >= 0 && shiftBoardShellEnd > shiftBoardShellStart
-  ? source.slice(shiftBoardShellStart, shiftBoardShellEnd)
+  "shared helpers Мастерской должны оставаться отдельным динамическим модулем");
+const shiftBoardRouteStart = source.indexOf("    shiftMasterBoard: {\n      render: () => {");
+const shiftBoardRouteEnd = source.indexOf("    shiftWorkOrders: {", shiftBoardRouteStart);
+const shiftBoardRoute = shiftBoardRouteStart >= 0 && shiftBoardRouteEnd > shiftBoardRouteStart
+  ? source.slice(shiftBoardRouteStart, shiftBoardRouteEnd)
   : "";
-expect(Boolean(shiftBoardShell),
-  "Мастерская должна иметь единый shell для lazy loading и ошибки загрузки");
-expect(shiftBoardShell.includes('header: renderUiModuleHeader({'),
-  "loading/error shell Мастерской обязан содержать ModuleHeader по blueprint-контракту");
-expect(source.includes('return renderShiftMasterBoardShellState({\n            title: "Не удалось загрузить мастерскую"'),
-  "ошибка lazy загрузки Мастерской должна использовать тот же blueprint-valid shell");
-expect(source.includes('if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });'),
-  "после загрузки Мастерской должен выполняться повторный рендер активного экрана");
+expect(Boolean(shiftBoardRoute), "current route Мастерской должен иметь проверяемую границу");
+expect(shiftBoardRoute.includes("shiftMasterBoardReactIslandHost.prepareRender();")
+  && shiftBoardRoute.includes("return shiftMasterBoardReactIslandHost.renderTarget();"),
+"current route Мастерской должен всегда возвращать fail-closed React target");
+expect(!shiftBoardRoute.includes("ensureShiftMasterBoardModule")
+  && !shiftBoardRoute.includes("renderShiftMasterBoardPage")
+  && !shiftBoardRoute.includes("bindShiftMasterBoardEvents"),
+"shared helper chunk Мастерской не должен быть same-release UI fallback текущего маршрута");
 expect(!source.includes('import { createShiftExecutionReadModel } from "./modules/domain_api/shift_execution_read_model.js";'),
   "server read API Мастерской не должен оставаться статическим импортом стартового app.js");
 expect(!source.includes('import { createShiftExecutionCommands } from "./modules/domain_api/shift_execution_commands.js";'),

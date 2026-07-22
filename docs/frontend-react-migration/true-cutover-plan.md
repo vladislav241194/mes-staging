@@ -250,6 +250,18 @@ Immediate rollback dry-run на `.49` прошёл. Первая попытка 
 tracked icon registry после удаления двух legacy-only иконок. Generated diff
 включён в `8e8a384`; незавершённый кандидат не активировался.
 
+Кандидат `v.1.500.51` удаляет same-release UI fallback ещё у трёх полностью
+отмеченных модулей: `Мастерская`, `Справочники` (4/4 раздела) и
+`Структура и сотрудники` (7/7 реестров). Их маршруты всегда возвращают
+fail-closed React target; legacy modals/bind и action-level fallback-мосты
+удалены. Количество `requestLegacyRender` в app shell снижено с 17 до 5; пять
+оставшихся относятся только к честно partial-модулям Planning, Marking,
+Specifications 2, Gantt и Roles. Большие legacy-файлы Мастерской/Структуры
+пока сохранены как shared model/helper compatibility source, но current route
+их больше не загружает как UI. Server owners, RBAC, навигация, print/fact и
+completion-маркеры сохранены. Browser/visual QA намеренно не выполняется;
+strict acceptance остаётся 50%.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,

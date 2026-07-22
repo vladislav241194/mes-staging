@@ -30,13 +30,23 @@ assert.equal(module?.runtimeMode, "react");
 assert.equal(module?.visibleLegacyRendererPath, false);
 assert.equal(module?.runtimeLegacyModelDependency, false, "permanent Shift Master Board must use the typed production model");
 assert.equal(module?.normalLegacyPath, false);
-assert.match(hostSource, /canFallbackToLegacy:\s*\(activation\)\s*=>\s*activation\.accessMode !== "react"/);
+assert.match(hostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/);
+assert.doesNotMatch(hostSource, /requestLegacyRender/);
+assert.doesNotMatch(hostSource, /runtimeMode[^\n]*"legacy"/,
+  "fail-closed Shift Master Board target must never advertise a same-release legacy runtime");
 assert.match(appSource, /createShiftMasterBoardCommandOwner/);
 assert.match(appSource, /command\.type === "move-lane"[\s\S]*shiftMasterBoardCommandOwner\.execute/);
-assert.match(appSource, /shiftMasterBoard:\s*\{[\s\S]*shiftMasterBoardReactIslandHost\.prepareRender\(\)[\s\S]*if \(reactDecision\.activateReact\)[\s\S]*ensureShiftMasterBoardModule\(\)/, "legacy renderer must load only after React rejection");
+const routeSource = appSource.match(/shiftMasterBoard:\s*\{[\s\S]*?\n    shiftWorkOrders:\s*\{/)?.[0] || "";
+assert.match(routeSource, /shiftMasterBoardReactIslandHost\.prepareRender\(\);\s*return shiftMasterBoardReactIslandHost\.renderTarget\(\)/,
+  "current Shift Master Board route must always return its fail-closed React target");
+assert.doesNotMatch(routeSource, /ensureShiftMasterBoardModule|renderShiftMasterBoardPage|renderShiftMasterBoardSheetModal|renderShiftMasterBoardActionModal|bindShiftMasterBoardEvents|isReactEligible/,
+  "current Shift Master Board route must expose no same-release legacy UI edge");
+assert.doesNotMatch(appSource.match(/const shiftMasterBoardReactIslandHost[\s\S]*?\n\}\);/)?.[0] || "", /requestLegacyRender/,
+  "current Shift Master Board host wiring must expose no legacy-render bridge");
 const scopeSource = appSource.match(/function getShiftExecutionDispatchScope\(\) \{[\s\S]*?\n\}/)?.[0] || "";
 assert.doesNotMatch(scopeSource, /getShiftMasterBoardModel/);
-assert.match(appSource, /renderModals:\s*\(\)\s*=>\s*shiftMasterBoardReactIslandHost\.isReactEligible\(\)[\s\S]*\? ""/);
+assert.match(routeSource, /renderModals:\s*\(\)\s*=>\s*""/);
+assert.match(routeSource, /bind:\s*\(\)\s*=>\s*\{\}/);
 assert.match(scenarioSource, /type:\s*"move-lane"/);
 assert.match(scenarioSource, /data-shift-master-board-lane-control/);
 assert.doesNotMatch(scenarioSource, /onRequestLegacy/);

@@ -32,11 +32,10 @@ export type StatusesReactCommand =
   | { type: "save-custom"; payload: CustomStatusDraft }
   | { type: "delete-custom"; payload: { itemId: string } };
 
-export function StatusesScenario({ payload, onCommand, onNavigateSection, onRequestLegacy }: {
+export function StatusesScenario({ payload, onCommand, onNavigateSection }: {
   payload: unknown;
   onCommand?(command: StatusesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
   onNavigateSection?(sectionId: DirectorySectionId): void;
-  onRequestLegacy?(): void;
 }) {
   const model = useMemo(() => adaptStatusesModel(payload), [payload]);
   const filters = useMemo(() => buildStatusFilters(model.items), [model.items]);
@@ -59,7 +58,6 @@ export function StatusesScenario({ payload, onCommand, onNavigateSection, onRequ
     await runCommand({ type: "delete-custom", payload: { itemId: draft.itemId } }, "Не удалось удалить пользовательский статус.");
   };
   const sidebar = <ModuleSidebar label="Статусы по области применения" title="Области">
-    {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
     <DirectorySectionNavigation activeId="statuses" onNavigate={onNavigateSection} />
     {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
   </ModuleSidebar>;

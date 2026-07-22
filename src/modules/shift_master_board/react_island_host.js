@@ -6,6 +6,7 @@ const SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION = "__MES_SHIFT_MASTER_BOARD_PRINT_
 const SHIFT_MASTER_BOARD_FAILURE_REASONS = new Set([
   "model-unavailable",
   "mount-error",
+  "react-required",
   "read-unavailable",
   "render-error",
 ]);
@@ -16,7 +17,7 @@ function normalizeFailureReason(value) {
 }
 
 function renderShiftMasterBoardTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
-  const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "legacy";
+  const runtimeMode = activation.runtimeMode === "evaluation" ? "evaluation" : "react";
   const state = failureReason || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
   const content = state === "error"
@@ -25,12 +26,14 @@ function renderShiftMasterBoardTarget({ activation = {}, failureReason = "", she
   return `<div class="mes-react-shift-master-board-island" data-react-shift-master-board-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite"><section class="module-page module-data-page ui-module-page shift-master-board-page" data-ui-runtime="hard-v1" data-layout="main-content" data-ui-component="ModulePage"><div class="directory-workspace module-data-workspace ui-module-workspace" data-layout="page-workspace" data-ui-component="ModuleWorkspace"><header class="module-header ui-module-header" data-ui-component="ModuleHeader"><div><p>Оперативное управление</p><h1>Мастерская</h1></div></header><div class="module-data-content ui-module-content" data-ui-component="ModuleContent">${content}</div></div></section></div>`;
 }
 
-export function createShiftMasterBoardReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, openCarryover, openSource, printDocument, selectDate, selectFocus, selectMaster, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Master Board React island failed", error) } = {}) {
+export function createShiftMasterBoardReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, openCarryover, openSource, printDocument, selectDate, selectFocus, selectMaster, reportError = (error) => console.error("[MES] Shift Master Board React island failed", error) } = {}) {
   return createReactIslandHost({
-    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    getActivation, getPayload, getTargetRoot, reportError,
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
-      if (activation.accessMode !== "react") return null;
+      if (!["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) {
+        return { state: "error", stage: "activation", reason: "react-required" };
+      }
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
       if (!activation.serverReadReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
       return null;

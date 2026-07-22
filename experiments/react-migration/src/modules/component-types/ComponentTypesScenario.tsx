@@ -37,11 +37,10 @@ export type ComponentTypesReactCommand =
   | { type: "save"; payload: ComponentTypeDraft }
   | { type: "delete"; payload: { itemId: string } };
 
-export function ComponentTypesScenario({ payload, onCommand, onNavigateSection, onRequestLegacy }: {
+export function ComponentTypesScenario({ payload, onCommand, onNavigateSection }: {
   payload: unknown;
   onCommand?(command: ComponentTypesReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
   onNavigateSection?(sectionId: DirectorySectionId): void;
-  onRequestLegacy?(scope?: string): void;
 }) {
   const model = useMemo(() => adaptComponentTypesModel(payload), [payload]);
   const filters = useMemo(() => buildComponentTypeFilters(model.items), [model.items]);
@@ -58,7 +57,6 @@ export function ComponentTypesScenario({ payload, onCommand, onNavigateSection, 
   const header = <ModuleHeader eyebrow="Технологии" title="Типы компонентов" badge={<span className="lab-badge" data-react-complete-marker>{model.canCreateEdit ? `React TS · create/edit${model.canDelete ? "/delete" : ""}` : "React TS · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Семейства компонентов" title="Семейства">
-      {onRequestLegacy ? <SidebarItem active={false} count={4} key="directories" label="Все справочники" meta="Вернуться в legacy-контур" onClick={() => onRequestLegacy("legacy-directory")} /> : null}
       <DirectorySectionNavigation activeId="componentTypes" onNavigate={onNavigateSection} />
       {filters.map((entry) => <SidebarItem active={activeFilter === entry.id} count={entry.count} key={entry.id} label={entry.label} onClick={() => setFilter(entry.id)} />)}
     </ModuleSidebar>

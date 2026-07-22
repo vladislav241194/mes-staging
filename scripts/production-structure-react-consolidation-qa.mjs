@@ -26,17 +26,20 @@ const registries = [
 ];
 
 for (const [, surfaceId] of registries) assert.equal(policy.surfaces[surfaceId], "react", `${surfaceId}: signed candidate policy must select permanent React`);
-assert.match(hostSource, /canFallbackToLegacy: \(activation\) => activation\.accessMode !== "react"/);
+assert.equal(policy.surfaces.structureMigrationDiagnostics, "react", "structureMigrationDiagnostics: signed policy must select permanent React");
+assert.match(hostSource, /canFallbackToLegacy: \(\) => false/);
+assert.doesNotMatch(hostSource, /requestLegacyRender|onRequestLegacy/);
 assert.match(hostSource, /onNavigateRegistry: \(registryId\) => navigateRegistry\?\.\(registryId\)/);
-assert.doesNotMatch(hostSource.slice(0, hostSource.indexOf("const STRUCTURE_MIGRATION_DIAGNOSTICS_FAILURE_REASONS")), /onRequestLegacy/);
 
 const routeStart = appSource.indexOf("    productionStructureMatrix: {");
 const routeEnd = appSource.indexOf("    timesheet: {", routeStart);
 const routeSource = appSource.slice(routeStart, routeEnd);
 assert(routeStart > 0 && routeEnd > routeStart, "Production Structure route block must remain discoverable");
 assert.match(routeSource, /getProductionStructureMatrixActiveRegistry\(\) === "migrationDiagnostics"\) ensureProductionStructureDiagnosticsData\(\)/);
-assert.match(routeSource, /if \(reactDecision\.activateReact\) return activeReactHost\.renderTarget\(\);\s*ensureProductionStructureMatrixModule\(\);/);
-assert.doesNotMatch(routeSource, /ensureLegacyProductionStructure|productionStructureMatrixData/);
+assert.match(routeSource, /activeReactHost\.prepareRender\(\);\s*return activeReactHost\.renderTarget\(\);/);
+assert.match(routeSource, /bind: \(\) => \{\}/);
+assert.doesNotMatch(routeSource, /reactDecision|isReactEligible|ensureProductionStructureMatrixModule|renderProductionStructureMatrixPage|bindProductionStructureMatrixEvents|ensureLegacyProductionStructure|productionStructureMatrixData/);
+assert.doesNotMatch(appSource, /function ensureProductionStructureMatrixModule|function initializeProductionStructureMatrixModule|import\("\.\/modules\/production_structure_matrix\/render\.js"\)/);
 assert.match(appSource, /function ensureProductionStructureDiagnosticsData\(\)[\s\S]*import\("\.\/production_structure_matrix_data\.js"\)/, "Diagnostics may load raw baseline data without the legacy renderer/model");
 assert.match(appSource, /resolveReactRuntimeActivation\(\{\s*surfaceId,/);
 assert.match(capabilitiesSource, /state\.configured === true/);
