@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.62";
+const APP_VERSION_FALLBACK = "v.1.500.63";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1763,12 +1763,15 @@ let productionStructureDiagnosticsDataState = { status: "idle", error: "" };
 function ensureProductionStructureDiagnosticsData() {
   if (productionStructureDiagnosticsDataLoad) return productionStructureDiagnosticsDataLoad;
   productionStructureDiagnosticsDataState = { status: "loading", error: "" };
-  productionStructureDiagnosticsDataLoad = import("./production_structure_matrix_data.js")
-    .then((matrixData) => {
-      productionStructureMatrixData = matrixData;
+  productionStructureDiagnosticsDataLoad = import("./production_structure_bootstrap_data.js")
+    .then((bootstrapData) => {
+      productionStructureMatrixData = {
+        PRODUCTION_STRUCTURE_MATRIX_COLUMNS: bootstrapData.PRODUCTION_STRUCTURE_BOOTSTRAP_COLUMNS,
+        PRODUCTION_STRUCTURE_MATRIX_ROWS: bootstrapData.PRODUCTION_STRUCTURE_BOOTSTRAP_ROWS,
+      };
       productionStructureDiagnosticsDataState = { status: "ready", error: "" };
       if (ui.activeModule === "productionStructureMatrix" && getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") render();
-      return matrixData;
+      return productionStructureMatrixData;
     })
     .catch((error) => {
       productionStructureDiagnosticsDataState = { status: "error", error: error?.message || "Production Structure diagnostics data is unavailable" };

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains } from "../src/modules/system_domains/service.js";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
 

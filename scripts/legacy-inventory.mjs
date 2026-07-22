@@ -25,7 +25,7 @@ const cssTrackedFiles = ["styles.css", ...await collectCssFiles()];
 const trackedFiles = [
   "index.html",
   "src/app.js",
-  "src/production_structure_matrix_data.js",
+  "scripts/fixtures/production_structure_matrix_data.js",
   "src/production_structure_service.js",
   "src/validation.js",
   "src/mes_contracts.js",

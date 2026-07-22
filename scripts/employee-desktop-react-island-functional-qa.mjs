@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AUTH_GATE_SESSION_STORAGE_KEY, SYSTEM_DOMAINS_STORAGE_KEY, UI_STORAGE_KEY } from "../src/app_constants.js";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import { DEFAULT_PRODUCTION_WORK_CENTERS } from "../src/production_structure_default_work_centers.js";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";

@@ -308,10 +308,15 @@ try {
   ], "Roles adapter must preserve module visibility and explicit assignments");
   assert.deepEqual(rolesModel.roles.find((role) => role.id === "master")?.assignedEmployees[0], {
     id: "employee-master",
+    assignmentId: "assignment-master",
+    roleId: "master",
     name: "Иванов Сергей",
     personnelNumber: "0105",
     positionLabel: "Мастер участка",
     orgUnitLabel: "Производство",
+    validFrom: "",
+    validTo: "",
+    responsibilityScope: null,
   }, "role assignment must join canonical employee, position and organization labels");
   const auditorRole = rolesModel.roles.find((role) => role.id === "auditor");
   assert.equal(rolesAdapter.roleAllows(auditorRole, "roles", "print"), true, "read-only role must retain print");
@@ -405,7 +410,7 @@ try {
   ], "the permanent Structure surface must keep registry navigation inside React");
   assert.equal(structureViewModel.resolveVisibleStructureEmployee(structureModel.employees, "missing")?.id, "EMP-001");
 
-  const { PRODUCTION_STRUCTURE_MATRIX_COLUMNS, PRODUCTION_STRUCTURE_MATRIX_ROWS } = await import(`${pathToFileURL(join(repositoryRoot, "src/production_structure_matrix_data.js")).href}?qa=${Date.now()}`);
+  const { PRODUCTION_STRUCTURE_MATRIX_COLUMNS, PRODUCTION_STRUCTURE_MATRIX_ROWS } = await import(`${pathToFileURL(join(repositoryRoot, "scripts/fixtures/production_structure_matrix_data.js")).href}?qa=${Date.now()}`);
   const { migrateLegacySystemDomains } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/system_domains/service.js")).href}?qa=${Date.now()}`);
   const canonicalMigration = migrateLegacySystemDomains({ matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS, migratedAt: "2026-07-19T00:00:00.000Z" });
   const canonicalStructureModel = structureAdapter.adaptStructureEmployees({
@@ -965,7 +970,7 @@ try {
     ["legacy app import", /src\/app\.js/],
     ["runtime-state coupling", /runtime_state/],
     ["direct network call", /\bfetch\s*\(/],
-    ["shared-state coupling", /shared-state|bootstrap_snapshot/],
+    ["shared-state implementation import", /(?:from\s+|import\s*\(\s*)["'][^"']*(?:shared-state|bootstrap_snapshot)/],
     ["browser persistence", /\blocalStorage\b|\bsessionStorage\b/],
   ];
   for (const path of sources) {
@@ -1087,8 +1092,8 @@ try {
   });
   assert.deepEqual(
     makeProductionHost({ featureFlagEnabled: false, activePane: "items", accessMode: "read-only-evaluation" }).prepareRender(),
-    { activateReact: false, reason: "disabled" },
-    "production Nomenclature island must stay disabled by default",
+    { activateReact: false, reason: "react-required" },
+    "disabled Nomenclature policy must fail closed instead of requesting legacy",
   );
   assert.deepEqual(
     makeProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" }).prepareRender(),
@@ -1097,12 +1102,17 @@ try {
   );
   assert.deepEqual(
     makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "editor" }).prepareRender(),
-    { activateReact: false, reason: "write-parity-incomplete" },
-    "edit-capable Nomenclature sessions must retain legacy commands",
+    { activateReact: false, reason: "react-required" },
+    "unsupported Nomenclature access modes must fail closed instead of requesting legacy",
   );
   const eligibleProductionHost = makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleProductionHost.renderTarget(), /data-react-nomenclature-island/);
+  assert.deepEqual(
+    makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "write-evaluation" }).prepareRender(),
+    { activateReact: true, reason: "eligible" },
+    "write-evaluated Nomenclature must remain on the React owner",
+  );
   const permanentProductionHost = makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "react", runtimeMode: "react", serverReadReady: false, serverReadFailure: "" });
   assert.deepEqual(permanentProductionHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Nomenclature must own the route before shared-state readiness");
   assert.match(permanentProductionHost.renderTarget(), /data-react-island-state="loading"/, "permanent Nomenclature must show its bounded loading shell");
@@ -1115,8 +1125,8 @@ try {
   });
   assert.deepEqual(
     makeBoardsProductionHost({ featureFlagEnabled: false, activePane: "boards", accessMode: "read-only-evaluation" }).prepareRender(),
-    { activateReact: false, reason: "disabled" },
-    "production Boards island must stay disabled by default",
+    { activateReact: false, reason: "react-required" },
+    "disabled Boards policy must fail closed instead of requesting legacy",
   );
   assert.deepEqual(
     makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" }).prepareRender(),
@@ -1125,8 +1135,8 @@ try {
   );
   assert.deepEqual(
     makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "editor" }).prepareRender(),
-    { activateReact: false, reason: "write-parity-incomplete" },
-    "edit-capable Boards sessions must retain legacy commands",
+    { activateReact: false, reason: "react-required" },
+    "unsupported Boards access modes must fail closed instead of requesting legacy",
   );
   const eligibleBoardsProductionHost = makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleBoardsProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
@@ -1210,16 +1220,16 @@ try {
 
   const timesheetProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/timesheet/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeTimesheetProductionHost = (activation) => timesheetProductionHostModule.createTimesheetReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
-  assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
+  assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "react-required" });
   assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" });
 
   const specifications2ProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/specifications2/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeSpecifications2ProductionHost = (activation) => specifications2ProductionHostModule.createSpecifications2ReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
-  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: false, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
-  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: false, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "module-not-ready" });
-  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "postgres-revision-not-confirmed" });
-  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
-  const eligibleSpecifications2Host = makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: false, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "runtime-inactive" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: false, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "runtime-inactive" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "runtime-inactive" });
+  assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "runtime-inactive" });
+  const eligibleSpecifications2Host = makeSpecifications2ProductionHost({ featureFlagEnabled: true, runtimeMode: "react", moduleReady: true, serverReadReady: true, accessMode: "react" });
   assert.deepEqual(eligibleSpecifications2Host.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleSpecifications2Host.renderTarget(), /data-react-specifications2-island/);
   const permanentSpecifications2LoadingHost = makeSpecifications2ProductionHost({ featureFlagEnabled: true, runtimeMode: "react", policyId: "qa-specifications2-react", moduleReady: false, serverReadReady: false, serverReadFailure: "", accessMode: "react" });
@@ -1350,8 +1360,13 @@ try {
   assert.deepEqual(makeDirectoryStatusesHost({ featureFlagEnabled: true, activeSection: "statuses", accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Statuses must accept its explicit local custom-write evaluation mode");
 
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
-  assert.match(productionAppSource, /if \(\["day", "schedule"\]\.includes\(action\)\) openTimesheetEditor\(value, dateKey\);\s*if \(ui\.activeModule === "timesheet"\) render\(\{ skipRememberScroll: true \}\);/, "Timesheet technical island failure must still render the legacy rollback path while day/schedule actions open their legacy editor");
-  assert.match(productionAppSource, /isShiftWorkOrdersWorkshopTargetSelected\(decision, getShiftMasterBoardModel\(\)\)/, "Shift Work Orders navigation must verify the exact Workshop owner selection");
+  const productionTimesheetRoute = productionAppSource.slice(
+    productionAppSource.indexOf("    timesheet: {"),
+    productionAppSource.indexOf("    roles: {", productionAppSource.indexOf("    timesheet: {")),
+  );
+  assert.match(productionTimesheetRoute, /timesheetReactIslandHost\.prepareRender\(\);[\s\S]*timesheetReactIslandHost\.renderTarget\(\)/, "Timesheet route must remain React-owned");
+  assert.doesNotMatch(productionTimesheetRoute, /openTimesheetEditor|requestLegacyRender|renderTimesheet/, "Timesheet route must not retain a same-release legacy renderer path");
+  assert.match(productionAppSource, /isShiftWorkOrdersWorkshopTargetSelected\(decision, shiftMasterBoardCommandOwner\.getModel\(\)\)/, "Shift Work Orders navigation must verify the exact Workshop owner selection");
   assert.match(productionAppSource, /ui\.shiftMasterBoardSelectedSlotId = previous\.selectedSlotId;\s*ui\.windowStart = previous\.windowStart;\s*ui\.activeDispatchSlotId = previous\.activeDispatchSlotId;/, "Shift Work Orders must restore its previous owner selection when the Workshop source disappears");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
@@ -1372,24 +1387,20 @@ try {
   assert.match(productionAppSource, /params\.get\("react-boards-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-boards-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /authorizeSystemDomainAction\("nomenclature", "edit", \{ resourceId: "boards" \}\)/);
-  assert.match(productionAppSource, /await ensureNomenclatureRenderModule\(\)/, "Boards write must await its lazy result-Nomenclature owner before mutation");
-  assert.match(productionAppSource, /saveBomCommand\(\{/);
-  assert.match(productionAppSource, /deleteBomCommand\(\{ bomId:/);
+  assert.match(productionAppSource, /import\("\.\/modules\/nomenclature\/boards_command_owner\.js"\)/, "Boards writes must lazy-load the dedicated command owner");
+  assert.match(productionAppSource, /const result = commandOwner\.execute\(command\)/, "Boards React host must delegate mutations to the command owner");
   assert.match(productionAppSource, /command\.type === "import-bom-xlsx"/, "Boards Excel import must retain one typed host branch");
-  assert.match(productionAppSource, /await importBomFromXlsxFile\(file\)/, "Boards Excel import must delegate the File to the existing owner");
-  assert.match(productionAppSource, /importedBom\.sourceFileName !== fileName \|\| !importedRows\.length/, "Boards Excel import must read the authoritative imported BOM back");
-  assert.match(productionAppSource, /command\.type === "add-bom-nomenclature-row"/, "Boards Nomenclature row add must retain one typed host branch");
-  assert.match(productionAppSource, /addNomenclatureToBom\(bomId, nomenclatureId\)/, "Boards row add must delegate to the existing owner");
-  assert.match(productionAppSource, /authoritativeRows\.length !== rows\.length \+ 1/, "Boards row add must verify exactly one authoritative row");
-  assert.match(productionAppSource, /String\(appendedRow\?\.nomenclatureId \|\| ""\) !== nomenclatureId/, "Boards row add must verify the owner-linked Nomenclature identity");
-  assert.match(productionAppSource, /command\.type === "update-bom-cell"/, "Boards non-quantity cell edits must retain one typed host branch");
-  assert.match(productionAppSource, /editableColumns = \[0, 1, 2, 3, 4, 5, 7, 8\]/, "Boards generic cell command must exclude the separately validated quantity column");
-  assert.match(productionAppSource, /updateBomImportCell\(bomId, rowIndex, columnIndex, input\.value\)/, "Boards generic cell edit must delegate to the existing owner");
-  assert.match(productionAppSource, /JSON\.stringify\(authoritativeRow\.values\) !== JSON\.stringify\(expectedNextRow\.values\)/, "Boards generic cell edit must read the complete owner row back");
-  assert.match(productionAppSource, /command\.type === "delete-bom-row"/, "Boards row delete must retain its own typed host branch");
-  assert.match(productionAppSource, /input\.expectedRows/, "Boards row delete must carry a full expected-table snapshot");
-  assert.match(productionAppSource, /deleteBomImportRow\(bomId, rowIndex\)/, "Boards row delete must delegate to the existing owner");
-  assert.match(productionAppSource, /authoritativeRows\.map\(\(row\) => rowSignature\(row\.values\)\)/, "Boards row delete must read the owner result back");
+  assert.match(productionAppSource, /code: "deferred-import"/, "Boards XLSX import must fail closed until its separate owner is connected");
+  const boardsCommandOwnerSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_command_owner.js"), "utf8");
+  assert.match(boardsCommandOwnerSource, /command\.type === "save"/);
+  assert.match(boardsCommandOwnerSource, /command\.type === "delete"/);
+  assert.match(boardsCommandOwnerSource, /command\.type === "add-bom-nomenclature-row"/);
+  assert.match(boardsCommandOwnerSource, /command\.type === "update-bom-cell"/);
+  assert.match(boardsCommandOwnerSource, /command\.type === "update-bom-quantity"/);
+  assert.match(boardsCommandOwnerSource, /command\.type === "delete-bom-row"/);
+  assert.match(boardsCommandOwnerSource, /EDITABLE_TEXT_COLUMNS = new Set\(\[0, 1, 2, 3, 4, 5, 7, 8\]\)/, "Boards generic cell owner must exclude the separately validated quantity column");
+  assert.match(boardsCommandOwnerSource, /Array\.isArray\(input\.expectedRows\)/, "Boards row-table commands must carry an optimistic full-table snapshot");
+  assert.match(boardsCommandOwnerSource, /sameRows\(rowSignature\(rows\[rowIndex\]\.values\), expected\)/, "Boards cell commands must reject a stale owner row");
   assert.match(productionAppSource, /const activeReactHost = useBoardsHost \? boardsReactIslandHost : nomenclatureReactIslandHost/);
   assert.match(productionAppSource, /boardsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES === true/);
@@ -1448,7 +1459,8 @@ try {
   assert.match(productionAppSource, /systemDomainsServerReadState\.status === "server" && Boolean\(systemDomainsState\) && matrixReady && reportReady/, "Diagnostics readiness must be authoritative and fail closed");
   assert.match(productionAppSource, /if \(systemDomainsServerReadPromise\) return systemDomainsServerReadPromise/, "Concurrent System Domains consumers must await the same authoritative read");
   assert.match(productionAppSource, /systemDomainsServerReadState\.status === "fallback" && systemDomainsServerReadRetryTimer !== null/, "A rendered read error must wait for the scheduled retry instead of starting a sibling fetch loop");
-  assert.match(productionAppSource, /productionStructureMatrixData = matrixData/);
+  assert.match(productionAppSource, /import\("\.\/production_structure_bootstrap_data\.js"\)/, "Diagnostics must load the compact Structure projection rather than the retired full matrix");
+  assert.match(productionAppSource, /PRODUCTION_STRUCTURE_MATRIX_ROWS: bootstrapData\.PRODUCTION_STRUCTURE_BOOTSTRAP_ROWS/);
   assert.match(productionAppSource, /legacyMatrixRows: productionStructureMatrixData\.PRODUCTION_STRUCTURE_MATRIX_ROWS/);
   assert.match(productionAppSource, /navigateRegistry: \(registryId\) => \{[\s\S]*?setProductionStructureMatrixActiveRegistry/, "Diagnostics registry navigation must use the normal nested-route owner instead of a fallback signal");
   assert.match(productionAppSource, /structureMigrationDiagnosticsReactIslandHost\.mount\(\)/);
@@ -1460,7 +1472,7 @@ try {
   assert.match(productionAppSource, /waitingForScheduledReadRetry/, "Weekly read errors must wait for the bounded retry instead of re-entering render immediately");
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.mount\(\)/);
-  assert.match(productionAppSource, /if \(!waitingForScheduledReadRetry\) hydrateWeeklyPlanningPeriod\(\);[\s\S]*?weeklyProductionControlReactIslandHost\.prepareRender\(\);\s*return weeklyProductionControlReactIslandHost\.renderTarget\(\);/, "Permanent Weekly must hydrate bounded owners and return its React shell without loading the legacy Structure renderer");
+  assert.match(productionAppSource, /if \(activation\.featureFlagEnabled === true && !waitingForScheduledReadRetry\) hydrateWeeklyPlanningPeriod\(\);[\s\S]*?weeklyProductionControlReactIslandHost\.prepareRender\(\);\s*return weeklyProductionControlReactIslandHost\.renderTarget\(\);/, "Permanent Weekly must hydrate bounded owners and return its React shell without loading the legacy Structure renderer");
   assert.match(productionAppSource, /projectSystemDomainWorkCenters\(systemDomainsState, \[\]\)/, "Permanent Weekly must project canonical System Domains without a legacy fallback seed");
   assert.match(productionAppSource, /getPayload: \(\) => \(\{ productionInput: getWeeklyProductionControlReadModelInput\(\) \}\)/, "Permanent Weekly must pass a strict raw DTO rather than the legacy model");
   assert.match(productionAppSource, /MES_REACT_ROLES === true/);
@@ -1484,7 +1496,7 @@ try {
   assert.match(productionAppSource, /operations: directoryOperationsReactIslandHost/);
   assert.match(productionAppSource, /nomenclatureTypes: directoryNomenclatureTypesReactIslandHost/);
   assert.match(productionAppSource, /host !== activeReactHost\) host\.prepareRender\(\)/);
-  assert.match(productionAppSource, /activeReactHost\?\.prepareRender\(\)/);
+  assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /directoryComponentTypesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS === true/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION === true/);

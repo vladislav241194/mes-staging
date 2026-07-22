@@ -8,7 +8,11 @@ const protectedPaths = [
   "production-floor-plan.svg",
   "/src/icons/registry.js",
   "/src/icons/runtime_custom_svg_registry.js",
-  "/src/production_structure_matrix_data.js",
+  "/src/production_structure_bootstrap_data.js",
+];
+const protectedChunkPatterns = [
+  /\/src\/chunks\/production_structure_bootstrap_data-[^/]+\.js$/,
+  /\/src\/chunks\/production_structure_matrix_data-[^/]+\.js$/,
 ];
 // This gate intentionally runs against the built dist preview. It prevents a
 // regression to the former source-style waterfall (91 initial resources / ~
@@ -23,7 +27,10 @@ function assert(condition, message) {
 const audit = JSON.parse(await readFile(bootPath, "utf-8"));
 const entries = Array.isArray(audit.resources?.entries) ? audit.resources.entries : [];
 assert(entries.length > 0, "Boot audit does not include a network waterfall. Run qa:performance:local again.");
-const loadedProtectedAssets = entries.filter((entry) => protectedPaths.some((path) => entry.path.endsWith(path)));
+const loadedProtectedAssets = entries.filter((entry) => (
+  protectedPaths.some((path) => entry.path.endsWith(path))
+  || protectedChunkPatterns.some((pattern) => pattern.test(entry.path))
+));
 assert(loadedProtectedAssets.length === 0,
   `Heavy assets were loaded on the initial route: ${loadedProtectedAssets.map((entry) => entry.path).join(", ")}`);
 assert(entries.length <= maxInitialResourceCount,
@@ -37,6 +44,7 @@ const result = {
   resourceCount: entries.length,
   transferBytes: audit.resources?.transferBytes || 0,
   protectedPaths,
+  protectedChunkPatterns: protectedChunkPatterns.map((pattern) => pattern.source),
   budgets: { maxInitialResourceCount, maxInitialTransferBytes },
   loadedProtectedAssets,
   status: "pass",

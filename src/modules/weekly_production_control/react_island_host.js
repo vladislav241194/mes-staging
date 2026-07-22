@@ -60,8 +60,8 @@ export function createWeeklyProductionControlReactIslandHost({
     renderTarget: renderWeeklyProductionControlTarget,
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
-      if (activation.serverReadFailure) return normalizeFailureReason(activation.serverReadFailure);
       if (activation.accessMode === "react") return "";
+      if (activation.serverReadFailure) return normalizeFailureReason(activation.serverReadFailure);
       if (!activation.serverReadReady) return "server-read-pending";
       if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
       return "";

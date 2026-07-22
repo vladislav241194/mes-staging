@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
 
@@ -24,7 +24,7 @@ async function discoverLegacyStructureChunkPaths() {
       paths.add(`/src/chunks/${entry.name}`);
     }
   }
-  assert(paths.size >= 4, `legacy Structure chunk graph was not discoverable: ${JSON.stringify([...paths])}`);
+  assert(paths.size >= 2, `compact Structure compatibility chunk graph was not discoverable: ${JSON.stringify([...paths])}`);
   return paths;
 }
 
@@ -87,14 +87,14 @@ try {
     }
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url); const method = String(message.params.request.method || "GET").toUpperCase();
-    if (requestUrl.pathname.includes("production_structure_matrix_data")) { legacyMatrixRequests += 1; void client.send("Fetch.continueRequest", { requestId: message.params.requestId }); return; }
+    if (requestUrl.pathname.includes("production_structure_bootstrap_data")) { legacyMatrixRequests += 1; void client.send("Fetch.continueRequest", { requestId: message.params.requestId }); return; }
     if (requestUrl.pathname === "/api/v1/system-domains/capabilities") { void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsConfigured: true, serverCommandsEnabled: false, configuredServerCommandSurfaces: ["production-structure", "timesheet", "access-control"], serverCommandSurfaces: [], actorAuthorization: { policyConfigured: true, authorized: true, reason: "" }, productionStructureWriteEnabled: false, productionStructureAuthorization: { authenticated: false, authorized: false, canEdit: false, actor: null, reason: "employee-session-expired", revision: 0, infrastructureUnavailable: false }, consistency: { ok: true, matches: false, reason: "postgres_primary_snapshot_retired", revision: 1, details: { authority: { mode: "postgres-primary" } }, reconciliation: { promotion: { readEligible: true } } } } }); return; }
     if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") { void fulfill(message.params.requestId, { ok: true, revision: 1, item: migration.domains }); return; }
     if (requestUrl.pathname === "/api/v1/system-domains") { systemDomainWrites += 1; void fulfill(message.params.requestId, { ok: false, error: "writes forbidden in navigation QA" }, 405); return; }
     void client.send("Fetch.continueRequest", { requestId: message.params.requestId });
   });
   await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Network.enable");
-  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }, { urlPattern: "*production_structure_matrix_data*", requestStage: "Request" }] });
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }, { urlPattern: "*production_structure_bootstrap_data*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await client.send("Page.navigate", { url: `${origin}/?module=productionStructureMatrix&structureRegistry=employees&qa-auth-bypass=1` });
 
@@ -109,7 +109,7 @@ try {
     visited.push(registry.id);
   }
   assert(new Set(visited).size === 6, `typed navigation did not visit all six registries: ${JSON.stringify(visited)}`);
-  assert(legacyMatrixRequests === 0, `normal six-registry path loaded legacy matrix ${legacyMatrixRequests} time(s)`);
+  assert(legacyMatrixRequests === 0, `normal six-registry path loaded the compact diagnostics projection ${legacyMatrixRequests} time(s)`);
   assert(normalLegacyStructureResources.length === 0, `normal cold route loaded legacy Structure resources: ${JSON.stringify(normalLegacyStructureResources)}`);
   assert(systemDomainWrites === 0, `navigation QA performed ${systemDomainWrites} write(s)`);
   normalRoutePhase = false;

@@ -49,7 +49,7 @@
     "qa:css": "node scripts/css-layer-audit.mjs && npm run qa:css:duplicate-budget",
     "qa:system-domains": "node scripts/system-domains-domain-qa.mjs && node scripts/system-domains-runtime-adapter-qa.mjs && node scripts/personnel-calendar-domain-qa.mjs && node scripts/timesheet-react-production-model-qa.mjs && node scripts/system-domains-timesheet-delta-qa.mjs && node scripts/access-control-domain-qa.mjs && node scripts/access-roles-domain-integration-qa.mjs && node scripts/system-domain-authorization-coverage-qa.mjs",
     "qa:system-domains:shared-state": "node scripts/system-domains-shared-state-migration-qa.mjs",
-    "qa:structure": "node scripts/production-structure-react-consolidation-qa.mjs && node scripts/production-structure-react-permanent-runtime-qa.mjs && npm run typecheck:react",
+    "qa:structure": "node scripts/production-structure-react-consolidation-qa.mjs && npm run build && node scripts/production-structure-matrix-fixture-retirement-qa.mjs && node scripts/production-structure-react-permanent-runtime-qa.mjs && npm run typecheck:react",
     "qa:architecture": "npm run qa:module-blueprints && npm run qa:flow && npm run qa:ui && npm run qa:legacy && npm run qa:css && npm run qa:system-domains && npm run qa:structure && npm run qa:features && npm run qa:boundaries",
     "qa:syntax": "node scripts/syntax-qa.mjs",
     "qa:specifications2-tree": "node scripts/specifications2-tree-visual-qa.mjs && node scripts/specifications2-import-qa.mjs && node scripts/specifications2-rkd-draft-qa.mjs && node scripts/specifications2-publication-qa.mjs",

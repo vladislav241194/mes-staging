@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
 
@@ -78,7 +78,7 @@ try {
     if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url); const method = String(message.params.request.method || "GET").toUpperCase();
-    if (requestUrl.pathname.endsWith("/production_structure_matrix_data.js") || requestUrl.pathname.includes("/production_structure_matrix_data-")) {
+    if (requestUrl.pathname.endsWith("/production_structure_bootstrap_data.js") || requestUrl.pathname.includes("/production_structure_bootstrap_data-")) {
       if (requestUrl.port === String(permanentPort) && holdMatrix) { pendingMatrixIds.push(message.params.requestId); return; }
       void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message)); return;
     }
@@ -94,7 +94,7 @@ try {
   });
   await client.send("Page.enable"); await client.send("Runtime.enable");
   await client.send("Page.addScriptToEvaluateOnNewDocument", { source: 'window.__MES_QA_REACT_TELEMETRY__=[];window.addEventListener("mes:react-island-telemetry",(event)=>window.__MES_QA_REACT_TELEMETRY__.push(event.detail));' });
-  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }, { urlPattern: "*production_structure_matrix_data*", requestStage: "Request" }] });
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }, { urlPattern: "*production_structure_bootstrap_data*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
 
   await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&structureRegistry=migrationDiagnostics&qa-auth-bypass=1` });

@@ -1,5 +1,5 @@
-// Generated from outputs/production-structure-matrix-2026-06-28/матрица производственной структуры - миграционные поля.xlsx
-// The matrix is intentionally embedded so the prototype can run without filesystem access in the browser.
+// MIGRATION QA FIXTURE generated from outputs/production-structure-matrix-2026-06-28/матрица производственной структуры - миграционные поля.xlsx
+// The browser runtime uses the compact generated projection; this full source must remain test-only.
 
 export const PRODUCTION_STRUCTURE_MATRIX_COLUMNS = [
   "Структура",

@@ -1,6 +1,6 @@
 import {
   PRODUCTION_STRUCTURE_MATRIX_ROWS,
-} from "../src/production_structure_matrix_data.js";
+} from "./fixtures/production_structure_matrix_data.js";
 import {
   SYSTEM_DOMAINS_SCHEMA_ID,
   SYSTEM_DOMAINS_SCHEMA_VERSION,

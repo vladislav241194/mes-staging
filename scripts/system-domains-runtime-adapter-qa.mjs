@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import {
   getProductionStructureEmployees as getLegacyEmployees,
   getProductionStructureResources as getLegacyResources,

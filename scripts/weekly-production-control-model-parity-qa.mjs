@@ -7,7 +7,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 import { DEFAULT_PRODUCTION_WORK_CENTERS } from "../src/production_structure_default_work_centers.js";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains } from "../src/modules/system_domains/service.js";
 import {
   createSystemDomainCanonicalWorkCenterIdMap,

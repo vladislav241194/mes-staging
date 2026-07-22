@@ -10,10 +10,16 @@ import {
 
 const root = process.cwd();
 const removedRendererPath = join(root, "src", "modules", "production_structure_matrix", "render.js");
+const removedRuntimeMatrixPath = join(root, "src", "production_structure_matrix_data.js");
 await assert.rejects(
   () => access(removedRendererPath),
   (error) => error?.code === "ENOENT",
   "Production Structure legacy renderer must be physically absent",
+);
+await assert.rejects(
+  () => access(removedRuntimeMatrixPath),
+  (error) => error?.code === "ENOENT",
+  "The full legacy Structure matrix must stay outside the browser runtime",
 );
 const appSource = await readFile(join(root, "src", "app.js"), "utf8");
 const hostSource = await readFile(join(root, "src", "modules", "production_structure_matrix", "react_island_host.js"), "utf8");
@@ -38,7 +44,7 @@ for (const [label, source] of [
 }
 assert.equal(
   packageManifest.scripts?.["qa:structure"],
-  "node scripts/production-structure-react-consolidation-qa.mjs && node scripts/production-structure-react-permanent-runtime-qa.mjs && npm run typecheck:react",
+  "node scripts/production-structure-react-consolidation-qa.mjs && npm run build && node scripts/production-structure-matrix-fixture-retirement-qa.mjs && node scripts/production-structure-react-permanent-runtime-qa.mjs && npm run typecheck:react",
   "qa:structure must exercise the permanent React owners",
 );
 const registries = [
@@ -65,7 +71,8 @@ assert.match(routeSource, /activeReactHost\.prepareRender\(\);\s*return activeRe
 assert.match(routeSource, /bind: \(\) => \{\}/);
 assert.doesNotMatch(routeSource, /reactDecision|isReactEligible|ensureProductionStructureMatrixModule|renderProductionStructureMatrixPage|bindProductionStructureMatrixEvents|ensureLegacyProductionStructure|productionStructureMatrixData/);
 assert.doesNotMatch(appSource, /function ensureProductionStructureMatrixModule|function initializeProductionStructureMatrixModule|import\("\.\/modules\/production_structure_matrix\/render\.js"\)/);
-assert.match(appSource, /function ensureProductionStructureDiagnosticsData\(\)[\s\S]*import\("\.\/production_structure_matrix_data\.js"\)/, "Diagnostics may load raw baseline data without the legacy renderer/model");
+assert.match(appSource, /function ensureProductionStructureDiagnosticsData\(\)[\s\S]*import\("\.\/production_structure_bootstrap_data\.js"\)/, "Diagnostics must reuse the compact Structure projection");
+assert.doesNotMatch(appSource, /production_structure_matrix_data\.js/, "Application runtime must not load the full legacy Structure matrix");
 assert.match(appSource, /resolveReactRuntimeActivation\(\{\s*surfaceId,/);
 assert.match(capabilitiesSource, /state\.configured === true/);
 assert.match(capabilitiesSource, /state\.primaryAuthority === true/);

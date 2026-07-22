@@ -24,7 +24,7 @@ import {
   STORAGE_KEY,
   SYSTEM_DOMAINS_STORAGE_KEY,
 } from "../src/app_constants.js";
-import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "./fixtures/production_structure_matrix_data.js";
 import {
   migrateLegacySystemDomains,
   serializeSystemDomains,

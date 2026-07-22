@@ -33,6 +33,7 @@ const [app, bootstrap, entries, chunkEntries] = await Promise.all([
 ]);
 const appSource = await readFile(appPath, "utf-8");
 const fullMatrixChunk = chunkEntries.find((entry) => /^production_structure_matrix_data-[\w-]+\.js$/.test(entry)) || "";
+const compactStructureChunk = chunkEntries.find((entry) => /^production_structure_bootstrap_data-[\w-]+\.js$/.test(entry)) || "";
 const planningWorkbenchLegacyChunk = (await Promise.all(chunkEntries
   .filter((entry) => /^render-[\w-]+\.js$/.test(entry))
   .map(async (entry) => ((await readFile(join(dist, "chunks", entry), "utf-8")).includes("createPlanningWorkbenchModule") ? entry : ""))))
@@ -48,7 +49,9 @@ const result = {
   bootstrap,
   dynamicChunksPresent: entries.some((entry) => entry.startsWith("chunks")),
   fullMatrixChunk,
-  fullMatrixIsDynamic: Boolean(fullMatrixChunk) && appSource.includes(fullMatrixChunk),
+  fullMatrixRetired: !fullMatrixChunk && !appSource.includes("production_structure_matrix_data"),
+  compactStructureChunk,
+  compactStructureIsDynamic: Boolean(compactStructureChunk) && appSource.includes(compactStructureChunk),
   planningWorkbenchLegacyChunk,
   planningWorkbenchLegacyRetired: !planningWorkbenchLegacyChunk,
   ganttRuntimeChunk,
@@ -58,7 +61,8 @@ await writeFile(reportPath, `${JSON.stringify(result, null, 2)}\n`);
 if (app.brotliBytes > appBudget) throw new Error(`Startup app bundle is ${app.brotliBytes} B Brotli; budget is ${appBudget} B`);
 if (bootstrap.brotliBytes > bootstrapBudget) throw new Error(`Compact production bootstrap is ${bootstrap.brotliBytes} B Brotli; budget is ${bootstrapBudget} B`);
 if (!result.dynamicChunksPresent) throw new Error("No dynamic chunks were emitted; lazy module loading was lost");
-if (!result.fullMatrixIsDynamic) throw new Error("Full production structure matrix is no longer a separate lazy chunk");
+if (!result.fullMatrixRetired) throw new Error("Full legacy production structure matrix returned to the browser build");
+if (!result.compactStructureIsDynamic) throw new Error("Compact production structure projection lost its lazy chunk boundary");
 if (!result.planningWorkbenchLegacyRetired) throw new Error("Retired Planning Workbench legacy renderer is still emitted");
 if (!result.ganttRuntimeLegacyRetired) throw new Error("Retired Gantt legacy renderer is still emitted");
 console.log(`Bundle performance budget: OK (app ${app.brotliBytes} B, bootstrap ${bootstrap.brotliBytes} B Brotli)`);

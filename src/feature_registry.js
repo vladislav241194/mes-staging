@@ -124,7 +124,7 @@ const MODULE_FEATURE_OVERRIDES = {
     files: [
       "src/modules/production_structure_matrix/react_island_host.js",
       "src/modules/production_structure_matrix/server_capabilities.js",
-      "src/production_structure_matrix_data.js",
+      "src/production_structure_bootstrap_data.js",
       "src/production_structure_service.js",
       "experiments/react-migration/src/structure-employees-island.tsx",
       "experiments/react-migration/src/structure-positions-island.tsx",
