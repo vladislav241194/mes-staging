@@ -62,6 +62,14 @@ if (!source.includes("async commandReadiness()") || !source.includes("specificat
     || !source.includes("specifications2_require_v6_publication_outbox_trigger")) {
   throw new Error("Publication command capability must check its own PostgreSQL schema before advertising readiness");
 }
+[
+  "= ${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.legacyRevisionIdentity}::text",
+  "= ${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.workOrderRevisionIdentity}::text",
+  "= ${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.publicationOutboxV6}::text",
+].forEach((fragment) => assert.ok(source.includes(fragment),
+  `guard hash must be a typed postgres.js parameter instead of a quoted placeholder: ${fragment}`));
+assert.doesNotMatch(source, /= '\$\{SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256\./u,
+  "a postgres.js interpolation inside SQL quotes becomes an untyped $n placeholder at runtime");
 if (!source.includes("lockSpecifications2SourceEntries(tx, [sourceEntryId])")
   || !source.includes("decideSpecifications2PublicationRequest({")
   || !source.includes("buildAuthoritativePublicationEntry(entry, { revisionNo, releasedAt })")
