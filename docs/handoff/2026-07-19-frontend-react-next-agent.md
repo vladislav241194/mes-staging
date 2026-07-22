@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.68-5539716`; последний strict-accepted release остаётся
+> `v.1.500.69-4308c08`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.68-5539716`; immediate previous:
-  `v.1.500.67-6983dcd`; pinned legacy:
+- Активный accelerated release: `v.1.500.69-4308c08`; immediate previous:
+  `v.1.500.68-5539716`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -2181,3 +2181,48 @@ rendered-value contract or performing a visual redesign.
 Next accelerated candidate: migrate `react_runtime_policy.js` in its own
 high-blast-radius strict TypeScript cut, or select the next browser-only owner
 from the active mixed-runtime inventory.
+
+## React runtime policy strict TypeScript 2026-07-22: release `.69`
+
+This block supersedes `.68` as the live Pilot pointer. It removes the shared
+browser policy JavaScript boundary while preserving the exact fail-closed
+choice between React, evaluation and the sealed legacy release.
+
+- Active Pilot is `v.1.500.69-4308c08` at exact commit
+  `4308c088da9f808d38d65ab03b1ec444e7318382`; immediate previous is
+  `v.1.500.68-5539716` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `917c345d8dba7bb217f427853be441e7731ddd417e79eedf0f4fcfff5af16164` and
+  `228ede3d04da893c65519ebe2ed5d911c18605f796452835e2bef46a5d0d1ce1`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- `src/modules/react_runtime_policy.js` is absent. Its strict `.ts`
+  replacement types runtime modes, access modes, public policy shape and the
+  immutable activation decision. Missing, unknown or malformed policy values
+  still resolve to legacy; permanent React cannot be disabled by evaluation
+  flags.
+- Every active browser import, direct policy QA, strict tsconfig and the
+  mixed-runtime inventory uses the TypeScript path. Executable policy QA
+  bundles the real TS source for Node 20, removes the temporary directory in
+  `finally`, and passed on exact Node `20.19.5`.
+- Strict typecheck, focused policy/permanent-runtime contracts, mixed-runtime,
+  legacy inventory, module/feature, syntax, clean build and built-policy gates
+  passed. An independent review returned GO with no P1/P2 and confirmed that
+  the delivered browser graph contains the typed source.
+- Active JavaScript fell from 52,468 to 52,438 lines and from 118 to 117 files;
+  the strict inventory now contains 16 TypeScript files.
+- Activation completed through the fixed root boundary. The service is active,
+  the pointer resolves to `.69`, all 25 policy surfaces remain React and no
+  effective `MES_REACT_*` evaluation flags are configured.
+- Immediate previous `.68` passed rollback dry-run. The sealed legacy `.18`
+  release remains attested; its compatibility guard correctly refuses a switch
+  while Specifications 2 command drop-ins `50`, `63` and `64` are ON. The
+  guard was not bypassed.
+- No module completion marker changed. Implementation remains `99%`; strict
+  accepted evidence remains `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: convert the six browser-only Domain API clients for
+System Domains, Planning and Shift Execution (701 JavaScript lines). They have
+no production server/Node consumer and are the best remaining LOC-to-blast
+ratio before the shared UI renderer and React-host batches.
