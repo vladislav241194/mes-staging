@@ -98,6 +98,7 @@ MANAGED_DROPINS=(
   "${DROPIN_DIR}/61-system-domains-timesheet.conf"
   "${DROPIN_DIR}/62-system-domains-access-control.conf"
   "${DROPIN_DIR}/50-specifications2-attachments.conf"
+  "${DROPIN_DIR}/62-specifications2-work-orders-off.conf"
   "${DROPIN_DIR}/63-specifications2-work-orders.conf"
   "${DROPIN_DIR}/64-specifications2-publication.conf"
   "${DROPIN_DIR}/50-shift-execution-commands.conf"
@@ -173,8 +174,19 @@ trap restore_on_failure EXIT
 for file in "${MANAGED_DROPINS[@]}"; do
   [[ -f "$file" ]] && install -m 0644 "$file" "${BACKUP_DIR}/$(basename "$file")"
 done
-rm -f "${MANAGED_DROPINS[@]}"
 APPLIED=1
+rm -f "${MANAGED_DROPINS[@]}"
+# Older PostgreSQL-primary Pilot installations may retain the initial
+# Work Orders enable flag in the shared domain EnvironmentFile. Keep that
+# immutable file untouched and publish a later, release-managed OFF override;
+# the canonical 63-* activator naturally supersedes it after activation.
+printf '%s\n' \
+  '[Service]' \
+  'Environment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS=0' \
+  > "${BACKUP_DIR}/62-specifications2-work-orders-off.conf.next"
+install -o root -g root -m 0644 \
+  "${BACKUP_DIR}/62-specifications2-work-orders-off.conf.next" \
+  "${DROPIN_DIR}/62-specifications2-work-orders-off.conf"
 systemctl daemon-reload
 systemctl restart "$SERVICE"
 

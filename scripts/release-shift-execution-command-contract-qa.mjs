@@ -222,6 +222,7 @@ for (const dropin of [
   "49-system-domains-command-actors.conf",
   "62-system-domains-access-control.conf",
   "50-specifications2-attachments.conf",
+  "62-specifications2-work-orders-off.conf",
   "63-specifications2-work-orders.conf",
   "64-specifications2-publication.conf",
   "50-shift-execution-commands.conf",
@@ -229,6 +230,9 @@ for (const dropin of [
   "50-directory-cluster-commands.conf",
 ]) assert(bridgeSource.includes(dropin), `the staged bridge must manage ${dropin}`);
 assert(bridgeSource.includes('[[ "$configured" == "$expected" ]]'), "the staged bridge must accept only exact managed drop-in paths");
+assert(bridgeSource.includes("Environment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS=0")
+  && bridgeSource.indexOf("APPLIED=1") < bridgeSource.indexOf('rm -f "${MANAGED_DROPINS[@]}"'),
+"the staged bridge must override a predecessor EnvironmentFile command flag and arm rollback before mutation");
 assert(!bridgeSource.includes('50-shift-execution-*.conf'), "the legacy Shift compatibility path must not broaden into a filename glob");
 
 console.log("Shift Execution release command contract and staged deactivation bridge QA: OK");
