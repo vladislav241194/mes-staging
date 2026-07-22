@@ -292,9 +292,10 @@ assert.deepEqual(
   "Weekly Production Control becomes production-ready only after its runtime model is independent of legacy",
 );
 const productionStructureModule = ledger.modules.find((module) => module.id === "productionStructureMatrix");
-assert.equal(productionStructureModule?.runtimeMode, "legacy-default", "the mixed Structure route must remain legacy-default while six writable registries are not permanent");
-assert.equal(productionStructureModule?.normalLegacyPath, true, "the mixed Structure route must retain its six legacy registry paths");
-assert.equal(productionStructureModule?.productionReady, false, "one permanent nested Diagnostics surface may not make the whole Structure route production-ready");
+assert.equal(productionStructureModule?.runtimeMode, "react", "all seven Structure destinations must use the signed React UI route");
+assert.equal(productionStructureModule?.visibleLegacyRendererPath, false, "the complete Structure UI route may not expose a legacy renderer");
+assert.equal(productionStructureModule?.normalLegacyPath, true, "the transitional Structure data model must remain explicit until typed owner independence");
+assert.equal(productionStructureModule?.productionReady, false, "deferred Pilot lifecycle acceptance must remain separate from the completed React UI route");
 
 const commandScenarioIds = commandMatrix.scenarios.map((scenario) => scenario.id);
 const acceptanceIds = ledger.scenarioAcceptance.map((scenario) => scenario.id);

@@ -52,13 +52,13 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "shiftWorkOrders", status: COMPLETE }),
   defineCompletionEntry({ id: "specifications2", status: PARTIAL }),
   defineCompletionEntry({ id: "statuses", status: PARTIAL }),
-  defineCompletionEntry({ id: "structureEmployees", status: PARTIAL }),
-  defineCompletionEntry({ id: "structureEquipment", status: PARTIAL }),
+  defineCompletionEntry({ id: "structureEmployees", status: COMPLETE }),
+  defineCompletionEntry({ id: "structureEquipment", status: COMPLETE }),
   defineCompletionEntry({ id: "structureMigrationDiagnostics", status: COMPLETE, verification: ACCEPTED }),
-  defineCompletionEntry({ id: "structureOrgUnits", status: PARTIAL }),
-  defineCompletionEntry({ id: "structurePositions", status: PARTIAL }),
-  defineCompletionEntry({ id: "structureResponsibilityPolicies", status: PARTIAL }),
-  defineCompletionEntry({ id: "structureWorkCenters", status: PARTIAL }),
+  defineCompletionEntry({ id: "structureOrgUnits", status: COMPLETE }),
+  defineCompletionEntry({ id: "structurePositions", status: COMPLETE }),
+  defineCompletionEntry({ id: "structureResponsibilityPolicies", status: COMPLETE }),
+  defineCompletionEntry({ id: "structureWorkCenters", status: COMPLETE }),
   defineCompletionEntry({ id: "timesheet", status: PARTIAL }),
   defineCompletionEntry({ id: "weeklyProductionControl", status: COMPLETE, verification: ACCEPTED }),
 ]);
@@ -74,7 +74,7 @@ export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "dispatch", status: LEGACY }),
   defineCompletionEntry({
     id: "productionStructureMatrix",
-    status: PARTIAL,
+    status: COMPLETE,
     surfaceIds: [
       "structureEmployees",
       "structurePositions",
