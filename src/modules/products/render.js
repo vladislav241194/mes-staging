@@ -38,7 +38,6 @@ export function createProductsRenderModule(dependencies = {}) {
     getAccessRoleById = () => ({ label: "роль" }),
     getAuthPrototypePinFeedbackSequence = () => authPrototypePinFeedbackSequence,
     getAuthPrototypePinFeedbackTimer = () => authPrototypePinFeedbackTimer,
-    getAuthPrototypeSelectedExecutor,
     getComponentTypes,
     getDefaultOperationCalculationType,
     getFulfillmentLabel,
@@ -84,7 +83,6 @@ export function createProductsRenderModule(dependencies = {}) {
     persistUiState,
     render,
     renderDenseInlineSelect,
-    renderNomenclatureModulePage,
     renderUiActionButton,
     renderUiActionFileLabel,
     renderUiEmptyState,
@@ -1595,7 +1593,10 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function getAuthPrototypePinPerson(people = getAuthPrototypePeople()) {
-    return getAuthPrototypeSelectedPerson(people) || getAuthPrototypeSelectedExecutor(people);
+    return getAuthPrototypeSelectedPerson(people)
+      || people.executors.find((person) => person.id === ui.authPrototypePersonId)
+      || people.executors[0]
+      || null;
   }
   
   function inferAccessRoleIdForPerson(person = null) {
@@ -2091,50 +2092,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return renderUiEmptyState({ iconName, title, text, action });
   }
   
-  function renderNomenclaturePage() {
-    // CORRECTIVE-A-COMPAT: thin wrapper for render switch compatibility.
-    return renderNomenclatureModulePage({
-      BOARD_BOM_TERM,
-      BOARD_SPEC_LIST_TERM,
-      BOM_COMPONENT_FIELDS,
-      BOM_IMPORT_COLUMN_COUNT,
-      BOM_IMPORT_FALLBACK_HEADERS,
-      NOMENCLATURE_REA_COMPONENT_TYPE,
-      directoryState,
-      escapeAttribute,
-      escapeHtml,
-      getActiveBomForModule,
-      getActiveNomenclatureItem,
-      getActiveNomenclaturePane,
-      getBomComponentCounts,
-      getBomComponentFieldCounts,
-      getBomImportHeaders,
-      getBomImportRows,
-      getFilteredNomenclatureItems,
-      getNomenclatureTypeCounts,
-      getNomenclatureTypeFilterValue,
-      getNomenclatureTypeOptions,
-      getReaNomenclatureItems,
-      icon,
-      normalizeNomenclatureType,
-      renderDenseInlineSelect,
-      renderUiActionButton,
-      renderUiActionFileLabel,
-      renderUiEmptyState,
-      renderUiFilterBar,
-      renderUiFormField,
-      renderUiModuleHeader,
-      renderUiModulePage,
-      renderUiModuleSidebar,
-      renderUiPanel,
-      renderUiPanelBody,
-      renderUiSidebarItem,
-      renderUiStatusToken,
-      renderUiTableWrap,
-      ui,
-    });
-  }
-  
   function getDirectoryRows(sectionId) {
     return Array.isArray(directoryState?.[sectionId]) ? directoryState[sectionId] : [];
   }
@@ -2447,7 +2404,6 @@ export function createProductsRenderModule(dependencies = {}) {
     normalizeNomenclatureType,
     normalizeRouteBindingValue,
     renderModulePreviewEmpty,
-    renderNomenclaturePage,
     resetAuthPrototypeAttempts,
     resolveRouteModuleProjectId,
     scheduleAuthPrototypePinValidation,

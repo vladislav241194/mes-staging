@@ -25,14 +25,14 @@ function renderAuthPickerTarget({ activation = {}, failureReason = "", shellStat
   return `<div class="mes-react-auth-picker-island" data-react-auth-picker-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite">${content}</div>`;
 }
 
-export function createAuthPickerReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Authorization picker React island failed", error) } = {}) {
+export function createAuthPickerReactIslandHost({ getActivation, getPayload, getTargetRoot, executeCommand, reportError = (error) => console.error("[MES] Authorization picker React island failed", error) } = {}) {
   return createReactIslandHost({
-    getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    getActivation, getPayload, getTargetRoot, reportError,
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
-      if (activation.accessMode !== "react") return null;
+      if (!activation.featureFlagEnabled) return { state: "error", stage: "policy", reason: "model-unavailable" };
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
-      if (!activation.moduleReady || !activation.systemDomainsReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
+      if (!activation.systemDomainsReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
       return null;
     },
     getTelemetryContext: (activation) => ({
@@ -45,7 +45,6 @@ export function createAuthPickerReactIslandHost({ getActivation, getPayload, get
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.accessMode === "react") return "";
-      if (!activation.moduleReady) return "module-not-ready";
       if (!activation.systemDomainsReady) return "postgres-system-domains-not-ready";
       if (!activation.authGateReady) return "auth-gate-not-locked";
       if (!activation.pickerReady) return "pin-step-owned-by-legacy";
@@ -59,10 +58,9 @@ export function createAuthPickerReactIslandHost({ getActivation, getPayload, get
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountAuthPickerReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountAuthPickerReactIsland(target, payload, {
       onError,
       onReady,
-      onRequestLegacy: getActivation?.().accessMode === "react" ? undefined : onRequestLegacy,
       onCommand: (command) => executeCommand?.(command),
     }),
   });

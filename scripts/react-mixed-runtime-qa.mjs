@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const ledger = JSON.parse(await readFile(join(repositoryRoot, "experiments", "react-migration", "cutover-ledger.json"), "utf8"));
@@ -51,37 +51,22 @@ for (const module of ledger.modules) {
 const weekly = ledger.modules.find((module) => module.id === "weeklyProductionControl");
 assert(weekly, "Weekly Production Control ledger row is missing");
 assert.equal(runtimePolicy.surfaces?.weeklyProductionControl, "react", "Weekly permanent policy must remain default-on React");
-assert.match(weeklyHostSource, /canFallbackToLegacy:\s*\(activation\)\s*=>\s*activation\.accessMode !== "react"/,
-  "permanent Weekly renderer failures must remain fail-closed inside React");
+assert.match(weeklyHostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/,
+  "every current Weekly renderer failure must remain fail-closed inside React");
 assert.equal(weekly.visibleLegacyRendererPath, false, "permanent Weekly has no visible legacy renderer path");
 
 const legacyPayloadDependency = /getPayload:\s*\(\)\s*=>\s*\(\{\s*model:\s*getWeeklyProductionControlRuntimeInstance\(\)\.getWeeklyProductionControlModel\(\)\s*\}\)/.test(appSource);
 const typedProductionPayload = /getPayload:\s*\(\)\s*=>\s*\(\{\s*productionInput:\s*getWeeklyProductionControlReadModelInput\(\)\s*\}\)/.test(appSource)
   && /production-read-model/.test(weeklyAdapterSource);
-const selectorPath = join(repositoryRoot, "src", "modules", "weekly_production_control", "runtime_selection.js");
-let selectorProvesIsolation = false;
-try {
-  await access(selectorPath);
-  const { selectWeeklyProductionControlRuntime } = await import(`${pathToFileURL(selectorPath).href}?qa=${Date.now()}`);
-  let legacyLoads = 0;
-  const productionInstance = Object.freeze({ kind: "typed-production" });
-  const selected = selectWeeklyProductionControlRuntime({
-    accessMode: "react",
-    productionInstance,
-    loadLegacyRuntime: () => { legacyLoads += 1; throw new Error("React mode touched legacy runtime"); },
-  });
-  assert.equal(selected, productionInstance);
-  assert.equal(legacyLoads, 0, "React runtime selection must not call the legacy loader");
-  selectorProvesIsolation = true;
-} catch (error) {
-  if (error?.code !== "ENOENT") throw error;
-}
+const currentWeeklyRuntimeHasNoLegacy = !/modules\/weekly_production_control\/render\.js|selectWeeklyProductionControlRuntime|getWeeklyProductionControlLegacyRuntimeInstance|getWeeklyProductionControlRuntimeInstance|weeklyProductionControlLoadingInstance/.test(appSource)
+  && /initialize:\s*\(\)\s*=>\s*weeklyProductionControlProductionRuntimeInstance/.test(appSource)
+  && /weeklyProductionControlReactIslandHost\.prepareRender\(\);\s*return weeklyProductionControlReactIslandHost\.renderTarget\(\)/.test(appSource);
 
-const detectedWeeklyLegacyModelDependency = legacyPayloadDependency || !typedProductionPayload || !selectorProvesIsolation;
+const detectedWeeklyLegacyModelDependency = legacyPayloadDependency || !typedProductionPayload || !currentWeeklyRuntimeHasNoLegacy;
 assert.equal(weekly.runtimeLegacyModelDependency, detectedWeeklyLegacyModelDependency,
   "accepted Weekly ledger evidence must fail closed when its import graph reaches the legacy model factory");
 assert.equal(detectedWeeklyLegacyModelDependency, false,
-  "accepted-live Weekly must retain its typed payload and lazy legacy selector isolation");
+  "accepted-live Weekly must retain its typed payload and exclude the renderer from current runtime");
 assert.equal(weekly.acceptedRuntimeEvidence?.status, "accepted-live");
 assert.equal(weekly.acceptedRuntimeEvidence?.release, "v.1.500.26-097d66c");
 assert.equal(weekly.acceptedRuntimeEvidence?.freshRead, "verified");

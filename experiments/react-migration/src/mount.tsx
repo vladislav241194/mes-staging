@@ -58,7 +58,7 @@ function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftW
   if (scenario === "planningWorkbench") return <PlanningWorkbenchReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario onLoadPrintPackage={onLoadShiftWorkOrderPrintPackage} onLoadPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onNavigate={onShiftWorkOrdersNavigate} onPrintDocument={onPrintDocument} payload={payload} />;
   if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onCommand={onShiftMasterBoardCommand} onLoadPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onOpenCarryover={onOpenShiftMasterBoardCarryover} onOpenSource={onOpenShiftMasterBoardSource} onPrintDocument={(_rowId, _employeeId, title) => onPrintDocument?.(title)} onSelectDate={onSelectShiftMasterBoardDate} onSelectFocus={onSelectShiftMasterBoardFocus} onSelectMaster={onSelectShiftMasterBoardMaster} />;
-  if (scenario === "employeeDesktop") return <EmployeeDesktopScenario payload={payload} onCommand={onEmployeeDesktopCommand} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "employeeDesktop") return <EmployeeDesktopScenario payload={payload} onCommand={onEmployeeDesktopCommand} />;
   if (scenario === "contourAdmin") return <ContourAdminScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "specifications2") return <Specifications2Scenario payload={payload} />;
   if (scenario === "roles") return <RolesReadScenario payload={payload} />;

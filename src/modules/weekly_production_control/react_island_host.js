@@ -4,10 +4,12 @@ const WEEKLY_PRODUCTION_CONTROL_REACT_TARGET = "[data-react-weekly-production-co
 const WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION = "__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__";
 const WEEKLY_PRODUCTION_CONTROL_FAILURE_REASONS = new Set([
   "compatibility-fallback",
+  "evaluation-disabled",
   "model-unavailable",
   "mount-error",
   "read-unavailable",
   "render-error",
+  "runtime-policy-disabled",
   "unsupported-scope",
 ]);
 
@@ -17,9 +19,12 @@ function normalizeFailureReason(value) {
 }
 
 function renderWeeklyProductionControlTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
-  const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "legacy";
-  const state = failureReason ? "error" : shellState?.state === "error" ? "error" : "loading";
-  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+  const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "disabled";
+  const inactiveReason = activation.featureFlagEnabled === true
+    ? ""
+    : activation.runtimeMode === "evaluation" ? "evaluation-disabled" : "runtime-policy-disabled";
+  const state = failureReason || inactiveReason || shellState?.state === "error" ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || inactiveReason || "");
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем контроль недели</strong><p>Получаем актуальный недельный план и факт…</p></section>';
@@ -30,7 +35,6 @@ export function createWeeklyProductionControlReactIslandHost({
   getActivation,
   getPayload,
   getTargetRoot,
-  requestLegacyRender,
   reportTelemetry,
   reportError = (error) => console.error("[MES] Weekly Production Control React island failed", error),
 } = {}) {
@@ -38,10 +42,9 @@ export function createWeeklyProductionControlReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
-      if (activation.accessMode !== "react") return null;
+      if (activation.featureFlagEnabled !== true) return null;
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
       if (!activation.serverReadReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
       return null;
@@ -57,6 +60,7 @@ export function createWeeklyProductionControlReactIslandHost({
     renderTarget: renderWeeklyProductionControlTarget,
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
+      if (activation.serverReadFailure) return normalizeFailureReason(activation.serverReadFailure);
       if (activation.accessMode === "react") return "";
       if (!activation.serverReadReady) return "server-read-pending";
       if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";

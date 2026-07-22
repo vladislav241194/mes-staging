@@ -56,7 +56,6 @@ try {
 
   const evaluationTarget = new FakeElement();
   const evaluationTelemetry = [];
-  let evaluationLegacyRenders = 0;
   const evaluationHost = createReactIslandHost({
     getActivation: () => ({ runtimeMode: "evaluation" }),
     getPayload: () => ({}),
@@ -66,18 +65,17 @@ try {
     renderTarget: '<div data-react-test data-react-island-state="loading"></div>',
     loadIsland: async () => { throw new Error("evaluation mount failure"); },
     mountIsland: () => null,
-    requestLegacyRender: () => { evaluationLegacyRenders += 1; },
-    canFallbackToLegacy: (activation) => activation.runtimeMode !== "react",
+    canFallbackToLegacy: () => false,
     getTelemetryContext: (activation) => ({ surfaceId: "weeklyProductionControl", runtimeMode: activation.runtimeMode, policyId: "qa-weekly-evaluation" }),
     reportTelemetry: (event) => evaluationTelemetry.push(event),
     reportError: () => {},
   });
 
   assert.equal(await evaluationHost.mount(), false);
-  await new Promise((resolve) => queueMicrotask(resolve));
-  assert.equal(evaluationLegacyRenders, 1, "evaluation mount failure must retain the existing legacy rollback");
-  assert.equal(evaluationHost.getFallbackReason(), "mount-error");
-  assert.equal(evaluationTelemetry.filter((event) => event.state === "legacy-fallback").length, 1);
+  assert.equal(evaluationHost.getFailureReason(), "mount-error");
+  assert.equal(evaluationTarget.dataset.reactIslandState, "error", "evaluation failure must remain in the React fail-closed shell");
+  assert.equal(evaluationHost.getFallbackReason(), "");
+  assert.equal(evaluationTelemetry.filter((event) => event.state === "error").length, 1);
 
   const readyTarget = new FakeElement();
   readyTarget.setAttribute("aria-busy", "true");
@@ -128,7 +126,7 @@ try {
   assert.match(shellHost.renderTarget(), /data-react-island-state="error"/);
   assert.equal(shellTelemetry.filter((event) => event.state === "error").length, 1, "repeated renders must not duplicate read-error telemetry");
 
-  console.log("Weekly permanent React runtime QA passed: route ownership, bounded telemetry, no remount loop and evaluation rollback.");
+  console.log("Weekly permanent React runtime QA passed: route ownership, bounded telemetry, no remount loop and fail-closed evaluation.");
 } finally {
   if (previousHTMLElement === undefined) delete globalThis.HTMLElement;
   else globalThis.HTMLElement = previousHTMLElement;

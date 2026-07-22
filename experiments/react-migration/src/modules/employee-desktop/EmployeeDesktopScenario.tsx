@@ -18,7 +18,7 @@ export interface EmployeeDesktopReactCommandResult { ok?: boolean; message?: str
 const factInput = (value: string) => value.replace(/[^\d]/g, "").slice(0, 7);
 const RETURN_TO_USER_SELECTION = "__user-selection";
 
-export function EmployeeDesktopScenario({ payload, onCommand }: { payload: unknown; onCommand?(command: EmployeeDesktopReactCommand): Promise<EmployeeDesktopReactCommandResult | void>; onRequestLegacy?(scope?: string): void }) {
+export function EmployeeDesktopScenario({ payload, onCommand }: { payload: unknown; onCommand?(command: EmployeeDesktopReactCommand): Promise<EmployeeDesktopReactCommandResult | void> }) {
   const model = useMemo(() => adaptEmployeeDesktopPayload(payload), [payload]); const [selectedId, setSelectedId] = useState(model.selectedTask?.id || "");
   const [commandError, setCommandError] = useState(""); const [startingTaskId, setStartingTaskId] = useState("");
   const [savingFact, setSavingFact] = useState(false); const [actualQuantity, setActualQuantity] = useState(""); const [defectQuantity, setDefectQuantity] = useState(""); const [deviationComment, setDeviationComment] = useState("");

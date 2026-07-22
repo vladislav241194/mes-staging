@@ -718,18 +718,8 @@ function performConfirmedAction(dialog) {
     return;
   }
 
-  if (dialog.action === "bomDeleteList") {
-    deleteBomList(payload.bomId);
-    return;
-  }
-
   if (dialog.action === "directoryDeleteRow") {
     deleteDirectoryRow(payload.sectionId, payload.rowIndex);
-    return;
-  }
-
-  if (dialog.action === "nomenclatureDeleteItem") {
-    deleteNomenclatureItem(payload.itemId);
     return;
   }
 

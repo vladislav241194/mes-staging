@@ -21,8 +21,13 @@ const permanentHost = createEmployeeDesktopReactIslandHost({ getActivation: () =
 assert.deepEqual(permanentHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop permanent policy must activate React without URL flags");
 const pendingPermanentHost = createEmployeeDesktopReactIslandHost({ getActivation: () => ({ featureFlagEnabled: true, runtimeMode: "react", serverReadReady: false, accessMode: "react" }), getPayload: () => ({}), getTargetRoot: () => null });
 assert.deepEqual(pendingPermanentHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop permanent route must retain a React loading/error shell instead of legacy");
-const scenarioSource = await readFile(join(import.meta.dirname, "..", "experiments", "react-migration", "src", "modules", "employee-desktop", "EmployeeDesktopScenario.tsx"), "utf8");
-assert.doesNotMatch(scenarioSource, /onRequestLegacy\?\./, "Employee Desktop actions must not navigate to legacy UI");
+const [scenarioSource, hostSource] = await Promise.all([
+  readFile(join(import.meta.dirname, "..", "experiments", "react-migration", "src", "modules", "employee-desktop", "EmployeeDesktopScenario.tsx"), "utf8"),
+  readFile(join(import.meta.dirname, "..", "src", "modules", "auth_render", "employee_desktop_react_island_host.js"), "utf8"),
+]);
+assert.doesNotMatch(scenarioSource, /onRequestLegacy/, "Employee Desktop actions must not navigate to legacy UI");
+assert.doesNotMatch(hostSource, /requestLegacyRender|onRequestLegacy/, "Employee Desktop host must not retain a same-release legacy handoff");
+assert.match(hostSource, /canFallbackToLegacy:\s*\(\) => false/, "Employee Desktop runtime failures must stay in the fail-closed React shell");
 assert.match(scenarioSource, /data-react-complete-marker/, "completed Employee Desktop must expose the visible completion marker");
 assert.match(scenarioSource, /React TS ·/, "completed Employee Desktop marker must use the shared React TS label");
 const appSource = await readFile(join(import.meta.dirname, "..", "src", "app.js"), "utf8");
@@ -52,7 +57,10 @@ assert.match(appSource, /shiftExecutionCommands\.readIssueReports\(assignment\.i
 const activationSlice = appSource.slice(appSource.indexOf("function getEmployeeDesktopReactActivation"), appSource.indexOf("const employeeDesktopReactIslandHost"));
 assert.doesNotMatch(activationSlice, /authModulesReady/, "Employee Desktop React readiness must not wait for the legacy auth renderer");
 const employeeDesktopRouteSlice = appSource.slice(appSource.indexOf("authSessionPrototype: {"), appSource.indexOf("marking: {", appSource.indexOf("authSessionPrototype: {")));
-assert(employeeDesktopRouteSlice.indexOf("if (reactDecision.activateReact)") < employeeDesktopRouteSlice.indexOf("ensureAuthModules();"), "legacy auth modules must load only after the permanent React route is rejected");
+assert.match(employeeDesktopRouteSlice, /employeeDesktopReactIslandHost\.prepareRender\(\)/, "Employee Desktop route must prepare its React owner");
+assert.match(employeeDesktopRouteSlice, /return employeeDesktopReactIslandHost\.renderTarget\(\)/, "Employee Desktop route must always render the React shell");
+assert.doesNotMatch(employeeDesktopRouteSlice, /ensureAuthModules|renderAuthSessionPrototypePage|renderAuthSessionModal|bindAuthPrototypeEvents|bindAuthSessionEvents/, "Employee Desktop route must not retain legacy Auth render or event wiring");
+assert.doesNotMatch(appSource, /auth_render\/(?:render|events)\.js|ensureAuthModules/, "current application runtime must not load the retired Auth chunks");
 const issueHydrationSlice = appSource.slice(appSource.indexOf("async function hydrateEmployeeDesktopIssueReports"), appSource.indexOf("async function flushShiftExecutionOutbox"));
 assert.doesNotMatch(issueHydrationSlice, /getAuthSessionPrototypeModel\(/, "signed Report hydration must read the production runtime state");
 const runtimeRowsSlice = appSource.slice(appSource.indexOf("function buildEmployeeDesktopStoredAssignmentRow"), appSource.indexOf("function getEmployeeDesktopRuntimeState"));

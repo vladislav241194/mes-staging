@@ -23,7 +23,11 @@ const MODULE_QA_BASELINE = [
 const MODULE_FEATURE_OVERRIDES = {
   nomenclature: {
     css: ["styles/layers/60-operational-modules.css"],
-    files: ["src/modules/nomenclature/render.js"],
+    files: [
+      "src/modules/nomenclature/react_island_host.js",
+      "src/modules/nomenclature/boards_react_island_host.js",
+      "experiments/react-migration/src/modules/nomenclature/NomenclatureScenario.tsx",
+    ],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
     qa: ["scripts/ui-table-contract-audit.mjs"],
   },
@@ -64,7 +68,7 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   weeklyProductionControl: {
     css: ["styles/layers/60-operational-modules.css"],
-    files: ["src/modules/weekly_production_control/render.js"],
+    files: ["src/modules/weekly_production_control/react_island_host.js", "src/modules/weekly_production_control/production_read_input.js"],
     storage: CORE_STATE_STORAGE_KEYS,
     qa: ["scripts/ui-table-contract-audit.mjs"],
     removalContract: "Read-only module; refactors must not write to planning, shift facts, reports, or shared-state.",
@@ -129,12 +133,20 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   authPrototype: {
     css: ["styles/layers/60-operational-modules.css", "styles/ui/runtime-safety.css"],
+    files: [
+      "src/modules/auth_render/auth_picker_react_island_host.js",
+      "experiments/react-migration/src/modules/auth-picker/AuthPickerScenario.tsx",
+    ],
     storage: ["mes-planning-prototype-auth-session-v1", ...CORE_STATE_STORAGE_KEYS],
     qa: ["scripts/auth-functional-qa.mjs"],
     domains: ["auth"],
   },
   authSessionPrototype: {
     css: ["styles/layers/60-operational-modules.css"],
+    files: [
+      "src/modules/auth_render/employee_desktop_react_island_host.js",
+      "experiments/react-migration/src/modules/employee-desktop/EmployeeDesktopScenario.tsx",
+    ],
     storage: ["mes-planning-prototype-auth-session-v1", ...CORE_STATE_STORAGE_KEYS],
     api: ["/api/shared-state"],
     qa: ["scripts/auth-functional-qa.mjs", "scripts/shift-operational-flow-functional-qa.mjs"],

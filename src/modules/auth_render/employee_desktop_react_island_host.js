@@ -19,16 +19,15 @@ function renderEmployeeDesktopTarget({ activation = {}, failureReason = "", shel
   return `<div class="mes-react-employee-desktop-island" data-react-employee-desktop-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite">${content}</div>`;
 }
 
-export function createEmployeeDesktopReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Employee Desktop React island failed", error) } = {}) {
+export function createEmployeeDesktopReactIslandHost({ getActivation, getPayload, getTargetRoot, executeCommand, reportError = (error) => console.error("[MES] Employee Desktop React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
     reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
-      if (activation.accessMode !== "react") return null;
+      if (!activation.featureFlagEnabled) return { state: "error", stage: "policy", reason: "model-unavailable" };
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
       if (!activation.serverReadReady) return { state: "loading", stage: "read", reason: "server-read-pending" };
       return null;
@@ -50,10 +49,9 @@ export function createEmployeeDesktopReactIslandHost({ getActivation, getPayload
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountEmployeeDesktopReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountEmployeeDesktopReactIsland(target, payload, {
       onError,
       onReady,
-      onRequestLegacy: getActivation?.().accessMode === "react" ? undefined : onRequestLegacy,
       onCommand: executeCommand ? (command) => executeCommand(command) : undefined,
     }),
   });

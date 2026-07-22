@@ -5,6 +5,7 @@ const NOMENCLATURE_REACT_BUNDLE_VERSION = "__MES_NOMENCLATURE_REACT_BUNDLE_VERSI
 const NOMENCLATURE_FAILURE_REASONS = new Set([
   "mount-error",
   "read-unavailable",
+  "react-required",
   "render-error",
   "shared-state-unconfigured",
 ]);
@@ -19,9 +20,11 @@ function renderNomenclatureTarget({ activation = {}, failureReason = "", shellSt
     ? "react"
     : activation.runtimeMode === "evaluation"
       ? "evaluation"
-      : "legacy";
-  const state = failureReason ? "error" : shellState?.state === "error" ? "error" : "loading";
-  const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
+      : "disabled";
+  const reactRequired = activation.featureFlagEnabled !== true
+    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode);
+  const state = failureReason || reactRequired || shellState?.state === "error" ? "error" : "loading";
+  const reason = normalizeFailureReason(failureReason || shellState?.reason || (reactRequired ? "react-required" : ""));
   const content = state === "error"
     ? `<section class="mes-react-runtime-error" role="alert"><strong>React-модуль временно недоступен</strong><p>Код ошибки: ${reason}</p></section>`
     : '<section class="mes-react-runtime-status" role="status"><strong>Загружаем номенклатуру</strong><p>Получаем актуальный справочник из общего хранилища…</p></section>';
@@ -32,7 +35,6 @@ export function createNomenclatureReactIslandHost({
   getActivation,
   getPayload,
   getTargetRoot,
-  requestLegacyRender,
   navigateBoards,
   executeCommand,
   reportTelemetry,
@@ -42,9 +44,14 @@ export function createNomenclatureReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
+      if (activation.featureFlagEnabled !== true) {
+        return { state: "error", stage: "runtime", reason: "react-required" };
+      }
+      if (!["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) {
+        return { state: "error", stage: "runtime", reason: "react-required" };
+      }
       if (activation.accessMode !== "react") return null;
       if (activation.serverReadFailure) {
         return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
@@ -64,11 +71,11 @@ export function createNomenclatureReactIslandHost({
     targetSelector: NOMENCLATURE_REACT_TARGET,
     renderTarget: renderNomenclatureTarget,
     getIneligibilityReason: (activation) => {
-      if (!activation.featureFlagEnabled) return "disabled";
+      if (!activation.featureFlagEnabled) return "react-required";
       if (activation.activePane !== "items") return "unsupported-scope";
       if (activation.accessMode === "react") return "";
       if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") {
-        return "write-parity-incomplete";
+        return "react-required";
       }
       return "";
     },

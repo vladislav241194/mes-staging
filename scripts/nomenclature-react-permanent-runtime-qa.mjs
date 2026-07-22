@@ -73,17 +73,16 @@ try {
     runtimeMode: "react",
     accessMode: "react",
     featureFlagEnabled: true,
+    activePane: "items",
     serverReadReady: false,
     serverReadFailure: "",
     policyId: "qa-nomenclature-permanent",
   };
   const shellTelemetry = [];
-  let shellLegacyRenders = 0;
   const shellHost = createNomenclatureReactIslandHost({
     getActivation: () => shellActivation,
     getPayload: () => ({}),
     getTargetRoot: () => ({ querySelector: () => new FakeElement() }),
-    requestLegacyRender: () => { shellLegacyRenders += 1; },
     executeCommand: () => { throw new Error("unready permanent shell dispatched a command"); },
     reportTelemetry: (event) => shellTelemetry.push(event),
   });
@@ -91,14 +90,27 @@ try {
   assert.match(shellHost.renderTarget(), /data-react-island-state="loading"/);
   assert.match(shellHost.renderTarget(), /data-ui-component="ModuleSidebar"/, "permanent loading/error shell must preserve the common module layout");
   assert.equal(await shellHost.mount(), false, "permanent Nomenclature must not mount before the durable projection is ready");
-  assert.equal(shellLegacyRenders, 0, "permanent loading must not request legacy Nomenclature");
   assert.equal(shellTelemetry.filter((event) => event.state === "loading" && event.stage === "read").length, 1, "repeated loading renders must emit one bounded event");
   shellActivation = { ...shellActivation, serverReadFailure: "read-unavailable" };
   assert.match(shellHost.renderTarget(), /data-react-island-state="error"/);
   assert.match(shellHost.renderTarget(), /read-unavailable/);
   assert.equal(await shellHost.mount(), false, "permanent Nomenclature must not mount against a failed durable read");
-  assert.equal(shellLegacyRenders, 0, "permanent read failure must not expose legacy Nomenclature");
   assert.equal(shellTelemetry.filter((event) => event.state === "error" && event.stage === "read").length, 1, "repeated read errors must emit one bounded event");
+
+  const requiredHost = createNomenclatureReactIslandHost({
+    getActivation: () => ({
+      runtimeMode: "disabled",
+      accessMode: "legacy",
+      featureFlagEnabled: false,
+      activePane: "items",
+    }),
+    getPayload: () => ({}),
+    getTargetRoot: () => ({ querySelector: () => new FakeElement() }),
+  });
+  assert.match(requiredHost.renderTarget(), /data-react-island-state="error"/);
+  assert.match(requiredHost.renderTarget(), /react-required/, "a disabled policy must expose the deterministic React-required shell");
+  assert.deepEqual(requiredHost.prepareRender(), { activateReact: false, reason: "react-required" });
+  assert.equal(await requiredHost.mount(), false, "a disabled policy must not mount or fall back to legacy");
 
   const permanentTarget = new FakeElement();
   const permanentTelemetry = [];
@@ -115,7 +127,7 @@ try {
     loadIsland: async () => { permanentLoads += 1; throw new Error("bounded Nomenclature mount failure"); },
     mountIsland: () => null,
     requestLegacyRender: () => { permanentLegacyRenders += 1; },
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getTelemetryContext: () => ({ surfaceId: "nomenclature", runtimeMode: "react", policyId: "qa-nomenclature-permanent" }),
     reportTelemetry: (event) => permanentTelemetry.push(event),
     reportError: (error) => permanentErrors.push(error.message),
@@ -143,12 +155,14 @@ try {
     loadIsland: async () => { throw new Error("evaluation mount failure"); },
     mountIsland: () => null,
     requestLegacyRender: () => { evaluationLegacyRenders += 1; },
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     reportError: () => {},
   });
   assert.equal(await evaluationHost.mount(), false);
   await new Promise((resolve) => queueMicrotask(resolve));
-  assert.equal(evaluationLegacyRenders, 1, "evaluation rollback must remain available even after permanent cutover is implemented");
+  assert.equal(evaluationHost.getFailureReason(), "mount-error");
+  assert.equal(evaluationTarget.dataset.reactIslandState, "error");
+  assert.equal(evaluationLegacyRenders, 0, "evaluation renderer failures must remain fail-closed after the route cut");
 
   const readyTarget = new FakeElement();
   readyTarget.setAttribute("aria-busy", "true");
@@ -213,7 +227,9 @@ assert.match(appHostSource, /command\.type\s*===\s*["']delete["'][^]*await\s+get
 assert.match(appHostSource, /await\s+getNomenclatureReactWriteDecisionForCommand\(input\.isNew\s*===\s*true\s*\?\s*["']create["']\s*:\s*["']edit["']\)/, "save dispatch must independently await and recheck create/edit server capability");
 assert.match(appHostSource, /requireDurable:\s*true/, "permanent Nomenclature saves must require durable server acknowledgement");
 assert.match(appSource, /if\s*\(!failClosed\)\s*ensureStatusDirectoryDefaults\(\)/, "permanent targeted reads must not auto-write missing compatibility defaults");
-assert.match(hostSource, /canFallbackToLegacy:[^]*accessMode\s*!==\s*["']react["']/, "permanent Nomenclature host must fail closed instead of rendering live legacy");
+assert.match(hostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/, "every Nomenclature renderer failure must remain fail-closed in React");
+assert.doesNotMatch(hostSource, /requestLegacyRender/, "Nomenclature host must not expose a live legacy-render callback");
+assert.match(hostSource, /react-required/, "Nomenclature host must expose a deterministic fail-closed policy shell");
 assert.match(hostSource, /getShellState:[^]*serverReadFailure[^]*serverReadReady/, "Nomenclature host must own loading and read-error shells");
 assert.match(hostSource, /surfaceId:\s*["']nomenclature["']/, "Nomenclature telemetry must retain the policy surface id");
 assert.match(islandSource, /onRequestBoards|onNavigateBoards/, "Boards must be an explicit navigation intent, not a Nomenclature legacy request");

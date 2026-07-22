@@ -1,15 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const appSource = await readFile(join(repositoryRoot, "src", "app.js"), "utf8");
 const inputSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "production_read_input.js"), "utf8");
-const selectorPath = join(repositoryRoot, "src", "modules", "weekly_production_control", "runtime_selection.js");
-const selectorSource = await readFile(selectorPath, "utf8");
+const hostSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "react_island_host.js"), "utf8");
 const adapterPath = join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "adapter.ts");
 const adapterSource = await readFile(adapterPath, "utf8");
 const modelSource = await readFile(join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "production-read-model.ts"), "utf8");
@@ -28,20 +27,10 @@ const productionInputBoundary = between(
   "function getWeeklyProductionControlReadModelInput()",
   "const weeklyProductionControlReactIslandHost",
 );
-const legacyLoaderBoundary = between(
-  appSource,
-  "function getWeeklyProductionControlLegacyRuntimeInstance()",
-  "function getWeeklyProductionControlRuntimeInstance()",
-);
-const runtimeSelectorBoundary = between(
-  appSource,
-  "function getWeeklyProductionControlRuntimeInstance()",
-  "const PRODUCTION_STRUCTURE_REGISTRY_IDS",
-);
 const weeklyHydrationBoundary = between(
   appSource,
   "function hydrateWeeklyPlanningPeriod()",
-  "function getWeeklyProductionControlLegacyRuntimeInstance()",
+  "const PRODUCTION_STRUCTURE_REGISTRY_IDS",
 );
 
 assert.match(productionInputBoundary, /periodRows:\s*weeklyPlanningPeriodState\.rows/,
@@ -67,13 +56,18 @@ assert.match(appSource, /getPayload:\s*\(\)\s*=>\s*\(\{\s*productionInput:\s*get
   "React host must receive the strict production DTO rather than a legacy model");
 assert.doesNotMatch(appSource, /getPayload:\s*\(\)\s*=>\s*\(\{\s*model:\s*getWeeklyProductionControlRuntimeInstance/,
   "React host may not execute the legacy Weekly model factory");
-assert.match(runtimeSelectorBoundary, /accessMode:\s*getWeeklyProductionControlReactActivation\(\)\.accessMode/);
-assert.match(runtimeSelectorBoundary, /productionInstance:\s*weeklyProductionControlProductionRuntimeInstance/);
-assert.match(runtimeSelectorBoundary, /loadLegacyRuntime:\s*getWeeklyProductionControlLegacyRuntimeInstance/);
-assert.match(legacyLoaderBoundary, /import\("\.\/modules\/weekly_production_control\/render\.js"\)/,
-  "immutable legacy rollback must retain its isolated lazy loader");
-assert.equal((appSource.match(/import\("\.\/modules\/weekly_production_control\/render\.js"\)/g) || []).length, 1,
-  "Weekly legacy renderer must have exactly one isolated dynamic import");
+assert.doesNotMatch(appSource, /modules\/weekly_production_control\/render\.js|selectWeeklyProductionControlRuntime|getWeeklyProductionControlLegacyRuntimeInstance|getWeeklyProductionControlRuntimeInstance|weeklyProductionControlLoadingInstance|createWeeklyProductionControlRuntimeInstance/,
+  "current Weekly runtime must not retain a renderer loader, selector, loading instance, or factory");
+assert.match(appSource, /initialize:\s*\(\)\s*=>\s*weeklyProductionControlProductionRuntimeInstance/,
+  "factory-lazy public ports must resolve to the pure production formatter instance");
+assert.match(appSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\);\s*return weeklyProductionControlReactIslandHost\.renderTarget\(\)/,
+  "current Weekly route must always render its React fail-closed shell");
+assert.match(appSource, /weeklyProductionControl:\s*\{[\s\S]{0,900}bind:\s*\(\)\s*=>\s*\{\}/,
+  "current Weekly route must not bind renderer events");
+assert.match(hostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/,
+  "current Weekly host must fail closed for every activation mode");
+assert.doesNotMatch(hostSource, /requestLegacyRender|onRequestLegacy/,
+  "current Weekly host must not expose a renderer fallback callback");
 
 assert.match(weeklyHydrationBoundary, /const typedReactRead = weeklyReactAccessMode === "react" \|\| weeklyReactAccessMode === "read-only-evaluation"/);
 assert.match(weeklyHydrationBoundary, /getWeeklyPlanningPeriodLookups\(\{ canonicalOnly: typedReactRead \}\)/);
@@ -108,37 +102,13 @@ assert.equal(adapterInputs.some((path) => path.endsWith("/src/modules/weekly_pro
 assert.equal(adapterInputs.some((path) => path.endsWith("/src/app.js")), false,
   "bundled strict adapter import graph must exclude the mixed application shell");
 
-const { selectWeeklyProductionControlRuntime } = await import(`${pathToFileURL(selectorPath).href}?qa=${Date.now()}`);
-let legacyLoads = 0;
-const productionInstance = Object.freeze({ id: "weekly-typed-production" });
-assert.equal(selectWeeklyProductionControlRuntime({
-  accessMode: "react",
-  productionInstance,
-  loadLegacyRuntime: () => {
-    legacyLoads += 1;
-    throw new Error("permanent React selected legacy");
-  },
-}), productionInstance);
-assert.equal(legacyLoads, 0, "permanent React runtime selection must not touch the rollback loader");
-const legacyInstance = Object.freeze({ id: "weekly-legacy-rollback" });
-assert.equal(selectWeeklyProductionControlRuntime({
-  accessMode: "legacy",
-  productionInstance,
-  loadLegacyRuntime: () => {
-    legacyLoads += 1;
-    return legacyInstance;
-  },
-}), legacyInstance);
-assert.equal(legacyLoads, 1, "legacy rollback must remain executable outside permanent React mode");
-assert.match(selectorSource, /if \(accessMode === "react"\)/);
-
 const weekly = ledger.modules.find((module) => module.id === "weeklyProductionControl");
 assert(weekly);
 assert.equal(weekly.visibleLegacyRendererPath, false);
 assert.equal(weekly.runtimeLegacyModelDependency, false,
   "accepted-live Weekly must use the runtime-independent production read-model");
 assert.equal(weekly.normalLegacyPath, false,
-  "accepted-live Weekly may load legacy only through the explicit rollback selector");
+  "accepted-live Weekly current runtime must be React-only; rollback belongs to an immutable release");
 assert.equal(weekly.productionReady, true);
 assert.equal(weekly.acceptedRuntimeEvidence?.status, "accepted-live");
 assert.equal(weekly.acceptedRuntimeEvidence?.release, "v.1.500.26-097d66c");
@@ -149,4 +119,4 @@ assert.equal(Object.hasOwn(weekly, "candidateRuntimeLegacyModelDependency"), fal
 assert.equal(Object.hasOwn(weekly, "candidateEvidence"), false);
 assert.equal(ledger.currentProgress, 50, "accepted-live consolidation must earn exactly two legacy-consolidation points");
 
-console.log("Weekly Production Control runtime consolidation QA: OK (accepted-live .26, lazy legacy rollback retained; global 50%)");
+console.log("Weekly Production Control runtime consolidation QA: OK (React-only current runtime; immutable-release rollback retained; global 50%)");

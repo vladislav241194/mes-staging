@@ -49,10 +49,14 @@ assert(script.includes('"MES_REACT_NOMENCLATURE_WRITE_EVALUATION":true'), "publi
 assert(script.includes('"MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY":true'), "public runtime script must contain the command-primary boolean");
 assert(!script.includes("must-not-leak"), "public runtime script must never expose deployment secrets");
 
-const [appSource, boardsOwnerSource, productsEventsSource, runtimeStateSource, sharedStateEndpointSource] = await Promise.all([
+const [appSource, boardsOwnerSource, productsEventsSource, productsRenderSource, appInteractionsSource, nomenclatureIslandHostSource, boardsIslandHostSource, runtimeStateSource, sharedStateEndpointSource] = await Promise.all([
   readFile(join(root, "src/app.js"), "utf8"),
   readFile(join(root, "src/modules/nomenclature/boards_command_owner.js"), "utf8"),
   readFile(join(root, "src/modules/products/events.js"), "utf8"),
+  readFile(join(root, "src/modules/products/render.js"), "utf8"),
+  readFile(join(root, "src/modules/app_interactions/render.js"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/react_island_host.js"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/boards_react_island_host.js"), "utf8"),
   readFile(join(root, "src/modules/runtime_state/service.js"), "utf8"),
   readFile(join(root, "scripts/shared-state-endpoint.mjs"), "utf8"),
 ]);
@@ -71,11 +75,19 @@ assert(!/(getBomLinkedSpecifications|getBomImportRows|normalizeLookupText)\(/.te
 const nomenclatureRouteStart = appSource.indexOf("    nomenclature: {\n      render: () => {");
 const planningRouteStart = appSource.indexOf("    planning: {", nomenclatureRouteStart);
 const nomenclatureRouteSource = appSource.slice(nomenclatureRouteStart, planningRouteStart);
-const reactDecisionIndex = nomenclatureRouteSource.indexOf("activeReactHost.prepareRender()");
-const legacyLoadIndex = nomenclatureRouteSource.indexOf("ensureNomenclatureRenderModule()");
 assert(nomenclatureRouteStart >= 0 && planningRouteStart > nomenclatureRouteStart, "Nomenclature route boundary must be discoverable");
-assert(reactDecisionIndex >= 0 && legacyLoadIndex > reactDecisionIndex, "Nomenclature route must decide React ownership before loading the legacy renderer");
-assert(/permanentActiveRuntime[^]*return activeReactHost\.renderTarget\(\)[^]*ensureNomenclatureRenderModule\(\)/.test(nomenclatureRouteSource), "permanent Nomenclature and Boards routes must fail closed in React before the rollback-only legacy load");
+assert(/allowBeforeInitialSync:\s*true[^]*failClosed:\s*true/.test(nomenclatureRouteSource), "Nomenclature route must retain targeted fail-closed directory hydration");
+assert(/inactiveReactHost\.prepareRender\(\)[^]*activeReactHost\.prepareRender\(\)[^]*return activeReactHost\.renderTarget\(\)/.test(nomenclatureRouteSource), "Nomenclature route must render only the selected React surface");
+assert(/bind:\s*\(\)\s*=>\s*\{\}/.test(nomenclatureRouteSource), "Nomenclature route must not bind retired legacy DOM events");
+assert(!/ensureNomenclatureRenderModule|renderNomenclaturePage|bindNomenclatureEvents|bindBomListsEvents/.test(nomenclatureRouteSource), "Nomenclature route must not retain a live legacy render or bind path");
+assert(!/modules\/nomenclature\/render\.js|ensureNomenclatureRenderModule|renderNomenclatureModulePage|renderNomenclaturePage/.test(appSource), "application runtime must not reach the retired Nomenclature renderer");
+assert(!/renderNomenclatureModulePage|renderNomenclaturePage/.test(productsRenderSource), "Products must not retain the retired Nomenclature route wrapper");
+assert(!/bomDeleteList|nomenclatureDeleteItem/.test(appInteractionsSource), "global confirm handling must not retain obsolete Nomenclature legacy actions");
+assert(/moduleId\s*===\s*["']bomLists["']\s*\?\s*["']nomenclature["']/.test(appInteractionsSource), "Boards deep links must continue to route through the Nomenclature React surface");
+assert(/canFallbackToLegacy:\s*\(\)\s*=>\s*false/.test(nomenclatureIslandHostSource), "Nomenclature renderer failures must stay fail-closed in React");
+assert(/canFallbackToLegacy:\s*\(\)\s*=>\s*false/.test(boardsIslandHostSource), "Boards renderer failures must stay fail-closed in React");
+assert(!/requestLegacyRender/.test(nomenclatureIslandHostSource + boardsIslandHostSource), "Nomenclature and Boards hosts must not expose a legacy-render callback");
+assert(/react-required/.test(nomenclatureIslandHostSource) && /react-required/.test(boardsIslandHostSource), "both hosts must expose a deterministic React-required shell");
 const boardsOwnerLoaderStart = appSource.indexOf("function ensureBoardsCommandOwner()", boardsHostStart - 4000);
 const boardsOwnerLoaderSource = appSource.slice(boardsOwnerLoaderStart, boardsHostStart);
 assert(boardsOwnerLoaderStart >= 0 && boardsOwnerLoaderStart < boardsHostStart, "Boards command owner lazy boundary must be discoverable before the host");

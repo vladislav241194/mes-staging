@@ -338,8 +338,12 @@ const renderBlock = appSource.match(/function render\(options = \{\}\) \{([\s\S]
 assert((renderBlock.match(/if \(ui\.activeModule ===/g) || []).length === 0, "factory-runtime-handler: render() still contains manual standard module branches");
 assert(renderBlock.includes('ui.activeModule !== "gantt"'), "factory-runtime-handler: special Gantt fallback must be explicit");
 assert(!appSource.includes("initializeWeeklyProductionControlModule"), "weeklyProductionControl still has a manual initializer wrapper");
-assert(appSource.includes("createWeeklyProductionControlRuntimeInstance"), "weeklyProductionControl lifecycle proof is missing");
-assert(appSource.includes("moduleRuntime.getPublicPort(\"weeklyProductionControl\""), "weeklyProductionControl public port is not explicit");
+assert(appSource.includes("initialize: () => weeklyProductionControlProductionRuntimeInstance"), "weeklyProductionControl pure production lifecycle proof is missing");
+assert(!appSource.includes("createWeeklyProductionControlRuntimeInstance"), "weeklyProductionControl current runtime still contains the removed renderer factory");
+assert(!appSource.includes('modules/weekly_production_control/render.js'), "weeklyProductionControl current runtime still imports its removed renderer");
+assert(appSource.includes('initialize: () => weeklyProductionControlProductionRuntimeInstance')
+  && appSource.includes('"formatWeeklyProductionControlPercent"')
+  && appSource.includes('"formatWeeklyProductionControlQuantity"'), "weeklyProductionControl public port declaration is not explicit");
 assert(!/const moduleProfiles\s*=\s*\{/.test(paritySource), "parity QA still owns a literal module profile island");
 assert(smokeSource.includes("getMesModuleNavigationDefinitions"), "module smoke is not registry-derived");
 assert(regressionSource.includes("MES_MODULE_BLUEPRINT_REGISTRY"), "regression overlay/profile enrollment is not blueprint-derived");

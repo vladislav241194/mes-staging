@@ -139,18 +139,14 @@ await writeFile(evaluationPolicyFile, `${JSON.stringify({
 const permanentPolicyFile = join(temporaryRoot, "weekly-react-policy.json");
 await writeFile(permanentPolicyFile, `${JSON.stringify({ ...releasePolicy, policyId: "qa-weekly-permanent-react", surfaces: { ...releasePolicy.surfaces, weeklyProductionControl: "react" } }, null, 2)}\n`, { mode: 0o600 });
 const enabledPort = await getFreePort();
-const legacyPort = await getFreePort();
 const permanentPort = await getFreePort();
 const enabledOrigin = `http://127.0.0.1:${enabledPort}`;
-const legacyOrigin = `http://127.0.0.1:${legacyPort}`;
 const permanentOrigin = `http://127.0.0.1:${permanentPort}`;
 const start = (port, mode) => spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_RUNTIME_POLICY_PATH: mode === "react" ? permanentPolicyFile : evaluationPolicyFile, ...(mode === "evaluation" ? { MES_REACT_WEEKLY_PRODUCTION_CONTROL: "1", MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION: "1" } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
 const enabledPreview = start(enabledPort, "evaluation");
-const legacyPreview = start(legacyPort, "legacy");
 const permanentPreview = start(permanentPort, "react");
-let enabledOutput = ""; let legacyOutput = ""; let permanentOutput = "";
+let enabledOutput = ""; let permanentOutput = "";
 enabledPreview.stdout.on("data", (chunk) => { enabledOutput += chunk; }); enabledPreview.stderr.on("data", (chunk) => { enabledOutput += chunk; });
-legacyPreview.stdout.on("data", (chunk) => { legacyOutput += chunk; }); legacyPreview.stderr.on("data", (chunk) => { legacyOutput += chunk; });
 permanentPreview.stdout.on("data", (chunk) => { permanentOutput += chunk; }); permanentPreview.stderr.on("data", (chunk) => { permanentOutput += chunk; });
 let chrome = null;
 const consoleProblems = [];
@@ -159,7 +155,7 @@ let systemDomainReads = 0;
 let permanentReadMode = "success";
 let pendingPermanentReadRequestId = "";
 try {
-  await Promise.all([waitPreview(enabledOrigin), waitPreview(legacyOrigin), waitPreview(permanentOrigin)]);
+  await Promise.all([waitPreview(enabledOrigin), waitPreview(permanentOrigin)]);
   chrome = await launchChrome("mes-weekly-production-control-react-qa-");
   const { client } = chrome;
   client.socket.addEventListener("message", (event) => {
@@ -193,15 +189,9 @@ try {
   await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/planning/period*", requestStage: "Request" }, { urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
 
-  await client.send("Page.navigate", { url: `${legacyOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1` });
-  await waitForCondition(client, () => document.querySelectorAll(".weekly-production-control-table tbody tr").length >= 25, { message: "completed legacy Weekly Control rows missing", timeoutMs: 15_000 });
-  const legacy = await evaluate(client, normalizedTable);
-  assert(legacy.rows.length === 25 && legacy.headers.length === 11, `legacy Weekly fixture must expose exactly 25 rows/11 headers, got ${legacy.rows.length}/${legacy.headers.length}`);
-  assertCanonicalAliasRows(legacy, "legacy Weekly");
-
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1` });
-  await waitForCondition(client, () => document.querySelectorAll(".weekly-production-control-table tbody tr").length >= 25, { message: "completed enabled Weekly legacy default missing", timeoutMs: 15_000 });
-  assert(await evaluate(client, () => !document.querySelector("[data-react-weekly-production-control-island]")), "server permission without session request must retain legacy Weekly Control");
+  await waitForCondition(client, () => document.querySelector('[data-react-weekly-production-control-island][data-react-island-state="error"]')?.textContent?.includes("evaluation-disabled"), { message: "disabled Weekly evaluation did not remain in its fail-closed React shell", timeoutMs: 15_000 });
+  assert(await evaluate(client, () => ![...document.querySelectorAll(".weekly-production-control-page")].some((page) => !page.closest("[data-react-weekly-production-control-island]"))), "disabled evaluation exposed the removed Weekly renderer");
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=weeklyProductionControl&qa-auth-bypass=1&react-weekly-production-control-evaluation=1` });
   try {
@@ -219,8 +209,6 @@ try {
   }
   const react = await evaluate(client, normalizedTable);
   const state = await evaluate(client, () => { const target = document.querySelector("[data-react-weekly-production-control-island]"); const tableWrap = document.querySelector('[data-ui-component="TableWrap"]'); return { revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableOwnsOverflow: Boolean(tableWrap && tableWrap.scrollWidth > tableWrap.clientWidth), tableOverflowMode: tableWrap ? getComputedStyle(tableWrap).overflowX : "" }; });
-  assert(JSON.stringify(react.headers) === JSON.stringify(legacy.headers), `Weekly header parity failed\nlegacy=${JSON.stringify(legacy.headers)}\nreact=${JSON.stringify(react.headers)}`);
-  assert(JSON.stringify(react.rows) === JSON.stringify(legacy.rows), `Weekly row parity failed\nlegacy=${JSON.stringify(legacy.rows)}\nreact=${JSON.stringify(react.rows)}`);
   assert(react.rows.length === 25 && react.headers.length === 11, `React Weekly canonical bridge must expose exactly 25 rows/11 headers, got ${react.rows.length}/${react.headers.length}`);
   assertCanonicalAliasRows(react, "evaluation React Weekly");
   assert(state.revision === "1" && Number.isFinite(state.commitMs) && state.commitMs < 2000, "Weekly React commit telemetry failed");
@@ -239,7 +227,7 @@ try {
   pendingPermanentReadRequestId = "";
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-weekly-production-control-island][data-react-island-runtime-mode="react"][data-react-island-state="ready"]')), { message: "permanent Weekly React did not become ready after its PostgreSQL read", timeoutMs: 15_000 });
   const permanent = await evaluate(client, normalizedTable);
-  assert(JSON.stringify(permanent.headers) === JSON.stringify(legacy.headers) && JSON.stringify(permanent.rows) === JSON.stringify(legacy.rows), "permanent Weekly lost exact legacy read parity");
+  assert(JSON.stringify(permanent.headers) === JSON.stringify(react.headers) && JSON.stringify(permanent.rows) === JSON.stringify(react.rows), "permanent Weekly lost exact evaluation/production read parity");
   assert(permanent.rows.length === 25 && permanent.headers.length === 11, `permanent React Weekly canonical bridge must expose exactly 25 rows/11 headers, got ${permanent.rows.length}/${permanent.headers.length}`);
   assertCanonicalAliasRows(permanent, "permanent React Weekly");
   const permanentResources = await evaluate(client, () => performance.getEntriesByType("resource").map((entry) => new URL(entry.name).pathname));
@@ -258,17 +246,17 @@ try {
   const errorTelemetry = await evaluate(client, () => window.__MES_QA_REACT_TELEMETRY__ || []);
   assert(errorTelemetry.filter((event) => event.surfaceId === "weeklyProductionControl" && event.runtimeMode === "react" && event.state === "error" && event.stage === "read" && event.reason === "read-unavailable").length === 1, `permanent Weekly read-error telemetry is not bounded: ${JSON.stringify(errorTelemetry)}`);
 
-  assert(interceptedReads >= 3, "both legacy and React paths must consume the bounded planning period API");
+  assert(interceptedReads >= 3, "evaluation and permanent React paths must consume the bounded planning period API");
   assert(systemDomainReads >= 1, "permanent Weekly must consume the canonical System Domains owner projection");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   assert(await readFile(sharedStateFile, "utf8") === original, "Weekly read-only QA changed state");
   console.log("Weekly Production Control React production-shell functional QA: OK");
   console.log(`- exact parity: ${react.rows.length} groups, ${react.headers.length} columns; first commit ${state.commitMs.toFixed(2)} ms`);
-  console.log("- canonical System Domains + compact Planning read, isolated import graph, evaluation rollback, permanent loading/error ownership, query isolation, bounded telemetry and clean console: pass");
+  console.log("- canonical System Domains + compact Planning read, isolated import graph, fail-closed evaluation, permanent loading/error ownership, query isolation, bounded telemetry and clean console: pass");
 } catch (error) {
-  if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); if (permanentOutput.trim()) console.error(permanentOutput.trim()); throw error;
+  if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (permanentOutput.trim()) console.error(permanentOutput.trim()); throw error;
 } finally {
   if (chrome) await cleanupChrome(chrome);
-  await Promise.all([stop(enabledPreview), stop(legacyPreview), stop(permanentPreview)]);
+  await Promise.all([stop(enabledPreview), stop(permanentPreview)]);
   await rm(temporaryRoot, { recursive: true, force: true });
 }

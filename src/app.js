@@ -92,7 +92,6 @@ import { createRolesReactIslandHost } from "./modules/access_roles/react_island_
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
-import { selectWeeklyProductionControlRuntime } from "./modules/weekly_production_control/runtime_selection.js";
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import {
@@ -154,7 +153,7 @@ import {
   isUsableBootstrapSnapshot as isUsableBootstrapSnapshotPayload,
   shouldPreferBundledBootstrapSnapshot as shouldPreferBundledBootstrapSnapshotPayload,
 } from "./modules/bootstrap_snapshot/service.js";
-import { ACCESS_ROLE_ACTIONS, ACCESS_ROLE_IDS, ACCESS_ROLE_SCOPES, AGGREGATE_SLOT_HEIGHT, AGGREGATE_SLOT_TOP, AUTH_DEPARTMENT_ICON_BY_ID, AUTH_GATE_DEFAULT_MODULE, AUTH_GATE_MAX_ATTEMPTS, AUTH_GATE_PIN, AUTH_GATE_SESSION_STORAGE_KEY, AUTH_PIN_CHECK_DELAY_MS, AUTH_PIN_RESULT_DELAY_MS, AUTH_PIN_TEMPORARILY_DISABLED, AUTH_UNIT_ICON_BY_ID, BOOTSTRAP_SNAPSHOT_RESTORE_ENABLED, CRITICAL_DIRECTORY_SECTION_IDS, DATA_SAFETY_AUDIT_STORAGE_KEY, DAY_MS, DEFAULT_INTERFACE_ROLE_ID, DEFAULT_RESOURCE_CPH, DEFAULT_ROUTE_BUFFER_MS, DEPENDENCY_CROSSING_GAP_RADIUS, DEPENDENCY_HORIZONTAL_TRACK_GAP, DIRECTORY_BACKUP_STORAGE_KEY, DIRECTORY_DEFAULTS_STORAGE_KEY, DIRECTORY_DELETED_ENTITIES_STORAGE_KEY, DIRECTORY_STORAGE_KEY, EMPLOYEE_DEPARTMENT_MIGRATION, GANTT_DEPENDENCY_ARROW_BASE_REF_X, GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE, GANTT_DEPENDENCY_ARROW_LENGTH_MS, GANTT_DEPENDENCY_ARROW_TIP_X, GANTT_DEPENDENCY_ENTRY_MS, GANTT_SLOT_CONTENT_MODES, GANTT_SNAP_MS, GANTT_ZOOM_LEVELS, HUMAN_LABOR_RESOURCE_TYPES, INTERFACE_ROLES, LEFT_WIDTH, LEGACY_DEPARTMENT_TO_WORK_CENTER_ID, LEGACY_WORK_CENTER_NAME_MIGRATION, MACHINE_LABOR_RESOURCE_TYPES, MES_ADMIN_RUNTIME_HOSTS, MES_APP_ENV, MES_DESTRUCTIVE_ACTIONS_ALLOWED, MES_IS_PROTECTED_APP_ENV, MES_SIGNAL_TYPES, MIN_OPERATION_DURATION_MS, PLANNING_BACKUP_STORAGE_KEY, PRODUCTION_RESOURCE_TYPE_CODES, PRODUCTION_RESOURCE_TYPE_LABELS, PROJECT_ROW_HEIGHT, ROUTE_STEP_CALCULATION_TYPES, SHARED_STATE_API_URL, SHARED_STATE_CLIENT_ID_KEY, SHARED_STATE_DISABLED_RECHECK_MS, SHARED_STATE_DISABLED_UNTIL_KEY, SHARED_STATE_POLL_INTERVAL_MS, SHARED_STATE_SAVE_DEBOUNCE_MS, SHARED_STATE_VALUE_KEYS, SHARED_UI_LOCAL_DIRTY_KEY, SHARED_UI_LOCAL_DIRTY_TTL_MS, SHIFT_MASTER_ASSIGNMENT_SCOPE_MODES, SMT_LINE_WORKCENTER_PREFIX, STANDARD_SLOT_HEIGHT, STANDARD_SLOT_TOP, STATE_RESET_BACKUP_STORAGE_KEY, STORAGE_KEY, STORAGE_KEYS, TIMELINE_HEIGHT, TIMELINE_LOAD_CHUNK, TIMELINE_MAX_COUNT, UI_STORAGE_KEY, UNIT_TYPE_LABELS, WEEK_SLOT_GAP, WEEK_SLOT_HEIGHT, WEEK_SLOT_TOP, WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY, WORK_MODE_OPTIONS, WORK_ROW_HEIGHT, WORK_SCHEDULE_OPTIONS } from "./app_constants.js";
+import { ACCESS_ROLE_ACTIONS, ACCESS_ROLE_IDS, ACCESS_ROLE_SCOPES, AGGREGATE_SLOT_HEIGHT, AGGREGATE_SLOT_TOP, AUTH_GATE_DEFAULT_MODULE, AUTH_GATE_MAX_ATTEMPTS, AUTH_GATE_PIN, AUTH_GATE_SESSION_STORAGE_KEY, BOOTSTRAP_SNAPSHOT_RESTORE_ENABLED, CRITICAL_DIRECTORY_SECTION_IDS, DATA_SAFETY_AUDIT_STORAGE_KEY, DAY_MS, DEFAULT_INTERFACE_ROLE_ID, DEFAULT_RESOURCE_CPH, DEFAULT_ROUTE_BUFFER_MS, DEPENDENCY_CROSSING_GAP_RADIUS, DEPENDENCY_HORIZONTAL_TRACK_GAP, DIRECTORY_BACKUP_STORAGE_KEY, DIRECTORY_DEFAULTS_STORAGE_KEY, DIRECTORY_DELETED_ENTITIES_STORAGE_KEY, DIRECTORY_STORAGE_KEY, EMPLOYEE_DEPARTMENT_MIGRATION, GANTT_DEPENDENCY_ARROW_BASE_REF_X, GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE, GANTT_DEPENDENCY_ARROW_LENGTH_MS, GANTT_DEPENDENCY_ARROW_TIP_X, GANTT_DEPENDENCY_ENTRY_MS, GANTT_SLOT_CONTENT_MODES, GANTT_SNAP_MS, GANTT_ZOOM_LEVELS, HUMAN_LABOR_RESOURCE_TYPES, INTERFACE_ROLES, LEFT_WIDTH, LEGACY_DEPARTMENT_TO_WORK_CENTER_ID, LEGACY_WORK_CENTER_NAME_MIGRATION, MACHINE_LABOR_RESOURCE_TYPES, MES_ADMIN_RUNTIME_HOSTS, MES_APP_ENV, MES_DESTRUCTIVE_ACTIONS_ALLOWED, MES_IS_PROTECTED_APP_ENV, MES_SIGNAL_TYPES, MIN_OPERATION_DURATION_MS, PLANNING_BACKUP_STORAGE_KEY, PRODUCTION_RESOURCE_TYPE_CODES, PRODUCTION_RESOURCE_TYPE_LABELS, PROJECT_ROW_HEIGHT, ROUTE_STEP_CALCULATION_TYPES, SHARED_STATE_API_URL, SHARED_STATE_CLIENT_ID_KEY, SHARED_STATE_DISABLED_RECHECK_MS, SHARED_STATE_DISABLED_UNTIL_KEY, SHARED_STATE_POLL_INTERVAL_MS, SHARED_STATE_SAVE_DEBOUNCE_MS, SHARED_STATE_VALUE_KEYS, SHARED_UI_LOCAL_DIRTY_KEY, SHARED_UI_LOCAL_DIRTY_TTL_MS, SHIFT_MASTER_ASSIGNMENT_SCOPE_MODES, SMT_LINE_WORKCENTER_PREFIX, STANDARD_SLOT_HEIGHT, STANDARD_SLOT_TOP, STATE_RESET_BACKUP_STORAGE_KEY, STORAGE_KEY, STORAGE_KEYS, TIMELINE_HEIGHT, TIMELINE_LOAD_CHUNK, TIMELINE_MAX_COUNT, UI_STORAGE_KEY, UNIT_TYPE_LABELS, WEEK_SLOT_GAP, WEEK_SLOT_HEIGHT, WEEK_SLOT_TOP, WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY, WORK_MODE_OPTIONS, WORK_ROW_HEIGHT, WORK_SCHEDULE_OPTIONS } from "./app_constants.js";
 import { MES_RUNTIME_CONFIG, SPECIFICATIONS2_STORAGE_KEY, SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "./app_constants.js";
 import {
   getMesCustomIconEntryBySemanticSlug,
@@ -209,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.48";
+const APP_VERSION_FALLBACK = "v.1.500.49";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -886,41 +885,6 @@ function ensureNomenclatureTypesDeleteContracts({ force = false } = {}) {
   return requestPromise;
 }
 
-function getNomenclatureElevationAuthModel() {
-  const employeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
-  const model = getAuthPrototypeReactModel();
-  const elevationTarget = nomenclatureEmployeeElevationState.returnModule === "productionStructureMatrix"
-    ? "production-structure"
-    : nomenclatureEmployeeElevationState.returnModule === "planning"
-      ? "planning"
-      : "nomenclature";
-  const departments = (model.departments || []).flatMap((department) => {
-    const directPeople = (department.directPeople || []).filter((person) => person.id === employeeId);
-    const units = (department.units || []).flatMap((unit) => {
-      const people = (unit.people || []).filter((person) => person.id === employeeId);
-      return people.length ? [{ ...unit, people, employeeCount: people.length }] : [];
-    });
-    if (!directPeople.length && !units.length) return [];
-    return [{ ...department, directPeople, units, employeeCount: directPeople.length + units.reduce((total, unit) => total + unit.people.length, 0) }];
-  });
-  return { ...model, departments, forcedPersonId: employeeId, elevation: true, elevationTarget };
-}
-
-function syncLegacyElevationAuthSelection() {
-  if (!authModulesReady || !isNomenclatureEmployeeElevationActive()) return false;
-  const employeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
-  const authModel = getAuthPrototypeReactModel();
-  const department = (authModel.departments || []).find((entry) => (
-    (entry.directPeople || []).some((candidate) => candidate.id === employeeId)
-    || (entry.units || []).some((unit) => (unit.people || []).some((candidate) => candidate.id === employeeId))
-  )) || null;
-  const unit = (department?.units || []).find((entry) => (entry.people || []).some((candidate) => candidate.id === employeeId)) || null;
-  ui.authPrototypeDepartment = String(department?.id || "");
-  ui.authPrototypeUnit = String(unit?.id || "");
-  ui.authPrototypePersonId = employeeId;
-  return Boolean(department?.id);
-}
-
 async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature", returnStructureRegistry = "") {
   const person = getAuthenticatedAccessPerson();
   if (!person?.id || !isEmployeeServerAuthAvailable()) {
@@ -1473,29 +1437,6 @@ function getWeeklyPlanningPeriodBounds() {
   return { fromAt, toAt, key: `instant:${fromAt}|${toAt}` };
 }
 
-function getWeeklyPlanningTableSlotRows({ weekStart, weekEnd } = {}) {
-  const fromAt = weekStart instanceof Date ? weekStart.toISOString() : "";
-  const toAt = weekEnd instanceof Date ? weekEnd.toISOString() : "";
-  const key = fromAt && toAt ? `instant:${fromAt}|${toAt}` : getWeeklyPlanningPeriodBounds().key;
-  // An empty array is a valid server answer for the requested week. Only
-  // null means the asynchronous period slice is not available yet, in which
-  // case the legacy in-memory projection remains the safe fallback.
-  if (weeklyPlanningPeriodState.key === key
-    && Array.isArray(weeklyPlanningPeriodState.rows)
-    && !weeklyPlanningPeriodState.preferLocal) {
-    return weeklyPlanningPeriodState.rows;
-  }
-  return getPlanningTableSlotRows();
-}
-
-function renderPlanningTableInlineEmpty(title, text, iconName = "info") {
-  return renderUiEmptyState({
-    iconName,
-    title,
-    description: text,
-  });
-}
-
 const routesRenderLoadingPage = () => renderUiModulePage({
   ariaLabel: "Справочники и маршруты",
   content: renderUiEmptyState({ title: "Загружаем модуль", description: "Экран откроется автоматически." }),
@@ -1946,9 +1887,6 @@ function getShiftWorkOrderJournalViewModel() {
   return shiftWorkOrderJournalOwner.getViewModel();
 }
 
-let weeklyProductionControlLegacyRuntimeInstance = null;
-let weeklyProductionControlLegacyRuntimeLoad = null;
-let weeklyProductionControlLegacyRuntimeError = null;
 let planningPeriodReadModel = null;
 let buildWeeklyPlanningPeriodRows = null;
 let buildWeeklyPlanningPeriodRowsFromCompact = null;
@@ -1969,36 +1907,6 @@ let weeklyPlanningPeriodState = {
 };
 let weeklyPlanningPeriodRefreshTimer = null;
 
-const weeklyProductionControlLoadingInstance = Object.freeze({
-  formatWeeklyProductionControlPercent: (value = 0) => weeklyProductionControlLegacyRuntimeInstance
-    ? weeklyProductionControlLegacyRuntimeInstance.formatWeeklyProductionControlPercent(value)
-    : `${Math.round(Number(value || 0))}%`,
-  formatWeeklyProductionControlQuantity: (value = 0, unit = "шт.") => weeklyProductionControlLegacyRuntimeInstance
-    ? weeklyProductionControlLegacyRuntimeInstance.formatWeeklyProductionControlQuantity(value, unit)
-    : `${Number(value || 0).toLocaleString("ru-RU")} ${unit}`,
-  getWeeklyProductionControlModel: () => weeklyProductionControlLegacyRuntimeInstance
-    ? weeklyProductionControlLegacyRuntimeInstance.getWeeklyProductionControlModel()
-    : ({ rows: [], totals: {} }),
-  renderWeeklyProductionControlPage: () => weeklyProductionControlLegacyRuntimeInstance
-    ? weeklyProductionControlLegacyRuntimeInstance.renderWeeklyProductionControlPage()
-    : renderMesModulePatternPage({
-    moduleId: "weeklyProductionControl",
-    header: {
-      title: "Контроль недели",
-      description: weeklyProductionControlLegacyRuntimeError
-        ? "Не удалось загрузить модуль контроля недели. Обновите страницу."
-        : "Загружаем данные контроля недели…",
-    },
-    content: renderUiEmptyState({
-      title: weeklyProductionControlLegacyRuntimeError ? "Модуль недоступен" : "Загружаем модуль",
-      description: weeklyProductionControlLegacyRuntimeError
-        ? "Обновите страницу. Если ошибка повторится, передайте время её появления в поддержку."
-        : "Экран откроется автоматически.",
-    }),
-    }),
-  bindWeeklyProductionControlEvents: () => weeklyProductionControlLegacyRuntimeInstance?.bindWeeklyProductionControlEvents(),
-});
-
 const weeklyProductionControlProductionRuntimeInstance = Object.freeze({
   formatWeeklyProductionControlPercent: (value = 0) => {
     const rounded = Math.round(Number(value || 0));
@@ -2008,169 +1916,6 @@ const weeklyProductionControlProductionRuntimeInstance = Object.freeze({
     `${Math.round(Number(value || 0)).toLocaleString("ru-RU")} ${unit || "шт."}`
   ),
 });
-
-// Weekly control is intentionally usable before either Gantt or the workshop
-// module has been visited.  Keep its read-only fact projection here instead of
-// capturing helpers from their lazy runtimes during application bootstrap.
-function normalizeWeeklyControlQuantity(value = 0) {
-  return Math.max(0, Number(value || 0) || 0);
-}
-
-function getWeeklyControlLinkedRecordEntries(source = {}, slotId = "") {
-  if (!source || !slotId) return [];
-  const prefix = `${slotId}::`;
-  return Object.entries(source && typeof source === "object" ? source : {})
-    .filter(([key, record]) => {
-      const recordSlotId = String(record?.slotId || "");
-      return key === slotId
-        || key.startsWith(prefix)
-        || recordSlotId === slotId
-        || recordSlotId.startsWith(prefix);
-    })
-    .map(([key, record]) => [record?.slotId || key, record])
-    .filter(([, record]) => Boolean(record));
-}
-
-function isWeeklyControlFactRecordReported(record = {}) {
-  const status = String(record.status || "").trim();
-  return normalizeWeeklyControlQuantity(record.actualQuantity || 0) > 0
-    || normalizeWeeklyControlQuantity(record.defectQuantity || 0) > 0
-    || Boolean(String(record.updatedAt || record.factUpdatedAt || "").trim())
-    || (status && status !== "not_reported");
-}
-
-function getWeeklyControlBoardFactEntries(slotId = "") {
-  return getWeeklyControlLinkedRecordEntries(normalizePlainRecord(ui.shiftMasterBoardFacts), slotId)
-    .map(([key, record]) => {
-      const actualQuantity = normalizeWeeklyControlQuantity(record?.actualQuantity || 0);
-      const defectQuantity = normalizeWeeklyControlQuantity(record?.defectQuantity || 0);
-      const linkedSlotId = String(record?.slotId || key || "").trim();
-      return [key, {
-        slotId: linkedSlotId,
-        actualQuantity: Math.max(0, actualQuantity - defectQuantity),
-        defectQuantity,
-        status: actualQuantity > defectQuantity ? "accepted" : "not_reported",
-        comment: String(record?.comment || ""),
-        deviationComment: String(record?.deviationComment || ""),
-        deviationNotes: Array.isArray(record?.deviationNotes) ? record.deviationNotes : [],
-        updatedAt: String(record?.updatedAt || ""),
-      }];
-    });
-}
-
-function getWeeklyControlAssignments(slotId = "") {
-  const masterEntries = getWeeklyControlLinkedRecordEntries(planningState.shiftMasterAssignments || {}, slotId);
-  const boardEntries = getWeeklyControlLinkedRecordEntries(normalizePlainRecord(ui.shiftMasterBoardAssignments), slotId);
-  const boardKeys = new Set(boardEntries.map(([key]) => key));
-  const hasBoardEntries = boardEntries.length > 0;
-  return [
-    ...masterEntries
-      .filter(([key]) => !boardKeys.has(key) && !(hasBoardEntries && key === slotId))
-      .map(([, record]) => record),
-    ...boardEntries.map(([, record]) => record),
-  ].filter(Boolean);
-}
-
-function getWeeklyControlAuthSessionFactEntries(slotId = "") {
-  if (!slotId) return [];
-  const assignmentStore = normalizePlainRecord(ui.shiftMasterBoardAssignments);
-  const drafts = normalizePlainRecord(ui.authSessionFactDrafts);
-  const findAssignment = (rowId = "") => {
-    if (!rowId) return {};
-    const direct = normalizePlainRecord(assignmentStore[rowId]);
-    if (Object.keys(direct).length) return direct;
-    return Object.values(assignmentStore).find((assignment) => (
-      assignment
-      && (
-        assignment.sourceRowId === rowId
-        || assignment.slotId === rowId
-        || assignment.sheetContract?.rowId === rowId
-        || assignment.sheetContract?.sourceSlotId === rowId
-      )
-    )) || {};
-  };
-
-  return Object.entries(drafts).map(([taskId, draft]) => {
-    const normalizedDraft = normalizePlainRecord(draft);
-    if (!normalizedDraft.updatedAt) return null;
-    const normalizedTaskId = String(taskId || "").trim();
-    const separatorIndex = normalizedTaskId.lastIndexOf("::");
-    const rowId = separatorIndex > 0 ? normalizedTaskId.slice(0, separatorIndex) : normalizedTaskId;
-    const assignment = findAssignment(rowId);
-    const linkedSlotId = String(
-      assignment.slotId
-      || assignment.sheetContract?.sourceSlotId
-      || assignment.transferContract?.sourceSlotId
-      || rowId,
-    ).trim();
-    const matchesSlot = linkedSlotId === slotId
-      || rowId === slotId
-      || normalizedTaskId.startsWith(`${slotId}::`);
-    if (!matchesSlot) return null;
-    const actualQuantity = normalizeWeeklyControlQuantity(normalizedDraft.actualQuantity || 0);
-    const defectQuantity = normalizeWeeklyControlQuantity(normalizedDraft.defectQuantity || 0);
-    return [taskId, {
-      slotId: linkedSlotId || slotId,
-      actualQuantity: Math.max(0, actualQuantity - defectQuantity),
-      defectQuantity,
-      status: "accepted",
-      comment: "Факт внесен с рабочего стола исполнителя",
-      deviationComment: String(normalizedDraft.deviationComment || ""),
-      deviationNotes: String(normalizedDraft.deviationComment || "").trim() ? [{
-        taskId,
-        employeeName: "Исполнитель",
-        text: String(normalizedDraft.deviationComment || "").trim(),
-        createdAt: String(normalizedDraft.updatedAt || ""),
-        deviationPercent: 0,
-      }] : [],
-      updatedAt: String(normalizedDraft.updatedAt || ""),
-    }];
-  }).filter(Boolean);
-}
-
-function createWeeklyProductionControlRuntimeInstance(factory) {
-  return factory({
-  DAY_MS,
-  addMs,
-  escapeAttribute,
-  escapeHtml,
-  formatDate,
-  formatDateTimeShort,
-  formatShiftWorkOrderPersonName: (...args) => formatShiftWorkOrderPersonName(...args),
-  formatShortDate,
-  getApp: () => app,
-  getAuthSessionFactEntriesForGanttSlot: getWeeklyControlAuthSessionFactEntries,
-  getGanttLinkedRecordEntries: getWeeklyControlLinkedRecordEntries,
-  getPlanningState: () => planningState,
-  getPlanningTableSlotRows: getWeeklyPlanningTableSlotRows,
-  getProductionStructureMatrixRuntimeOverrides: () => getProductionStructureMatrixRuntimeOverrides(),
-  getProductionStructureResources,
-  getProductionStructureWorkCenters,
-  getShiftMasterAssignmentsForGanttSlot: getWeeklyControlAssignments,
-  getShiftMasterBoardFactEntriesForGanttSlot: getWeeklyControlBoardFactEntries,
-  getShiftWorkOrderIssueReports: (...args) => getShiftWorkOrderIssueReports(...args),
-  getUi: () => ui,
-  getWeekNumber,
-  isGanttFactRecordReported: isWeeklyControlFactRecordReported,
-  mapLegacyWorkCenterId,
-  normalizeLookupText,
-  normalizePlainRecord,
-  normalizeShiftMasterBoardQuantity: normalizeWeeklyControlQuantity,
-  normalizeShiftMasterFactQuantity: normalizeWeeklyControlQuantity,
-  renderPlanningTableInlineEmpty,
-  renderMesModulePatternPage,
-  renderUiEmptyState,
-  renderUiMetricGrid,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiStatusToken,
-  renderUiTableWrap,
-  startOfDay,
-  startOfWeek,
-  toDate,
-  toDateInput,
-  });
-}
 
 function ensureWeeklyPlanningPeriodModule() {
   if (planningPeriodReadModel && buildWeeklyPlanningPeriodRows && buildWeeklyPlanningPeriodRowsFromCompact) return Promise.resolve(true);
@@ -2417,34 +2162,6 @@ function hydrateWeeklyPlanningPeriod() {
     weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: "Weekly planning period API is unavailable" };
     scheduleWeeklyPlanningPeriodRefresh(bounds);
     if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
-  });
-}
-
-function getWeeklyProductionControlLegacyRuntimeInstance() {
-  if (weeklyProductionControlLegacyRuntimeInstance) return weeklyProductionControlLegacyRuntimeInstance;
-  if (!weeklyProductionControlLegacyRuntimeLoad) {
-    weeklyProductionControlLegacyRuntimeLoad = import("./modules/weekly_production_control/render.js")
-      .then(({ createWeeklyProductionControlModule }) => {
-        weeklyProductionControlLegacyRuntimeInstance = createWeeklyProductionControlRuntimeInstance(createWeeklyProductionControlModule);
-        hydrateWeeklyPlanningPeriod();
-        if (ui.activeModule === "weeklyProductionControl") render();
-        return weeklyProductionControlLegacyRuntimeInstance;
-      })
-      .catch((error) => {
-        weeklyProductionControlLegacyRuntimeError = error;
-        console.error("Не удалось загрузить модуль контроля недели", error);
-        if (ui.activeModule === "weeklyProductionControl") render();
-        return weeklyProductionControlLoadingInstance;
-      });
-  }
-  return weeklyProductionControlLoadingInstance;
-}
-
-function getWeeklyProductionControlRuntimeInstance() {
-  return selectWeeklyProductionControlRuntime({
-    accessMode: getWeeklyProductionControlReactActivation().accessMode,
-    productionInstance: weeklyProductionControlProductionRuntimeInstance,
-    loadLegacyRuntime: getWeeklyProductionControlLegacyRuntimeInstance,
   });
 }
 
@@ -2993,7 +2710,7 @@ const defaultUiState = {
 };
 
 
-let addNomenclatureToBom, applyGanttRowToSlot, cancelAuthPrototypePinFeedback, completeAuthPrototypeLogin, createSpekiSpecification, deleteBomImportRow, ensureNomenclatureTypeExists, ensureRouteModuleProjectForSpecification, findSmtLineByNumber, getActiveSpecificationForModule, getAuthPrototypeAttemptsLeft, getAuthPrototypeDepartmentRows, getAuthPrototypeDirectDepartmentPeople, getAuthPrototypePeople, getAuthPrototypePeopleByUnit, getAuthPrototypePinFeedbackTone, getAuthPrototypePinPerson, getAuthPrototypeSelectedDepartment, getAuthPrototypeSelectedPerson, getAuthPrototypeSelectedUnit, getAuthPrototypeUnitRows, getBomImportRowNomenclatureItem, getBomImportRows, getBomLinkedSpecifications, getBomList, getBomResultNomenclatureItem, getDefaultSmtLineConfigurations, getDirectoryRows, getFallbackNomenclatureType, getGanttResourceForSlot, getNomenclatureDeleteUsage, getNomenclatureItem, getResourceBaseCph, getResourceRowId, getResourcesForWorkCenter, getRouteBindingContext, getRouteBindingModeForSelection, getRouteBindingOptions, getRouteBomList, getRouteDocumentKind, getRouteDocumentKindLabel, getRouteDocumentKindShortLabel, getRouteLineageSubjectName, getRouteModuleSelectionName, getRouteModuleSelectionValue, getRouteParentRoute, getRouteRootRoute, getRouteScopeRootTask, getRouteSpecification, getRoutesForModule, getSlotGanttResourceId, getSlotGanttWorkCenterId, getSmtLineConfigurations, getSmtLineIdFromWorkCenterId, getSmtLineNumberFromText, getSpecificationBomEntries, getSpecificationById, getSpecificationDeleteUsage, getSpecificationItemBomId, getSpecificationProductionOrder, getSpekiStructureItemDisplayName, getSpekiStructureItemLabel, getSpekiStructureSectionOptions, getSpekiStructureTableRows, importBomFromXlsxFile, isAuthPrototypePinFeedbackLocked, isSmtLineWorkCenterId, migrateSpecificationBomRowsToNomenclature, normalizeBomImportRow, normalizeLookupText, normalizeNomenclatureType, normalizeRouteBindingValue, normalizeSmtComponentKeyPart, renderModulePreviewEmpty, renderNomenclaturePage, resetAuthPrototypeAttempts, resolveRouteModuleProjectId, scheduleAuthPrototypePinValidation, scopeRouteTasks, summarizeBomComponentFields, syncNomenclatureTypeRename, syncNomenclatureTypesFromItems, syncSpecificationDerivedFields, updateBomImportCell, upsertBomResultToNomenclature;
+let addNomenclatureToBom, applyGanttRowToSlot, cancelAuthPrototypePinFeedback, completeAuthPrototypeLogin, createSpekiSpecification, deleteBomImportRow, ensureNomenclatureTypeExists, ensureRouteModuleProjectForSpecification, findSmtLineByNumber, getActiveSpecificationForModule, getAuthPrototypeAttemptsLeft, getAuthPrototypeDepartmentRows, getAuthPrototypeDirectDepartmentPeople, getAuthPrototypePeople, getAuthPrototypePeopleByUnit, getAuthPrototypePinFeedbackTone, getAuthPrototypePinPerson, getAuthPrototypeSelectedDepartment, getAuthPrototypeSelectedPerson, getAuthPrototypeSelectedUnit, getAuthPrototypeUnitRows, getBomImportRowNomenclatureItem, getBomImportRows, getBomLinkedSpecifications, getBomList, getBomResultNomenclatureItem, getDefaultSmtLineConfigurations, getDirectoryRows, getFallbackNomenclatureType, getGanttResourceForSlot, getNomenclatureDeleteUsage, getNomenclatureItem, getResourceBaseCph, getResourceRowId, getResourcesForWorkCenter, getRouteBindingContext, getRouteBindingModeForSelection, getRouteBindingOptions, getRouteBomList, getRouteDocumentKind, getRouteDocumentKindLabel, getRouteDocumentKindShortLabel, getRouteLineageSubjectName, getRouteModuleSelectionName, getRouteModuleSelectionValue, getRouteParentRoute, getRouteRootRoute, getRouteScopeRootTask, getRouteSpecification, getRoutesForModule, getSlotGanttResourceId, getSlotGanttWorkCenterId, getSmtLineConfigurations, getSmtLineIdFromWorkCenterId, getSmtLineNumberFromText, getSpecificationBomEntries, getSpecificationById, getSpecificationDeleteUsage, getSpecificationItemBomId, getSpecificationProductionOrder, getSpekiStructureItemDisplayName, getSpekiStructureItemLabel, getSpekiStructureSectionOptions, getSpekiStructureTableRows, importBomFromXlsxFile, isAuthPrototypePinFeedbackLocked, isSmtLineWorkCenterId, migrateSpecificationBomRowsToNomenclature, normalizeBomImportRow, normalizeLookupText, normalizeNomenclatureType, normalizeRouteBindingValue, normalizeSmtComponentKeyPart, renderModulePreviewEmpty, resetAuthPrototypeAttempts, resolveRouteModuleProjectId, scheduleAuthPrototypePinValidation, scopeRouteTasks, summarizeBomComponentFields, syncNomenclatureTypeRename, syncNomenclatureTypesFromItems, syncSpecificationDerivedFields, updateBomImportCell, upsertBomResultToNomenclature;
 let bindSpecifications2Events = () => {};
 let renderSpecifications2Page = () => renderUiModulePage({
   ariaLabel: "Спецификации 2.0",
@@ -3265,8 +2982,6 @@ function ensureSpecifications2Module() {
     });
   return specifications2ModuleLoad;
 }
-let renderNomenclatureModulePage = null;
-let nomenclatureRenderModuleLoad = null;
 function getNomenclatureReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -3420,9 +3135,6 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     };
   },
   getTargetRoot: () => app,
-  requestLegacyRender: () => {
-    if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
-  },
   navigateBoards: () => {
     ui.activeNomenclaturePane = "boards";
     updateModuleUrlParam("bomLists");
@@ -3593,10 +3305,6 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     ui.activeNomenclaturePane = "items";
     updateModuleUrlParam("nomenclature");
     persistUiState();
-    if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
-  },
-  requestLegacyRender: () => {
-    ui.activeNomenclaturePane = "boards";
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
   },
   onSelectionChange: (boardId) => { ui.activeBomId = String(boardId || ""); },
@@ -4417,9 +4125,6 @@ const weeklyProductionControlReactIslandHost = createWeeklyProductionControlReac
   getActivation: getWeeklyProductionControlReactActivation,
   getPayload: () => ({ productionInput: getWeeklyProductionControlReadModelInput() }),
   getTargetRoot: () => app,
-  requestLegacyRender: () => {
-    if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
-  },
 });
 function getTimesheetReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -5808,17 +5513,6 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
   getActivation: getEmployeeDesktopReactActivation,
   getPayload: getEmployeeDesktopProductionPayload,
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, scope = "") => {
-    void ensureAuthModules();
-    const [action, taskId] = String(scope || "").split(":");
-    const model = getEmployeeDesktopRuntimeState();
-    const task = (model.allTasks || []).find((item) => item.id === taskId) || model.selectedTask || null;
-    if (task?.id) ui.authSessionSelectedTaskId = task.id;
-    const modalType = action === "report" ? "issue" : action;
-    if (["structure", "route", "pdf", "issue"].includes(modalType) && task?.id) ui.authSessionModal = { type: modalType, taskId: task.id };
-    persistUiState();
-    if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true });
-  },
   executeCommand: async (command = {}) => {
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
     const activation = getEmployeeDesktopReactActivation();
@@ -6117,7 +5811,6 @@ function getAuthPickerReactActivation() {
   const activation = {
     ...runtimeActivation,
     featureFlagEnabled: permanentReact || elevation || runtimeActivation.featureFlagEnabled,
-    moduleReady: permanentReact || authModulesReady,
     systemDomainsReady: (systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState)) || preAuthEvaluationProjectionReady,
     serverReadFailure: permanentReact && systemDomainsServerReadState.status === "fallback" ? "read-unavailable" : "",
     authGateReady: permanentReact || elevation || !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
@@ -6130,20 +5823,7 @@ function getAuthPickerReactActivation() {
 }
 const authPickerReactIslandHost = createAuthPickerReactIslandHost({
   getActivation: getAuthPickerReactActivation,
-  getPayload: () => {
-    const localQa = getAuthPickerReactLocalQaOverrides();
-    const elevation = isNomenclatureEmployeeElevationActive();
-    const activation = getAuthPickerReactActivation();
-    const permanentReact = activation.accessMode === "react";
-    if (permanentReact || (elevation && activation.systemDomainsReady)) {
-      return getAuthPickerReactProductionPayload({ pinEntry: true });
-    }
-    return {
-      model: elevation ? getNomenclatureElevationAuthModel() : getAuthPrototypeReactModel(),
-      capabilities: { pinEntry: permanentReact || elevation || localQa.writeEvaluation },
-      authState: permanentReact || elevation || localQa.writeEvaluation ? { attemptsLeft: getAuthPickerReactAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
-    };
-  },
+  getPayload: () => getAuthPickerReactProductionPayload({ pinEntry: true }),
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getAuthPickerReactLocalQaOverrides();
@@ -6203,20 +5883,6 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
       result: ui.authPrototypeResult,
       message: String(result?.message || (credentialRejected ? "Неверный PIN." : "Серверная авторизация временно недоступна.")),
     };
-  },
-  requestLegacyRender: (_reason, scope = "") => {
-    const [action, encodedPersonId, encodedDepartmentId, encodedUnitId] = String(scope || "").split(":");
-    if (action === "person") {
-      cancelAuthPrototypePinFeedback();
-      ui.authPrototypeDepartment = decodeURIComponent(encodedDepartmentId || "");
-      ui.authPrototypeUnit = decodeURIComponent(encodedUnitId || "");
-      ui.authPrototypePersonId = decodeURIComponent(encodedPersonId || "");
-      ui.authPrototypeResult = "";
-      authPrototypePinDraft = "";
-      resetAuthPrototypeAttempts();
-      persistUiState();
-    }
-    if (ui.activeModule === "authPrototype") render({ skipRememberScroll: true });
   },
 });
 function getContourAdminReactLocalQaOverrides() {
@@ -7446,22 +7112,6 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
     return { ok: true, id: itemId, isNew };
   },
 });
-function ensureNomenclatureRenderModule() {
-  if (renderNomenclatureModulePage) return Promise.resolve(true);
-  if (nomenclatureRenderModuleLoad) return nomenclatureRenderModuleLoad;
-  nomenclatureRenderModuleLoad = import("./modules/nomenclature/render.js")
-    .then(({ renderNomenclatureModulePage: renderer }) => {
-      renderNomenclatureModulePage = renderer;
-      if (ui.activeModule === "nomenclature") render();
-      return true;
-    })
-    .catch((error) => {
-      console.error("Не удалось загрузить модуль номенклатуры", error);
-      nomenclatureRenderModuleLoad = null;
-      return false;
-    });
-  return nomenclatureRenderModuleLoad;
-}
 function initializeProductsRenderModule() {
   ({
     addNomenclatureToBom,
@@ -7538,7 +7188,6 @@ function initializeProductsRenderModule() {
     normalizeRouteBindingValue,
     normalizeSmtComponentKeyPart,
     renderModulePreviewEmpty,
-    renderNomenclaturePage,
     resetAuthPrototypeAttempts,
     resolveRouteModuleProjectId,
     scheduleAuthPrototypePinValidation,
@@ -7587,7 +7236,6 @@ function initializeProductsRenderModule() {
   formatReportNumber,
   finishEmployeeAuthElevation: (actor) => finishNomenclatureEmployeeElevation(actor),
   getAccessRoleById: (...args) => getAccessRoleById(...args),
-  getAuthPrototypeSelectedExecutor: (...args) => getAuthPrototypeSelectedExecutor(...args),
   getComponentTypes,
   getDefaultOperationCalculationType,
   getFulfillmentLabel,
@@ -7633,32 +7281,6 @@ function initializeProductsRenderModule() {
   persistUiState,
   render,
   renderDenseInlineSelect,
-  renderNomenclatureModulePage: (moduleDeps) => {
-    if (!renderNomenclatureModulePage) {
-      void ensureNomenclatureRenderModule();
-      return renderMesModulePatternPage({
-        moduleId: "nomenclature",
-        sidebar: {
-          eyebrow: "Материалы и компоненты",
-          title: "Номенклатура",
-          variant: "filters",
-          body: "",
-        },
-        header: {
-          eyebrow: "Список компонентов",
-          title: "Загружаем номенклатуру",
-          description: "Модуль откроется автоматически.",
-        },
-        content: renderUiEmptyState({ title: "Загружаем номенклатуру", description: "Модуль откроется автоматически." }),
-      });
-    }
-    return renderNomenclatureModulePage({
-      ...moduleDeps,
-      renderMesModulePatternPage,
-      renderUiFormActions,
-      renderUiFormGrid,
-    });
-  },
   renderUiSidebarItem,
   renderUiActionButton,
   renderUiActionFileLabel,
@@ -7705,229 +7327,6 @@ function getEmployeeDepartmentLabelForWorkCenters(workCenterIds = []) {
     .map((id) => getWorkCenter(mapLegacyWorkCenterId(id))?.name || "")
     .filter(Boolean);
   return labels[0] || "Участок не задан";
-}
-
-let doesAuthSessionFactNeedDeviationComment = () => false;
-let getAuthPrototypeSelectedExecutor = () => null;
-let getAuthPrototypeReactModel = () => ({ departments: [] });
-let getAuthSessionFactDeviationPercent = () => 0;
-let getAuthSessionFactDraft = () => ({ actualQuantity: 0, defectQuantity: 0 });
-let getAuthSessionPrototypeModel = () => ({ allTasks: [], selectedTask: null });
-let getAuthSessionTaskRowId = (value = "") => String(value || "");
-let getAuthSessionTaskGoodQuantity = () => 0;
-let getShiftWorkOrderIssueLookupKeys = () => [];
-let getShiftWorkOrderIssueReports = () => [];
-let getShiftWorkOrderIssueSummary = () => ({ total: 0 });
-let getShiftWorkOrderReportPhotoItems = () => [];
-let normalizeAuthSessionFactField = (field = "") => field === "defect" ? "defect" : "actual";
-let normalizeShiftWorkOrderIssueReports = (value = {}) => normalizePlainRecord(value);
-let renderAuthPrototypePage = () => renderUiModulePage({ ariaLabel: "Вход", className: "auth-prototype-page", content: renderUiEmptyState({ title: "Загружаем вход", description: "Экран откроется автоматически." }) });
-let renderAuthSessionModal = () => "";
-let renderAuthSessionPrototypePage = () => renderUiModulePage({ ariaLabel: "Рабочая сессия", className: "auth-session-page", content: renderUiEmptyState({ title: "Загружаем рабочую сессию", description: "Экран откроется автоматически." }) });
-let prepareAuthSessionReportPhoto = async () => null;
-let saveAuthSessionTaskReport = () => false;
-let setAuthSessionFactDraft = () => {};
-let setAuthSessionReportDraft = () => {};
-let bindAuthPrototypeEvents = () => {};
-let bindAuthSessionEvents = () => {};
-let startAuthSessionTask = () => false;
-let saveAuthSessionTaskFact = async () => false;
-let authRenderModuleLoad = null;
-let authEventsModuleLoad = null;
-let authModulesReady = false;
-function initializeAuthRenderModule(factory) {
-  ({
-    doesAuthSessionFactNeedDeviationComment,
-    getAuthPrototypeSelectedExecutor,
-    getAuthPrototypeReactModel,
-    getAuthSessionFactDeviationPercent,
-    getAuthSessionFactDraft,
-    getAuthSessionPrototypeModel,
-    getAuthSessionTaskRowId,
-    getAuthSessionTaskGoodQuantity,
-    getShiftWorkOrderIssueLookupKeys,
-    getShiftWorkOrderIssueReports,
-    getShiftWorkOrderIssueSummary,
-    getShiftWorkOrderReportPhotoItems,
-    normalizeAuthSessionFactField,
-    normalizeShiftWorkOrderIssueReports,
-    renderAuthPrototypePage,
-    renderAuthSessionModal,
-    renderAuthSessionPrototypePage,
-    prepareAuthSessionReportPhoto,
-    saveAuthSessionTaskReport,
-    setAuthSessionFactDraft,
-    setAuthSessionReportDraft,
-  } = factory({
-  AUTH_PIN_TEMPORARILY_DISABLED,
-  AUTH_DEPARTMENT_ICON_BY_ID,
-  AUTH_UNIT_ICON_BY_ID,
-  escapeAttribute,
-  escapeHtml,
-  formatReportNumber,
-  formatWeeklyProductionControlPercent: (...args) => moduleRuntime
-    ? moduleRuntime.getPublicPort("weeklyProductionControl", "formatWeeklyProductionControlPercent")(...args)
-    : `${Math.round(Number(args[0] || 0))}%`,
-  getActiveInterfaceRole,
-  getAccessRoleById,
-  getAccessRoleForEmployee: (...args) => getAccessRoleForEmployee(...args),
-  getAuthPrototypeAttemptsLeft,
-  getAuthenticatedAccessPerson: (...args) => getAuthenticatedAccessPerson(...args),
-  getAuthPrototypeDepartmentRows,
-  getAuthPrototypeDirectDepartmentPeople,
-  getAuthPrototypePeople,
-  getAuthPrototypePeopleByUnit,
-  getAuthPrototypePinDraft: () => authPrototypePinDraft,
-  getAuthPrototypeKeypadDigitsState: () => authPrototypeKeypadDigits,
-  getAuthPrototypePinFeedbackTone,
-  getAuthPrototypeSelectedDepartment,
-  getAuthPrototypeSelectedPerson,
-  getAuthPrototypeSelectedUnit,
-  getAuthPrototypeUnitRows,
-  getMesCustomIconNameForRuntimeId,
-  getModuleDefinitions: (...args) => getModuleDefinitions(...args),
-  getPlanningOrderObjectLabel,
-  getPlanningState: () => planningState,
-  getProductionStructureEmployees,
-  getProductionStructureMatrixRuntimeOverrides,
-  getShiftMasterBoardAssignment: (...args) => typeof getShiftMasterBoardAssignment === "function" ? getShiftMasterBoardAssignment(...args) : {},
-  getShiftMasterBoardLaborMinutesPerUnit: (...args) => typeof getShiftMasterBoardLaborMinutesPerUnit === "function" ? getShiftMasterBoardLaborMinutesPerUnit(...args) : 0,
-  getShiftMasterBoardModel: (...args) => typeof getShiftMasterBoardModel === "function" ? getShiftMasterBoardModel(...args) : ({ rows: [], allRows: [] }),
-  getShiftMasterBoardRouteChain: (...args) => typeof getShiftMasterBoardRouteChain === "function" ? getShiftMasterBoardRouteChain(...args) : ({ previous: null, current: null, next: null }),
-  getShiftMasterEmployee,
-  getShiftMasterRowOrderLabel: (...args) => typeof getShiftMasterRowOrderLabel === "function" ? getShiftMasterRowOrderLabel(...args) : "Заказ-наряд",
-  getShiftMasterRowRoutePartLabel: (...args) => typeof getShiftMasterRowRoutePartLabel === "function" ? getShiftMasterRowRoutePartLabel(...args) : "Маршрут",
-  getWorkCenter,
-  getUi: () => ui,
-  icon,
-  inferAccessRoleIdForPerson: (...args) => typeof inferAccessRoleIdForPerson === "function" ? inferAccessRoleIdForPerson(...args) : getActiveInterfaceRole().id,
-  isAuthPrototypePinFeedbackLocked,
-  isAuthGateQaBypassEnabled: (...args) => isAuthGateQaBypassEnabled(...args),
-  isAuthGateUnlocked: (...args) => isAuthGateUnlocked(...args),
-  makeId,
-  normalizeLookupText,
-  normalizePlainRecord,
-  normalizePlanningLaborPositiveNumber,
-  normalizeShiftMasterBoardQuantity,
-  normalizeShiftMasterExecutors,
-  notifySaveSuccess,
-  persistUiState,
-  render,
-  renderUiActionButton,
-  renderUiEmptyState,
-  renderUiModalFrame,
-  renderUiModalShell,
-  renderUiModuleHeader,
-  renderUiModulePage,
-  renderUiPanel,
-  renderUiPanelBody,
-  renderUiPanelFooter,
-  renderUiStatusToken,
-  setAuthPrototypePinDraft: (nextValue) => { authPrototypePinDraft = String(nextValue || ""); },
-  setAuthPrototypeKeypadDigitsState: (nextValue) => { authPrototypeKeypadDigits = Array.isArray(nextValue) ? nextValue : []; },
-  }));
-}
-
-function ensureAuthRenderModule() {
-  if (authRenderModuleLoad) return authRenderModuleLoad;
-  authRenderModuleLoad = import("./modules/auth_render/render.js")
-    .then(({ createAuthRenderModule }) => {
-      initializeAuthRenderModule(createAuthRenderModule);
-    })
-    .catch((error) => {
-      console.error("Не удалось загрузить модуль авторизации", error);
-    });
-  return authRenderModuleLoad;
-}
-
-function initializeAuthEventsModule(factory) {
-  ({ bindAuthPrototypeEvents, bindAuthSessionEvents, startAuthSessionTask, saveAuthSessionTaskFact } = factory({
-    app,
-    AUTH_PIN_TEMPORARILY_DISABLED,
-    bindGenericModalCloseEvents,
-    button: null,
-    cancelAuthPrototypePinFeedback,
-    cancelEmployeeAuthElevation: () => cancelNomenclatureEmployeeElevation(),
-    completeAuthPrototypeLogin,
-    deleteEmployeeSession: () => deleteEmployeeServerSession(),
-    doesAuthSessionFactNeedDeviationComment: (...args) => doesAuthSessionFactNeedDeviationComment(...args),
-    employeeId: "",
-    formatShiftWorkOrderPersonName: (...args) => formatShiftWorkOrderPersonName(...args),
-    getAuthPrototypeAttemptsLeft,
-    getAuthPrototypePinDraft: () => authPrototypePinDraft,
-    getAuthPrototypePeople,
-    getAuthPrototypePinPerson,
-    getAuthSessionFactDeviationPercent: (...args) => getAuthSessionFactDeviationPercent(...args),
-    getAuthSessionFactDraft: (...args) => getAuthSessionFactDraft(...args),
-    getAuthSessionPrototypeModel: (...args) => getAuthSessionPrototypeModel(...args),
-    getAuthSessionTaskGoodQuantity: (...args) => getAuthSessionTaskGoodQuantity(...args),
-    item: null,
-    isAuthPrototypePinFeedbackLocked,
-    isEmployeeAuthRequired: () => isEmployeeServerAuthRequired(),
-    isEmployeeAuthElevationActive: () => isNomenclatureEmployeeElevationActive(),
-    lockAuthGate,
-    normalizeAuthSessionFactField,
-    normalizePlainRecord,
-    normalizePlanningLaborPositiveNumber,
-    normalizeShiftMasterBoardQuantity,
-    notifySaveSuccess,
-    persistUiState,
-    render,
-    resetAuthPrototypeAttempts,
-    // Auth events are lazy-loaded before the application event service is
-    // initialized. Keep the dependency late-bound so opening a non-auth
-    // module cannot fail during bootstrap.
-    resetAuthPrototypePinEntry: () => {
-      authPrototypePinDraft = "";
-      authPrototypeKeypadDigits = [];
-    },
-    saveAuthSessionTaskReport: (...args) => saveAuthSessionTaskReport(...args),
-    // The auth event chunk can initialize before the lazy Master Board chunk.
-    // Resolve the board action at the time the executor saves a fact, loading
-    // only that slice when it has not been needed by the current page yet.
-    saveShiftMasterBoardFact: async (...args) => {
-      if (typeof saveShiftMasterBoardFact !== "function") await ensureShiftMasterBoardModule();
-      return typeof saveShiftMasterBoardFact === "function"
-        ? saveShiftMasterBoardFact(...args)
-        : false;
-    },
-    scheduleAuthPrototypePinValidation,
-    setAuthSessionFactDraft: (...args) => setAuthSessionFactDraft(...args),
-    setAuthSessionReportDraft: (...args) => setAuthSessionReportDraft(...args),
-    setAuthPrototypePinDraft: (nextValue) => {
-      authPrototypePinDraft = String(nextValue || "");
-      commitRuntimeState();
-    },
-    status: "",
-    type: "",
-    updateModuleUrlParam,
-    value: "",
-    getUi: () => ui,
-  }));
-}
-
-function ensureAuthEventsModule() {
-  if (authEventsModuleLoad) return authEventsModuleLoad;
-  authEventsModuleLoad = import("./modules/auth_render/events.js")
-    .then(({ createAuthEventsModule }) => {
-      initializeAuthEventsModule(createAuthEventsModule);
-    })
-    .catch((error) => {
-      console.error("Не удалось загрузить обработчики авторизации", error);
-    });
-  return authEventsModuleLoad;
-}
-
-function ensureAuthModules() {
-  return Promise.all([ensureAuthRenderModule(), ensureAuthEventsModule()])
-    .then(() => {
-      // The route adapter calls this function during every render. Re-render
-      // only once when both lazy chunks become available; otherwise a resolved
-      // promise would queue an endless render → ensure → render loop.
-      if (authModulesReady) return;
-      authModulesReady = true;
-      if (["authPrototype", "authSessionPrototype"].includes(ui.activeModule)) render();
-    });
 }
 
 function formatTimesheetHours(value = 0) {
@@ -11758,16 +11157,10 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("authPrototype", { fallbackToLegacy: false });
         }
-        const reactDecision = authPickerReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return authPickerReactIslandHost.renderTarget();
-        // Only an explicit legacy/evaluation rejection may load the retired
-        // auth renderer and its event chunk. Permanent React owns both the
-        // loading shell and the PostgreSQL-backed picker.
-        syncLegacyElevationAuthSelection();
-        ensureAuthModules();
-        return renderAuthPrototypePage();
+        authPickerReactIslandHost.prepareRender();
+        return authPickerReactIslandHost.renderTarget();
       },
-      bind: () => { if (!authPickerReactIslandHost.isReactEligible()) bindAuthPrototypeEvents(); },
+      bind: () => {},
       afterRender: () => { void authPickerReactIslandHost.mount(); },
     },
     authSessionPrototype: {
@@ -11783,17 +11176,11 @@ function initializeModuleRuntime() {
         // projection as the Master Board.  Hydrate it before treating the
         // retired browser maps as an authoritative empty task list.
         if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();
-        const reactDecision = employeeDesktopReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return employeeDesktopReactIslandHost.renderTarget();
-        ensureAuthModules();
-        return renderAuthSessionPrototypePage();
+        employeeDesktopReactIslandHost.prepareRender();
+        return employeeDesktopReactIslandHost.renderTarget();
       },
-      renderModals: () => employeeDesktopReactIslandHost.isReactEligible() ? "" : renderAuthSessionModal(),
-      bind: () => {
-        if (employeeDesktopReactIslandHost.isReactEligible()) return;
-        bindAuthPrototypeEvents();
-        bindAuthSessionEvents();
-      },
+      renderModals: () => "",
+      bind: () => {},
       afterRender: () => { void employeeDesktopReactIslandHost.mount(); void hydrateEmployeeDesktopIssueReports(); },
     },
     marking: {
@@ -11810,26 +11197,22 @@ function initializeModuleRuntime() {
       afterRender: () => { void markingReactIslandHost.mount(); },
     },
     weeklyProductionControl: {
-      initialize: () => getWeeklyProductionControlRuntimeInstance(),
+      initialize: () => weeklyProductionControlProductionRuntimeInstance,
       publicPorts: [
         "formatWeeklyProductionControlPercent",
         "formatWeeklyProductionControlQuantity",
       ],
-      render: (instance) => {
+      render: () => {
+        const activation = getWeeklyProductionControlReactActivation();
         const waitingForScheduledReadRetry = Boolean(
           (weeklyPlanningPeriodState.error || weeklyPlanningPeriodState.fallbackReason)
           && weeklyPlanningPeriodRefreshTimer !== null,
         );
-        if (!waitingForScheduledReadRetry) hydrateWeeklyPlanningPeriod();
-        const reactDecision = weeklyProductionControlReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return weeklyProductionControlReactIslandHost.renderTarget();
-        ensureProductionStructureMatrixModule();
-        return instance.renderWeeklyProductionControlPage();
+        if (activation.featureFlagEnabled === true && !waitingForScheduledReadRetry) hydrateWeeklyPlanningPeriod();
+        weeklyProductionControlReactIslandHost.prepareRender();
+        return weeklyProductionControlReactIslandHost.renderTarget();
       },
-      bind: (instance) => {
-        if (weeklyProductionControlReactIslandHost.isReactEligible()) return;
-        instance.bindWeeklyProductionControlEvents();
-      },
+      bind: () => {},
       afterRender: () => { void weeklyProductionControlReactIslandHost.mount(); },
     },
     productionStructureMatrix: {
@@ -11891,27 +11274,18 @@ function initializeModuleRuntime() {
     },
     nomenclature: {
       render: () => {
-        const permanentNomenclatureRuntime = getReactRuntimeMode("nomenclature") === "react";
         hydrateSharedStateForModule("nomenclature", [DIRECTORY_STORAGE_KEY], {
-          allowBeforeInitialSync: permanentNomenclatureRuntime,
-          failClosed: permanentNomenclatureRuntime,
+          allowBeforeInitialSync: true,
+          failClosed: true,
         });
         const useBoardsHost = ui.activeNomenclaturePane === "boards";
         const activeReactHost = useBoardsHost ? boardsReactIslandHost : nomenclatureReactIslandHost;
         const inactiveReactHost = useBoardsHost ? nomenclatureReactIslandHost : boardsReactIslandHost;
         inactiveReactHost.prepareRender();
-        const reactDecision = activeReactHost.prepareRender();
-        if (reactDecision.activateReact) return activeReactHost.renderTarget();
-        const permanentActiveRuntime = getReactRuntimeMode(useBoardsHost ? "boards" : "nomenclature") === "react";
-        if (permanentActiveRuntime) return activeReactHost.renderTarget();
-        void ensureNomenclatureRenderModule();
-        return renderNomenclaturePage();
+        activeReactHost.prepareRender();
+        return activeReactHost.renderTarget();
       },
-      bind: () => {
-        if (nomenclatureReactIslandHost.isReactEligible() || boardsReactIslandHost.isReactEligible()) return;
-        bindNomenclatureEvents();
-        bindBomListsEvents();
-      },
+      bind: () => {},
       afterRender: () => {
         if (ui.activeNomenclaturePane === "boards") void boardsReactIslandHost.mount();
         else void nomenclatureReactIslandHost.mount();
@@ -12923,7 +12297,7 @@ function navigateToModule(...args) { return appEventsService.navigateToModule(..
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
 function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }
-function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); } function saveBomCommand(...args) { return appEventsService.saveBomCommand(...args); } function deleteBomCommand(...args) { return appEventsService.deleteBomCommand(...args); }
+function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function saveBomCommand(...args) { return appEventsService.saveBomCommand(...args); } function deleteBomCommand(...args) { return appEventsService.deleteBomCommand(...args); }
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }
@@ -12965,7 +12339,6 @@ function closeAppModals() {
 }
 
 appEventsService = createAppEventsServiceModule({
-  AUTH_PIN_TEMPORARILY_DISABLED,
   BOARD_SPEC_TERM,
   BOM_COMPONENT_FIELDS,
   GANTT_SLOT_STATUS_LABELS,
@@ -12988,19 +12361,15 @@ appEventsService = createAppEventsServiceModule({
   changePlanningRouteQuantity,
   chartColors,
   createAppInteractionsModule,
-  bindAuthPrototypeEvents: (...args) => bindAuthPrototypeEvents(...args),
-  bindAuthSessionEvents: (...args) => bindAuthSessionEvents(...args),
   loadProductsEventsModule: () => import("./modules/products/events.js"),
   loadRoutesEventsModule: () => import("./modules/routes/events.js"),
   createSpekiSpecification,
   cancelAuthPrototypePinFeedback,
-  completeAuthPrototypeLogin,
   deleteEmployeeSession: () => deleteEmployeeServerSession(),
   isLegacyDirectoryWriteBlocked,
   isPlanningStartDateServerCommandsPrimary,
   deleteRouteMapConfirmed,
   closeModals: () => closeAppModals(),
-  doesAuthSessionFactNeedDeviationComment: (...args) => doesAuthSessionFactNeedDeviationComment(...args),
   directorySections,
   ensurePlanningRuntimeProjection: () => hydratePlanningRuntimeProjection(),
   ensurePlanningSystemDomains,
@@ -13014,13 +12383,6 @@ appEventsService = createAppEventsServiceModule({
   fromDateInput,
   generateChildRouteCardsForActiveRoute,
   getActiveRouteForModule,
-  getAuthPrototypeAttemptsLeft,
-  getAuthPrototypePeople,
-  getAuthPrototypePinPerson,
-  getAuthSessionFactDeviationPercent: (...args) => getAuthSessionFactDeviationPercent(...args),
-  getAuthSessionFactDraft: (...args) => getAuthSessionFactDraft(...args),
-  getAuthSessionPrototypeModel: (...args) => getAuthSessionPrototypeModel(...args),
-  getAuthSessionTaskGoodQuantity: (...args) => getAuthSessionTaskGoodQuantity(...args),
   getAvailableModules,
   getDefaultOperationCalculationType,
   getDefaultSecondsPerPanel,
@@ -13106,13 +12468,12 @@ appEventsService = createAppEventsServiceModule({
   normalizeDirectorySectionId,
   normalizeDirectoryState,
   normalizeLookupText,
-  normalizeAuthSessionFactField: (...args) => normalizeAuthSessionFactField(...args),
   normalizeOptionalPositiveInteger,
   normalizePlainRecord,
   normalizePlanningLaborNoteByRow,
   normalizePlanningLaborPositiveNumber,
   normalizeShiftMasterBoardQuantity,
-  normalizeShiftWorkOrderIssueReports: (...args) => typeof normalizeShiftWorkOrderIssueReports === "function" ? normalizeShiftWorkOrderIssueReports(...args) : normalizePlainRecord(args[0]),
+  normalizeShiftWorkOrderIssueReports: (value = {}) => normalizePlainRecord(value),
   normalizePlanningState,
   normalizeNomenclatureType,
   normalizeRouteBindingValue,
@@ -13139,20 +12500,15 @@ appEventsService = createAppEventsServiceModule({
   refreshPlanningWorkbench,
   resolveRouteModuleProjectId,
   resolveWorkCenterIdFromName,
-  resetAuthPrototypeAttempts,
   resetAuthPrototypePinEntry: () => {
     authPrototypePinDraft = "";
     authPrototypeKeypadDigits = [];
   },
-  saveAuthSessionTaskReport: (...args) => saveAuthSessionTaskReport(...args),
   saveShiftMasterBoardAssignment: (...args) => typeof saveShiftMasterBoardAssignment === "function" ? saveShiftMasterBoardAssignment(...args) : false,
   saveShiftMasterBoardFact: (...args) => typeof saveShiftMasterBoardFact === "function" ? saveShiftMasterBoardFact(...args) : false,
-  scheduleAuthPrototypePinValidation,
   schedulePlanningRouteToGantt,
   runLongTask,
   selected,
-  setAuthSessionFactDraft: (...args) => setAuthSessionFactDraft(...args),
-  setAuthSessionReportDraft: (...args) => setAuthSessionReportDraft(...args),
   setShiftWorkbenchDate: (...args) => typeof setShiftWorkbenchDate === "function" ? setShiftWorkbenchDate(...args) : false,
   moveShiftWorkbenchDate: (...args) => typeof moveShiftWorkbenchDate === "function" ? moveShiftWorkbenchDate(...args) : false,
   setShiftWorkbenchToday: (...args) => typeof setShiftWorkbenchToday === "function" ? setShiftWorkbenchToday(...args) : false,
@@ -13455,7 +12811,6 @@ const {
   GANTT_SLOT_STATUS_LABELS,
   GANTT_SLOT_STATUS_VALUES,
   ganttScrollRestoreInProgress,
-  getAuthSessionTaskRowId: (...args) => typeof getAuthSessionTaskRowId === "function" ? getAuthSessionTaskRowId(...args) : String(args[0] || ""),
   getBatch,
   getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null,
   getDefaultOperationCalculationType,

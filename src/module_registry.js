@@ -148,7 +148,7 @@ const CORE_MODULE_BLUEPRINTS = [
     visualWave: "operational", parity: { family: "full-header", shell: "standard", page: "full", header: "required" },
     regression: { type: "contract", hasTable: true, hasActions: false },
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: READ_ONLY_ACCESS, technologist: READ_ONLY_ACCESS, master: READ_ONLY_ACCESS, dispatcher: READ_ONLY_ACCESS },
-    lifecycle: MES_MODULE_RUNTIME_LIFECYCLES.FACTORY_LAZY, capabilities: { table: true }, sourceFiles: ["src/modules/weekly_production_control/render.js"],
+    lifecycle: MES_MODULE_RUNTIME_LIFECYCLES.FACTORY_LAZY, capabilities: { table: true }, sourceFiles: ["src/modules/weekly_production_control/react_island_host.js", "src/modules/weekly_production_control/production_read_input.js"],
   }),
   coreBlueprint({
     id: "shiftMasterBoard", label: "Мастерская", icon: "worker", groupId: "operations", navigationOrder: 20, flowOrder: 80,
@@ -168,7 +168,7 @@ const CORE_MODULE_BLUEPRINTS = [
     regression: { type: "contract", hasTable: false, hasActions: false, hasOverlayProbe: false },
     overlayProbeException: "Auth session fact overlay is covered by auth and shift-flow functional suites.",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, master: OPERATIONAL_ACCESS, executor: ["view", "edit"] },
-    capabilities: { overlays: ["fact-entry"] }, sourceFiles: ["src/modules/auth_render/render.js", "src/modules/auth_render/events.js"],
+    capabilities: { overlays: ["fact-entry"] }, sourceFiles: ["src/modules/auth_render/employee_desktop_react_island_host.js"],
   }),
   coreBlueprint({
     id: "marking", label: "Маркировка", icon: "unit-marking", groupId: "operations", navigationOrder: 35, flowOrder: 175,
@@ -210,7 +210,7 @@ const CORE_MODULE_BLUEPRINTS = [
     visualWave: "reference", parity: { family: "sidebar-standard", shell: "standard", page: "sidebar", header: "required" },
     regression: { type: "contract", hasTable: true, hasActions: true },
     defaultRoleActions: { productionHead: READ_ONLY_ACCESS, technologist: TECHNOLOGY_ACCESS },
-    capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/nomenclature/render.js"],
+    capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/nomenclature/react_island_host.js", "src/modules/nomenclature/boards_react_island_host.js"],
   }),
   coreBlueprint({
     id: "productionStructureMatrix", label: "Структура и сотрудники", icon: "directory", groupId: "system", navigationOrder: 10, flowOrder: 110,
@@ -266,7 +266,7 @@ const CORE_MODULE_BLUEPRINTS = [
     shellClassName: "auth-prototype-app-shell", pageClassName: "auth-prototype-page", ariaLabel: "Авторизация", contractMode: "protected", runtimeChrome: "standalone",
     visualWave: "protected", parity: { family: "auth-standalone", shell: "auth-standalone", page: "full", header: "required", skipActionVariants: true, skipPanelPadding: true },
     regression: { type: "special-runtime", hasTable: false, hasActions: false, requiredSelectors: ["[data-visual-qa-target='auth-prototype-header']", ".auth-prototype-department-grid"] },
-    capabilities: { actions: true }, sourceFiles: ["src/modules/auth_render/render.js", "src/modules/auth_render/events.js"],
+    capabilities: { actions: true }, sourceFiles: ["src/modules/auth_render/auth_picker_react_island_host.js"],
   }),
 ];
 

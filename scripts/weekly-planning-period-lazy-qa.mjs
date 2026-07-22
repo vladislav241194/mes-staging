@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const app = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
-const weekly = await readFile(resolve(process.cwd(), "src/modules/weekly_production_control/render.js"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
 
@@ -13,16 +12,16 @@ expect(app.includes("buildWeeklyPlanningPeriodRowsFromCompact"), "Weekly Control
 expect(app.includes("function resolveWeeklyCompactSlotPresentation"), "compact Weekly rows must reuse the established SMT/resource presentation resolver");
 expect(app.includes("resolveSlotPresentation: resolveWeeklyCompactSlotPresentation"), "compact Weekly hydration must pass the source-slot presentation resolver");
 expect(app.includes("function hydrateWeeklyPlanningPeriod()"), "Weekly Control needs a bounded period hydration path");
-expect(app.includes("return getPlanningTableSlotRows();"), "Weekly period API must retain the local planning fallback");
+expect(app.includes("function getWeeklyPlanningLocalRows") && app.includes("return getPlanningTableSlotRows().filter"), "Weekly period API must retain the bounded local planning comparison fallback");
 expect(app.includes("fromAt = weekStart.toISOString()"), "Weekly local calendar bounds must be transported as exact UTC instants");
 expect(app.includes("scheduleWeeklyPlanningPeriodRefresh(bounds)"), "Weekly period cache must revalidate while the screen remains open");
 expect(app.includes("function invalidateWeeklyPlanningPeriod()"), "planning changes must invalidate the Weekly period cache");
 expect(app.includes("Array.isArray(weeklyPlanningPeriodState.rows)"), "a local planning write after a bounded read must keep the compatibility projection visible until the owner catches up");
 expect(app.includes("weeklyPlanningRowsEquivalent(rows, getWeeklyPlanningLocalRows(bounds)"), "Weekly period refresh must prove a server response matches a locally changed week before using it");
 expect(!app.includes('import("./modules/gantt_runtime/render.js")'), "Weekly period API must not load the Gantt runtime");
-expect(weekly.includes("getPlanningTableSlotRows({ weekStart, weekEnd })"), "Weekly model must request only its visible date range");
+expect(!app.includes('import("./modules/weekly_production_control/render.js")'), "current Weekly runtime must not load the removed renderer");
 
-const weeklyHydration = app.slice(app.indexOf("function hydrateWeeklyPlanningPeriod()"), app.indexOf("function getWeeklyProductionControlRuntimeInstance()"));
+const weeklyHydration = app.slice(app.indexOf("function hydrateWeeklyPlanningPeriod()"), app.indexOf("const PRODUCTION_STRUCTURE_REGISTRY_IDS"));
 expect(!/planningState\s*=/.test(weeklyHydration), "Weekly period hydration must never replace the global planning state");
 const localWeeklyRows = app.slice(app.indexOf("function getPlanningTableSlotRows()"), app.indexOf("function getWeeklyPlanningPeriodBounds()"));
 expect(localWeeklyRows.includes("getPlanningTableSlotRoute(slot, step)"), "Weekly local fallback must reuse the already indexed route step for each slot");

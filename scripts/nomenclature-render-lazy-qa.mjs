@@ -9,16 +9,14 @@ const app = await readFile(appPath, "utf-8");
 const productsRender = await readFile(productsRenderPath, "utf-8");
 const nomenclatureRender = await readFile(nomenclatureRenderPath, "utf-8");
 
-assert(!app.includes('import { renderNomenclatureModulePage } from "./modules/nomenclature/render.js";'), "Nomenclature render must not remain in the initial static import graph");
-assert(app.includes('import("./modules/nomenclature/render.js")'), "Nomenclature render must load through a dedicated dynamic import");
-assert(app.includes("function ensureNomenclatureRenderModule()"), "Nomenclature module must use a single-flight lazy loader");
-assert(app.includes('title: "Загружаем номенклатуру"'), "Nomenclature navigation must render a safe loading state while its chunk loads");
-assert(app.includes('if (ui.activeModule === "nomenclature") render();'), "Nomenclature module must re-render only after its chunk is ready on the active route");
+assert(!app.includes("modules/nomenclature/render.js"), "current Nomenclature runtime must not import the retired renderer");
+assert(!app.includes("ensureNomenclatureRenderModule"), "current Nomenclature runtime must not retain a legacy single-flight loader");
+assert(!app.includes("renderNomenclatureModulePage") && !app.includes("renderNomenclaturePage"), "application route must not retain a legacy render wrapper");
 assert(!productsRender.includes("function renderBomListsPage"), "BOM renderer must not remain in the initial Products render module");
 assert(!productsRender.includes("function renderNomenclatureSectionFilter"), "Nomenclature filter renderer must not remain in the initial Products render module");
-assert(nomenclatureRender.includes("function renderBomListsPage"), "Lazy nomenclature chunk must render the BOM view");
-assert(nomenclatureRender.includes("function renderNomenclatureSectionFilter"), "Lazy nomenclature chunk must render the nomenclature filter view");
-assert(app.includes("renderNomenclatureModulePage({\n      ...moduleDeps,\n      renderMesModulePatternPage,\n      renderUiFormActions,\n      renderUiFormGrid,"), "Application lazy wrapper must provide the nomenclature renderer's UI helpers after the chunk loads");
+assert(!productsRender.includes("renderNomenclatureModulePage") && !productsRender.includes("renderNomenclaturePage"), "Products must not retain the legacy route wrapper");
+assert(nomenclatureRender.includes("function renderBomListsPage"), "retired artifact must remain available for isolated rollback-reference tests");
+assert(nomenclatureRender.includes("function renderNomenclatureSectionFilter"), "retired artifact must retain its isolated nomenclature reference view");
 
 const { renderNomenclatureModulePage } = await import(new URL("../src/modules/nomenclature/render.js", import.meta.url));
 const escape = (value = "") => String(value);
@@ -81,4 +79,4 @@ assert(boardMarkup.includes("data-bom-import-cell"), "Lazy nomenclature chunk mu
 assert(boardMarkup.includes("data-bom-import-delete"), "Lazy nomenclature chunk must retain BOM row deletion actions");
 const itemsMarkup = renderNomenclatureModulePage(makeRenderDeps());
 assert(itemsMarkup.includes("Вся номенклатура"), "Lazy nomenclature chunk must retain the nomenclature filter view");
-console.log("Nomenclature render lazy-load QA passed");
+console.log("Nomenclature retired-renderer isolation QA passed");
