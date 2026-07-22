@@ -103,8 +103,8 @@ const fulfillment = functionBody(planningRoutes, "updatePlanningSupplyFulfillmen
 assert(fulfillment.indexOf("isLegacyDirectoryWriteBlocked()") < fulfillment.indexOf("directoryState.specifications"), "Planning fulfillment must fail before mutating a specification");
 assert(fulfillment.indexOf("persistDirectoryState() === false") < fulfillment.indexOf("notifySaveSuccess"), "Planning fulfillment must never toast success after a rejected Directory persist");
 
-const saveDirectoryRow = functionBody(appEvents, "saveDirectoryRow", "deleteDirectoryRow");
-assert(saveDirectoryRow.indexOf("persistDirectoryState() === false") < saveDirectoryRow.indexOf("notifySaveSuccess"), "legacy Directory save must stop before success feedback");
+const saveDirectoryRow = functionBody(appEvents, "saveDirectoryRow", "syncNomenclatureTypeRenameInCurrentDirectoryState");
+assert(saveDirectoryRow.indexOf("persistDirectoryState() === false") < saveDirectoryRow.indexOf("notifySaveSuccess"), "shared React Directory save must stop before success feedback");
 assert.match(functionBody(productsEvents, "deleteBomList"), /if \(!result\.ok\) alert\(result\.message\)/, "legacy BOM delete must show the fail-closed owner message");
 
 console.log("Nomenclature Directory write boundary QA passed:");

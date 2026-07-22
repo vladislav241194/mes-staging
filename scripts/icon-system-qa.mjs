@@ -57,8 +57,10 @@ assert(getMesIconEntry("department-smt")?.source === "custom-svg", "department-s
 assert(getMesIconName("arrowLeft") === "arrow-left", "Legacy alias arrowLeft must resolve to arrow-left");
 assert(getMesIconName("routeEdit") === "route-edit", "Legacy alias routeEdit must resolve to route-edit");
 assert(getMesIconName("bom") === "pcb-bom", "Legacy alias bom must resolve to pcb-bom");
-assert(getMesRuntimeIconName("trash") === "trash", "Runtime registry must retain the rollback directory delete icon");
-assert(getMesRuntimeIconSvg("trash"), "Runtime registry must retain SVG markup for the rollback directory delete icon");
+assert(getMesRuntimeIconName("trash") === "trash", "Runtime registry must retain the shared confirmation delete icon");
+assert(getMesRuntimeIconSvg("trash"), "Runtime registry must retain SVG markup for the shared confirmation delete icon");
+assert(getMesRuntimeIconName("save") === "save", "Runtime registry must retain the shared form save icon");
+assert(getMesRuntimeIconSvg("save"), "Runtime registry must retain SVG markup for the shared form save icon");
 assert(MES_ICON_RUNTIME_ALIASES.D3 === "department-smt", "Runtime alias D3 must resolve to department-smt");
 assert(MES_ICON_RUNTIME_ALIASES.D5_L1 === "unit-tht-line-1", "Runtime alias D5_L1 must resolve to unit-tht-line-1");
 

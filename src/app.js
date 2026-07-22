@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.61";
+const APP_VERSION_FALLBACK = "v.1.500.62";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1916,7 +1916,6 @@ window.addEventListener("unhandledrejection", (event) => {
   handleGlobalRuntimeError(event.reason || "Unhandled promise rejection");
 });
 
-var denseInlineViewportListenersBound = false;
 var mobileModuleSwitcherBehaviorBound = false;
 var employeeHierarchyConnectorFrame = 0;
 var planningRouteStructureSidebarFrame = 0;
@@ -10883,8 +10882,6 @@ function getSlotDurationHours(...args) { return appEventsService.getSlotDuration
 function getSlotWorkingDurationMs(...args) { return appEventsService.getSlotWorkingDurationMs(...args); }
 function getSlotCalendarDurationMs(...args) { return appEventsService.getSlotCalendarDurationMs(...args); }
 function formatReportNumber(...args) { return appEventsService.formatReportNumber(...args); }
-function renderDirectoryEditorModal(...args) { return appEventsService.renderDirectoryEditorModal(...args); }
-function renderDirectoryReaderModal(...args) { return appEventsService.renderDirectoryReaderModal(...args); }
 function getStatusUsedInText(...args) { return appEventsService.getStatusUsedInText(...args); }
 function getStatusImpactView(...args) { return appEventsService.getStatusImpactView(...args); }
 function getStatusImpactRoleDescription(...args) { return appEventsService.getStatusImpactRoleDescription(...args); }
@@ -10911,10 +10908,7 @@ function getOperationDeleteUsage(...args) { return appEventsService.getOperation
 function deleteOperationMapItem(...args) { return appEventsService.deleteOperationMapItem(...args); }
 function deleteUserManagedDirectoryStatus(...args) { return appEventsService.deleteUserManagedDirectoryStatus(...args); }
 function openProjectInPlanning(...args) { return appEventsService.openProjectInPlanning(...args); }
-function bindDirectoryEvents(...args) { return appEventsService.bindDirectoryEvents(...args); }
-function bindDirectoryForm(...args) { return appEventsService.bindDirectoryForm(...args); }
 function saveDirectoryRow(...args) { return appEventsService.saveDirectoryRow(...args); }
-function deleteDirectoryRow(...args) { return appEventsService.deleteDirectoryRow(...args); }
 function deleteDirectoryStateRow(...args) { return appEventsService.deleteDirectoryStateRow(...args); }
 // Rendering can run while an optional event service is still being assembled
 // during startup.  Scroll preservation is an enhancement, not a prerequisite
@@ -11138,8 +11132,6 @@ appEventsService = createAppEventsServiceModule({
   setPlanningState: setPlanningStateAndInvalidate,
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
-  getDenseInlineViewportListenersBound: () => denseInlineViewportListenersBound,
-  setDenseInlineViewportListenersBound: (nextValue) => { denseInlineViewportListenersBound = nextValue; },
   getMobileModuleSwitcherBehaviorBound: () => mobileModuleSwitcherBehaviorBound,
   setMobileModuleSwitcherBehaviorBound: (nextValue) => { mobileModuleSwitcherBehaviorBound = nextValue; },
   getGanttScrollRestoreInProgress: () => ganttScrollRestoreInProgress,

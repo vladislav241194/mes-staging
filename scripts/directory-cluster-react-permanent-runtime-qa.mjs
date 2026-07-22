@@ -83,6 +83,8 @@ assert.doesNotMatch(hostSource, /allowPermanentReact|requestLegacyRender|onReque
 assert.match(hostSource, /onNavigateSection:\s*typeof navigateSection === "function"/, "direct typed section navigation must remain available without a legacy-return branch");
 
 const appSource = await readFile(join(projectRoot, "src/app.js"), "utf8");
+const appEventsSource = await readFile(join(projectRoot, "src/modules/app_events/service.js"), "utf8");
+const appInteractionsSource = await readFile(join(projectRoot, "src/modules/app_interactions/render.js"), "utf8");
 await assert.rejects(
   readFile(join(projectRoot, "src/modules/routes/render.js"), "utf8"),
   (error) => error?.code === "ENOENT",
@@ -93,7 +95,15 @@ await assert.rejects(
   (error) => error?.code === "ENOENT",
   "the orphan Directory presentation source must stay absent",
 );
+await assert.rejects(
+  readFile(join(projectRoot, "src/modules/app_interactions/directory_legacy.js"), "utf8"),
+  (error) => error?.code === "ENOENT",
+  "the retired Directory interaction source must stay absent",
+);
 assert.doesNotMatch(appSource, /ensureRoutesRenderModule|routesRenderModuleLoad|modules\/routes\/render\.js/, "application boot must not retain the retired Routes renderer loader");
+assert.doesNotMatch(appSource, /bindDirectoryEvents|bindDirectoryForm|deleteDirectoryRow/, "application boot must not retain Directory legacy interaction facades");
+assert.doesNotMatch(appEventsSource, /ensureDirectoryLegacyInteractions|bindDirectoryEvents|bindDirectoryForm|function deleteDirectoryRow/, "event service must not retain Directory legacy interaction delegation");
+assert.doesNotMatch(appInteractionsSource, /directory_legacy|DirectoryLegacyInteractions|data-add-directory|directory-editor-form-grid/, "interaction shell must not retain the retired Directory loader or markup");
 for (const surfaceId of surfaceIds) assert.match(appSource, new RegExp(`surfaceId: "${surfaceId}"`), `${surfaceId}: app must resolve signed activation`);
 assert.equal((appSource.match(/navigateSection:\s*navigateDirectoryReactSection/g) || []).length, 4, "every Directory island must use direct React section navigation");
 assert.match(appSource, /getReactRuntimeMode\(surfaceId\) === "react" \|\| localWriteEvaluation === true/);
@@ -142,4 +152,4 @@ assert.equal(ledger.candidatePolicy.runtimePolicySha256, policySha256, "candidat
 
 console.log("Directory cluster permanent React runtime QA: OK");
 console.log("- componentTypes, operations, nomenclatureTypes, statuses: signed React, direct React navigation, fail-closed renderer");
-console.log("- normal routes avoid the rollback renderer; deferred Pilot verification remains explicit");
+console.log("- normal routes contain no same-release Directory renderer or legacy interaction fallback; deferred Pilot verification remains explicit");

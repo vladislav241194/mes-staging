@@ -45,6 +45,12 @@ function collectLiteralIconNames(source) {
   for (const fallback of source.matchAll(/\bgetMesCustomIconName\s*\([^)]*\)\s*\|\|\s*["']([^"']+)["']/g)) {
     names.add(fallback[1]);
   }
+  // Confirm actions pass their icon through `icon(config.confirmIcon)`, so the
+  // literal lives in the configuration object rather than in the icon call.
+  // Keep those names in the generated runtime registry as well.
+  for (const property of source.matchAll(/\bconfirmIcon\s*:\s*["']([^"']+)["']/g)) {
+    names.add(property[1]);
+  }
   return names;
 }
 
@@ -67,6 +73,10 @@ export async function syncMesIconRuntimeRegistry() {
     // literal `icon(...)` calls in source.
     "edit",
     "filter",
+    // Shared modal/form helpers receive these icon names through runtime
+    // configuration objects, so no literal icon(...) call retains them.
+    "save",
+    "trash",
   ]);
   const files = await collectJsFiles(sourceRoot);
   for (const filePath of files) {

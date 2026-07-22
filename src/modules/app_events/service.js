@@ -243,7 +243,6 @@ export function createAppEventsServiceModule(dependencies = {}) {
   let ui = dependencies.getUi?.() ?? {};
   let planningState = dependencies.getPlanningState?.() ?? {};
   let directoryState = dependencies.getDirectoryState?.() ?? {};
-  let denseInlineViewportListenersBound = dependencies.getDenseInlineViewportListenersBound?.() ?? false;
   let mobileModuleSwitcherBehaviorBound = dependencies.getMobileModuleSwitcherBehaviorBound?.() ?? false;
   let ganttScrollRestoreInProgress = dependencies.getGanttScrollRestoreInProgress?.() ?? false;
   let authPrototypePinDraft = dependencies.getAuthPrototypePinDraft?.() ?? "";
@@ -256,7 +255,6 @@ export function createAppEventsServiceModule(dependencies = {}) {
     ui = dependencies.getUi?.() ?? ui ?? {};
     planningState = dependencies.getPlanningState?.() ?? planningState ?? {};
     directoryState = dependencies.getDirectoryState?.() ?? directoryState ?? {};
-    denseInlineViewportListenersBound = dependencies.getDenseInlineViewportListenersBound?.() ?? denseInlineViewportListenersBound ?? false;
     mobileModuleSwitcherBehaviorBound = dependencies.getMobileModuleSwitcherBehaviorBound?.() ?? mobileModuleSwitcherBehaviorBound ?? false;
     ganttScrollRestoreInProgress = dependencies.getGanttScrollRestoreInProgress?.() ?? ganttScrollRestoreInProgress ?? false;
     authPrototypePinDraft = dependencies.getAuthPrototypePinDraft?.() ?? authPrototypePinDraft ?? "";
@@ -270,7 +268,6 @@ export function createAppEventsServiceModule(dependencies = {}) {
     dependencies.setUi?.(ui);
     dependencies.setPlanningState?.(planningState);
     dependencies.setDirectoryState?.(directoryState);
-    dependencies.setDenseInlineViewportListenersBound?.(denseInlineViewportListenersBound);
     dependencies.setMobileModuleSwitcherBehaviorBound?.(mobileModuleSwitcherBehaviorBound);
     dependencies.setGanttScrollRestoreInProgress?.(ganttScrollRestoreInProgress);
     dependencies.setAuthPrototypePinDraft?.(authPrototypePinDraft);
@@ -365,20 +362,6 @@ function getConfirmDialogConfig(dialog) {
       meta: linkedSpecifications.length
         ? `Плата используется в ${linkedSpecifications.length} составах изделия. Ссылки на нее будут очищены.`
         : "Связанных составов изделия не найдено.",
-      confirmLabel: "Удалить",
-      confirmIcon: "trash",
-      icon: "alert",
-      tone: "danger",
-    };
-  }
-
-  if (dialog?.action === "directoryDeleteRow") {
-    const directoryData = getDirectoryData(payload.sectionId || ui.activeDirectory);
-    const row = directoryData.rows[Number(payload.rowIndex)];
-    return {
-      title: "Удалить запись справочника?",
-      body: `Запись "${getDirectoryRowLabel(directoryData.sectionId, row) || "без названия"}" будет удалена из раздела "${getDirectorySectionLabel(directoryData.sectionId)}".`,
-      meta: "Если запись используется в связанных данных, система очистит прямые ссылки или оставит предупреждения в рабочих модулях.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -921,88 +904,35 @@ function getStatusAuditInfo(row = {}) {
 
 const {
   getDirectoryData,
-  makeDirectoryData,
-  normalizeDirectoryColumnFilters,
-  getDirectorySectionFilters,
-  getDirectoryColumnFilterValues,
-  getDirectoryActiveFilterCount,
-  getDirectoryFilterCellValue,
-  getDirectoryFilterToken,
-  normalizeDirectoryFilterSearch,
-  directoryRowMatchesColumnFilters,
-  getDirectoryColumnFilterOptions,
-  setDirectoryColumnFilter,
-  clearDirectoryColumnFilter,
-  clearDirectorySectionFilters,
-  getDirectoryFieldType,
-  isDirectoryFieldReadonly,
-  getSelectedDirectoryRowIndex,
   formatDirectoryCell,
-  getDirectorySectionLabel,
-  getDirectoryRowLabel,
-  ensureDirectoryLegacyInteractions = async () => null,
-  renderDirectoryEditorModal,
-  renderDirectoryReaderModal,
-  renderDirectoryField,
-  createEmptyDirectoryRow,
-  getDirectoryHealth,
-  clearDenseInlineSelectPopover,
-  closeDenseInlineSelects,
-  positionDenseInlineSelectPopover,
-  updateOpenDenseInlineSelectPopovers,
-  bindDenseInlineSelectViewportEvents,
   bindGlobalNavigation,
-  performAuthLogout,
-  bindAuthLogoutNavigation,
-  isElementVisibleForInteraction,
   getModuleMenuButtonFromEventTarget,
   openModuleFromMenuButton,
-  bindModuleMenuNavigation,
-  bindMobileModuleSwitcherBehavior,
-  exposeMesRuntimeApi,
   navigateToModule,
   openConfirmDialog,
   bindConfirmEvents,
-  performConfirmedAction,
-  bindDirectoryForm: bindLegacyDirectoryForm = () => undefined,
-  bindDirectoryEvents,
-  deleteDirectoryRow: deleteLegacyDirectoryRow = () => false,
 } = createAppInteractionsModule({
-  addMs,
-  alertUser: (message) => alert(message),
   app,
-  audit,
-  bom,
   BOM_COMPONENT_FIELDS,
   cancelAuthPrototypePinFeedback,
   cancelPlanningRoute,
   canEditDirectorySection,
   cascadeBatchFromSlot,
-  center,
-  config,
-  count,
-  deleteDirectoryStateRow,
   deleteEmployeeSession,
   deleteOperationMapItem,
   deleteRouteMapConfirmed,
   deleteRouteStepConfirmed,
-  denseInlineViewportListenersBound,
-  directorySections,
   element,
   employeeId,
   enabled,
-  escapeAttribute,
-  escapeHtml,
   executors,
   field,
   form,
   getAvailableModules,
   getModuleDefinitions,
   getOperationMapRows,
-  getPlanningWorkCenters,
   getPlanningStartDateReconciliation,
   getRouteInstructionWorkCenterId,
-  getRouteInstructionWorkCenters,
   getShiftMasterBoardModel,
   getStatusAuditInfo,
   getStatusContractView,
@@ -1013,49 +943,34 @@ const {
   getStatusTransitionView,
   getStatusUsedInText,
   getWorkCenter,
-  icon,
   id,
   item,
   key,
   label,
   lockAuthGate,
-  makeId,
   masterId,
   mobileModuleSwitcherBehaviorBound,
   mode,
   mountGlobalVisualSystem,
   name,
   normalizeDirectorySectionId,
-  normalizeLookupText,
   normalizeShiftMasterBoardQuantity,
   normalizeShiftWorkOrderIssueReports,
   notifySaveSuccess,
   option,
-  isLegacyDirectoryWriteBlocked,
-  persistDirectoryState,
   persistState,
   persistUiState,
-  runLongTask,
   render,
-  renderUiFormActions,
-  renderUiFormField,
-  renderUiFormGrid,
-  renderUiModalFrame,
   renderPreservingModuleScroll,
   resource,
   rowId,
   saveShiftMasterBoardAssignment,
-  saveDirectoryRow,
   sectionId,
-  selected,
   specification,
-  toDateInput,
   type,
   updateModuleUrlParam,
   value,
   values,
-  WORK_MODE_OPTIONS,
-  withDirectoryEntityRemovalAllowed,
   getUi: () => ui,
   getPlanningState: () => planningState,
   getDirectoryState: () => directoryState,
@@ -1648,11 +1563,9 @@ function getRoutesEventsDependencies() {
 function ensureRoutesEvents() {
   if (routesEventsApi) return Promise.resolve(routesEventsApi);
   if (!routesEventsLoad) {
-    routesEventsLoad = Promise.all([
-      Promise.resolve().then(() => loadRoutesEventsModule()),
-      Promise.resolve().then(() => ensureDirectoryLegacyInteractions()),
-    ])
-      .then(([module]) => {
+    routesEventsLoad = Promise.resolve()
+      .then(() => loadRoutesEventsModule())
+      .then((module) => {
         const createRoutesEventsModule = module?.createRoutesEventsModule;
         if (typeof createRoutesEventsModule !== "function") {
           throw new Error("Routes events runtime did not export its factory");
@@ -1735,10 +1648,6 @@ function openProjectInPlanning(productionId, specificationId = "") {
   render();
 }
 
-function bindDirectoryForm(...args) {
-  return bindLegacyDirectoryForm(...args);
-}
-
 function saveDirectoryRow(sectionId, rowIndex, row, options = {}) {
   sectionId = normalizeDirectorySectionId(sectionId);
   const rows = directoryState[sectionId] || [];
@@ -1814,10 +1723,6 @@ function syncNomenclatureTypeRenameInCurrentDirectoryState(previousName, nextNam
     ui.nomenclatureTypeFilter = next;
   }
   return true;
-}
-
-function deleteDirectoryRow(...args) {
-  return deleteLegacyDirectoryRow(...args);
 }
 
 function deleteDirectoryStateRow(sectionId, row) {
@@ -1967,14 +1872,7 @@ function restoreScroll() {
     getSlotWorkingDurationMs,
     getSlotCalendarDurationMs,
     formatReportNumber,
-    getDirectoryColumnFilterOptions,
-    getDirectoryColumnFilterValues,
-    getDirectoryHealth,
-    getSelectedDirectoryRowIndex,
     formatDirectoryCell,
-    normalizeDirectoryFilterSearch,
-    renderDirectoryEditorModal,
-    renderDirectoryReaderModal,
     getStatusUsedInText,
     getStatusImpactView,
     getStatusImpactRoleDescription,
@@ -1987,7 +1885,6 @@ function restoreScroll() {
     getStatusImpactMap,
     getStatusAuditInfo,
     bindRouteStepDenseSelectEvents,
-    bindDirectoryEvents,
     bindGenericModalCloseEvents,
     bindGlobalNavigation,
     getModuleMenuButtonFromEventTarget,
@@ -2010,9 +1907,7 @@ function restoreScroll() {
     deleteOperationMapItem,
     deleteUserManagedDirectoryStatus,
     openProjectInPlanning,
-    bindDirectoryForm,
     saveDirectoryRow,
-    deleteDirectoryRow,
     deleteDirectoryStateRow,
     rememberScroll,
     restoreScroll,

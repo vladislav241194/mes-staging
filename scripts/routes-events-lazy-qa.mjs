@@ -16,7 +16,9 @@ const directoryLegacyPath = join(root, "src", "modules", "app_interactions", "di
 const appSource = await readFile(appPath, "utf8");
 const appEventsSource = await readFile(appEventsPath, "utf8");
 const appInteractionsSource = await readFile(appInteractionsPath, "utf8");
-const directoryLegacySource = await readFile(directoryLegacyPath, "utf8");
+const directoryLegacyIsAbsent = await readFile(directoryLegacyPath, "utf8")
+  .then(() => false)
+  .catch((error) => error?.code === "ENOENT");
 
 assert(
   !appSource.includes('import { createRoutesEventsModule } from "./modules/routes/events.js";'),
@@ -53,10 +55,16 @@ assert(
   "Route event factory must not be constructed during application boot",
 );
 assert(
-  appInteractionsSource.includes('import("./directory_legacy.js")')
-    && appInteractionsSource.includes("directoryLegacyInteractionsApi.bindDenseInlineSelectViewportEvents?.();")
-    && appEventsSource.includes("Promise.resolve().then(() => ensureDirectoryLegacyInteractions())"),
-  "Legacy Directory modal/bind handlers must load through the existing routes single-flight boundary",
+  directoryLegacyIsAbsent,
+  "The retired Directory interaction source must stay absent",
+);
+assert(
+  !appInteractionsSource.includes('import("./directory_legacy.js")')
+    && !appInteractionsSource.includes("directoryLegacyInteractions")
+    && !appEventsSource.includes("ensureDirectoryLegacyInteractions")
+    && !appEventsSource.includes("bindDirectoryEvents")
+    && !appSource.includes("bindDirectoryEvents"),
+  "Application runtime must not retain a Directory legacy interaction loader or facade",
 );
 assert(
   !appInteractionsSource.includes("directory-editor-form-grid")
@@ -66,19 +74,12 @@ assert(
   "Legacy Directory markup, DOM bindings, and dense select positioning must not remain in the static interaction shell",
 );
 assert(
-  directoryLegacySource.includes("createDirectoryLegacyInteractions")
-    && directoryLegacySource.includes("directory-editor-form-grid")
-    && directoryLegacySource.includes("[data-add-directory]")
-    && directoryLegacySource.includes("function bindDirectoryForm()")
-    && directoryLegacySource.includes("function deleteDirectoryRow(sectionId, rowIndex)")
-    && directoryLegacySource.includes("function bindDenseInlineSelectViewportEvents()")
-    && directoryLegacySource.includes('options.style.setProperty("--dense-popover-left"'),
-  "The lazy Directory interaction chunk must retain rollback modal, binding, and dense select behavior",
-);
-assert(
   !appEventsSource.includes('const form = app.querySelector("#directoryForm")')
-    && !appEventsSource.includes("function deleteDirectoryRow(sectionId, rowIndex)"),
-  "Legacy Directory form and generic delete workflows must not remain in the static event service",
+    && !appEventsSource.includes("function bindDirectoryForm(")
+    && !appEventsSource.includes("function deleteDirectoryRow(")
+    && !appSource.includes("function bindDirectoryForm(")
+    && !appSource.includes("function deleteDirectoryRow("),
+  "Legacy Directory form and generic delete facades must not remain in the application runtime",
 );
 assert(
   appEventsSource.includes("function saveDirectoryRow(sectionId, rowIndex, row, options = {})")
@@ -102,6 +103,7 @@ for (const [task, expected] of routeTaskTypeCases) {
 }
 
 let routeRuntimeLoadCount = 0;
+let productsRuntimeLoadCount = 0;
 let interactionsDependencies = null;
 let persistCount = 0;
 let renderCount = 0;
@@ -137,11 +139,16 @@ const service = createAppEventsServiceModule({
     routeRuntimeLoadCount += 1;
     return import(new URL("../src/modules/routes/events.js", import.meta.url));
   },
+  loadProductsEventsModule: async () => {
+    productsRuntimeLoadCount += 1;
+    return import(new URL("../src/modules/products/events.js", import.meta.url));
+  },
   getUi: () => ui,
   getPlanningState: () => planningState,
   getDirectoryState: () => directoryState,
   getOperationMapRows: () => directoryState.operationMap,
   getOperationRouteWorkCenterId: (operation = {}) => operation.workCenterId || "",
+  makeId: () => "qa-nomenclature",
   isManufacturingOutputReceiptOperation: (operation = {}) => operation.id === "warehouse-receipt",
   isWarehouseWorkCenterId: (workCenterId = "") => workCenterId === "warehouse",
   getRouteStepsForModule: (routeId = "") => planningState.routeSteps.filter((step) => step.routeId === routeId),
@@ -159,12 +166,21 @@ assert(
 );
 assert(routeRuntimeLoadCount === 0, "Cold boot must not load route event handlers");
 
+const coldNomenclatureResult = await service.saveNomenclatureCommand({});
+assert(
+  coldNomenclatureResult?.code === "name-required",
+  "A cold Nomenclature command must cross the Routes and Products lazy boundaries",
+);
+assert(routeRuntimeLoadCount === 1, "The first cold command must load the route runtime exactly once");
+assert(productsRuntimeLoadCount === 1, "The first cold command must load the products runtime exactly once");
+
 const [firstApi, secondApi] = await Promise.all([
   service.ensureRoutesEvents(),
   service.ensureRoutesEvents(),
 ]);
 assert(firstApi === secondApi, "Concurrent route event loads must resolve to one runtime API");
-assert(routeRuntimeLoadCount === 1, "Route event runtime must load exactly once");
+assert(routeRuntimeLoadCount === 1, "Warm route event requests must reuse the cold command runtime");
+assert(productsRuntimeLoadCount === 1, "Warm route event requests must not reload the products runtime");
 
 const warehouseReceipt = service.getDefaultOperationMapItemForRouteKind("warehouse");
 assert(warehouseReceipt?.id === "warehouse-receipt", "Loaded route runtime must provide the synchronous renderer helper");
@@ -189,7 +205,7 @@ try {
     "Boot bundle must reach route event handlers only through their dynamic chunk",
   );
   const directoryLegacyChunk = chunkSources.find(({ source }) => source.includes("createDirectoryLegacyInteractions"));
-  assert(directoryLegacyChunk, "A dynamic chunk must contain the rollback-only Directory interactions");
+  assert(!directoryLegacyChunk, "The build must not emit the retired Directory legacy interaction chunk");
   assert(!bundledApp.includes("data-add-directory"), "Boot bundle must not inline legacy Directory bindings");
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;

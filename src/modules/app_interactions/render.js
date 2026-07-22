@@ -2,39 +2,27 @@ import { formatDecimalNumber } from "../../ui/formatters.js";
 
 export function createAppInteractionsModule(dependencies = {}) {
   const {
-    addMs,
     app,
-    audit,
-    bom,
     BOM_COMPONENT_FIELDS,
     cancelAuthPrototypePinFeedback = () => {},
     cancelPlanningRoute,
     canEditDirectorySection = () => false,
     cascadeBatchFromSlot,
-    center,
-    config,
-    count,
     deleteEmployeeSession = async () => ({ ok: true, authenticated: false }),
     deleteOperationMapItem,
     deleteRouteMapConfirmed,
     deleteRouteStepConfirmed = () => {},
-    denseInlineViewportListenersBound: initialDenseInlineViewportListenersBound = false,
-    directorySections,
     element,
     employeeId,
     enabled,
-    escapeAttribute,
-    escapeHtml,
     executors,
     field,
     form,
     getAvailableModules,
     getModuleDefinitions,
     getOperationMapRows,
-    getPlanningWorkCenters,
     getPlanningStartDateReconciliation = () => null,
     getRouteInstructionWorkCenterId,
-    getRouteInstructionWorkCenters,
     getShiftMasterBoardModel = () => ({ rows: [], allRows: [] }),
     getStatusAuditInfo,
     getStatusContractView,
@@ -45,20 +33,17 @@ export function createAppInteractionsModule(dependencies = {}) {
     getStatusTransitionView,
     getStatusUsedInText,
     getWorkCenter,
-    icon,
     id,
     item,
     key,
     label,
     lockAuthGate,
-    makeId,
     masterId,
     mobileModuleSwitcherBehaviorBound: initialMobileModuleSwitcherBehaviorBound = false,
     mode,
     mountGlobalVisualSystem,
     name,
     normalizeDirectorySectionId,
-    normalizeLookupText = (rawValue = "") => String(rawValue || "").trim().toLowerCase(),
     normalizeShiftMasterBoardQuantity = (rawValue = 0) => Number(rawValue) || 0,
     normalizeShiftWorkOrderIssueReports = (value = {}) => dependencies.normalizePlainRecord?.(value) || {},
     notifySaveSuccess = () => {},
@@ -66,23 +51,16 @@ export function createAppInteractionsModule(dependencies = {}) {
     persistState,
     persistUiState,
     render,
-    renderUiFormActions,
-    renderUiFormField,
-    renderUiFormGrid,
-    renderUiModalFrame,
     renderPreservingModuleScroll,
     resource,
     rowId,
     saveShiftMasterBoardAssignment = () => null,
     sectionId,
-    selected,
     specification,
-    toDateInput,
     type,
     updateModuleUrlParam,
     value,
     values,
-    WORK_MODE_OPTIONS,
   } = dependencies;
 
   const ui = new Proxy({}, {
@@ -97,79 +75,9 @@ export function createAppInteractionsModule(dependencies = {}) {
     get(_target, property) { return dependencies.getDirectoryState?.()?.[property]; },
     set(_target, property, value) { const state = dependencies.getDirectoryState?.(); if (state) state[property] = value; return true; },
   });
-  let denseInlineViewportListenersBound = initialDenseInlineViewportListenersBound;
   let mobileModuleSwitcherBehaviorBound = initialMobileModuleSwitcherBehaviorBound;
-  let directoryLegacyInteractionsApi = null;
-  let directoryLegacyInteractionsLoad = null;
   let shiftWorkOrderQaLegacyApi = null;
   let shiftWorkOrderQaLegacyLoad = null;
-
-function getDirectoryLegacyInteractionDependencies() {
-  return {
-    addMs,
-    alertUser: dependencies.alertUser,
-    app,
-    BOM_COMPONENT_FIELDS,
-    canEditDirectorySection,
-    clearDirectoryColumnFilter,
-    clearDirectorySectionFilters,
-    deleteDirectoryStateRow: dependencies.deleteDirectoryStateRow,
-    deleteOperationMapItem,
-    denseInlineViewportListenersBound,
-    escapeAttribute,
-    escapeHtml,
-    formatDirectoryCell,
-    getDirectoryData,
-    getDirectoryRowLabel,
-    getOperationMapRows,
-    getPlanningWorkCenters,
-    getProductionResources: dependencies.getProductionResources,
-    getRouteInstructionWorkCenterId,
-    getRouteInstructionWorkCenters,
-    getSelectedDirectoryRowIndex,
-    icon,
-    isLegacyDirectoryWriteBlocked: dependencies.isLegacyDirectoryWriteBlocked,
-    makeId,
-    normalizeDirectorySectionId,
-    openConfirmDialog,
-    persistDirectoryState: dependencies.persistDirectoryState,
-    persistState,
-    persistUiState,
-    render,
-    renderUiFormActions,
-    renderUiFormField,
-    renderUiFormGrid,
-    renderUiModalFrame,
-    saveDirectoryRow: dependencies.saveDirectoryRow,
-    selected,
-    setDirectoryColumnFilter,
-    toDateInput,
-    withDirectoryEntityRemovalAllowed: dependencies.withDirectoryEntityRemovalAllowed,
-    WORK_MODE_OPTIONS,
-    getUi: dependencies.getUi,
-    getDirectoryState: dependencies.getDirectoryState,
-  };
-}
-
-function ensureDirectoryLegacyInteractions() {
-  if (directoryLegacyInteractionsApi) return Promise.resolve(directoryLegacyInteractionsApi);
-  if (!directoryLegacyInteractionsLoad) {
-    directoryLegacyInteractionsLoad = import("./directory_legacy.js")
-      .then(({ createDirectoryLegacyInteractions }) => {
-        if (typeof createDirectoryLegacyInteractions !== "function") {
-          throw new Error("Directory legacy interactions did not export their factory");
-        }
-        directoryLegacyInteractionsApi = createDirectoryLegacyInteractions(getDirectoryLegacyInteractionDependencies());
-        directoryLegacyInteractionsApi.bindDenseInlineSelectViewportEvents?.();
-        return directoryLegacyInteractionsApi;
-      })
-      .catch((error) => {
-        directoryLegacyInteractionsLoad = null;
-        throw error;
-      });
-  }
-  return directoryLegacyInteractionsLoad;
-}
 
 function isShiftWorkOrderQaRuntimeRequest() {
   try {
@@ -327,10 +235,6 @@ function getDirectorySectionFilters(sectionId) {
   return normalized[sectionId] || {};
 }
 
-function getDirectoryColumnFilterValues(sectionId, key) {
-  return getDirectorySectionFilters(sectionId)[key] || [];
-}
-
 function getDirectoryActiveFilterCount(sectionId) {
   return Object.values(getDirectorySectionFilters(sectionId))
     .filter((values) => Array.isArray(values) && values.length)
@@ -346,65 +250,12 @@ function getDirectoryFilterToken(sectionId, key, row = {}) {
   return String(getDirectoryFilterCellValue(sectionId, key, row) ?? "").trim() || "-";
 }
 
-function normalizeDirectoryFilterSearch(value = "") {
-  return normalizeLookupText(value).replace(/\s+/g, " ").trim();
-}
-
 function directoryRowMatchesColumnFilters(directoryData, row = {}) {
   const filters = getDirectorySectionFilters(directoryData.sectionId);
   return Object.entries(filters).every(([key, values]) => {
     if (!Array.isArray(values) || !values.length) return true;
     return values.includes(getDirectoryFilterToken(directoryData.sectionId, key, row));
   });
-}
-
-function getDirectoryColumnFilterOptions(directoryData, key) {
-  const counts = new Map();
-  directoryData.rows.forEach((row) => {
-    const token = getDirectoryFilterToken(directoryData.sectionId, key, row);
-    counts.set(token, (counts.get(token) || 0) + 1);
-  });
-  return [...counts.entries()]
-    .map(([value, count]) => ({ value, count }))
-    .sort((left, right) => {
-      if (left.value === "-") return 1;
-      if (right.value === "-") return -1;
-      return left.value.localeCompare(right.value, "ru", { numeric: true });
-    });
-}
-
-function setDirectoryColumnFilter(sectionId, key, values = []) {
-  const normalizedValues = [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
-  const nextFilters = normalizeDirectoryColumnFilters(ui.directoryColumnFilters);
-  const sectionFilters = { ...(nextFilters[sectionId] || {}) };
-  if (normalizedValues.length) {
-    sectionFilters[key] = normalizedValues;
-  } else {
-    delete sectionFilters[key];
-  }
-  if (Object.keys(sectionFilters).length) {
-    nextFilters[sectionId] = sectionFilters;
-  } else {
-    delete nextFilters[sectionId];
-  }
-  ui.directoryColumnFilters = nextFilters;
-  const nextData = getDirectoryData(sectionId);
-  ui.selectedDirectoryRows[sectionId] = nextData.visibleRows[0]?.rowIndex ?? 0;
-  persistUiState();
-  render();
-}
-
-function clearDirectoryColumnFilter(sectionId, key) {
-  setDirectoryColumnFilter(sectionId, key, []);
-}
-
-function clearDirectorySectionFilters(sectionId) {
-  const nextFilters = normalizeDirectoryColumnFilters(ui.directoryColumnFilters);
-  delete nextFilters[sectionId];
-  ui.directoryColumnFilters = nextFilters;
-  ui.selectedDirectoryRows[sectionId] = 0;
-  persistUiState();
-  render();
 }
 
 function getDirectoryFieldType(sectionId, key) {
@@ -438,12 +289,6 @@ function isDirectoryFieldReadonly(sectionId, key) {
   return false;
 }
 
-function getSelectedDirectoryRowIndex(sectionId, rows) {
-  const index = Number(ui.selectedDirectoryRows?.[sectionId] || 0);
-  if (!rows.length) return 0;
-  return Math.max(0, Math.min(rows.length - 1, Number.isFinite(index) ? index : 0));
-}
-
 function formatDirectoryCell(sectionId, key, value) {
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return getBomList(value)?.name || "-";
   if (sectionId === "specifications" && (key === "bomQtyA" || key === "bomQtyB")) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
@@ -460,70 +305,10 @@ function formatDirectoryCell(sectionId, key, value) {
   return value ?? "";
 }
 
-function getDirectorySectionLabel(sectionId) {
-  return directorySections.find((section) => section.id === sectionId)?.label
-    || sectionId
-    || "Справочник";
-}
-
-function getDirectoryRowLabel(sectionId, row) {
-  if (!row) return "";
-  if (sectionId === "statuses") return String(row.name || row.code || row.group || "").trim();
-  const data = getDirectoryData(sectionId);
-  const primaryKey = data.keys?.[0] || "name";
-  return String(row[primaryKey] || row.name || row.operationName || row.code || row.id || "").trim();
-}
-
-function renderDirectoryEditorModal(...args) {
-  return directoryLegacyInteractionsApi?.renderDirectoryEditorModal?.(...args) || "";
-}
-
-function renderDirectoryReaderModal(...args) {
-  return directoryLegacyInteractionsApi?.renderDirectoryReaderModal?.(...args) || "";
-}
-
-function renderDirectoryField(...args) {
-  return directoryLegacyInteractionsApi?.renderDirectoryField?.(...args) || "";
-}
-
-function createEmptyDirectoryRow(...args) {
-  return directoryLegacyInteractionsApi?.createEmptyDirectoryRow?.(...args) || {};
-}
-
-function getDirectoryHealth(sectionId) {
-  const rows = getDirectoryData(sectionId).rows;
-  const review = rows.filter((row) => Object.values(row).some((value) => String(value).match(/Проверка|Проблема|Отключен/))).length;
-  return {
-    ready: Math.max(0, rows.length - review),
-    review,
-  };
-}
-
-function clearDenseInlineSelectPopover(...args) {
-  return directoryLegacyInteractionsApi?.clearDenseInlineSelectPopover?.(...args);
-}
-
-function closeDenseInlineSelects(...args) {
-  return directoryLegacyInteractionsApi?.closeDenseInlineSelects?.(...args);
-}
-
-function positionDenseInlineSelectPopover(...args) {
-  return directoryLegacyInteractionsApi?.positionDenseInlineSelectPopover?.(...args);
-}
-
-function updateOpenDenseInlineSelectPopovers(...args) {
-  return directoryLegacyInteractionsApi?.updateOpenDenseInlineSelectPopovers?.(...args);
-}
-
-function bindDenseInlineSelectViewportEvents(...args) {
-  return directoryLegacyInteractionsApi?.bindDenseInlineSelectViewportEvents?.(...args);
-}
-
 function bindGlobalNavigation() {
   bindModuleMenuNavigation();
   bindAuthLogoutNavigation();
   bindMobileModuleSwitcherBehavior();
-  bindDenseInlineSelectViewportEvents();
   exposeMesRuntimeApi();
   mountGlobalVisualSystem();
 }
@@ -718,11 +503,6 @@ function performConfirmedAction(dialog) {
     return;
   }
 
-  if (dialog.action === "directoryDeleteRow") {
-    deleteDirectoryRow(payload.sectionId, payload.rowIndex);
-    return;
-  }
-
   if (dialog.action === "operationMapDelete") {
     deleteOperationMapItem(payload.operationId);
     return;
@@ -750,61 +530,9 @@ function performConfirmedAction(dialog) {
   }
 }
 
-function bindDirectoryForm(...args) {
-  return directoryLegacyInteractionsApi?.bindDirectoryForm?.(...args);
-}
-
-function deleteDirectoryRow(...args) {
-  return directoryLegacyInteractionsApi?.deleteDirectoryRow?.(...args) ?? false;
-}
-
-function bindDirectoryEvents(...args) {
-  if (directoryLegacyInteractionsApi) {
-    return directoryLegacyInteractionsApi.bindDirectoryEvents?.(...args);
-  }
-  const renderRoot = app.firstElementChild;
-  void ensureDirectoryLegacyInteractions()
-    .then((api) => {
-      if (app.firstElementChild !== renderRoot) return;
-      api.bindDirectoryEvents?.(...args);
-    })
-    .catch((error) => console.error("[MES directories] legacy interactions failed to load", error));
-  return undefined;
-}
-
-
   return {
     getDirectoryData,
-    makeDirectoryData,
-    normalizeDirectoryColumnFilters,
-    getDirectorySectionFilters,
-    getDirectoryColumnFilterValues,
-    getDirectoryActiveFilterCount,
-    getDirectoryFilterCellValue,
-    getDirectoryFilterToken,
-    normalizeDirectoryFilterSearch,
-    directoryRowMatchesColumnFilters,
-    getDirectoryColumnFilterOptions,
-    setDirectoryColumnFilter,
-    clearDirectoryColumnFilter,
-    clearDirectorySectionFilters,
-    getDirectoryFieldType,
-    isDirectoryFieldReadonly,
-    getSelectedDirectoryRowIndex,
     formatDirectoryCell,
-    getDirectorySectionLabel,
-    getDirectoryRowLabel,
-    ensureDirectoryLegacyInteractions,
-    renderDirectoryEditorModal,
-    renderDirectoryReaderModal,
-    renderDirectoryField,
-    createEmptyDirectoryRow,
-    getDirectoryHealth,
-    clearDenseInlineSelectPopover,
-    closeDenseInlineSelects,
-    positionDenseInlineSelectPopover,
-    updateOpenDenseInlineSelectPopovers,
-    bindDenseInlineSelectViewportEvents,
     bindGlobalNavigation,
     performAuthLogout,
     bindAuthLogoutNavigation,
@@ -818,8 +546,5 @@ function bindDirectoryEvents(...args) {
     openConfirmDialog,
     bindConfirmEvents,
     performConfirmedAction,
-    bindDirectoryForm,
-    bindDirectoryEvents,
-    deleteDirectoryRow,
   };
 }
