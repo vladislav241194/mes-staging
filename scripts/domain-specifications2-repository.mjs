@@ -321,7 +321,7 @@ export async function inspectSpecifications2CommandSchemaReadiness(sql) {
           AND function_definition.provolatile = 'v'
           AND NOT function_definition.prosecdef
           AND function_definition.proconfig = ARRAY['search_path=public, pg_temp']::text[]
-          AND encode(sha256(convert_to(function_definition.prosrc, 'UTF8')), 'hex') = '${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.legacyRevisionIdentity}'
+          AND encode(sha256(convert_to(function_definition.prosrc, 'UTF8')), 'hex') = ${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.legacyRevisionIdentity}::text
       ) AS legacy_revision_identity_function_exact,
       EXISTS (
         SELECT 1
@@ -336,7 +336,7 @@ export async function inspectSpecifications2CommandSchemaReadiness(sql) {
           AND function_definition.provolatile = 'v'
           AND NOT function_definition.prosecdef
           AND function_definition.proconfig = ARRAY['search_path=public, pg_temp']::text[]
-          AND encode(sha256(convert_to(function_definition.prosrc, 'UTF8')), 'hex') = '${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.workOrderRevisionIdentity}'
+          AND encode(sha256(convert_to(function_definition.prosrc, 'UTF8')), 'hex') = ${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.workOrderRevisionIdentity}::text
       ) AS work_order_revision_identity_function_exact,
       EXISTS (
         SELECT 1
@@ -351,7 +351,7 @@ export async function inspectSpecifications2CommandSchemaReadiness(sql) {
           AND function_definition.provolatile = 'v'
           AND NOT function_definition.prosecdef
           AND function_definition.proconfig = ARRAY['search_path=public, pg_temp']::text[]
-          AND encode(sha256(convert_to(function_definition.prosrc, 'UTF8')), 'hex') = '${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.publicationOutboxV6}'
+          AND encode(sha256(convert_to(function_definition.prosrc, 'UTF8')), 'hex') = ${SPECIFICATIONS2_GUARD_FUNCTION_BODY_SHA256.publicationOutboxV6}::text
       ) AS publication_outbox_v6_function_exact,
       EXISTS (
         SELECT 1 FROM pg_trigger trigger_definition

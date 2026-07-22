@@ -146,7 +146,8 @@ assert(JSON.stringify(marker) === JSON.stringify({
   ],
 }), "The release compatibility marker must bind the exact command, outbox, identity and migration contract");
 for (const [name, script] of [["activate Work Orders", activateWorkOrders], ["deactivate Work Orders", deactivateWorkOrders]]) {
-  assert(script.includes("63-specifications2-work-orders.conf"), `${name} must own only drop-in 63`);
+  assert(script.includes("63-specifications2-work-orders.conf"), `${name} must own the Work Order enable drop-in`);
+  assert(script.includes("62-specifications2-work-orders-off.conf"), `${name} must also own the inherited-environment OFF override`);
   assert(script.includes("with-authority-rollout-lock.sh"), `${name} must share the authority rollout lock`);
   assert(script.includes("release-server-command-contract-verify.mjs") && script.includes("--contract=specifications2"), `${name} must bind root lifecycle to the immutable manifest-verified release`);
 }

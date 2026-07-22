@@ -16,11 +16,13 @@ RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
 DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 DROPIN_FILE="${DROPIN_DIR}/63-specifications2-work-orders.conf"
+BLOCKING_DROPIN_FILE="${DROPIN_DIR}/62-specifications2-work-orders-off.conf"
 SOURCE_FILE="${APP_DIR}/ops/postgres/mes-pilot-specifications2-work-orders.conf"
 COMPATIBILITY_MARKER="${APP_DIR}/ops/postgres/specifications2-server-command-compatibility.json"
 READINESS_URL="http://127.0.0.1:4175/api/v1/domain-readiness"
 backup_dir="$(mktemp -d /root/.mes-specifications2-work-orders.XXXXXX)"
 had_previous=0
+had_blocking_previous=0
 completed=0
 configuration_changed=0
 
@@ -101,6 +103,11 @@ restore_on_failure() {
   else
     rm -f "$DROPIN_FILE"
   fi
+  if [[ $had_blocking_previous -eq 1 ]]; then
+    install -m 0644 "$backup_dir/blocking-previous.conf" "$BLOCKING_DROPIN_FILE"
+  else
+    rm -f "$BLOCKING_DROPIN_FILE"
+  fi
   systemctl daemon-reload
   systemctl restart "$SERVICE" || true
   rm -rf "$backup_dir"
@@ -131,7 +138,12 @@ if [[ -f "$DROPIN_FILE" ]]; then
   cp -a "$DROPIN_FILE" "$backup_dir/previous.conf"
   had_previous=1
 fi
+if [[ -f "$BLOCKING_DROPIN_FILE" ]]; then
+  cp -a "$BLOCKING_DROPIN_FILE" "$backup_dir/blocking-previous.conf"
+  had_blocking_previous=1
+fi
 configuration_changed=1
+rm -f "$BLOCKING_DROPIN_FILE"
 install -m 0644 "$SOURCE_FILE" "$DROPIN_FILE"
 systemctl daemon-reload
 systemctl restart "$SERVICE"

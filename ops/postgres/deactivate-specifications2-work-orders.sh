@@ -14,10 +14,13 @@ fi
 ACTIVE_APP_DIR="${MES_PILOT_ACTIVE_APP_DIR:-/srv/mes/pilot/app}"
 RELEASES_DIR="${MES_PILOT_RELEASES_DIR:-/srv/mes/pilot/releases}"
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
-DROPIN_FILE="/etc/systemd/system/${SERVICE}.service.d/63-specifications2-work-orders.conf"
+DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
+DROPIN_FILE="${DROPIN_DIR}/63-specifications2-work-orders.conf"
+BLOCKING_DROPIN_FILE="${DROPIN_DIR}/62-specifications2-work-orders-off.conf"
 READINESS_URL="http://127.0.0.1:4175/api/v1/domain-readiness"
 backup_dir="$(mktemp -d /root/.mes-specifications2-work-orders-rollback.XXXXXX)"
 had_previous=0
+had_blocking_previous=0
 completed=0
 configuration_changed=0
 
@@ -58,9 +61,16 @@ restore_on_failure() {
   fi
   if [[ $had_previous -eq 1 ]]; then
     install -m 0644 "$backup_dir/previous.conf" "$DROPIN_FILE"
-    systemctl daemon-reload
-    systemctl restart "$SERVICE" || true
+  else
+    rm -f "$DROPIN_FILE"
   fi
+  if [[ $had_blocking_previous -eq 1 ]]; then
+    install -m 0644 "$backup_dir/blocking-previous.conf" "$BLOCKING_DROPIN_FILE"
+  else
+    rm -f "$BLOCKING_DROPIN_FILE"
+  fi
+  systemctl daemon-reload
+  systemctl restart "$SERVICE" || true
   rm -rf "$backup_dir"
 }
 trap restore_on_failure EXIT
@@ -69,8 +79,16 @@ if [[ -f "$DROPIN_FILE" ]]; then
   cp -a "$DROPIN_FILE" "$backup_dir/previous.conf"
   had_previous=1
 fi
+if [[ -f "$BLOCKING_DROPIN_FILE" ]]; then
+  cp -a "$BLOCKING_DROPIN_FILE" "$backup_dir/blocking-previous.conf"
+  had_blocking_previous=1
+fi
 configuration_changed=1
 rm -f "$DROPIN_FILE"
+install -d -m 0755 "$DROPIN_DIR"
+printf '%s\n' '[Service]' 'UnsetEnvironment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS' \
+  > "$backup_dir/work-orders-off.conf"
+install -m 0644 "$backup_dir/work-orders-off.conf" "$BLOCKING_DROPIN_FILE"
 systemctl daemon-reload
 systemctl restart "$SERVICE"
 
