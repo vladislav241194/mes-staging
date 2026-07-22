@@ -327,6 +327,11 @@ assert_no_pilot_runtime_transition_state \
   || { echo "Pilot credential/UID recovery state blocks rollback." >&2; exit 1; }
 assert_no_active_evaluation \
   || { echo "Deactivate the evaluation and collect its auto-rollback unit before rollback." >&2; exit 1; }
+journal_helper="$(readlink -f -- "$journal_helper" 2>/dev/null || true)"
+case "$journal_helper" in
+  /usr/local/libexec/mes/bundles/*/release-switch-journal.mjs) ;;
+  *) echo "Rollback release-switch journal helper is noncanonical." >&2; exit 1 ;;
+esac
 /usr/bin/node "$root_seal_helper" artifact \
   --trusted-root="/usr/local/libexec/mes" --artifact="$journal_helper" >/dev/null
 /usr/bin/node "$journal_helper" recover --contour="$contour_name" >/dev/null

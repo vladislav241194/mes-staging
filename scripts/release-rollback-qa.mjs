@@ -24,6 +24,10 @@ assert(activateSource.includes("await assertFixedRootRunner(FIXED_ROOT_ACTIVATE_
 assert(stageSource.includes('sourceRelativePath: "scripts/release-activate.mjs"') && stageSource.includes("FIXED_ROOT_ACTIVATE_RUNNER"), "Staging must install the activation runner from the exact published Git blob");
 assert(stageSource.includes('sourceRelativePath: "scripts/release-rollback.mjs"') && stageSource.includes("FIXED_ROOT_ROLLBACK_RUNNER"), "Staging must install the rollback runner from the exact published Git blob");
 assert(source.includes('root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"') && activateSource.includes('root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"'), "Every release switch must start from the atomically selected root-owned seal verifier");
+assert(source.includes('journal_helper="$(readlink -f -- "$journal_helper"')
+  && source.includes('/usr/local/libexec/mes/bundles/*/release-switch-journal.mjs')
+  && source.indexOf('journal_helper="$(readlink -f -- "$journal_helper"') < source.indexOf('--artifact="$journal_helper"'),
+"rollback must verify and execute the canonical immutable journal-helper inode, not its active-bundle symlink");
 assert(source.indexOf('/usr/bin/node "$root_seal_helper" release') < source.indexOf('run_fixed_public_verifier \\\n  --app-root="$current_target"'), "Rollback must recursively seal the current release before executing the fixed public verifier");
 assert(source.indexOf('--app="$previous_target" >/dev/null') < source.indexOf('restore_verification="$(run_fixed_public_verifier --app-root="$previous_target"'), "Rollback must recursively seal the selected release before executing the fixed public verifier");
 assert(!source.includes("run_candidate_node") && !activateSource.includes("run_candidate_node"), "Release switches must never execute a release-provided verifier");
