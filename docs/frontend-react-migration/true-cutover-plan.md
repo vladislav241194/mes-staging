@@ -68,17 +68,37 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 
 ## Ускоренный implementation checkpoint 2026-07-22
 
-Отдельный показатель реализации составляет **86%**, тогда как строгая
+Отдельный показатель реализации составляет **90%**, тогда как строгая
 evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
-верхнеуровневых маршрутов уже имеют React UI: **9 complete**, **5 partial** и
-**2 явных prototype**. Маркер `React TS` показывается только на девяти complete
+верхнеуровневых маршрутов уже имеют React UI: **10 complete**, **4 partial** и
+**2 явных prototype**. Маркер `React TS` показывается только на десяти complete
 модулях; partial и prototype не выдаются за завершённые.
 
 - Complete: Nomenclature, Weekly Production Control, Shift Master Board,
   Shift Work Orders, Production Structure Matrix, Directories, Auth Prototype,
-  Contour Admin, Timesheet.
-- Partial: Specifications 2, Planning, Gantt, Roles, Auth Session Prototype.
+  Contour Admin, Timesheet, Auth Session Prototype.
+- Partial: Specifications 2, Planning, Gantt, Roles.
 - Prototype: Dispatch и Marking.
+
+Auth Session Prototype / Employee Desktop теперь строит рабочие задания,
+маршрутный контекст, факты и Report-сводки собственной strict TypeScript
+моделью из raw production projections. Обычный React-путь не загружает
+`auth_render`; legacy renderer остаётся только за явной rollback-веткой.
+Ввод факта использует отдельный command owner и подтверждает общий факт через
+существующего PostgreSQL Shift Execution owner. Визуальная и Pilot lifecycle
+приёмка намеренно отложены и не повышают строгий показатель 50%.
+
+Planning Workbench остаётся `PARTIAL` по командам, но его обычный read-path уже
+не загружает `planning_workbench/render.js`: strict TypeScript строит очередь,
+дерево операций, пять метрик, даты и ревизии напрямую из PostgreSQL
+work-order/detail и подтверждённой runtime projection. Не реализованные owner
+команды не подменяются моками и остаются явным остатком.
+
+Auth Prototype также больше не загружает `auth_render` в постоянном React-пути:
+strict TypeScript строит иерархию сотрудников из raw PostgreSQL System Domains,
+а PIN передаётся напрямую подписанному server-session owner с повторной
+проверкой сотрудника и actor-bound elevation. Legacy picker сохранён только в
+явной fallback/rollback-ветке; Pilot PIN lifecycle остаётся отложенным.
 
 Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной
 волне отложены владельцем и не засчитываются как Pilot acceptance. До

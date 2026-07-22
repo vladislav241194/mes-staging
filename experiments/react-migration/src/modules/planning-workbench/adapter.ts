@@ -1,3 +1,9 @@
+import {
+  buildPlanningWorkbenchProductionModel,
+  isPlanningWorkbenchProductionInput,
+  type PlanningProductionCoverage,
+} from "./production-model";
+
 type UnknownRecord = Record<string, unknown>;
 const record = (value: unknown): UnknownRecord => value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
@@ -18,9 +24,15 @@ export interface PlanningStartDateReconciliation { routeId: string; planningStar
 
 export function adaptPlanningWorkbench(payload: unknown) {
   const root = record(payload);
-  const source = record(root.model || payload);
-  const capabilities = record(root.capabilities);
-  const employeeAuth = record(root.employeeAuth);
+  const productionInput = record(root.productionModel);
+  const hasProductionInput = Object.keys(productionInput).length > 0
+    ? isPlanningWorkbenchProductionInput(productionInput)
+    : isPlanningWorkbenchProductionInput(root);
+  const source = record(root.model || (hasProductionInput
+    ? buildPlanningWorkbenchProductionModel(Object.keys(productionInput).length ? productionInput : root)
+    : payload));
+  const capabilities = record(root.capabilities || productionInput.capabilities);
+  const employeeAuth = record(root.employeeAuth || productionInput.employeeAuth);
   const overview = record(source.overview);
   const decision = record(overview.decision);
   const queue = list(source.queue).map((value): PlanningQueueItem | null => {
@@ -36,7 +48,7 @@ export function adaptPlanningWorkbench(payload: unknown) {
     return id && title ? { id, kind, level: Math.max(0, number(item.level)), title, meta: text(item.meta), labor: text(item.labor, "—"), laborMeta: text(item.laborMeta), context: text(item.context, "—"), contextMeta: text(item.contextMeta), quantity: number(item.quantity), unit: text(item.unit, "шт."), statusLabel: text(status.label, "не определено"), statusTone: tone(status.tone), selected: item.selected === true } : null;
   }).filter(Boolean) as PlanningStructureRow[];
   const activeRouteId = text(source.activeRouteId);
-  const reconciliation = record(root.startDateReconciliation);
+  const reconciliation = record(root.startDateReconciliation || productionInput.startDateReconciliation);
   const reconciliationRouteId = text(reconciliation.routeId);
   const reconciliationOwnsDate = Object.prototype.hasOwnProperty.call(reconciliation, "planningStartDate");
   const reconciliationDate = reconciliation.planningStartDate === null
@@ -70,6 +82,14 @@ export function adaptPlanningWorkbench(payload: unknown) {
   const serverScheduledStartDateSource = ["server-slot", "server-unplanned"].includes(text(source.serverScheduledStartDateSource))
     ? text(source.serverScheduledStartDateSource) as "server-slot" | "server-unplanned"
     : "unavailable" as const;
+  const coverage = record(source.readModelCoverage);
+  const readModelCoverage: PlanningProductionCoverage | null = text(coverage.contract) === "postgres-runtime-read-v1"
+    ? {
+        contract: "postgres-runtime-read-v1",
+        supported: list(coverage.supported).map((value) => text(value)).filter(Boolean),
+        deferred: list(coverage.deferred).map((value) => text(value)).filter(Boolean),
+      }
+    : null;
   return {
     activeRouteId,
     headerDescription: text(source.headerDescription, "Выберите заказ-наряд"),
@@ -93,5 +113,6 @@ export function adaptPlanningWorkbench(payload: unknown) {
     planningStartDateSource,
     serverScheduledStartDate,
     serverScheduledStartDateSource,
+    readModelCoverage,
   };
 }

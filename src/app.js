@@ -107,6 +107,7 @@ import {
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
+import { createEmployeeDesktopCommandOwner } from "./modules/employee_desktop/command_owner.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
@@ -211,7 +212,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.39";
+const APP_VERSION_FALLBACK = "v.1.500.40";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -868,6 +869,21 @@ function getNomenclatureElevationAuthModel() {
   return { ...model, departments, forcedPersonId: employeeId, elevation: true, elevationTarget };
 }
 
+function syncLegacyElevationAuthSelection() {
+  if (!authModulesReady || !isNomenclatureEmployeeElevationActive()) return false;
+  const employeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
+  const authModel = getAuthPrototypeReactModel();
+  const department = (authModel.departments || []).find((entry) => (
+    (entry.directPeople || []).some((candidate) => candidate.id === employeeId)
+    || (entry.units || []).some((unit) => (unit.people || []).some((candidate) => candidate.id === employeeId))
+  )) || null;
+  const unit = (department?.units || []).find((entry) => (entry.people || []).some((candidate) => candidate.id === employeeId)) || null;
+  ui.authPrototypeDepartment = String(department?.id || "");
+  ui.authPrototypeUnit = String(unit?.id || "");
+  ui.authPrototypePersonId = employeeId;
+  return Boolean(department?.id);
+}
+
 async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature", returnStructureRegistry = "") {
   const person = getAuthenticatedAccessPerson();
   if (!person?.id || !isEmployeeServerAuthAvailable()) {
@@ -881,19 +897,17 @@ async function beginNomenclatureEmployeeElevation(returnModule = "nomenclature",
     ? String(returnStructureRegistry)
     : "";
   nomenclatureEmployeeElevationState = { active: true, employeeId: person.id, returnModule: normalizedReturnModule, returnStructureRegistry: normalizedReturnStructureRegistry };
-  const authModel = getAuthPrototypeReactModel();
-  const department = (authModel.departments || []).find((entry) => (
-    (entry.directPeople || []).some((candidate) => candidate.id === person.id)
-    || (entry.units || []).some((unit) => (unit.people || []).some((candidate) => candidate.id === person.id))
-  )) || null;
-  const unit = (department?.units || []).find((entry) => (entry.people || []).some((candidate) => candidate.id === person.id)) || null;
   cancelAuthPrototypePinFeedback();
   authPrototypePinDraft = "";
   authPrototypeKeypadDigits = [];
   ui.authPrototypeResult = "";
   ui.authPrototypeAttemptsLeft = AUTH_GATE_MAX_ATTEMPTS;
-  ui.authPrototypeDepartment = String(department?.id || "");
-  ui.authPrototypeUnit = String(unit?.id || "");
+  // The permanent picker derives the forced employee directly from the
+  // PostgreSQL System Domains projection.  Compatibility department/unit
+  // selections are intentionally not required before the React route owns
+  // the elevation screen.
+  ui.authPrototypeDepartment = "";
+  ui.authPrototypeUnit = "";
   ui.authPrototypePersonId = person.id;
   ui.activeModule = "authPrototype";
   updateModuleUrlParam(ui.activeModule);
@@ -4609,6 +4623,87 @@ function isPlanningWorkbenchReactWriteEvaluationUrlRequested() {
   const params = new URLSearchParams(window.location.search);
   return params.get("react-planning-workbench-write-evaluation") === "1";
 }
+function getPlanningWorkbenchProductionReadState() {
+  const readStatus = workOrdersReadModel?.getStatus?.() || {};
+  const items = getDomainWorkOrderProjections();
+  const requestedRouteId = String(ui?.activeRouteId || "").trim();
+  const listedRoute = items.find((item) => String(item?.id || "") === requestedRouteId) || items[0] || null;
+  const activeRouteId = String(listedRoute?.id || requestedRouteId || "").trim();
+  const item = activeRouteId ? getDomainWorkOrderDetail(activeRouteId) : null;
+  const runtimeProjection = planningRuntimeProjectionState.status === "server"
+    ? planningRuntimeProjectionReadModel?.getProjection?.() || null
+    : null;
+  const serverProjectionReady = readStatus.bootstrapAvailable === true
+    && readStatus.bootstrapLoading !== true
+    && !readStatus.bootstrapError
+    && Boolean(activeRouteId && item?.id && String(item.id) === activeRouteId);
+  return {
+    readStatus,
+    items,
+    item,
+    activeRouteId,
+    runtimeProjection,
+    serverProjectionReady,
+  };
+}
+function getPlanningWorkbenchProductionItemIds(state = getPlanningWorkbenchProductionReadState()) {
+  const detailOperations = Array.isArray(state.item?.operations) ? state.item.operations : [];
+  const runtimeSteps = Array.isArray(state.runtimeProjection?.routeSteps)
+    ? state.runtimeProjection.routeSteps.filter((step) => {
+        const routeId = String(step?.routeId || step?.workOrderId || step?.planningOrderId || step?.metadata?.routeId || "").trim();
+        return !routeId || routeId === state.activeRouteId;
+      })
+    : [];
+  const operations = detailOperations.length ? detailOperations : runtimeSteps;
+  const ids = new Set();
+  operations.forEach((operation) => {
+    const metadata = operation?.metadata && typeof operation.metadata === "object" ? operation.metadata : {};
+    const operationId = String(operation?.id || operation?.routeStepId || metadata.id || metadata.routeStepId || "").trim();
+    const taskId = String(operation?.specTaskId || operation?.routeTaskId || operation?.sourceTaskId || metadata.specTaskId || metadata.routeTaskId || metadata.sourceTaskId || "__main__").trim();
+    if (operationId) ids.add(`step:${operationId}`);
+    ids.add(`task:${taskId || "__main__"}`);
+  });
+  return ids;
+}
+function getPlanningWorkbenchProductionPayload() {
+  const state = getPlanningWorkbenchProductionReadState();
+  const activation = getPlanningWorkbenchReactActivation();
+  const canEdit = canPlanningWorkbenchReactWrite(activation, state);
+  const reconciliationEnabled = activation.startDateReconciliationSessionRequested === true;
+  const startDateReconciliation = readPlanningStartDateReconciliation({
+    activeRouteId: state.activeRouteId,
+    enabled: reconciliationEnabled,
+  });
+  return {
+    productionModel: {
+      bootstrap: {
+        storageMode: "postgres",
+        storageBackend: "postgresql",
+        activeId: state.activeRouteId,
+        items: state.items,
+        item: state.item,
+      },
+      ...(state.runtimeProjection ? { projection: state.runtimeProjection } : {}),
+      workCenters: getProductionStructureWorkCenters(),
+      selectedItem: String(ui?.planningWorkItem || ""),
+      collapsedTreeIds: Array.isArray(planningState?.planningOrderCollapsedTreeIds)
+        ? planningState.planningOrderCollapsedTreeIds
+        : [],
+    },
+    startDateReconciliation,
+    capabilities: {
+      quantityEdit: false,
+      startDateEdit: canEdit,
+      employeeElevation: activation.signedWriteSurfaceEligible === true
+        && activation.signedServerSessionReady !== true,
+    },
+    employeeAuth: {
+      status: String(employeeServerSessionState.status || "idle"),
+      capabilityStatus: String(planningCommandCapabilitiesState.status || "idle"),
+      message: String(employeeServerSessionState.error || planningCommandCapabilitiesState.error || ""),
+    },
+  };
+}
 function ensurePlanningCommandCapabilities({ force = false } = {}) {
   if (!workOrdersReadModel?.getCommandCapabilities) return Promise.resolve(planningCommandCapabilitiesState);
   if (!force && planningCommandCapabilitiesState.status === "ready") return Promise.resolve(planningCommandCapabilitiesState);
@@ -4649,9 +4744,9 @@ function ensurePlanningCommandCapabilities({ force = false } = {}) {
 }
 function getPlanningWorkbenchReactActivation() {
   const localQa = getPlanningWorkbenchReactLocalQaOverrides();
-  const readStatus = workOrdersReadModel?.getStatus?.() || {};
-  const model = getPlanningWorkbenchModel();
-  const serverProjectionReady = model.projectionSource === "server";
+  const productionState = getPlanningWorkbenchProductionReadState();
+  const readStatus = productionState.readStatus;
+  const serverProjectionReady = productionState.serverProjectionReady;
   const authenticatedPerson = getAuthenticatedAccessPerson();
   const authenticatedAccess = Boolean(authenticatedPerson);
   const signedServerActor = getEmployeeServerActor();
@@ -4714,15 +4809,8 @@ function getPlanningWorkbenchReactActivation() {
     && startDateReconciliationSessionRequested;
   const activation = {
     ...runtimeActivation,
-    serverReadReady: readStatus.bootstrapAvailable === true
-      && !readStatus.bootstrapLoading
-      && !readStatus.bootstrapError
-      && Boolean(getDomainWorkOrderDetail(ui.activeRouteId)),
-    serverReadFailure: planningWorkbenchModuleError
-      ? "model-unavailable"
-      : readStatus.bootstrapError
-        ? "read-unavailable"
-        : "",
+    serverReadReady: serverProjectionReady,
+    serverReadFailure: readStatus.bootstrapError ? "read-unavailable" : "",
     serverProjectionReady,
     startDateServerCommandsPrimary: isPlanningStartDateServerCommandsPrimary(),
     authenticatedAccess,
@@ -4754,10 +4842,10 @@ function getPlanningWorkbenchReactActivation() {
   }
   return activation;
 }
-function canPlanningWorkbenchReactWrite(activation = getPlanningWorkbenchReactActivation(), model = getPlanningWorkbenchModel()) {
+function canPlanningWorkbenchReactWrite(activation = getPlanningWorkbenchReactActivation(), state = getPlanningWorkbenchProductionReadState()) {
   const localQa = getPlanningWorkbenchReactLocalQaOverrides();
   if (localQa.writeEvaluation) {
-    return model.projectionSource === "server" && authorizeSystemDomainAction("planning", "edit");
+    return state.serverProjectionReady === true && authorizeSystemDomainAction("planning", "edit");
   }
   return ["write-evaluation", "react"].includes(activation.accessMode)
     && activation.startDateServerCommandsPrimary === true
@@ -4765,35 +4853,11 @@ function canPlanningWorkbenchReactWrite(activation = getPlanningWorkbenchReactAc
     && activation.signedServerSessionReady === true
     && activation.signedPlanningCapabilityReady === true
     && activation.canEditPlanning === true
-    && model.projectionSource === "server";
+    && state.serverProjectionReady === true;
 }
 const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost({
   getActivation: getPlanningWorkbenchReactActivation,
-  getPayload: () => {
-    const activation = getPlanningWorkbenchReactActivation();
-    const model = getPlanningWorkbenchModel();
-    const canEdit = canPlanningWorkbenchReactWrite(activation, model);
-    const reconciliationEnabled = activation.startDateReconciliationSessionRequested === true;
-    const startDateReconciliation = readPlanningStartDateReconciliation({
-      activeRouteId: model.activeRouteId,
-      enabled: reconciliationEnabled,
-    });
-    return {
-      model,
-      startDateReconciliation,
-      capabilities: {
-        quantityEdit: false,
-        startDateEdit: canEdit,
-        employeeElevation: activation.signedWriteSurfaceEligible === true
-          && activation.signedServerSessionReady !== true,
-      },
-      employeeAuth: {
-        status: String(employeeServerSessionState.status || "idle"),
-        capabilityStatus: String(planningCommandCapabilitiesState.status || "idle"),
-        message: String(employeeServerSessionState.error || planningCommandCapabilitiesState.error || ""),
-      },
-    };
-  },
+  getPayload: getPlanningWorkbenchProductionPayload,
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
     const [action, ...parts] = String(scope || "").split(":");
@@ -4810,16 +4874,16 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     if (ui.activeModule === "planning") render({ skipRememberScroll: true });
   },
   navigate: async (navigation = {}) => {
-    const type = String(navigation.type || ""); const id = String(navigation.id || "").trim(); const model = getPlanningWorkbenchModel();
+    const type = String(navigation.type || ""); const id = String(navigation.id || "").trim(); const state = getPlanningWorkbenchProductionReadState();
     if (!id || !["select-route", "select-item"].includes(type)) return { ok: false, message: "Неизвестный переход Planning." };
     if (type === "select-item") {
-      if (!(model.overview?.rows || []).some((row) => row.id === id)) return { ok: false, message: "Строка заказ-наряда больше не существует." };
+      if (!getPlanningWorkbenchProductionItemIds(state).has(id)) return { ok: false, message: "Строка заказ-наряда больше не существует." };
       ui.planningWorkItem = id; persistUiState();
       if (ui.activeModule === "planning") render({ skipRememberScroll: true });
       return { ok: true, id };
     }
-    if (!model.queue.some((route) => route.id === id)) return { ok: false, message: "Заказ-наряд больше не существует." };
-    if (id === model.activeRouteId) return { ok: true, id };
+    if (!state.items.some((route) => String(route?.id || "") === id)) return { ok: false, message: "Заказ-наряд больше не существует." };
+    if (id === state.activeRouteId) return { ok: true, id };
     const unresolvedReconciliation = readPlanningStartDateReconciliation();
     if (unresolvedReconciliation && unresolvedReconciliation.routeId !== id) return { ok: false, message: "Сначала проверьте незавершённую команду даты старта." };
     const previousRouteId = String(ui.activeRouteId || ""); const previousWorkItem = String(ui.planningWorkItem || "");
@@ -4843,10 +4907,10 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     }
     const activation = getPlanningWorkbenchReactActivation();
     if (command.type !== "change-start-date") return { ok: false, message: "В этой проверке доступно только изменение даты старта." };
-    const model = getPlanningWorkbenchModel(); const routeId = String(command.routeId || "").trim();
-    if (!canPlanningWorkbenchReactWrite(activation, model)) return { ok: false, message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false ? "Выполните подтверждённый вход сотрудника, чтобы изменять заказ-наряд." : "Нет подтверждённого права изменять заказ-наряд." };
-    if (!routeId || routeId !== model.activeRouteId || !model.queue.some((route) => route.id === routeId)) return { ok: false, message: "Заказ-наряд больше не является активным." };
-    if (model.projectionSource !== "server") return { ok: false, message: "PostgreSQL-проекция заказ-наряда недоступна." };
+    const state = getPlanningWorkbenchProductionReadState(); const routeId = String(command.routeId || "").trim();
+    if (!canPlanningWorkbenchReactWrite(activation, state)) return { ok: false, message: activation.authenticatedAccess === false || activation.signedServerSessionReady === false ? "Выполните подтверждённый вход сотрудника, чтобы изменять заказ-наряд." : "Нет подтверждённого права изменять заказ-наряд." };
+    if (!routeId || routeId !== state.activeRouteId || !state.items.some((route) => String(route?.id || "") === routeId)) return { ok: false, message: "Заказ-наряд больше не является активным." };
+    if (state.serverProjectionReady !== true) return { ok: false, message: "PostgreSQL-проекция заказ-наряда недоступна." };
     if (command.type === "change-start-date") {
       const ownsPlanningStartDate = Object.prototype.hasOwnProperty.call(command, "planningStartDate");
       const planningStartDate = normalizeNullablePlanningStartDate(command.planningStartDate);
@@ -5017,6 +5081,35 @@ async function executeShiftExecutionFactCommand(command = {}, { activeModule = "
     if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
   }
   queueMicrotask(() => { if (ui.activeModule === activeModule) render({ skipRememberScroll: true }); });
+  return { ok: true, id: row.id };
+}
+async function executeEmployeeDesktopOperationFactCommand(command = {}) {
+  if (typeof getShiftMasterBoardModel !== "function" || typeof saveShiftMasterBoardFact !== "function") await ensureShiftMasterBoardModule();
+  const rowId = String(command.rowId || "").trim();
+  const runtime = getEmployeeDesktopRuntimeState();
+  const row = (runtime.taskRows || []).find((item) => item?.id === rowId) || null;
+  if (!row) return { ok: false, message: "Задание больше не доступно в текущем PostgreSQL-окне смены." };
+  if (!getShiftExecutionServerAssignment(row)?.id) return { ok: false, message: "Сменное задание ещё не подтверждено PostgreSQL." };
+  const saved = saveShiftMasterBoardFact(row.id, {
+    actualQuantity: command.actualQuantity,
+    defectQuantity: command.defectQuantity,
+    laborMinutes: command.laborMinutes,
+    executorCount: command.executorCount,
+    comment: String(command.comment || "").slice(0, 500),
+    deviationComment: String(command.deviationComment || "").slice(0, 500),
+    updatedAt: new Date().toISOString(),
+  }, { notifyOwner: false });
+  if (!saved?.fact) return { ok: false, message: "Факт не сохранён владельцем сменного задания." };
+  const factResult = await mirrorShiftMasterBoardFactToServer(row, saved.fact);
+  if (factResult?.ok !== true) return { ok: false, message: factResult?.error || "PostgreSQL не подтвердил факт смены." };
+  if (saved.carryover && saved.carryoverChanged) {
+    const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(row, saved.carryover, saved.replacedCarryover);
+    if (carryoverResult?.ok !== true) return { ok: false, message: carryoverResult?.error || "Факт принят, но остаток не подтверждён PostgreSQL." };
+  }
+  for (const removedCarryover of saved.removedCarryovers || []) {
+    const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, removedCarryover, { reason: "Задача закрыта фактом с рабочего стола" });
+    if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
+  }
   return { ok: true, id: row.id };
 }
 function getShiftWorkOrdersReactLocalQaOverrides() {
@@ -5321,6 +5414,206 @@ function isEmployeeDesktopReactEvaluationRequested() {
   if (params.get("react-employee-desktop-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function buildEmployeeDesktopStoredAssignmentRow(rowId = "", assignment = {}) {
+  const sheetContract = normalizePlainRecord(assignment.sheetContract);
+  const transferContract = normalizePlainRecord(assignment.transferContract || sheetContract.transferContract);
+  const slotId = String(assignment.slotId || sheetContract.sourceSlotId || transferContract.sourceSlotId || rowId).trim();
+  const slot = (planningState.slots || []).find((item) => item?.id === slotId) || null;
+  const routeId = String(assignment.routeId || sheetContract.routeId || transferContract.routeId || slot?.routeId || "").trim();
+  const route = (planningState.routes || []).find((item) => item?.id === routeId) || null;
+  const stepId = String(assignment.stepId || sheetContract.stepId || transferContract.stepId || slot?.routeStepId || "").trim();
+  const step = (planningState.routeSteps || []).find((item) => item?.id === stepId) || null;
+  const workCenterId = String(
+    assignment.workCenterId
+    || sheetContract.workCenterId
+    || transferContract.fromWorkCenterId
+    || step?.planningWorkCenterId
+    || step?.workCenterId
+    || slot?.workCenterId
+    || "",
+  ).trim();
+  const workCenter = getWorkCenter(workCenterId) || null;
+  const sourceRowId = String(assignment.sourceRowId || sheetContract.rowId || transferContract.sourceRowId || rowId).trim();
+  const operationName = sheetContract.operationName || transferContract.fromOperationName || step?.operationName || slot?.operationName || "Операция";
+  const orderLabel = sheetContract.orderLabel
+    || getPlanningOrderObjectLabel(route)
+    || route?.specificationName
+    || route?.name
+    || assignment.planningOrderId
+    || "Заказ-наряд";
+  const routePartLabel = sheetContract.routePartLabel || step?.specTaskName || operationName || "Часть маршрутной карты";
+  return {
+    id: sourceRowId,
+    rowId: sourceRowId,
+    slotId,
+    slot,
+    route,
+    routeId,
+    step,
+    stepId,
+    startsAt: slot?.plannedStart || assignment.updatedAt || sheetContract.updatedAt || "",
+    endsAt: slot?.plannedEnd || assignment.updatedAt || sheetContract.updatedAt || "",
+    documentNumber: sheetContract.documentNumber || assignment.documentNumber || "",
+    routeName: route?.name || "Маршрутная карта",
+    orderLabel,
+    taskLabel: routePartLabel,
+    routePartLabel,
+    operationName,
+    workCenterId,
+    workCenter,
+    workCenterLabel: sheetContract.workCenterLabel || transferContract.fromWorkCenterLabel || workCenter?.name || "Участок не задан",
+    resourceId: sheetContract.resourceId || assignment.resourceId || slot?.resourceId || "",
+    resourceLabel: sheetContract.resourceLabel || "",
+    plannedQuantity: normalizeShiftMasterBoardQuantity(assignment.plannedQuantity || sheetContract.plannedQuantity || transferContract.plannedQuantity || slot?.quantity || 0),
+    unit: assignment.unit || sheetContract.unit || transferContract.unit || "шт.",
+    masterMinutesPerUnit: normalizePlanningLaborPositiveNumber(assignment.laborMinutesPerUnit || 0),
+    boardAssignment: {
+      ...assignment,
+      executors: normalizeShiftMasterExecutors(assignment.executors || []),
+    },
+  };
+}
+function getEmployeeDesktopRuntimeRows(boardModel = {}) {
+  const rowsById = new Map();
+  const sourceRows = Array.isArray(boardModel.allRows) ? boardModel.allRows : Array.isArray(boardModel.rows) ? boardModel.rows : [];
+  sourceRows.forEach((row) => { if (row?.id) rowsById.set(row.id, row); });
+  Object.entries(normalizePlainRecord(ui.shiftMasterBoardAssignments)).forEach(([rowId, assignmentValue]) => {
+    const assignment = normalizePlainRecord(assignmentValue);
+    if (!Array.isArray(assignment.executors) || !assignment.executors.length) return;
+    const sourceRowId = String(assignment.sourceRowId || assignment.sheetContract?.rowId || assignment.transferContract?.sourceRowId || rowId).trim();
+    const slotId = String(assignment.slotId || assignment.sheetContract?.sourceSlotId || assignment.transferContract?.sourceSlotId || "").trim();
+    const existing = rowsById.get(rowId)
+      || rowsById.get(sourceRowId)
+      || [...rowsById.values()].find((row) => slotId && String(row?.slotId || row?.slot?.id || "").trim() === slotId)
+      || null;
+    if (existing) {
+      rowsById.set(existing.id, {
+        ...existing,
+        boardAssignment: {
+          ...(typeof getShiftMasterBoardAssignment === "function" ? getShiftMasterBoardAssignment(existing) : normalizePlainRecord(existing.boardAssignment)),
+          ...assignment,
+          executors: normalizeShiftMasterExecutors(assignment.executors),
+        },
+      });
+      return;
+    }
+    const syntheticRow = buildEmployeeDesktopStoredAssignmentRow(rowId, assignment);
+    if (syntheticRow.id) rowsById.set(syntheticRow.id, syntheticRow);
+  });
+  return [...rowsById.values()];
+}
+function getEmployeeDesktopRuntimeState() {
+  const boardModel = typeof getShiftMasterBoardModel === "function" ? getShiftMasterBoardModel() : { rows: [], allRows: [] };
+  const employees = getProductionStructureEmployees(getProductionStructureMatrixRuntimeOverrides());
+  const authenticatedPerson = getAuthenticatedAccessPerson();
+  const selectedPerson = authenticatedPerson
+    || employees.find((person) => person?.id === ui.authCurrentUserId)
+    || null;
+  const role = selectedPerson?.id ? getAccessRoleForEmployee(selectedPerson).role : getActiveInterfaceRole();
+  const canViewAll = ["admin", "productionHead"].includes(String(role?.id || ""));
+  const drafts = normalizePlainRecord(ui.authSessionFactDrafts);
+  const rows = getEmployeeDesktopRuntimeRows(boardModel);
+  const allTasks = rows.flatMap((row) => {
+    const assignment = row?.boardAssignment || (typeof getShiftMasterBoardAssignment === "function" ? getShiftMasterBoardAssignment(row) : {});
+    return (Array.isArray(assignment?.executors) ? assignment.executors : []).flatMap((executor) => {
+      const employeeId = String(executor?.employeeId || "").trim();
+      const assignedQuantity = Math.max(0, Number(executor?.quantity || 0) || 0);
+      if (!employeeId || assignedQuantity <= 0) return [];
+      const id = `${String(row?.id || "row").trim()}::${employeeId}`;
+      const draft = normalizePlainRecord(drafts[id]);
+      const employee = employees.find((person) => person?.id === employeeId) || null;
+      return [{
+        id,
+        rowId: String(row?.id || "").trim(),
+        row,
+        employeeId,
+        employeeName: employee?.name || "Исполнитель",
+        employee,
+        operationName: row?.operationName || "Операция",
+        workCenterLabel: row?.workCenterLabel || employee?.department || "Участок не задан",
+        orderLabel: typeof getShiftMasterRowOrderLabel === "function" ? getShiftMasterRowOrderLabel(row) : "Заказ-наряд",
+        routePartLabel: typeof getShiftMasterRowRoutePartLabel === "function" ? getShiftMasterRowRoutePartLabel(row) : "Маршрут",
+        documentNumber: row?.documentNumber || assignment?.sheetContract?.documentNumber || "",
+        assignedQuantity,
+        minutesPerUnit: typeof getShiftMasterBoardLaborMinutesPerUnit === "function" ? getShiftMasterBoardLaborMinutesPerUnit(row) : 0,
+        isStarted: draft.status === "in_progress",
+        isDone: Boolean(draft.updatedAt),
+      }];
+    });
+  });
+  const taskPeople = [...new Map(allTasks.map((task) => [task.employeeId, employees.find((person) => person?.id === task.employeeId) || { id: task.employeeId, name: task.employeeName }])).values()];
+  const fallbackPerson = selectedPerson || taskPeople[0] || employees[0] || null;
+  let viewedPersonId = canViewAll ? String(ui.authSessionViewedPersonId || "__all") : String(fallbackPerson?.id || "");
+  if (canViewAll && viewedPersonId !== "__all" && !taskPeople.some((person) => person?.id === viewedPersonId)) viewedPersonId = taskPeople[0]?.id || "__all";
+  const tasks = canViewAll && viewedPersonId === "__all" ? allTasks : allTasks.filter((task) => task.employeeId === viewedPersonId);
+  const selectedTask = tasks.find((task) => task.id === ui.authSessionSelectedTaskId) || tasks[0] || null;
+  return {
+    boardModel,
+    taskRows: rows,
+    employees,
+    workCenters: getProductionStructureWorkCenters(getProductionStructureMatrixRuntimeOverrides()),
+    authenticatedPerson,
+    authPerson: authenticatedPerson,
+    selectedPerson: fallbackPerson,
+    person: viewedPersonId === "__all" ? null : taskPeople.find((person) => person?.id === viewedPersonId) || fallbackPerson,
+    role,
+    canViewAll,
+    viewedPersonId,
+    allTasks,
+    tasks,
+    selectedTask,
+    taskPeople,
+    isLoggedIn: isAuthGateUnlocked() || isAuthGateQaBypassEnabled() || Boolean(fallbackPerson?.id),
+  };
+}
+function getEmployeeDesktopProductionPayload() {
+  const runtime = getEmployeeDesktopRuntimeState();
+  const localQa = getEmployeeDesktopReactLocalQaOverrides();
+  const activation = getEmployeeDesktopReactActivation();
+  const roleCanEdit = getAccessRoleModulePermission(runtime.role?.id, "authSessionPrototype", "edit");
+  const commandsReady = (activation.accessMode === "react" || localQa.writeEvaluation)
+    && shiftExecutionServerState.commandsEnabled === true
+    && roleCanEdit;
+  const reportCommandsReady = commandsReady && shiftExecutionCommands?.getCapability?.().reportEnabled === true;
+  const authenticatedPersonId = String(runtime.authenticatedPerson?.id || "");
+  const reportSummaries = Object.fromEntries(runtime.allTasks.map((task) => [task.id, getEmployeeDesktopIssueReportSummary(task.rowId)]));
+  return {
+    productionModel: {
+      boardRows: runtime.taskRows,
+      storedAssignments: normalizePlainRecord(ui.shiftMasterBoardAssignments),
+      factDrafts: normalizePlainRecord(ui.authSessionFactDrafts),
+      planning: planningState,
+      employees: runtime.employees,
+      workCenters: runtime.workCenters,
+      session: {
+        authenticatedPerson: runtime.authenticatedPerson,
+        selectedPerson: runtime.selectedPerson,
+        person: runtime.person,
+        role: runtime.role,
+        activeRole: runtime.role,
+        canViewAll: runtime.canViewAll,
+        viewedPersonId: runtime.viewedPersonId,
+        selectedTaskId: runtime.selectedTask?.id || "",
+        isLoggedIn: runtime.isLoggedIn,
+      },
+      reportSummaries,
+    },
+    capabilities: {
+      taskStart: commandsReady && runtime.tasks.some((task) => !task.isDone && !task.isStarted && (!authenticatedPersonId || task.employeeId === authenticatedPersonId)),
+      factSave: commandsReady && runtime.tasks.some((task) => task.isStarted && !task.isDone && (!authenticatedPersonId || task.employeeId === authenticatedPersonId)),
+      reportSave: reportCommandsReady && Boolean(authenticatedPersonId) && runtime.tasks.some((task) => (
+        task.employeeId === authenticatedPersonId && Boolean(getShiftExecutionServerAssignment(task.row)?.id)
+      )),
+      sessionNavigation: runtime.isLoggedIn,
+    },
+  };
+}
+const employeeDesktopCommandOwner = createEmployeeDesktopCommandOwner({
+  getFactDrafts: () => normalizePlainRecord(ui.authSessionFactDrafts),
+  setFactDrafts: (next) => { ui.authSessionFactDrafts = normalizePlainRecord(next); },
+  persist: persistUiState,
+  makeId,
+});
 function getEmployeeDesktopReactActivation() {
   const localQa = getEmployeeDesktopReactLocalQaOverrides();
   const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION === true;
@@ -5334,7 +5627,7 @@ function getEmployeeDesktopReactActivation() {
     && shiftExecutionServerState.primaryPostgres === true
     && shiftExecutionServerState.schemaReady === true
     && shiftExecutionServerState.coverageComplete === true;
-  const modulesReady = authModulesReady && shiftMasterBoardModuleReady;
+  const modulesReady = shiftMasterBoardModuleReady;
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -5355,28 +5648,12 @@ function getEmployeeDesktopReactActivation() {
 }
 const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
   getActivation: getEmployeeDesktopReactActivation,
-  getPayload: () => {
-    const model = getAuthSessionPrototypeModel();
-    const localQa = getEmployeeDesktopReactLocalQaOverrides();
-    const activation = getEmployeeDesktopReactActivation();
-    const authPersonId = String(model.authPerson?.id || "");
-    const roleCanEdit = getAccessRoleModulePermission(model.role?.id, "authSessionPrototype", "edit");
-    const commandsReady = (activation.accessMode === "react" || localQa.writeEvaluation)
-      && shiftExecutionServerState.commandsEnabled === true
-      && roleCanEdit;
-    const reportCommandsReady = commandsReady && shiftExecutionCommands?.getCapability?.().reportEnabled === true;
-    const canStartTask = commandsReady && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
-    const canSaveFact = commandsReady && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
-    const canSaveReport = reportCommandsReady && Boolean(authPersonId) && (model.tasks || []).some((task) => (
-      task.employeeId === authPersonId && Boolean(getShiftExecutionServerAssignment(task.row)?.id)
-    ));
-    const reportSummaries = Object.fromEntries((model.tasks || []).map((task) => [task.id, getEmployeeDesktopIssueReportSummary(task.rowId)]));
-    return { model, reportSummaries, capabilities: { taskStart: canStartTask, factSave: canSaveFact, reportSave: canSaveReport, sessionNavigation: model.isLoggedIn === true } };
-  },
+  getPayload: getEmployeeDesktopProductionPayload,
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
+    void ensureAuthModules();
     const [action, taskId] = String(scope || "").split(":");
-    const model = getAuthSessionPrototypeModel();
+    const model = getEmployeeDesktopRuntimeState();
     const task = (model.allTasks || []).find((item) => item.id === taskId) || model.selectedTask || null;
     if (task?.id) ui.authSessionSelectedTaskId = task.id;
     const modalType = action === "report" ? "issue" : action;
@@ -5387,7 +5664,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
   executeCommand: async (command = {}) => {
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
     const activation = getEmployeeDesktopReactActivation();
-    const model = getAuthSessionPrototypeModel();
+    const model = getEmployeeDesktopRuntimeState();
     if (command.type === "select-person") {
       if (command.personId === null) {
         cancelAuthPrototypePinFeedback();
@@ -5430,8 +5707,9 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       if (task.isDone) return { ok: false, message: "Завершённое задание нельзя взять в работу." };
       if (task.isStarted) return { ok: false, message: "Задание уже находится в работе." };
       ui.authSessionSelectedTaskId = task.id;
-      const started = startAuthSessionTask(task.id, { renderOnChange: false });
-      if (started !== true) return { ok: false, message: "Задание не запущено: его состояние уже изменилось." };
+      const started = employeeDesktopCommandOwner.startTask(task);
+      if (started.ok !== true) return { ok: false, message: "Задание не запущено: его состояние уже изменилось." };
+      notifySaveSuccess("Задание взято в работу.");
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
       return { ok: true, id: task.id };
     }
@@ -5451,10 +5729,16 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       const deviationComment = String(command.deviationComment || "").trim();
       if (deviationComment.length > 500) return { ok: false, message: "Причина отклонения не должна превышать 500 символов." };
       const candidate = { actualQuantity, defectQuantity, deviationComment };
-      if (doesAuthSessionFactNeedDeviationComment(task, candidate) && !deviationComment) return { ok: false, message: "Укажите причину отклонения: годное количество ниже плана больше чем на 5%." };
+      if (task.assignedQuantity > 0 && actualQuantity - defectQuantity < task.assignedQuantity * 0.95 && !deviationComment) return { ok: false, message: "Укажите причину отклонения: годное количество ниже плана больше чем на 5%." };
       ui.authSessionSelectedTaskId = task.id;
-      const saved = await saveAuthSessionTaskFact(task.id, { fact: candidate, renderOnChange: false });
-      if (saved !== true) return { ok: false, message: "Факт не записан: состояние задания изменилось или владелец записи недоступен." };
+      const saved = await employeeDesktopCommandOwner.saveFact({
+        task,
+        siblingTasks: model.allTasks,
+        fact: candidate,
+        saveOperationFact: (factCommand) => executeEmployeeDesktopOperationFactCommand(factCommand),
+      });
+      if (saved.ok !== true) return { ok: false, message: saved.message || "Факт не записан: состояние задания изменилось или владелец записи недоступен." };
+      notifySaveSuccess(saved.operationClosed ? "Факт операции закрыт по всем исполнителям." : "Факт сотрудника сохранён; операция закроется после остальных исполнителей.");
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
       return { ok: true, id: task.id };
     }
@@ -5463,7 +5747,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       if (!(file instanceof File)) return { ok: false, message: "Выбранный файл недоступен." };
       if (!String(file.type || "").startsWith("image/")) return { ok: false, message: "Для Report можно прикрепить только изображение." };
       if (file.size > 20 * 1024 * 1024) return { ok: false, message: "Исходное изображение не должно превышать 20 МБ." };
-      const photo = await prepareAuthSessionReportPhoto(file, command.source === "camera" ? "camera" : "file");
+      const photo = await employeeDesktopCommandOwner.prepareReportPhoto(file, command.source === "camera" ? "camera" : "file");
       if (!photo) return { ok: false, message: "Не удалось подготовить изображение." };
       return { ok: true, photo };
     }
@@ -5526,6 +5810,105 @@ const markingReactIslandHost = createMarkingReactIslandHost({
     if (ui.activeModule === "marking") render({ skipRememberScroll: true });
   },
 });
+function getAuthPickerReactAttemptsLeft() {
+  const value = Number(ui.authPrototypeAttemptsLeft);
+  return Number.isFinite(value)
+    ? Math.max(0, Math.min(AUTH_GATE_MAX_ATTEMPTS, Math.round(value)))
+    : AUTH_GATE_MAX_ATTEMPTS;
+}
+function setAuthPickerReactAttemptsLeft(value = AUTH_GATE_MAX_ATTEMPTS) {
+  ui.authPrototypeAttemptsLeft = Math.max(0, Math.min(AUTH_GATE_MAX_ATTEMPTS, Math.round(Number(value) || 0)));
+}
+function getAuthPickerReactElevationTarget() {
+  return nomenclatureEmployeeElevationState.returnModule === "productionStructureMatrix"
+    ? "production-structure"
+    : nomenclatureEmployeeElevationState.returnModule === "planning"
+      ? "planning"
+      : "nomenclature";
+}
+function getAuthPickerReactProductionPayload({ pinEntry = true } = {}) {
+  const elevation = isNomenclatureEmployeeElevationActive();
+  const employeeId = String(nomenclatureEmployeeElevationState.employeeId || "");
+  const actor = getEmployeeServerActor();
+  return {
+    productionModel: {
+      registries: getSystemDomainsRegistries(),
+      businessDate: toSystemDomainsBusinessDate(new Date()),
+      session: {
+        status: String(employeeServerSessionState.status || "idle"),
+        authenticated: employeeServerSessionState.authenticated === true,
+        actor: actor && typeof actor === "object" ? { ...actor } : null,
+        personId: String(ui.authCurrentUserId || ""),
+      },
+    },
+    elevation: elevation ? {
+      active: true,
+      employeeId,
+      target: getAuthPickerReactElevationTarget(),
+    } : { active: false },
+    capabilities: { pinEntry: pinEntry === true },
+    authState: {
+      attemptsLeft: getAuthPickerReactAttemptsLeft(),
+      result: String(ui.authPrototypeResult || ""),
+    },
+  };
+}
+function isAuthPickerReactProductionRowActive(row = {}, businessDate = "") {
+  const validFrom = String(row.validFrom || row.effectiveFrom || "").trim();
+  const validTo = String(row.validTo || row.effectiveTo || "").trim();
+  return row.isActive !== false
+    && !String(row.archivedAt || "").trim()
+    && (!/^\d{4}-\d{2}-\d{2}$/.test(validFrom) || validFrom <= businessDate)
+    && (!/^\d{4}-\d{2}-\d{2}$/.test(validTo) || businessDate <= validTo);
+}
+function getAuthPickerReactProductionPerson(payload = {}, personId = "") {
+  const productionModel = payload.productionModel && typeof payload.productionModel === "object"
+    ? payload.productionModel
+    : {};
+  const registries = productionModel.registries && typeof productionModel.registries === "object"
+    ? productionModel.registries
+    : {};
+  const businessDate = String(productionModel.businessDate || "");
+  const normalizedPersonId = String(personId || "").trim();
+  const employee = (Array.isArray(registries.employees) ? registries.employees : []).find((row) => (
+    String(row?.id || "") === normalizedPersonId
+    && isAuthPickerReactProductionRowActive(row, businessDate)
+  )) || null;
+  if (!employee) return null;
+  const assignments = (Array.isArray(registries.employmentAssignments) ? registries.employmentAssignments : [])
+    .filter((row) => String(row?.employeeId || "") === normalizedPersonId && isAuthPickerReactProductionRowActive(row, businessDate))
+    .sort((left, right) => (
+      Number(right?.isPrimary === true) - Number(left?.isPrimary === true)
+      || String(right?.validFrom || right?.effectiveFrom || "").localeCompare(String(left?.validFrom || left?.effectiveFrom || ""), "en")
+      || String(left?.id || "").localeCompare(String(right?.id || ""), "en")
+    ));
+  const assignment = assignments[0] || {};
+  const position = (Array.isArray(registries.positions) ? registries.positions : [])
+    .find((row) => String(row?.id || "") === String(assignment.positionId || "")) || {};
+  const orgUnit = (Array.isArray(registries.orgUnits) ? registries.orgUnits : [])
+    .find((row) => String(row?.id || "") === String(assignment.orgUnitId || "")) || {};
+  const capabilities = position.capabilities && typeof position.capabilities === "object" ? position.capabilities : {};
+  return {
+    id: normalizedPersonId,
+    name: String(employee.displayName || employee.name || normalizedPersonId),
+    role: String(position.name || employee.positionName || employee.role || "Роль не задана"),
+    department: String(orgUnit.name || employee.department || ""),
+    personKind: capabilities.canDistribute === true || String(position.kind || "") === "manager" ? "master" : "employee",
+    canDistribute: capabilities.canDistribute === true,
+    canExecute: capabilities.canExecute !== false,
+  };
+}
+function completeAuthPickerReactLogin(person = null) {
+  if (!person?.id) return { ok: false, authenticated: false, message: "Сотрудник больше не доступен для входа." };
+  const roleId = inferAccessRoleIdForPerson(person);
+  ui.authPrototypeResult = "pin-ok";
+  unlockAuthGate({ personId: person.id, roleId });
+  persistUiState();
+  updateModuleUrlParam(ui.activeModule);
+  notifySaveSuccess(`Вход выполнен: ${getAccessRoleById(roleId).label}`);
+  render();
+  return { ok: true, authenticated: true, personId: person.id };
+}
 function getAuthPickerReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -5559,10 +5942,10 @@ function getAuthPickerReactActivation() {
   const activation = {
     ...runtimeActivation,
     featureFlagEnabled: permanentReact || elevation || runtimeActivation.featureFlagEnabled,
-    moduleReady: authModulesReady,
-    systemDomainsReady: elevation || (systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState)) || preAuthEvaluationProjectionReady,
+    moduleReady: permanentReact || authModulesReady,
+    systemDomainsReady: (systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState)) || preAuthEvaluationProjectionReady,
     serverReadFailure: permanentReact && systemDomainsServerReadState.status === "fallback" ? "read-unavailable" : "",
-    authGateReady: elevation || !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
+    authGateReady: permanentReact || elevation || !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
     pickerReady: permanentReact || elevation || (!ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult)),
     accessMode,
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
@@ -5575,11 +5958,15 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
   getPayload: () => {
     const localQa = getAuthPickerReactLocalQaOverrides();
     const elevation = isNomenclatureEmployeeElevationActive();
-    const permanentReact = getAuthPickerReactActivation().accessMode === "react";
+    const activation = getAuthPickerReactActivation();
+    const permanentReact = activation.accessMode === "react";
+    if (permanentReact || (elevation && activation.systemDomainsReady)) {
+      return getAuthPickerReactProductionPayload({ pinEntry: true });
+    }
     return {
       model: elevation ? getNomenclatureElevationAuthModel() : getAuthPrototypeReactModel(),
       capabilities: { pinEntry: permanentReact || elevation || localQa.writeEvaluation },
-      authState: permanentReact || elevation || localQa.writeEvaluation ? { attemptsLeft: getAuthPrototypeAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
+      authState: permanentReact || elevation || localQa.writeEvaluation ? { attemptsLeft: getAuthPickerReactAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
     };
   },
   getTargetRoot: () => app,
@@ -5595,16 +5982,52 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
     if (isAuthGateUnlocked() && !elevation) return { ok: false, message: "Сессия уже авторизована." };
     const personId = String(command.personId || "").trim();
     const pin = String(command.pin || "");
-    const model = elevation ? getNomenclatureElevationAuthModel() : getAuthPrototypeReactModel();
-    const people = (model.departments || []).flatMap((department) => [
-      ...(department.directPeople || []),
-      ...(department.units || []).flatMap((unit) => unit.people || []),
-    ]);
-    if (!people.some((person) => person.id === personId)) return { ok: false, message: "Сотрудник больше не доступен для входа." };
+    const productionPayload = getAuthPickerReactProductionPayload({ pinEntry: true });
+    const person = getAuthPickerReactProductionPerson(productionPayload, personId);
+    if (!person) return { ok: false, message: "Сотрудник больше не доступен для входа." };
     if (elevation && personId !== nomenclatureEmployeeElevationState.employeeId) return { ok: false, message: "Подтвердить изменения может только текущий сотрудник." };
     if (!/^\d{5}$/.test(pin)) return { ok: false, message: "PIN должен состоять из пяти цифр." };
-    if (getAuthPrototypeAttemptsLeft() <= 0) return { ok: false, locked: true, message: "Вход заблокирован: попытки исчерпаны." };
-    return scheduleAuthPrototypePinValidation(pin, personId, { renderOnChange: false });
+    if (getAuthPickerReactAttemptsLeft() <= 0) return { ok: false, locked: true, message: "Вход заблокирован: попытки исчерпаны." };
+    ui.authPrototypeResult = "pin-checking";
+    persistUiState();
+    const result = await createEmployeeServerSession({ employeeId: personId, pin });
+    if (result?.ok === true
+      && result.authenticated === true
+      && String(result.actor?.employeeId || "") === personId) {
+      const currentPerson = getAuthPickerReactProductionPerson(getAuthPickerReactProductionPayload({ pinEntry: true }), personId);
+      if (!currentPerson) {
+        await deleteEmployeeServerSession().catch(() => {});
+        ui.authPrototypeResult = "pin-error";
+        persistUiState();
+        return { ok: false, authenticated: false, message: "Сотрудник больше не доступен для входа." };
+      }
+      if (elevation) {
+        const completed = finishNomenclatureEmployeeElevation(result.actor);
+        return completed?.ok === true
+          ? { ok: true, authenticated: true, personId, actor: result.actor }
+          : { ok: false, authenticated: false, message: String(completed?.message || "Не удалось завершить подтверждение PIN.") };
+      }
+      return { ...completeAuthPickerReactLogin(currentPerson), actor: result.actor };
+    }
+    const credentialRejected = Number(result?.status || 0) === 401;
+    const rateLimited = Number(result?.status || 0) === 429;
+    if (credentialRejected) setAuthPickerReactAttemptsLeft(getAuthPickerReactAttemptsLeft() - 1);
+    if (rateLimited) setAuthPickerReactAttemptsLeft(0);
+    const attemptsLeft = getAuthPickerReactAttemptsLeft();
+    const locked = attemptsLeft <= 0;
+    ui.authPrototypeResult = locked ? "pin-error-locked" : "pin-error";
+    authPrototypePinDraft = "";
+    authPrototypeKeypadDigits = [];
+    persistUiState();
+    return {
+      ...result,
+      ok: false,
+      authenticated: false,
+      attemptsLeft,
+      locked,
+      result: ui.authPrototypeResult,
+      message: String(result?.message || (credentialRejected ? "Неверный PIN." : "Серверная авторизация временно недоступна.")),
+    };
   },
   requestLegacyRender: (_reason, scope = "") => {
     const [action, encodedPersonId, encodedDepartmentId, encodedUnitId] = String(scope || "").split(":");
@@ -8999,7 +9422,7 @@ async function refreshShiftExecutionServerProjection() {
 }
 async function hydrateEmployeeDesktopIssueReports(task = null, { force = false } = {}) {
   if (!await ensureShiftExecutionDomainApiModule()) return false;
-  const model = getAuthSessionPrototypeModel();
+  const model = getEmployeeDesktopRuntimeState();
   const targetTask = task || model.selectedTask || null;
   const authenticatedPersonId = String(model.authPerson?.id || "").trim();
   if (!targetTask?.rowId || !authenticatedPersonId || targetTask.employeeId !== authenticatedPersonId) return false;
@@ -10961,9 +11384,13 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("authPrototype", { fallbackToLegacy: false });
         }
-        ensureAuthModules();
         const reactDecision = authPickerReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return authPickerReactIslandHost.renderTarget();
+        // Only an explicit legacy/evaluation rejection may load the retired
+        // auth renderer and its event chunk. Permanent React owns both the
+        // loading shell and the PostgreSQL-backed picker.
+        syncLegacyElevationAuthSelection();
+        ensureAuthModules();
         return renderAuthPrototypePage();
       },
       bind: () => { if (!authPickerReactIslandHost.isReactEligible()) bindAuthPrototypeEvents(); },
@@ -10974,7 +11401,6 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("authSessionPrototype", { fallbackToLegacy: false });
         }
-        ensureAuthModules();
         ensureShiftMasterBoardModule();
         // A direct Employee Desktop entry needs the same complete Planning
         // graph as the Master Board before it can derive a bounded dispatch
@@ -10986,6 +11412,7 @@ function initializeModuleRuntime() {
         if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
         const reactDecision = employeeDesktopReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return employeeDesktopReactIslandHost.renderTarget();
+        ensureAuthModules();
         return renderAuthSessionPrototypePage();
       },
       renderModals: () => employeeDesktopReactIslandHost.isReactEligible() ? "" : renderAuthSessionModal(),
@@ -11129,9 +11556,13 @@ function initializeModuleRuntime() {
     planning: {
       render: () => {
         hydratePlanningWorkOrderReadModel();
-        ensurePlanningWorkbenchModule();
         const reactDecision = planningWorkbenchReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return planningWorkbenchReactIslandHost.renderTarget();
+        if (getReactRuntimeMode("planningWorkbench") === "react") return planningWorkbenchReactIslandHost.renderTarget();
+        // The legacy renderer is a rollback/evaluation fallback only. The
+        // permanent Planning route above consumes the typed PostgreSQL payload
+        // without importing src/modules/planning_workbench/render.js.
+        ensurePlanningWorkbenchModule();
         if (planningWorkbenchModuleError) {
           return renderPlanningWorkbenchShellState({
             title: "Не удалось загрузить заказ-наряды",

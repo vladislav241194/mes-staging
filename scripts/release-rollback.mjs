@@ -1137,6 +1137,13 @@ fi
 printf 'ROLLED_BACK release=%s target_mode=%s restored_kind=%s restored_target=%s\n' "$current_release_id" "$target_mode" "$previous_kind" "$previous_target"
 `;
 
+// String.raw preserves the escape needed to keep JavaScript from treating the
+// two shell parameter expansions as template interpolations. Remove only that
+// JavaScript escape before Bash receives the protected rollback program.
+const executableRollbackScript = rollbackScript
+  .replaceAll("\\${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}", "${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}")
+  .replaceAll("\\${MES_RELEASE_AUTHORITY_LOCK_FD:-}", "${MES_RELEASE_AUTHORITY_LOCK_FD:-}");
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const contour = CONTOURS[args.contour];
@@ -1180,7 +1187,7 @@ async function main() {
     restoreTarget.kind === "release-pointer" ? restoreTarget.target : restoreTarget.legacyPath,
     String(args.dryRun),
     args.target,
-  ], { input: rollbackScript });
+  ], { input: executableRollbackScript });
   if (result.stdout.trim()) console.log(result.stdout.trim());
   console.log(`- total: ${formatDuration(performance.now() - startedAt)}`);
 }

@@ -83,6 +83,25 @@ assert.match(app, /signedWriteSurfaceEligible[\s\S]*ensurePlanningCommandCapabil
 assert.match(app, /command\.type === "request-elevation"/);
 assert.match(app, /beginPlanningEmployeeElevation/);
 assert.match(app, /command\.type !== "change-start-date"/);
+const planningProductionPayload = app.slice(
+  app.indexOf("function getPlanningWorkbenchProductionReadState"),
+  app.indexOf("function ensurePlanningCommandCapabilities"),
+);
+assert.match(planningProductionPayload, /getDomainWorkOrderProjections\(\)/);
+assert.match(planningProductionPayload, /getDomainWorkOrderDetail\(activeRouteId\)/);
+assert.match(planningProductionPayload, /planningRuntimeProjectionState\.status === "server"[\s\S]*planningRuntimeProjectionReadModel\?\.getProjection/,
+  "React Planning must consume only an already-confirmed PostgreSQL runtime projection");
+assert.match(planningProductionPayload, /productionModel:[\s\S]*bootstrap:[\s\S]*storageMode: "postgres"[\s\S]*items: state\.items[\s\S]*item: state\.item/,
+  "the island payload must pass raw PostgreSQL bootstrap/detail data into the typed adapter");
+assert.doesNotMatch(planningProductionPayload, /getPlanningWorkbenchModel|ensurePlanningWorkbenchModule|planning_workbench\/render\.js/,
+  "the permanent React payload must not derive through the legacy Planning renderer/model");
+const planningReactHost = app.slice(
+  app.indexOf("const planningWorkbenchReactIslandHost"),
+  app.indexOf("async function executeShiftExecutionAssignmentCommand"),
+);
+assert.match(planningReactHost, /getPayload: getPlanningWorkbenchProductionPayload/);
+assert.doesNotMatch(planningReactHost, /getPlanningWorkbenchModel\(/,
+  "React navigation and owner commands must validate against the PostgreSQL production state");
 assert.match(app, /result\.kind === "superseded"[\s\S]*planningWorkbenchReactIslandHost\.update\(\)/,
   "a superseded replay must refresh the mounted React payload without unmounting its explanation state");
 assert.match(app, /result\.kind === "conflict"[\s\S]*planningWorkbenchReactIslandHost\.update\(\)/,
@@ -136,6 +155,18 @@ assert.match(app, /result\.rollbackReady !== true[\s\S]*retainPlanningStartDateR
   "pending mirror receipts must retain, while confirmed success must clear, the durable request");
 assert.doesNotMatch(app.slice(app.indexOf("const planningWorkbenchReactIslandHost"), app.indexOf("async function executeShiftExecutionAssignmentCommand")), /changePlanningRouteQuantity\(/,
   "the React evaluation command host must not expose quantity writes");
+const planningRuntimeAdapter = app.slice(
+  app.indexOf("    planning: {\n      render: () => {"),
+  app.indexOf("    shiftMasterBoard:", app.indexOf("    planning: {\n      render: () => {")),
+);
+assert.ok(planningRuntimeAdapter.indexOf("planningWorkbenchReactIslandHost.prepareRender()") >= 0);
+assert.ok(
+  planningRuntimeAdapter.indexOf("ensurePlanningWorkbenchModule()")
+    > planningRuntimeAdapter.indexOf("planningWorkbenchReactIslandHost.prepareRender()"),
+  "the legacy Planning module may load only after the React host rejects the route",
+);
+assert.match(planningRuntimeAdapter, /getReactRuntimeMode\("planningWorkbench"\) === "react"[\s\S]*return planningWorkbenchReactIslandHost\.renderTarget\(\)[\s\S]*ensurePlanningWorkbenchModule\(\)/,
+  "permanent Planning must fail closed in React before the legacy import boundary");
 
 assert.match(host, /\["read-only-evaluation", "write-evaluation"\]/);
 assert.match(host, /canFallbackToLegacy:\s*\(activation\)\s*=>\s*activation\.accessMode !== "react"/,

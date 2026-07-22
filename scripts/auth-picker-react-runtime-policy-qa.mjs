@@ -8,6 +8,19 @@ const [app, host, render, scenario, adapter] = await Promise.all([
   readFile("experiments/react-migration/src/modules/auth-picker/adapter.ts", "utf8"),
 ]);
 const failures = []; const expect = (condition, message) => { if (!condition) failures.push(message); };
+const activationStart = app.indexOf("function getAuthPickerReactActivation() {");
+const payloadStart = app.indexOf("function getAuthPickerReactProductionPayload(");
+const hostStart = app.indexOf("const authPickerReactIslandHost = createAuthPickerReactIslandHost({");
+const hostEnd = app.indexOf("function getContourAdminReactLocalQaOverrides()", hostStart);
+const routeStart = app.indexOf("    authPrototype: {");
+const routeEnd = app.indexOf("    authSessionPrototype: {", routeStart);
+const elevationStart = app.indexOf("async function beginNomenclatureEmployeeElevation(");
+const elevationEnd = app.indexOf("function beginPlanningEmployeeElevation()", elevationStart);
+const activationSlice = app.slice(activationStart, hostStart);
+const hostSlice = app.slice(hostStart, hostEnd);
+const productionSlice = app.slice(payloadStart, hostEnd);
+const routeSlice = app.slice(routeStart, routeEnd);
+const elevationSlice = app.slice(elevationStart, elevationEnd);
 expect(app.includes('systemDomainsServerReadState.status === "server"'), "Authorization picker must require PostgreSQL System Domains");
 expect(app.includes('surfaceId: "authPicker"') && app.includes("resolveReactRuntimeActivation"), "permanent Authorization activation must come from the signed runtime policy");
 expect(app.includes('accessMode === "read-only-evaluation"') && app.includes("serverEvaluationAllowed"), "legacy release read evaluation must retain its root-controlled permission");
@@ -20,7 +33,19 @@ expect(render.includes("function getAuthPrototypeReactModel"), "legacy auth rend
 expect(!scenario.includes("scheduleAuthPrototypePinValidation") && !scenario.includes("completeAuthPrototypeLogin") && !scenario.includes("unlockAuthGate"), "React scenario must not receive authentication authority");
 expect(!adapter.includes("pinDraft") && !adapter.includes("session"), "typed adapter must not expose PIN or session state");
 expect(!scenario.includes("55555") && !scenario.includes("localStorage") && scenario.includes('type: "submit-pin"'), "React may hold PIN only in component memory and a transient typed command");
-expect(app.includes("scheduleAuthPrototypePinValidation(pin, personId, { renderOnChange: false })") && app.includes("/^\\d{5}$/.test(pin)"), "host must validate shape and delegate PIN authority to the existing owner");
-expect(app.includes('capabilities: { pinEntry: permanentReact || elevation || localQa.writeEvaluation }'), "signed permanent React must keep the PIN keypad inside the typed island");
+expect(activationSlice.includes("moduleReady: permanentReact || authModulesReady"), "permanent Authorization activation must not wait for the legacy auth chunks");
+expect(activationSlice.includes("authGateReady: permanentReact || elevation"), "permanent Authorization must retain React route ownership after signed activation");
+expect(productionSlice.includes("productionModel:") && productionSlice.includes("registries: getSystemDomainsRegistries()") && productionSlice.includes("businessDate: toSystemDomainsBusinessDate(new Date())"), "permanent picker payload must be built from raw PostgreSQL System Domains registries");
+expect(productionSlice.includes("employeeServerSessionState") && productionSlice.includes("nomenclatureEmployeeElevationState") && productionSlice.includes("authState:"), "production payload must carry current session, elevation and transient auth state");
+expect(hostSlice.includes("getAuthPickerReactProductionPerson(productionPayload, personId)") && hostSlice.includes("createEmployeeServerSession({ employeeId: personId, pin })"), "PIN host must validate the employee against the exact raw projection before using the signed server-session owner");
+expect(hostSlice.includes("getAuthPickerReactProductionPerson(getAuthPickerReactProductionPayload({ pinEntry: true }), personId)") && hostSlice.includes("await deleteEmployeeServerSession().catch"), "a successful PIN response must fail closed if the current PostgreSQL projection no longer contains the employee");
+expect(hostSlice.includes("finishNomenclatureEmployeeElevation(result.actor)") && hostSlice.includes("personId !== nomenclatureEmployeeElevationState.employeeId"), "elevation must remain actor-bound and fail closed");
+expect(hostSlice.includes("/^\\d{5}$/.test(pin)") && !hostSlice.includes("scheduleAuthPrototypePinValidation(pin, personId"), "permanent host must validate PIN shape without rebuilding the person through the legacy picker model");
+expect(hostSlice.indexOf("return getAuthPickerReactProductionPayload({ pinEntry: true })") < hostSlice.indexOf("getAuthPrototypeReactModel()"), "permanent payload branch must return before the compatibility model is touched");
+expect(!elevationSlice.includes("getAuthPrototypeReactModel"), "starting permanent elevation must not read the retired auth renderer model");
+expect(routeSlice.indexOf("authPickerReactIslandHost.prepareRender()") >= 0
+  && routeSlice.indexOf("authPickerReactIslandHost.prepareRender()") < routeSlice.indexOf("ensureAuthModules()")
+  && routeSlice.indexOf("if (reactDecision.activateReact) return") < routeSlice.indexOf("ensureAuthModules()"), "legacy auth chunks may load only after the React route explicitly rejects activation");
+expect(routeSlice.indexOf("if (reactDecision.activateReact) return") < routeSlice.indexOf("syncLegacyElevationAuthSelection()"), "sealed rollback may restore its compatibility selection only after React rejects the route");
 if (failures.length) { console.error(failures.map((failure) => `FAIL: ${failure}`).join("\n")); process.exit(1); }
 console.log("Authorization picker permanent React security contract QA: OK");

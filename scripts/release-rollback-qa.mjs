@@ -81,6 +81,14 @@ assert(source.includes('authority_lock_parent="/run/lock/mes"')
   && !source.includes('flock -n 9')
   && !source.includes('/srv/mes/pilot/shared-state/mes-authority-rollout'),
 "Rollback must serialize its pointer switch through one exact root-owned authority lock outside the runtime-writable tree");
+assert(
+  source.includes("const executableRollbackScript = rollbackScript")
+    && source.includes('.replaceAll("\\\\${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}", "${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}")')
+    && source.includes('.replaceAll("\\\\${MES_RELEASE_AUTHORITY_LOCK_FD:-}", "${MES_RELEASE_AUTHORITY_LOCK_FD:-}")')
+    && source.includes("{ input: executableRollbackScript }")
+    && !source.includes("{ input: rollbackScript }"),
+  "Rollback must remove the JavaScript-only escapes before Bash evaluates the inherited fd9 contract",
+);
 for (const transitionPath of [
   "/var/lib/mes/pilot-credential-rotation",
   "/var/lib/mes/pilot-uid-cutover",

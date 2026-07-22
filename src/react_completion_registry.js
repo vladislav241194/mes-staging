@@ -41,7 +41,7 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "componentTypes", status: COMPLETE }),
   defineCompletionEntry({ id: "contourAdmin", status: COMPLETE }),
   defineCompletionEntry({ id: "dispatch", status: PARTIAL }),
-  defineCompletionEntry({ id: "employeeDesktop", status: PARTIAL }),
+  defineCompletionEntry({ id: "employeeDesktop", status: COMPLETE }),
   defineCompletionEntry({ id: "gantt", status: PARTIAL }),
   defineCompletionEntry({ id: "marking", status: PARTIAL }),
   defineCompletionEntry({ id: "nomenclature", status: COMPLETE }),
@@ -95,7 +95,7 @@ export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
     surfaceIds: ["componentTypes", "operations", "nomenclatureTypes", "statuses"],
   }),
   defineCompletionEntry({ id: "authPrototype", status: COMPLETE, surfaceIds: ["authPicker"] }),
-  defineCompletionEntry({ id: "authSessionPrototype", status: PARTIAL, surfaceIds: ["employeeDesktop"] }),
+  defineCompletionEntry({ id: "authSessionPrototype", status: COMPLETE, surfaceIds: ["employeeDesktop"] }),
   defineCompletionEntry({ id: "marking", status: PARTIAL, surfaceIds: ["marking"] }),
 ]);
 

@@ -1,4 +1,7 @@
-const record = (value: unknown): Record<string, any> => value && typeof value === "object" ? value as Record<string, any> : {};
+import { buildAuthPickerProductionModel, isAuthPickerProductionInput } from "./production-model";
+
+type UnknownRecord = Record<string, unknown>;
+const record = (value: unknown): UnknownRecord => value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const text = (value: unknown, fallback = ""): string => String(value ?? fallback).trim();
 const number = (value: unknown): number => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -7,11 +10,18 @@ export interface AuthPickerPerson { id: string; name: string; role: string; depa
 export interface AuthPickerUnit { id: string; name: string; caption: string; employeeCount: number; people: AuthPickerPerson[]; }
 export interface AuthPickerDepartment { id: string; name: string; caption: string; employeeCount: number; directPeople: AuthPickerPerson[]; units: AuthPickerUnit[]; }
 export type AuthPickerElevationTarget = "nomenclature" | "planning" | "production-structure";
+export interface AuthPickerModel { departments: AuthPickerDepartment[]; employeeCount: number; canEnterPin: boolean; attemptsLeft: number; result: string; forcedPersonId: string; elevation: boolean; elevationTarget: AuthPickerElevationTarget; }
 
 const adaptPerson = (value: unknown, index: number): AuthPickerPerson => { const item = record(value); return { id: text(item.id, `person-${index + 1}`), name: text(item.name, "Сотрудник"), role: text(item.role, "Роль не задана"), department: text(item.department), personKind: text(item.personKind, "employee"), canDistribute: Boolean(item.canDistribute), canExecute: item.canExecute !== false }; };
 
-export function adaptAuthPickerPayload(payload: unknown) {
-  const root = record(payload); const model = record(root.model || payload); const capabilities = record(root.capabilities); const authState = record(root.authState);
+export function adaptAuthPickerPayload(payload: unknown): AuthPickerModel {
+  const root = record(payload);
+  const productionModel = record(root.productionModel);
+  if (Object.keys(productionModel).length || isAuthPickerProductionInput(root)) {
+    const productionInput = Object.keys(productionModel).length ? { ...root, ...productionModel } : root;
+    return buildAuthPickerProductionModel(productionInput, root.capabilities, root.authState);
+  }
+  const model = record(root.model || payload); const capabilities = record(root.capabilities); const authState = record(root.authState);
   const rawElevationTarget = text(model.elevationTarget);
   const elevationTarget: AuthPickerElevationTarget = rawElevationTarget === "planning" || rawElevationTarget === "production-structure" ? rawElevationTarget : "nomenclature";
   const departments = list(model.departments).map((raw, departmentIndex): AuthPickerDepartment => {

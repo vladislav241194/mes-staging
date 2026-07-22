@@ -210,7 +210,7 @@
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["execute-ops", "request-deploy-to-pilot"], "missing": [] } },
     { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["approved-scope", "production-owner", "read-api", "write-api", "rbac"] } },
-    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["typed-model-independence"] } },
+    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "select-task", "start-task", "save-fact", "prepare-photo", "save-report", "structure-context", "route-context", "pdf-context"], "missing": [] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "blocked": ["refresh", "edit-dependency", "drag", "resize", "optimize"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
@@ -286,10 +286,10 @@
       "functionalStatus": "partial",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["owner-backed quantity write", "owner-backed slot/Gantt scheduling", "owner-backed labor write", "owner-backed Gantt transfer", "owner-backed cancel", "Pilot start-date lifecycle and rollback acceptance"]
+      "remainingScopes": ["bounded BOM and resource/labor/shift owner projections", "owner-backed quantity write", "owner-backed slot/Gantt scheduling", "owner-backed labor write", "owner-backed Gantt transfer", "owner-backed cancel", "Pilot start-date lifecycle and rollback acceptance"]
     },
     {
       "id": "gantt",
@@ -441,23 +441,23 @@
       "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["deferred Pilot PIN acceptance", "typed auth read-model extraction"]
+      "remainingScopes": ["current-release Pilot PIN lifecycle", "rollback/reactivation acceptance"]
     },
     {
       "id": "authSessionPrototype",
       "navigationScope": "user",
       "scenarios": ["employeeDesktop"],
       "reactSurface": "production-island",
-      "functionalStatus": "partial",
+      "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["Pilot task/fact/Report lifecycle", "typed owner/model independence"]
+      "remainingScopes": ["current-release Pilot read", "Pilot task/fact/Report lifecycle and cleanup", "rollback/reactivation acceptance"]
     },
     {
       "id": "marking",
