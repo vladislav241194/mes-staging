@@ -365,7 +365,7 @@ await bundleReactMigrationIsland(
   nomenclatureReactIslandOutput,
 );
 const nomenclatureReactIslandVersion = await fileHash(nomenclatureReactIslandOutput);
-const nomenclatureReactIslandHostPath = join(stagingDistDir, "src", "modules", "nomenclature", "react_island_host.js");
+const nomenclatureReactIslandHostPath = join(stagingDistDir, "src", "modules", "nomenclature", "react_island_host.ts");
 const nomenclatureReactIslandHostSource = await readFile(nomenclatureReactIslandHostPath, "utf8");
 const nomenclatureReactIslandVersionMarker = "__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__";
 if (!nomenclatureReactIslandHostSource.includes(nomenclatureReactIslandVersionMarker)) {
@@ -382,7 +382,7 @@ await bundleReactMigrationIsland(
   boardsReactIslandOutput,
 );
 const boardsReactIslandVersion = await fileHash(boardsReactIslandOutput);
-const boardsReactIslandHostPath = join(stagingDistDir, "src", "modules", "nomenclature", "boards_react_island_host.js");
+const boardsReactIslandHostPath = join(stagingDistDir, "src", "modules", "nomenclature", "boards_react_island_host.ts");
 const boardsReactIslandHostSource = await readFile(boardsReactIslandHostPath, "utf8");
 const boardsReactIslandVersionMarker = "__MES_BOARDS_REACT_BUNDLE_VERSION__";
 if (!boardsReactIslandHostSource.includes(boardsReactIslandVersionMarker)) {
@@ -494,7 +494,7 @@ const shiftWorkOrdersPrintVersion = await fileHash(shiftWorkOrdersPrintOutput);
 const shiftWorkOrdersFactOutput = join(stagingDistDir, "src", "react-islands", "shift-work-orders-fact.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "modules", "shift-work-orders", "ShiftWorkOrderFactEditor.tsx"), shiftWorkOrdersFactOutput);
 const shiftWorkOrdersFactVersion = await fileHash(shiftWorkOrdersFactOutput);
-const shiftWorkOrdersReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_work_orders", "react_island_host.js");
+const shiftWorkOrdersReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_work_orders", "react_island_host.ts");
 let shiftWorkOrdersReactIslandHostSource = await readFile(shiftWorkOrdersReactIslandHostPath, "utf8");
 const shiftWorkOrdersReactIslandVersionMarker = "__MES_SHIFT_WORK_ORDERS_REACT_BUNDLE_VERSION__";
 if (!shiftWorkOrdersReactIslandHostSource.includes(shiftWorkOrdersReactIslandVersionMarker)) throw new Error("Cannot find Shift Work Orders React island bundle version marker");
@@ -509,7 +509,7 @@ await writeFile(shiftWorkOrdersReactIslandHostPath, shiftWorkOrdersReactIslandHo
 const shiftMasterBoardReactIslandOutput = join(stagingDistDir, "src", "react-islands", "shift-master-board.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "shift-master-board-island.tsx"), shiftMasterBoardReactIslandOutput);
 const shiftMasterBoardReactIslandVersion = await fileHash(shiftMasterBoardReactIslandOutput);
-const shiftMasterBoardReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_master_board", "react_island_host.js");
+const shiftMasterBoardReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_master_board", "react_island_host.ts");
 let shiftMasterBoardReactIslandHostSource = await readFile(shiftMasterBoardReactIslandHostPath, "utf8");
 const shiftMasterBoardReactIslandVersionMarker = "__MES_SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION__";
 if (!shiftMasterBoardReactIslandHostSource.includes(shiftMasterBoardReactIslandVersionMarker)) throw new Error("Cannot find Shift Master Board React island bundle version marker");
@@ -587,7 +587,7 @@ await bundleReactMigrationIsland(
   rolesReactIslandOutput,
 );
 const rolesReactIslandVersion = await fileHash(rolesReactIslandOutput);
-const rolesReactIslandHostPath = join(stagingDistDir, "src", "modules", "access_roles", "react_island_host.js");
+const rolesReactIslandHostPath = join(stagingDistDir, "src", "modules", "access_roles", "react_island_host.ts");
 const rolesReactIslandHostSource = await readFile(rolesReactIslandHostPath, "utf8");
 const rolesReactIslandVersionMarker = "__MES_ROLES_REACT_BUNDLE_VERSION__";
 if (!rolesReactIslandHostSource.includes(rolesReactIslandVersionMarker)) {

@@ -1,4 +1,8 @@
-import { createReactIslandHost } from "../react_island_host.ts";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+} from "../react_island_host.ts";
 
 const ROLES_REACT_TARGET = "[data-react-roles-island]";
 const ROLES_REACT_BUNDLE_VERSION = "__MES_ROLES_REACT_BUNDLE_VERSION__";
@@ -9,12 +13,47 @@ const ROLES_FAILURE_REASONS = new Set([
   "render-error",
 ]);
 
-function normalizeFailureReason(value) {
+interface RolesActivation {
+  accessMode?: string;
+  featureFlagEnabled?: boolean;
+  policyId?: unknown;
+  runtimeMode?: string;
+  serverReadFailure?: unknown;
+  serverReadReady?: boolean;
+}
+
+interface RolesRenderContext {
+  activation?: RolesActivation;
+  failureReason?: string;
+  shellState?: { reason?: unknown; state?: unknown } | null;
+}
+
+interface RolesIslandModule {
+  mountRolesReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onCommand?: (command: unknown) => unknown;
+      onError: (error: unknown) => void;
+      onReady: (result: { revision: unknown }) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface RolesHostOptions {
+  executeCommand?: (command: unknown) => unknown;
+  getActivation?: () => RolesActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  reportError?: (error: Error) => void;
+}
+
+function normalizeFailureReason(value: unknown): string {
   const reason = String(value || "");
   return ROLES_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderRolesTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderRolesTarget({ activation = {}, failureReason = "", shellState = null }: RolesRenderContext = {}): string {
   const runtimeMode = activation.runtimeMode === "react"
     ? "react"
     : activation.runtimeMode === "evaluation"
@@ -34,8 +73,8 @@ export function createRolesReactIslandHost({
   getTargetRoot,
   executeCommand,
   reportError = (error) => console.error("[MES] Roles React island failed", error),
-} = {}) {
-  return createReactIslandHost({
+}: RolesHostOptions = {}) {
+  return createReactIslandHost<RolesActivation, unknown, RolesIslandModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -62,7 +101,7 @@ export function createRolesReactIslandHost({
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.accessMode === "react") return "";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode as string)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -72,10 +111,10 @@ export function createRolesReactIslandHost({
         ? deployVersion
         : ROLES_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<RolesIslandModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => (
-      loadedIsland.mountRolesReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined })
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<RolesIslandModule, unknown>) => (
+      loadedIsland!.mountRolesReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined })
     ),
   });
 }

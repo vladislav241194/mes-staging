@@ -6,8 +6,8 @@ const appPath = fileURLToPath(new URL("../src/app.js", import.meta.url));
 const retiredProductsRenderPath = fileURLToPath(new URL("../src/modules/products/render.js", import.meta.url));
 const productsRuntimePath = fileURLToPath(new URL("../src/modules/products/compatibility_runtime.js", import.meta.url));
 const nomenclatureRenderPath = fileURLToPath(new URL("../src/modules/nomenclature/render.js", import.meta.url));
-const nomenclatureHostPath = fileURLToPath(new URL("../src/modules/nomenclature/react_island_host.js", import.meta.url));
-const boardsHostPath = fileURLToPath(new URL("../src/modules/nomenclature/boards_react_island_host.js", import.meta.url));
+const nomenclatureHostPath = fileURLToPath(new URL("../src/modules/nomenclature/react_island_host.ts", import.meta.url));
+const boardsHostPath = fileURLToPath(new URL("../src/modules/nomenclature/boards_react_island_host.ts", import.meta.url));
 const featureRegistryPath = fileURLToPath(new URL("../src/feature_registry.js", import.meta.url));
 const moduleRegistryPath = fileURLToPath(new URL("../src/module_registry.js", import.meta.url));
 
@@ -47,7 +47,7 @@ assert(/canFallbackToLegacy:\s*\(\)\s*=>\s*false/.test(nomenclatureHost), "Nomen
 assert(/canFallbackToLegacy:\s*\(\)\s*=>\s*false/.test(boardsHost), "Boards host must remain fail-closed in React");
 assert(!featureRegistry.includes("src/modules/nomenclature/render.js"), "feature metadata must not reference the retired renderer");
 assert(!moduleRegistry.includes("src/modules/nomenclature/render.js"), "module metadata must not reference the retired renderer");
-assert(featureRegistry.includes("src/modules/nomenclature/react_island_host.js") && featureRegistry.includes("src/modules/nomenclature/boards_react_island_host.js"), "feature metadata must retain both React hosts");
-assert(moduleRegistry.includes("src/modules/nomenclature/react_island_host.js") && moduleRegistry.includes("src/modules/nomenclature/boards_react_island_host.js"), "module metadata must retain both React hosts");
+assert(featureRegistry.includes("src/modules/nomenclature/react_island_host.ts") && featureRegistry.includes("src/modules/nomenclature/boards_react_island_host.ts"), "feature metadata must retain both React hosts");
+assert(moduleRegistry.includes("src/modules/nomenclature/react_island_host.ts") && moduleRegistry.includes("src/modules/nomenclature/boards_react_island_host.ts"), "module metadata must retain both React hosts");
 
 console.log("Nomenclature retired-renderer removal QA passed");

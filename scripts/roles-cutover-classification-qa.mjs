@@ -21,7 +21,7 @@ const [ledger, matrix, app, host, scenario, repository, schema, domainApi, rollo
   read("experiments/react-migration/cutover-ledger.json").then(JSON.parse),
   read("experiments/react-migration/command-parity-matrix.json").then(JSON.parse),
   read("src/app.js"),
-  read("src/modules/access_roles/react_island_host.js"),
+  read("src/modules/access_roles/react_island_host.ts"),
   read("experiments/react-migration/src/modules/roles/RolesScenario.tsx"),
   read("scripts/domain-system-domains-repository.mjs"),
   read("db/migrations/011_system_domains_core.sql"),

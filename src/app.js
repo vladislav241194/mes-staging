@@ -77,9 +77,9 @@ import {
 } from "./ui/html.ts";
 import { createAppInteractionsModule } from "./modules/app_interactions/render.js";
 import { createProductsCompatibilityRuntime } from "./modules/products/compatibility_runtime.js";
-import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
+import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.ts";
 import { createNomenclatureServerOwnerClient } from "./modules/nomenclature/server_owner_client.js";
-import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
+import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.ts";
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import {
   createEmptySystemDomainsServerCommandState,
@@ -88,7 +88,7 @@ import {
   isSystemDomainsCapabilitiesResponseCurrent,
   projectSystemDomainsServerCommandState,
 } from "./modules/production_structure_matrix/server_capabilities.js";
-import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
+import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.ts";
 import { prepareAdditionalRoleAssignment } from "./modules/access_roles/multiple_assignment_owner.ts";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.ts";
@@ -96,9 +96,9 @@ import { buildWeeklyProductionControlReadInput } from "./modules/weekly_producti
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.ts";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.ts";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.ts";
-import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
+import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.ts";
 import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.ts";
-import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
+import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.ts";
 import {
   createShiftMasterBoardCommandOwner,
   normalizeShiftMasterBoardQuantity,
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.73";
+const APP_VERSION_FALLBACK = "v.1.500.74";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

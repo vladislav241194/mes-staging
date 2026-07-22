@@ -23,7 +23,7 @@ const [app, structureScenario, structureAdapter, timesheetScenario, timesheetAda
   source("experiments/react-migration/src/modules/timesheet/adapter.ts"),
   source("experiments/react-migration/src/modules/roles/RolesScenario.tsx"),
   source("experiments/react-migration/src/modules/roles/adapter.ts"),
-  source("src/modules/access_roles/react_island_host.js"),
+  source("src/modules/access_roles/react_island_host.ts"),
   source("src/modules/app_interactions/render.js"),
   source("src/modules/app_events/service.js"),
   source("server.js"),

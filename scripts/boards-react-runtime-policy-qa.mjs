@@ -6,7 +6,7 @@ import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-stat
 import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
 const createBoardsReactIslandHost = await withBundledTypeScriptClient(
-  new URL("../src/modules/nomenclature/boards_react_island_host.js", import.meta.url),
+  new URL("../src/modules/nomenclature/boards_react_island_host.ts", import.meta.url),
   ({ createBoardsReactIslandHost: factory }) => factory,
   { prefix: "mes-boards-leaf-host-qa-" },
 );
@@ -45,7 +45,7 @@ assert(!script.includes("must-not-leak"), "public runtime script must never expo
 
 const [appSource, hostSource] = await Promise.all([
   readFile(join(root, "src/app.js"), "utf8"),
-  readFile(join(root, "src/modules/nomenclature/boards_react_island_host.js"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/boards_react_island_host.ts"), "utf8"),
 ]);
 assert(/canFallbackToLegacy:\s*\(\)\s*=>\s*false/.test(hostSource), "Boards renderer failures must remain fail-closed in React");
 assert(!/requestLegacyRender/.test(hostSource), "Boards host must not expose a legacy-render callback");

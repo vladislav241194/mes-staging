@@ -12,7 +12,7 @@ const {
   isShiftWorkOrdersWorkshopTargetSelected,
   resolveShiftWorkOrdersWorkshopNavigation,
 } = await withBundledTypeScriptClient(
-  new URL("../src/modules/shift_work_orders/react_island_host.js", import.meta.url),
+  new URL("../src/modules/shift_work_orders/react_island_host.ts", import.meta.url),
   async (module) => module,
   { prefix: "mes-shift-work-orders-host-qa-" },
 );
@@ -82,7 +82,7 @@ await assert.rejects(
   "the retired Shift Work Orders renderer must be physically absent",
 );
 const appSource = await readFile("src/app.js", "utf8");
-const hostSource = await readFile("src/modules/shift_work_orders/react_island_host.js", "utf8");
+const hostSource = await readFile("src/modules/shift_work_orders/react_island_host.ts", "utf8");
 const journalOwnerSource = await readFile("src/modules/shift_work_orders/journal_owner.ts", "utf8");
 const scenarioSource = await readFile("experiments/react-migration/src/modules/shift-work-orders/ShiftWorkOrdersScenario.tsx", "utf8");
 assert.match(appSource, /surfaceId: "shiftWorkOrders"/);

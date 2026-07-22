@@ -35,7 +35,7 @@ const [
   coverageReportSource,
 ] = await Promise.all([
   source("src/app.js"),
-  source("src/modules/access_roles/react_island_host.js"),
+  source("src/modules/access_roles/react_island_host.ts"),
   source("experiments/react-migration/src/modules/roles/RolesScenario.tsx"),
   source("experiments/react-migration/src/modules/roles/adapter.ts"),
   source("scripts/domain-api.mjs"),
@@ -75,7 +75,7 @@ for (const blockedOperation of [
 assert(scenarioSource.includes('data-react-parity-status="partial"'), "Roles must expose an honest PARTIAL marker");
 assert(!scenarioSource.includes("data-react-complete-marker"), "Roles must not claim completion");
 assert(!scenarioSource.includes("legacy"), "React UI must not direct users to a removed renderer");
-assert(featureRegistrySource.includes('"src/modules/access_roles/react_island_host.js"'));
+assert(featureRegistrySource.includes('"src/modules/access_roles/react_island_host.ts"'));
 assert(moduleRegistrySource.includes('"experiments/react-migration/src/modules/roles/RolesScenario.tsx"'));
 assert.doesNotMatch(`${featureRegistrySource}\n${moduleRegistrySource}`, /src\/modules\/access_roles\/(?:render|service)\.js/);
 for (const asyncBrowserGate of [moduleSmokeSource, regressionSmokeSource, coverageReportSource]) {

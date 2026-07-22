@@ -162,7 +162,7 @@ const CORE_MODULE_BLUEPRINTS = [
     overlayProbeSelector: "[data-shift-board-print]:not([disabled])",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, master: OPERATIONAL_ACCESS, dispatcher: READ_ONLY_ACCESS },
     capabilities: { actions: true, overlays: ["shift-sheet"] }, sourceFiles: [
-      "src/modules/shift_master_board/react_island_host.js",
+      "src/modules/shift_master_board/react_island_host.ts",
       "src/modules/shift_master_board/command_owner.js",
       "src/modules/shift_master_board/server_execution_bridge.js",
     ],
@@ -199,7 +199,7 @@ const CORE_MODULE_BLUEPRINTS = [
     overlayProbeSelector: "[data-ui-component=\"ActionButton\"][title=\"Печать СЗН\"]:not([disabled])",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: READ_ONLY_ACCESS, master: ["view", "print"], dispatcher: READ_ONLY_ACCESS },
     capabilities: { table: true, tree: true, actions: true, overlays: ["print-preview", "issue-photo"] }, sourceFiles: [
-      "src/modules/shift_work_orders/react_island_host.js",
+      "src/modules/shift_work_orders/react_island_host.ts",
       "src/modules/shift_work_orders/journal_owner.ts",
       "src/modules/shift_work_orders/production_model.ts",
       "experiments/react-migration/src/shift-work-orders-island.tsx",
@@ -235,7 +235,7 @@ const CORE_MODULE_BLUEPRINTS = [
     visualWave: "reference", parity: { family: "sidebar-standard", shell: "standard", page: "sidebar", header: "required" },
     regression: { type: "contract", hasTable: true, hasActions: true },
     defaultRoleActions: { productionHead: READ_ONLY_ACCESS, technologist: TECHNOLOGY_ACCESS },
-    capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/nomenclature/react_island_host.js", "src/modules/nomenclature/boards_react_island_host.js"],
+    capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/nomenclature/react_island_host.ts", "src/modules/nomenclature/boards_react_island_host.ts"],
   }),
   coreBlueprint({
     id: "productionStructureMatrix", label: "Структура и сотрудники", icon: "directory", groupId: "system", navigationOrder: 10, flowOrder: 110,
@@ -283,7 +283,7 @@ const CORE_MODULE_BLUEPRINTS = [
     shellClassName: "access-roles-app-shell", pageClassName: "access-roles-page", sidebarClassName: "access-roles-sidebar", workspaceClassName: "access-roles-workspace", contentClassName: "access-roles-content", ariaLabel: "Роли и доступ",
     visualWave: "reference", parity: { family: "sidebar-standard", shell: "standard", page: "sidebar", header: "required" },
     regression: { type: "contract", hasTable: true, hasActions: true },
-    defaultRoleActions: { productionHead: READ_ONLY_ACCESS }, capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/access_roles/react_island_host.js", "src/modules/access_roles/multiple_assignment_owner.ts", "experiments/react-migration/src/modules/roles/RolesScenario.tsx", "experiments/react-migration/src/modules/roles/adapter.ts"],
+    defaultRoleActions: { productionHead: READ_ONLY_ACCESS }, capabilities: { table: true, actions: true }, sourceFiles: ["src/modules/access_roles/react_island_host.ts", "src/modules/access_roles/multiple_assignment_owner.ts", "experiments/react-migration/src/modules/roles/RolesScenario.tsx", "experiments/react-migration/src/modules/roles/adapter.ts"],
   }),
   coreBlueprint({
     id: "directories", label: "Справочники и нормативы", icon: "directory", groupId: "system", navigationOrder: 40, flowOrder: 150,

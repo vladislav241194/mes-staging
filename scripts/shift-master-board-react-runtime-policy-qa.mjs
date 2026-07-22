@@ -9,7 +9,7 @@ const [policy, ledger, appSource, hostSource, scenarioSource, operationalRuntime
   readFile(join(repositoryRoot, "react-runtime-policy.json"), "utf8").then(JSON.parse),
   readFile(join(repositoryRoot, "experiments/react-migration/cutover-ledger.json"), "utf8").then(JSON.parse),
   readFile(join(repositoryRoot, "src/app.js"), "utf8"),
-  readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.js"), "utf8"),
+  readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.ts"), "utf8"),
   readFile(join(repositoryRoot, "experiments/react-migration/src/modules/shift-master-board/ShiftMasterBoardScenario.tsx"), "utf8"),
   readFile(join(repositoryRoot, "src/modules/operational_runtime/service.js"), "utf8"),
 ]);

@@ -14,7 +14,7 @@ const [createReactIslandHost, createNomenclatureReactIslandHost] = await Promise
     { prefix: "mes-nomenclature-base-host-qa-" },
   ),
   withBundledTypeScriptClient(
-    new URL("../src/modules/nomenclature/react_island_host.js", import.meta.url),
+    new URL("../src/modules/nomenclature/react_island_host.ts", import.meta.url),
     ({ createNomenclatureReactIslandHost: factory }) => factory,
     { prefix: "mes-nomenclature-leaf-host-qa-" },
   ),
@@ -207,7 +207,7 @@ try {
 
 const [appSource, hostSource, islandSource, productsEventsSource, runtimeStateSource] = await Promise.all([
   readFile(join(root, "src/app.js"), "utf8"),
-  readFile(join(root, "src/modules/nomenclature/react_island_host.js"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/react_island_host.ts"), "utf8"),
   readFile(join(root, "experiments/react-migration/src/modules/nomenclature/NomenclatureScenario.tsx"), "utf8"),
   readFile(join(root, "src/modules/products/events.js"), "utf8"),
   readFile(join(root, "src/modules/runtime_state/service.js"), "utf8"),

@@ -1,4 +1,8 @@
-import { createReactIslandHost } from "../react_island_host.ts";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+} from "../react_island_host.ts";
 
 const BOARDS_REACT_TARGET = "[data-react-boards-island]";
 const BOARDS_REACT_BUNDLE_VERSION = "__MES_BOARDS_REACT_BUNDLE_VERSION__";
@@ -8,19 +12,56 @@ const BOARDS_FAILURE_REASONS = new Set([
   "render-error",
 ]);
 
-function normalizeFailureReason(value) {
+interface BoardsActivation {
+  accessMode?: string;
+  activePane?: string;
+  featureFlagEnabled?: boolean;
+  runtimeMode?: string;
+}
+
+interface BoardsRenderContext {
+  activation?: BoardsActivation;
+  failureReason?: string;
+  shellState?: { reason?: unknown; state?: unknown } | null;
+}
+
+interface BoardsIslandModule {
+  mountBoardsReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onCommand?: (command: unknown) => unknown;
+      onError: (error: unknown) => void;
+      onReady: (result: { revision: unknown }) => void;
+      onRequestItems: () => void;
+      onSelectionChange?: (boardId: string) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface BoardsHostOptions {
+  executeCommand?: (command: unknown) => unknown;
+  getActivation?: () => BoardsActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  onSelectionChange?: (boardId: string) => void;
+  reportError?: (error: Error) => void;
+  requestItemsRender?: () => void;
+}
+
+function normalizeFailureReason(value: unknown): string {
   const reason = String(value || "");
   return BOARDS_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderBoardsTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderBoardsTarget({ activation = {}, failureReason = "", shellState = null }: BoardsRenderContext = {}): string {
   const runtimeMode = activation.runtimeMode === "react"
     ? "react"
     : activation.runtimeMode === "evaluation"
       ? "evaluation"
       : "disabled";
   const reactRequired = activation.featureFlagEnabled !== true
-    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode);
+    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode as string);
   const state = failureReason || reactRequired || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || (reactRequired ? "react-required" : ""));
   const content = state === "error"
@@ -37,8 +78,8 @@ export function createBoardsReactIslandHost({
   onSelectionChange,
   executeCommand,
   reportError = (error) => console.error("[MES] Boards React island failed", error),
-} = {}) {
-  return createReactIslandHost({
+}: BoardsHostOptions = {}) {
+  return createReactIslandHost<BoardsActivation, unknown, BoardsIslandModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -48,7 +89,7 @@ export function createBoardsReactIslandHost({
       if (activation.featureFlagEnabled !== true) {
         return { state: "error", stage: "runtime", reason: "react-required" };
       }
-      if (!["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) {
+      if (!["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode as string)) {
         return { state: "error", stage: "runtime", reason: "react-required" };
       }
       return null;
@@ -69,10 +110,10 @@ export function createBoardsReactIslandHost({
         ? deployVersion
         : BOARDS_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<BoardsIslandModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => (
-      loadedIsland.mountBoardsReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<BoardsIslandModule, unknown>) => (
+      loadedIsland!.mountBoardsReactIsland(target, payload, {
         onError,
         onReady,
         onRequestItems: () => requestItemsRender?.(),

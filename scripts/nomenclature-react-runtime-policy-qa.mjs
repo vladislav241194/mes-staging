@@ -55,8 +55,8 @@ const [appSource, boardsOwnerSource, productsEventsSource, productsRuntimeSource
   readFile(join(root, "src/modules/products/events.js"), "utf8"),
   readFile(join(root, "src/modules/products/compatibility_runtime.js"), "utf8"),
   readFile(join(root, "src/modules/app_interactions/render.js"), "utf8"),
-  readFile(join(root, "src/modules/nomenclature/react_island_host.js"), "utf8"),
-  readFile(join(root, "src/modules/nomenclature/boards_react_island_host.js"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/react_island_host.ts"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/boards_react_island_host.ts"), "utf8"),
   readFile(join(root, "src/modules/runtime_state/service.js"), "utf8"),
   readFile(join(root, "scripts/shared-state-endpoint.mjs"), "utf8"),
 ]);

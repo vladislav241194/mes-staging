@@ -1,4 +1,9 @@
-import { createReactIslandHost } from "../react_island_host.ts";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+  type ReactIslandTelemetryEvent,
+} from "../react_island_host.ts";
 
 const NOMENCLATURE_REACT_TARGET = "[data-react-nomenclature-island]";
 const NOMENCLATURE_REACT_BUNDLE_VERSION = "__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__";
@@ -10,19 +15,58 @@ const NOMENCLATURE_FAILURE_REASONS = new Set([
   "shared-state-unconfigured",
 ]);
 
-function normalizeFailureReason(value) {
+interface NomenclatureActivation {
+  accessMode?: string;
+  activePane?: string;
+  featureFlagEnabled?: boolean;
+  policyId?: unknown;
+  runtimeMode?: string;
+  serverReadFailure?: unknown;
+  serverReadReady?: boolean;
+}
+
+interface NomenclatureRenderContext {
+  activation?: NomenclatureActivation;
+  failureReason?: string;
+  shellState?: { reason?: unknown; state?: unknown } | null;
+}
+
+interface NomenclatureIslandModule {
+  mountNomenclatureReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onCommand: (command: unknown) => unknown;
+      onError: (error: unknown) => void;
+      onReady: (result: { revision: unknown }) => void;
+      onRequestBoards: () => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface NomenclatureHostOptions {
+  executeCommand?: (command: unknown) => unknown;
+  getActivation?: () => NomenclatureActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  navigateBoards?: () => void;
+  reportError?: (error: Error) => void;
+  reportTelemetry?: ((event: Readonly<ReactIslandTelemetryEvent>) => void) | null;
+}
+
+function normalizeFailureReason(value: unknown): string {
   const reason = String(value || "");
   return NOMENCLATURE_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderNomenclatureTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderNomenclatureTarget({ activation = {}, failureReason = "", shellState = null }: NomenclatureRenderContext = {}): string {
   const runtimeMode = activation.runtimeMode === "react"
     ? "react"
     : activation.runtimeMode === "evaluation"
       ? "evaluation"
       : "disabled";
   const reactRequired = activation.featureFlagEnabled !== true
-    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode);
+    || !["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode as string);
   const state = failureReason || reactRequired || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || (reactRequired ? "react-required" : ""));
   const content = state === "error"
@@ -39,8 +83,8 @@ export function createNomenclatureReactIslandHost({
   executeCommand,
   reportTelemetry,
   reportError = (error) => console.error("[MES] Nomenclature React island failed", error),
-} = {}) {
-  return createReactIslandHost({
+}: NomenclatureHostOptions = {}) {
+  return createReactIslandHost<NomenclatureActivation, unknown, NomenclatureIslandModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -49,7 +93,7 @@ export function createNomenclatureReactIslandHost({
       if (activation.featureFlagEnabled !== true) {
         return { state: "error", stage: "runtime", reason: "react-required" };
       }
-      if (!["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) {
+      if (!["react", "read-only-evaluation", "write-evaluation"].includes(activation.accessMode as string)) {
         return { state: "error", stage: "runtime", reason: "react-required" };
       }
       if (activation.accessMode !== "react") return null;
@@ -86,10 +130,10 @@ export function createNomenclatureReactIslandHost({
         ? deployVersion
         : NOMENCLATURE_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<NomenclatureIslandModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => (
-      loadedIsland.mountNomenclatureReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<NomenclatureIslandModule, unknown>) => (
+      loadedIsland!.mountNomenclatureReactIsland(target, payload, {
         onError,
         onReady,
         onRequestBoards: () => navigateBoards?.(),

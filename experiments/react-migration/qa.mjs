@@ -1093,7 +1093,7 @@ try {
   assert.match(mainSource, /write-parity-incomplete/);
   assert.match(mainSource, /access.*editor/);
 
-  const productionHostModule = await loadProductionHost("src/modules/nomenclature/react_island_host.js");
+  const productionHostModule = await loadProductionHost("src/modules/nomenclature/react_island_host.ts");
   const makeProductionHost = (activation) => productionHostModule.createNomenclatureReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1126,7 +1126,7 @@ try {
   assert.deepEqual(permanentProductionHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Nomenclature must own the route before shared-state readiness");
   assert.match(permanentProductionHost.renderTarget(), /data-react-island-state="loading"/, "permanent Nomenclature must show its bounded loading shell");
 
-  const boardsProductionHostModule = await loadProductionHost("src/modules/nomenclature/boards_react_island_host.js");
+  const boardsProductionHostModule = await loadProductionHost("src/modules/nomenclature/boards_react_island_host.ts");
   const makeBoardsProductionHost = (activation) => boardsProductionHostModule.createBoardsReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1245,7 +1245,7 @@ try {
   assert.deepEqual(permanentSpecifications2LoadingHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Specifications 2.0 must own the route before its model loads");
   assert.match(permanentSpecifications2LoadingHost.renderTarget(), /data-react-island-runtime-mode="react"[\s\S]*data-react-island-state="loading"/);
 
-  const rolesProductionHostModule = await loadProductionHost("src/modules/access_roles/react_island_host.js");
+  const rolesProductionHostModule = await loadProductionHost("src/modules/access_roles/react_island_host.ts");
   const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1542,7 +1542,7 @@ try {
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
   assert.match(productionHostSource, /requestLegacyRender\?\.\(fallbackReason, String\(scope \|\| ""\)\)/);
-  const nomenclatureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/react_island_host.js"), "utf8");
+  const nomenclatureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/react_island_host.ts"), "utf8");
   assert.match(nomenclatureProductionHostSource, /createReactIslandHost/);
   assert.match(nomenclatureProductionHostSource, /canFallbackToLegacy:[\s\S]*?accessMode !== "react"/, "permanent Nomenclature failures must stay fail-closed");
   assert.match(nomenclatureProductionHostSource, /getShellState:[\s\S]*?serverReadFailure/, "permanent Nomenclature must own loading and read-error shells");
@@ -1569,13 +1569,13 @@ try {
   assert.match(productionAppSource, /hydratePlanningWorkbenchBootstrap\(\{ force: true, renderOnChange: false \}\)/);
   assert.match(productionAppSource, /params\.get\("react-planning-workbench-write"\) === "1"/);
   assert.match(productionAppSource, /requireServerCommand: true/);
-  const shiftWorkOrdersHostSource = await readFile(join(repositoryRoot, "src/modules/shift_work_orders/react_island_host.js"), "utf8");
+  const shiftWorkOrdersHostSource = await readFile(join(repositoryRoot, "src/modules/shift_work_orders/react_island_host.ts"), "utf8");
   assert.match(shiftWorkOrdersHostSource, /shift-work-orders-print\.js/);
   assert.match(shiftWorkOrdersHostSource, /__MES_SHIFT_WORK_ORDERS_PRINT_BUNDLE_VERSION__/);
   assert.match(productionAppSource, /loadPrintPackage: async/);
   assert.match(productionAppSource, /getWorkOrderPrintPackageViewModel\(routeId\)/);
   assert.match(productionAppSource, /printDocument: \(title = ""\)/);
-  const shiftMasterBoardHostSource = await readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.js"), "utf8");
+  const shiftMasterBoardHostSource = await readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.ts"), "utf8");
   assert.match(shiftMasterBoardHostSource, /onSelectDate: selectDate/);
   assert.match(shiftMasterBoardHostSource, /onSelectFocus: selectFocus/);
   assert.match(shiftMasterBoardHostSource, /onSelectMaster: selectMaster/);
@@ -1594,9 +1594,9 @@ try {
   assert.match(productionAppSource, /window\.requestAnimationFrame\(\(\) => window\.print\(\)\)/);
   assert.match(productionAppSource, /params\.get\("react-shift-master-board-write"\) === "1"/);
   assert.match(productionAppSource, /mirrorShiftMasterBoardAssignmentToServer\(prepared\.row, prepared\.assignment\)/);
-  const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
+  const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.ts"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
-  const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
+  const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.ts"), "utf8");
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
   assert.doesNotMatch(rolesProductionHostSource, /requestLegacyRender|onRequestLegacy/);
   assert.match(rolesProductionHostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/);

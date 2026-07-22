@@ -24,8 +24,8 @@ const MODULE_FEATURE_OVERRIDES = {
   nomenclature: {
     css: ["styles/layers/60-operational-modules.css"],
     files: [
-      "src/modules/nomenclature/react_island_host.js",
-      "src/modules/nomenclature/boards_react_island_host.js",
+      "src/modules/nomenclature/react_island_host.ts",
+      "src/modules/nomenclature/boards_react_island_host.ts",
       "experiments/react-migration/src/modules/nomenclature/NomenclatureScenario.tsx",
     ],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
@@ -104,7 +104,7 @@ const MODULE_FEATURE_OVERRIDES = {
   shiftWorkOrders: {
     css: ["styles/layers/60-operational-modules.css"],
     files: [
-      "src/modules/shift_work_orders/react_island_host.js",
+      "src/modules/shift_work_orders/react_island_host.ts",
       "src/modules/shift_work_orders/journal_owner.ts",
       "src/modules/shift_work_orders/production_model.ts",
       "experiments/react-migration/src/shift-work-orders-island.tsx",
@@ -164,7 +164,7 @@ const MODULE_FEATURE_OVERRIDES = {
   roles: {
     css: ["styles/layers/60-operational-modules.css"],
     files: [
-      "src/modules/access_roles/react_island_host.js",
+      "src/modules/access_roles/react_island_host.ts",
       "src/modules/access_roles/multiple_assignment_owner.ts",
       "experiments/react-migration/src/modules/roles/RolesScenario.tsx",
       "experiments/react-migration/src/modules/roles/adapter.ts",
