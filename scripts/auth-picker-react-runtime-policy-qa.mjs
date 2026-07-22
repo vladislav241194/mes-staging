@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 
 const [app, host, scenario, adapter] = await Promise.all([
   readFile("src/app.js", "utf8"),
-  readFile("src/modules/auth_render/auth_picker_react_island_host.js", "utf8"),
+  readFile("src/modules/auth_render/auth_picker_react_island_host.ts", "utf8"),
   readFile("experiments/react-migration/src/modules/auth-picker/AuthPickerScenario.tsx", "utf8"),
   readFile("experiments/react-migration/src/modules/auth-picker/adapter.ts", "utf8"),
 ]);

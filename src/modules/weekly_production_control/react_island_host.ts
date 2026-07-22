@@ -1,4 +1,44 @@
-import { createReactIslandHost } from "../react_island_host.ts";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandShellState,
+  type ReactIslandTargetRoot,
+  type ReactIslandTelemetryEvent,
+} from "../react_island_host.ts";
+
+interface WeeklyProductionControlActivation {
+  accessMode: string;
+  featureFlagEnabled: boolean;
+  policyId?: unknown;
+  runtimeMode: string;
+  serverReadFailure?: unknown;
+  serverReadReady: boolean;
+}
+
+interface WeeklyProductionControlHostOptions {
+  getActivation?: () => WeeklyProductionControlActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ReactIslandTargetRoot | null | undefined;
+  reportTelemetry?: ((event: Readonly<ReactIslandTelemetryEvent>) => void) | null;
+  reportError?: (error: Error) => void;
+}
+
+interface WeeklyProductionControlLoadedModule {
+  mountWeeklyProductionControlReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onError: (error: unknown) => void;
+      onReady: (result: { revision: unknown }) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface WeeklyProductionControlRenderContext {
+  activation?: Partial<WeeklyProductionControlActivation>;
+  failureReason?: string;
+  shellState?: ReactIslandShellState | null;
+}
 
 const WEEKLY_PRODUCTION_CONTROL_REACT_TARGET = "[data-react-weekly-production-control-island]";
 const WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION = "__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__";
@@ -13,12 +53,12 @@ const WEEKLY_PRODUCTION_CONTROL_FAILURE_REASONS = new Set([
   "unsupported-scope",
 ]);
 
-function normalizeFailureReason(value) {
+function normalizeFailureReason(value: unknown): string {
   const reason = String(value || "");
   return WEEKLY_PRODUCTION_CONTROL_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderWeeklyProductionControlTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderWeeklyProductionControlTarget({ activation = {}, failureReason = "", shellState = null }: WeeklyProductionControlRenderContext = {}): string {
   const runtimeMode = activation.runtimeMode === "react" ? "react" : activation.runtimeMode === "evaluation" ? "evaluation" : "disabled";
   const inactiveReason = activation.featureFlagEnabled === true
     ? ""
@@ -37,8 +77,8 @@ export function createWeeklyProductionControlReactIslandHost({
   getTargetRoot,
   reportTelemetry,
   reportError = (error) => console.error("[MES] Weekly Production Control React island failed", error),
-} = {}) {
-  return createReactIslandHost({
+}: WeeklyProductionControlHostOptions = {}) {
+  return createReactIslandHost<WeeklyProductionControlActivation, unknown, WeeklyProductionControlLoadedModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -66,17 +106,17 @@ export function createWeeklyProductionControlReactIslandHost({
       if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
       return "";
     },
-    loadIsland: async () => {
+    loadIsland: async (): Promise<WeeklyProductionControlLoadedModule> => {
       const islandUrl = new URL("./react-islands/weekly-production-control.js", import.meta.url);
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
       const bundleVersion = WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION.startsWith("__MES_")
         ? deployVersion
         : WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<WeeklyProductionControlLoadedModule>;
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => (
-      loadedIsland.mountWeeklyProductionControlReactIsland(target, payload, { onError, onReady })
+      loadedIsland!.mountWeeklyProductionControlReactIsland(target, payload, { onError, onReady })
     ),
   });
 }

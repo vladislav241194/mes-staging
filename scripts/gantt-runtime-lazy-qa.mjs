@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const app = await readFile(resolve(root, "src/app.js"), "utf8");
-const host = await readFile(resolve(root, "src/modules/gantt_runtime/react_island_host.js"), "utf8");
+const host = await readFile(resolve(root, "src/modules/gantt_runtime/react_island_host.ts"), "utf8");
 const planningCore = await readFile(resolve(root, "src/modules/planning_core/service.js"), "utf8");
 const planningRoutes = await readFile(resolve(root, "src/modules/planning_routes/service.js"), "utf8");
 const failures = [];

@@ -8,7 +8,7 @@ import { build } from "esbuild";
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const appSource = await readFile(join(repositoryRoot, "src", "app.js"), "utf8");
 const inputSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "production_read_input.js"), "utf8");
-const hostSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "react_island_host.js"), "utf8");
+const hostSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "react_island_host.ts"), "utf8");
 const adapterPath = join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "adapter.ts");
 const adapterSource = await readFile(adapterPath, "utf8");
 const modelSource = await readFile(join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "production-read-model.ts"), "utf8");

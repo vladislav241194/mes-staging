@@ -9,7 +9,7 @@ const [createReactIslandHost, createWeeklyProductionControlReactIslandHost] = aw
     { prefix: "mes-weekly-base-host-qa-" },
   ),
   withBundledTypeScriptClient(
-    new URL("../src/modules/weekly_production_control/react_island_host.js", import.meta.url),
+    new URL("../src/modules/weekly_production_control/react_island_host.ts", import.meta.url),
     ({ createWeeklyProductionControlReactIslandHost: factory }) => factory,
     { prefix: "mes-weekly-leaf-host-qa-" },
   ),

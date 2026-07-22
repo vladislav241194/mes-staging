@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 
 const [app, host, planningCore, appEvents, scenario, adapter, productionModel, completionRegistry] = await Promise.all([
   readFile("src/app.js", "utf8"),
-  readFile("src/modules/gantt_runtime/react_island_host.js", "utf8"),
+  readFile("src/modules/gantt_runtime/react_island_host.ts", "utf8"),
   readFile("src/modules/planning_core/service.js", "utf8"),
   readFile("src/modules/app_events/service.js", "utf8"),
   readFile("experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "utf8"),

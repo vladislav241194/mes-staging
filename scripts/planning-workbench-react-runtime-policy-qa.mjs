@@ -56,11 +56,11 @@ assert.doesNotMatch(script, /must-not-leak/);
 
 const [app, host, routes, events, appInteractions, gantt, scenario, runtimeState, visualStyles] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/planning_workbench/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/planning_workbench/react_island_host.ts", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/planning_routes/service.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/app_events/service.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/app_interactions/render.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/gantt_runtime/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/gantt_runtime/react_island_host.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/planning-workbench/PlanningWorkbenchScenario.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/runtime_state/service.js", import.meta.url), "utf8"),
   readFile(new URL("../styles/visual-overrides.live.css", import.meta.url), "utf8"),

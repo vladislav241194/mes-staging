@@ -1,4 +1,8 @@
-import { createReactIslandHost } from "../react_island_host.ts";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+} from "../react_island_host.ts";
 
 const GANTT_REACT_TARGET = "[data-react-gantt-island]";
 const GANTT_REACT_BUNDLE_VERSION = "__MES_GANTT_REACT_BUNDLE_VERSION__";
@@ -10,12 +14,50 @@ const GANTT_FAILURE_REASONS = new Set([
   "render-error",
 ]);
 
-function normalizeFailureReason(value) {
+interface GanttActivation {
+  accessMode?: string;
+  policyId?: unknown;
+  runtimeFailure?: unknown;
+  runtimeMode?: string;
+  runtimeReady?: boolean;
+  serverReadFailure?: unknown;
+  serverReadReady?: boolean;
+}
+
+interface GanttRenderContext {
+  activation?: GanttActivation;
+  failureReason?: string;
+  shellState?: { reason?: unknown; state?: unknown } | null;
+}
+
+interface GanttIslandModule {
+  mountGanttReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onCommand?: (command: unknown) => unknown;
+      onError: (error: unknown) => void;
+      onNavigate?: (navigation: unknown) => unknown;
+      onReady: (result: { revision: unknown }) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface GanttHostOptions {
+  executeCommand?: (command: unknown) => unknown;
+  getActivation?: () => GanttActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  navigate?: (navigation: unknown) => unknown;
+  reportError?: (error: Error) => void;
+}
+
+function normalizeFailureReason(value: unknown) {
   const reason = String(value || "");
   return GANTT_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderGanttTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderGanttTarget({ activation = {}, failureReason = "", shellState = null }: GanttRenderContext = {}) {
   const runtimeMode = activation.runtimeMode === "react"
     ? "react"
     : activation.runtimeMode === "evaluation"
@@ -29,8 +71,15 @@ function renderGanttTarget({ activation = {}, failureReason = "", shellState = n
   return `<div class="mes-react-gantt-island" data-react-gantt-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite"><section class="module-page module-data-page ui-module-page is-full-width" data-layout="main-content" data-ui-component="ModulePage"><div class="directory-workspace module-data-workspace ui-module-workspace" data-layout="page-workspace" data-ui-component="ModuleWorkspace"><header class="module-header ui-module-header" data-ui-component="ModuleHeader"><div><p>Планирование</p><h1>Диаграмма Ганта</h1></div></header><div class="module-data-content ui-module-content" data-ui-component="ModuleContent">${content}</div></div></section></div>`;
 }
 
-export function createGanttReactIslandHost({ getActivation, getPayload, getTargetRoot, executeCommand, navigate, reportError = (error) => console.error("[MES] Gantt React island failed", error) } = {}) {
-  return createReactIslandHost({
+export function createGanttReactIslandHost({
+  getActivation,
+  getPayload,
+  getTargetRoot,
+  executeCommand,
+  navigate,
+  reportError = (error) => console.error("[MES] Gantt React island failed", error),
+}: GanttHostOptions = {}) {
+  return createReactIslandHost<GanttActivation, unknown, GanttIslandModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -61,8 +110,13 @@ export function createGanttReactIslandHost({ getActivation, getPayload, getTarge
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
       const bundleVersion = GANTT_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : GANTT_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<GanttIslandModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountGanttReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined, onNavigate: navigate ? (navigation) => navigate(navigation) : undefined }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<GanttIslandModule, unknown>) => loadedIsland!.mountGanttReactIsland(target, payload, {
+      onError,
+      onReady,
+      onCommand: executeCommand ? (command) => executeCommand(command) : undefined,
+      onNavigate: navigate ? (navigation) => navigate(navigation) : undefined,
+    }),
   });
 }

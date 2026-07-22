@@ -461,7 +461,7 @@ await writeFile(structureEmployeesReactIslandHostPath, structureMigrationDiagnos
 const weeklyProductionControlReactIslandOutput = join(stagingDistDir, "src", "react-islands", "weekly-production-control.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "weekly-production-control-island.tsx"), weeklyProductionControlReactIslandOutput);
 const weeklyProductionControlReactIslandVersion = await fileHash(weeklyProductionControlReactIslandOutput);
-const weeklyProductionControlReactIslandHostPath = join(stagingDistDir, "src", "modules", "weekly_production_control", "react_island_host.js");
+const weeklyProductionControlReactIslandHostPath = join(stagingDistDir, "src", "modules", "weekly_production_control", "react_island_host.ts");
 const weeklyProductionControlReactIslandHostSource = await readFile(weeklyProductionControlReactIslandHostPath, "utf8");
 const weeklyProductionControlReactIslandVersionMarker = "__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__";
 if (!weeklyProductionControlReactIslandHostSource.includes(weeklyProductionControlReactIslandVersionMarker)) throw new Error("Cannot find Weekly Production Control React island bundle version marker");
@@ -479,7 +479,7 @@ await writeFile(timesheetReactIslandHostPath, timesheetReactIslandHostSource.rep
 const planningWorkbenchReactIslandOutput = join(stagingDistDir, "src", "react-islands", "planning-workbench.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "planning-workbench-island.tsx"), planningWorkbenchReactIslandOutput);
 const planningWorkbenchReactIslandVersion = await fileHash(planningWorkbenchReactIslandOutput);
-const planningWorkbenchReactIslandHostPath = join(stagingDistDir, "src", "modules", "planning_workbench", "react_island_host.js");
+const planningWorkbenchReactIslandHostPath = join(stagingDistDir, "src", "modules", "planning_workbench", "react_island_host.ts");
 const planningWorkbenchReactIslandHostSource = await readFile(planningWorkbenchReactIslandHostPath, "utf8");
 const planningWorkbenchReactIslandVersionMarker = "__MES_PLANNING_WORKBENCH_REACT_BUNDLE_VERSION__";
 if (!planningWorkbenchReactIslandHostSource.includes(planningWorkbenchReactIslandVersionMarker)) throw new Error("Cannot find Planning Workbench React island bundle version marker");
@@ -548,7 +548,7 @@ await writeFile(dispatchReactIslandHostPath, dispatchReactIslandHostSource.repla
 const authPickerReactIslandOutput = join(stagingDistDir, "src", "react-islands", "auth-picker.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "auth-picker-island.tsx"), authPickerReactIslandOutput);
 const authPickerReactIslandVersion = await fileHash(authPickerReactIslandOutput);
-const authPickerReactIslandHostPath = join(stagingDistDir, "src", "modules", "auth_render", "auth_picker_react_island_host.js");
+const authPickerReactIslandHostPath = join(stagingDistDir, "src", "modules", "auth_render", "auth_picker_react_island_host.ts");
 const authPickerReactIslandHostSource = await readFile(authPickerReactIslandHostPath, "utf8");
 const authPickerReactIslandVersionMarker = "__MES_AUTH_PICKER_REACT_BUNDLE_VERSION__";
 if (!authPickerReactIslandHostSource.includes(authPickerReactIslandVersionMarker)) throw new Error("Cannot find Authorization picker React island bundle version marker");
@@ -557,7 +557,7 @@ await writeFile(authPickerReactIslandHostPath, authPickerReactIslandHostSource.r
 const contourAdminReactIslandOutput = join(stagingDistDir, "src", "react-islands", "contour-admin.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "contour-admin-island.tsx"), contourAdminReactIslandOutput);
 const contourAdminReactIslandVersion = await fileHash(contourAdminReactIslandOutput);
-const contourAdminReactIslandHostPath = join(stagingDistDir, "src", "modules", "contour_admin", "react_island_host.js");
+const contourAdminReactIslandHostPath = join(stagingDistDir, "src", "modules", "contour_admin", "react_island_host.ts");
 const contourAdminReactIslandHostSource = await readFile(contourAdminReactIslandHostPath, "utf8");
 const contourAdminReactIslandVersionMarker = "__MES_CONTOUR_ADMIN_REACT_BUNDLE_VERSION__";
 if (!contourAdminReactIslandHostSource.includes(contourAdminReactIslandVersionMarker)) throw new Error("Cannot find Contour Admin React island bundle version marker");
@@ -575,7 +575,7 @@ await writeFile(specifications2ReactIslandHostPath, specifications2ReactIslandHo
 const ganttReactIslandOutput = join(stagingDistDir, "src", "react-islands", "gantt.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "gantt-island.tsx"), ganttReactIslandOutput);
 const ganttReactIslandVersion = await fileHash(ganttReactIslandOutput);
-const ganttReactIslandHostPath = join(stagingDistDir, "src", "modules", "gantt_runtime", "react_island_host.js");
+const ganttReactIslandHostPath = join(stagingDistDir, "src", "modules", "gantt_runtime", "react_island_host.ts");
 const ganttReactIslandHostSource = await readFile(ganttReactIslandHostPath, "utf8");
 const ganttReactIslandVersionMarker = "__MES_GANTT_REACT_BUNDLE_VERSION__";
 if (!ganttReactIslandHostSource.includes(ganttReactIslandVersionMarker)) throw new Error("Cannot find Gantt React island bundle version marker");

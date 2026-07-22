@@ -129,7 +129,7 @@ const CORE_MODULE_BLUEPRINTS = [
     mobileLimitedReason: "The React timeline remains data-dense; narrow smoke covers runtime availability, not final mobile UX.",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: PLANNING_ACCESS, technologist: READ_ONLY_ACCESS, master: READ_ONLY_ACCESS, dispatcher: READ_ONLY_ACCESS },
     capabilities: { actions: true, overlays: ["slot-detail", "dependency-inspector"], runtime: ["react-timeline", "postgres-projection", "slot-reschedule"] },
-    sourceFiles: ["src/modules/gantt_runtime/react_island_host.js", "experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "experiments/react-migration/src/modules/gantt/production-model.ts"],
+    sourceFiles: ["src/modules/gantt_runtime/react_island_host.ts", "experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "experiments/react-migration/src/modules/gantt/production-model.ts"],
   }),
   coreBlueprint({
     id: "planning", label: "Заказ-наряды", icon: "calendar", groupId: "loadPlanning", navigationOrder: 20, flowOrder: 50,
@@ -140,7 +140,7 @@ const CORE_MODULE_BLUEPRINTS = [
     mobileLimitedReason: "Planning order labor table is data-dense; narrow smoke allows internal table scroll.",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: PLANNING_ACCESS, technologist: READ_ONLY_ACCESS, master: READ_ONLY_ACCESS, dispatcher: READ_ONLY_ACCESS },
     capabilities: { table: true, tree: true, actions: true }, sourceFiles: [
-      "src/modules/planning_workbench/react_island_host.js",
+      "src/modules/planning_workbench/react_island_host.ts",
       "src/modules/domain_api/work_orders_read_model.ts",
     ],
   }),
@@ -151,7 +151,7 @@ const CORE_MODULE_BLUEPRINTS = [
     visualWave: "operational", parity: { family: "full-header", shell: "standard", page: "full", header: "required" },
     regression: { type: "contract", hasTable: true, hasActions: false },
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: READ_ONLY_ACCESS, technologist: READ_ONLY_ACCESS, master: READ_ONLY_ACCESS, dispatcher: READ_ONLY_ACCESS },
-    lifecycle: MES_MODULE_RUNTIME_LIFECYCLES.FACTORY_LAZY, capabilities: { table: true }, sourceFiles: ["src/modules/weekly_production_control/react_island_host.js", "src/modules/weekly_production_control/production_read_input.js"],
+    lifecycle: MES_MODULE_RUNTIME_LIFECYCLES.FACTORY_LAZY, capabilities: { table: true }, sourceFiles: ["src/modules/weekly_production_control/react_island_host.ts", "src/modules/weekly_production_control/production_read_input.js"],
   }),
   coreBlueprint({
     id: "shiftMasterBoard", label: "Мастерская", icon: "worker", groupId: "operations", navigationOrder: 20, flowOrder: 80,
@@ -303,7 +303,7 @@ const CORE_MODULE_BLUEPRINTS = [
     regression: { type: "protected-admin-contract", hasTable: true, hasActions: true },
     capabilities: { table: true, actions: true },
     sourceFiles: [
-      "src/modules/contour_admin/react_island_host.js",
+      "src/modules/contour_admin/react_island_host.ts",
       "src/modules/contour_admin/server_owner_client.ts",
       "src/modules/contour_admin/command_contract.ts",
       "experiments/react-migration/src/contour-admin-island.tsx",
@@ -319,7 +319,7 @@ const CORE_MODULE_BLUEPRINTS = [
     shellClassName: "auth-prototype-app-shell", pageClassName: "auth-prototype-page", ariaLabel: "Авторизация", contractMode: "protected", runtimeChrome: "standalone",
     visualWave: "protected", parity: { family: "auth-standalone", shell: "auth-standalone", page: "full", header: "required", skipActionVariants: true, skipPanelPadding: true },
     regression: { type: "special-runtime", hasTable: false, hasActions: false, requiredSelectors: ["[data-visual-qa-target='auth-prototype-header']", ".auth-prototype-department-grid"] },
-    capabilities: { actions: true }, sourceFiles: ["src/modules/auth_render/auth_picker_react_island_host.js", "src/modules/auth_render/access_role_resolver.ts"],
+    capabilities: { actions: true }, sourceFiles: ["src/modules/auth_render/auth_picker_react_island_host.ts", "src/modules/auth_render/access_role_resolver.ts"],
   }),
 ];
 

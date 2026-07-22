@@ -8,7 +8,7 @@ const ledger = JSON.parse(await readFile(join(repositoryRoot, "experiments", "re
 const runtimePolicy = JSON.parse(await readFile(join(repositoryRoot, "react-runtime-policy.json"), "utf8"));
 const indexHtml = await readFile(join(repositoryRoot, "index.html"), "utf8");
 const appSource = await readFile(join(repositoryRoot, "src", "app.js"), "utf8");
-const weeklyHostSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "react_island_host.js"), "utf8");
+const weeklyHostSource = await readFile(join(repositoryRoot, "src", "modules", "weekly_production_control", "react_island_host.ts"), "utf8");
 const weeklyAdapterSource = await readFile(join(repositoryRoot, "experiments", "react-migration", "src", "modules", "weekly-production-control", "adapter.ts"), "utf8");
 
 async function listFiles(root) {
@@ -34,8 +34,10 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/data.ts",
   "src/modules/access_roles/multiple_assignment_owner.ts",
   "src/modules/auth_render/access_role_resolver.ts",
+  "src/modules/auth_render/auth_picker_react_island_host.ts",
   "src/modules/auth_render/employee_desktop_react_island_host.ts",
   "src/modules/contour_admin/command_contract.ts",
+  "src/modules/contour_admin/react_island_host.ts",
   "src/modules/contour_admin/server_owner_client.ts",
   "src/modules/dispatch/react_island_host.ts",
   "src/modules/domain_api/planning_period_read_model.ts",
@@ -48,8 +50,10 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/domain_api/system_domains_commands.ts",
   "src/modules/domain_api/system_domains_read_model.ts",
   "src/modules/domain_api/work_orders_read_model.ts",
+  "src/modules/gantt_runtime/react_island_host.ts",
   "src/modules/marking/api_client.ts",
   "src/modules/marking/react_island_host.ts",
+  "src/modules/planning_workbench/react_island_host.ts",
   "src/modules/react_island_host.ts",
   "src/modules/react_runtime_policy.ts",
   "src/modules/shift_work_orders/journal_owner.ts",
@@ -57,6 +61,7 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/specifications2/production_owner.ts",
   "src/modules/specifications2/react_island_host.ts",
   "src/modules/timesheet/react_island_host.ts",
+  "src/modules/weekly_production_control/react_island_host.ts",
   "src/types.ts",
   "src/ui/components.ts",
   "src/ui/formatters.ts",

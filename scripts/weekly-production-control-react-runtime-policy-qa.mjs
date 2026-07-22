@@ -25,7 +25,7 @@ assert.doesNotMatch(script, /must-not-leak/);
 
 const [app, host, runtimePolicy, moduleRegistry] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/weekly_production_control/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/weekly_production_control/react_island_host.ts", import.meta.url), "utf8"),
   readFile(new URL("../react-runtime-policy.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../src/module_registry.js", import.meta.url), "utf8"),
 ]);
@@ -42,5 +42,5 @@ assert.match(host, /canFallbackToLegacy: \(\) => false/);
 assert.match(host, /evaluation-disabled/);
 assert.match(host, /runtime-policy-disabled/);
 assert.doesNotMatch(host, /requestLegacyRender|onRequestLegacy/);
-assert.match(moduleRegistry, /weeklyProductionControl[\s\S]{0,1200}sourceFiles: \["src\/modules\/weekly_production_control\/react_island_host\.js", "src\/modules\/weekly_production_control\/production_read_input\.js"\]/);
+assert.match(moduleRegistry, /weeklyProductionControl[\s\S]{0,1200}sourceFiles: \["src\/modules\/weekly_production_control\/react_island_host\.ts", "src\/modules\/weekly_production_control\/production_read_input\.js"\]/);
 console.log("Weekly Production Control React runtime policy QA passed.");

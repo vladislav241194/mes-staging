@@ -16,7 +16,7 @@ import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-stat
 import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
 const { createContourAdminReactIslandHost } = await withBundledTypeScriptClient(
-  new URL("../src/modules/contour_admin/react_island_host.js", import.meta.url),
+  new URL("../src/modules/contour_admin/react_island_host.ts", import.meta.url),
   (hostModule) => hostModule,
   { prefix: "mes-contour-admin-react-host-qa-" },
 );
@@ -77,7 +77,7 @@ assert.match(script, /"MES_REACT_CONTOUR_ADMIN_READ_ONLY_EVALUATION":true/);
 assert.doesNotMatch(script, /must-not-leak/);
 const [app, host, owner, commandContract, productionModel, endpoint, island, scenario, runtimePolicy] = await Promise.all([
   readFile("src/app.js", "utf8"),
-  readFile("src/modules/contour_admin/react_island_host.js", "utf8"),
+  readFile("src/modules/contour_admin/react_island_host.ts", "utf8"),
   readFile("src/modules/contour_admin/server_owner_client.ts", "utf8"),
   readFile("src/modules/contour_admin/command_contract.ts", "utf8"),
   readFile("experiments/react-migration/src/modules/contour-admin/production-model.ts", "utf8"),

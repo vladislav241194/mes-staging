@@ -1209,7 +1209,7 @@ try {
   assert.deepEqual(makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
   const eligibleStructureMigrationDiagnosticsHost = makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" }); assert.deepEqual(eligibleStructureMigrationDiagnosticsHost.prepareRender(), { activateReact: true, reason: "eligible" }); assert.match(eligibleStructureMigrationDiagnosticsHost.renderTarget(), /data-react-structure-migration-diagnostics-island/);
 
-  const weeklyProductionControlHostModule = await loadProductionHost("src/modules/weekly_production_control/react_island_host.js");
+  const weeklyProductionControlHostModule = await loadProductionHost("src/modules/weekly_production_control/react_island_host.ts");
   const makeWeeklyProductionControlHost = (activation) => weeklyProductionControlHostModule.createWeeklyProductionControlReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
   assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: false, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
   assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "server-read-pending" });
@@ -1557,12 +1557,12 @@ try {
   assert.match(structureProductionHostSource, /createStructureMigrationDiagnosticsReactIslandHost/);
   assert.match(structureProductionHostSource, /canFallbackToLegacy: \(\) => false/);
   assert.doesNotMatch(structureProductionHostSource, /requestLegacyRender|onRequestLegacy/, "Production Structure hosts must not expose a same-release legacy callback");
-  const weeklyProductionControlHostSource = await readFile(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js"), "utf8");
+  const weeklyProductionControlHostSource = await readFile(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.ts"), "utf8");
   assert.match(weeklyProductionControlHostSource, /createReactIslandHost/);
   assert.match(weeklyProductionControlHostSource, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
   assert.match(weeklyProductionControlHostSource, /activation\.accessMode === "react"/, "permanent Weekly must own its route before server read readiness");
   assert.match(weeklyProductionControlHostSource, /getShellState:[\s\S]*?compatibility-fallback|serverReadFailure/, "permanent Weekly must render loading and read-error shells without legacy");
-  const planningWorkbenchHostSource = await readFile(join(repositoryRoot, "src/modules/planning_workbench/react_island_host.js"), "utf8");
+  const planningWorkbenchHostSource = await readFile(join(repositoryRoot, "src/modules/planning_workbench/react_island_host.ts"), "utf8");
   assert.match(planningWorkbenchHostSource, /onNavigate: navigate/);
   assert.match(planningWorkbenchHostSource, /onCommand: executeCommand/);
   assert.match(productionAppSource, /type === "select-item"/);

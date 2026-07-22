@@ -57,7 +57,7 @@ const MODULE_FEATURE_OVERRIDES = {
   planning: {
     css: ["styles/ui/planning-order.css", "styles/layers/70-planning-table-and-matrix.css"],
     files: [
-      "src/modules/planning_workbench/react_island_host.js",
+      "src/modules/planning_workbench/react_island_host.ts",
       "src/modules/domain_api/work_orders_read_model.ts",
       "experiments/react-migration/src/modules/planning-workbench/PlanningWorkbenchScenario.tsx",
       "experiments/react-migration/src/modules/planning-workbench/production-model.ts",
@@ -79,7 +79,7 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   weeklyProductionControl: {
     css: ["styles/layers/60-operational-modules.css"],
-    files: ["src/modules/weekly_production_control/react_island_host.js", "src/modules/weekly_production_control/production_read_input.js"],
+    files: ["src/modules/weekly_production_control/react_island_host.ts", "src/modules/weekly_production_control/production_read_input.js"],
     storage: CORE_STATE_STORAGE_KEYS,
     qa: ["scripts/ui-table-contract-audit.mjs"],
     removalContract: "Read-only module; refactors must not write to planning, shift facts, reports, or shared-state.",
@@ -177,7 +177,7 @@ const MODULE_FEATURE_OVERRIDES = {
     css: ["styles/layers/60-operational-modules.css"],
     api: ["/api/contour-admin/action"],
     files: [
-      "src/modules/contour_admin/react_island_host.js",
+      "src/modules/contour_admin/react_island_host.ts",
       "src/modules/contour_admin/server_owner_client.ts",
       "src/modules/contour_admin/command_contract.ts",
       "experiments/react-migration/src/contour-admin-island.tsx",
@@ -202,7 +202,7 @@ const MODULE_FEATURE_OVERRIDES = {
   authPrototype: {
     css: ["styles/layers/60-operational-modules.css", "styles/ui/runtime-safety.css"],
     files: [
-      "src/modules/auth_render/auth_picker_react_island_host.js",
+      "src/modules/auth_render/auth_picker_react_island_host.ts",
       "src/modules/auth_render/access_role_resolver.ts",
       "experiments/react-migration/src/modules/auth-picker/AuthPickerScenario.tsx",
     ],

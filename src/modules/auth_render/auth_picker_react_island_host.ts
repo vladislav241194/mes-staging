@@ -1,4 +1,8 @@
-import { createReactIslandHost } from "../react_island_host.ts";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+} from "../react_island_host.ts";
 
 const AUTH_PICKER_TARGET = "[data-react-auth-picker-island]";
 const AUTH_PICKER_BUNDLE_VERSION = "__MES_AUTH_PICKER_REACT_BUNDLE_VERSION__";
@@ -10,12 +14,49 @@ const AUTH_PICKER_FAILURE_REASONS = new Set([
   "render-error",
 ]);
 
-function normalizeFailureReason(value) {
+interface AuthPickerActivation {
+  accessMode?: string;
+  authGateReady?: boolean;
+  featureFlagEnabled?: boolean;
+  pickerReady?: boolean;
+  policyId?: unknown;
+  runtimeMode?: string;
+  serverReadFailure?: unknown;
+  systemDomainsReady?: boolean;
+}
+
+interface AuthPickerRenderContext {
+  activation?: AuthPickerActivation;
+  failureReason?: string;
+  shellState?: { reason?: unknown; state?: unknown } | null;
+}
+
+interface AuthPickerIslandModule {
+  mountAuthPickerReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onCommand: (command: unknown) => unknown;
+      onError: (error: unknown) => void;
+      onReady: (result: { revision: unknown }) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface AuthPickerHostOptions {
+  executeCommand?: (command: unknown) => unknown;
+  getActivation?: () => AuthPickerActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  reportError?: (error: Error) => void;
+}
+
+function normalizeFailureReason(value: unknown) {
   const reason = String(value || "");
   return AUTH_PICKER_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderAuthPickerTarget({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderAuthPickerTarget({ activation = {}, failureReason = "", shellState = null }: AuthPickerRenderContext = {}) {
   const runtimeMode = activation.runtimeMode === "react" ? "react" : "evaluation";
   const state = failureReason || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
@@ -25,9 +66,18 @@ function renderAuthPickerTarget({ activation = {}, failureReason = "", shellStat
   return `<div class="mes-react-auth-picker-island" data-react-auth-picker-island data-react-island-runtime-mode="${runtimeMode}" data-react-island-state="${state}" aria-busy="${state === "loading" ? "true" : "false"}" aria-live="polite">${content}</div>`;
 }
 
-export function createAuthPickerReactIslandHost({ getActivation, getPayload, getTargetRoot, executeCommand, reportError = (error) => console.error("[MES] Authorization picker React island failed", error) } = {}) {
-  return createReactIslandHost({
-    getActivation, getPayload, getTargetRoot, reportError,
+export function createAuthPickerReactIslandHost({
+  getActivation,
+  getPayload,
+  getTargetRoot,
+  executeCommand,
+  reportError = (error) => console.error("[MES] Authorization picker React island failed", error),
+}: AuthPickerHostOptions = {}) {
+  return createReactIslandHost<AuthPickerActivation, unknown, AuthPickerIslandModule>({
+    getActivation,
+    getPayload,
+    getTargetRoot,
+    reportError,
     canFallbackToLegacy: () => false,
     getShellState: (activation) => {
       if (!activation.featureFlagEnabled) return { state: "error", stage: "policy", reason: "model-unavailable" };
@@ -56,9 +106,9 @@ export function createAuthPickerReactIslandHost({ getActivation, getPayload, get
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
       const bundleVersion = AUTH_PICKER_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : AUTH_PICKER_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<AuthPickerIslandModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountAuthPickerReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<AuthPickerIslandModule, unknown>) => loadedIsland!.mountAuthPickerReactIsland(target, payload, {
       onError,
       onReady,
       onCommand: (command) => executeCommand?.(command),
