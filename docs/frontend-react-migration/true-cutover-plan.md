@@ -411,6 +411,34 @@ rollback dry-run точно возвращает `.56`; pinned legacy `.18` со
 прежним Specifications 2 compatibility guard. Implementation остаётся 99%,
 strict acceptance — 50%. Blueprint UI не используется.
 
+Release `v.1.500.58-1ce73a7` активирован на Pilot из точного commit
+`1ce73a75a9ec3f5997d26e338c7ec64224cf50b7`. Маркер завершения:
+`✅ FULL REACT — Timesheet`. Orphan `src/modules/timesheet/render.js`, три
+устаревших legacy/browser QA и production action callbacks в same-release
+legacy физически удалены. Полный cut удаляет 2 090 строк при 85 строках
+React ownership, fail-closed и executable authorization guards.
+
+Timesheet host теперь всегда объявляет React ownership и при некорректной
+активации показывает детерминированный `react-required`, а не бесконечный
+loading/ложный legacy mode. Кнопки графика и факта fail closed по projected
+capabilities. Старый `qa:timesheet`, ожидавший удалённый DOM, заменён прямым
+nonvisual React/model/delta/RBAC gate; протухавшая cookie fixture сделана
+относительной к текущему времени и executable authorization QA включён в
+обязательный gate.
+
+Local/public health `ok`, версия `v.1.500.58`, shared state `ready`, evaluation
+и runtime legacy surfaces пусты; service/pointer указывают на `.58`, effective
+`MES_REACT_*` flags и React drop-ins отсутствуют. Source/dist SHA-256 —
+`cdc078a63abf1658a025ad333c30c2624242b39ccb6688d366ea34ff923d23b9` и
+`efc05170b450b6b23383efc7910cac3715c1c657d3cd3a53c85310e247774e92`.
+Strict React TypeScript, typed production model, personnel calendar, bounded
+delta, executable command authorization, static authorization coverage, UI
+contract, module/feature registries, deterministic build и mixed-runtime gates
+прошли; independent review дал GO. Visual/browser QA намеренно пропущен.
+Immediate rollback dry-run точно возвращает `.57`; pinned legacy `.18`
+сохранён. Implementation остаётся 99%, strict acceptance — 50%. Blueprint UI
+не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,

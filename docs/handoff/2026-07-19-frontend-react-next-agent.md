@@ -1696,6 +1696,43 @@ Journal renderer while preserving its React read/write and print owners.
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: remove the orphaned Timesheet renderer, replace its stale
-ownership/evaluation QA with typed model/command contracts, and remove unused
-production legacy callback ports while preserving personnel-calendar owners.
+## Timesheet legacy retirement 2026-07-22: release `.58`
+
+This block supersedes `.57` as the live Pilot pointer and marks Timesheet as
+`✅ FULL REACT` in the accelerated renderer-retirement track.
+
+- Active Pilot is `v.1.500.58-1ce73a7` at exact commit
+  `1ce73a75a9ec3f5997d26e338c7ec64224cf50b7`; immediate previous is
+  `v.1.500.57-0b8953d` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `cdc078a63abf1658a025ad333c30c2624242b39ccb6688d366ea34ff923d23b9` and
+  `efc05170b450b6b23383efc7910cac3715c1c657d3cd3a53c85310e247774e92`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Local/public health report `ok`, version `v.1.500.58`, shared state `ready`,
+  zero active evaluation/legacy surfaces and no effective `MES_REACT_*` flags
+  or React systemd drop-ins. The service is active and `/srv/mes/pilot/app`
+  resolves to `.58`.
+- `src/modules/timesheet/render.js` and three stale legacy/browser QA files were
+  physically removed. The full cut deletes 2,090 lines and adds 85 focused
+  owner, fail-closed and executable authorization lines.
+- Production callbacks can no longer hand a day or schedule action to a
+  same-release legacy renderer. Invalid activation now renders a deterministic
+  `react-required` shell; module/feature registries point to the real
+  React/TypeScript model, adapter, command and scenario owners.
+- The former browser gate expected the deleted legacy DOM. `qa:timesheet` is
+  now a direct nonvisual React/model/delta/RBAC gate. Its signed-session fixture
+  is time-stable and the executable Timesheet authorization QA is mandatory.
+- Strict React TypeScript, production model, Personnel Calendar, bounded
+  Timesheet delta, executable/static authorization, UI contract, module and
+  feature registry, deterministic build, mixed-runtime and diff gates passed.
+  Independent review returned GO. Visual/browser QA was deliberately skipped.
+- Immediate previous `.57` passed rollback dry-run. The sealed legacy `.18`
+  pointer remains preserved behind the existing compatibility guards.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: retire the orphaned Contour Admin renderer while keeping
+its admin-only route, protected Ops API, RBAC, audit persistence and root-gated
+rollback owners intact.
