@@ -409,9 +409,9 @@ function mergePropertyCounts(items) {
 }
 
 const appJs = readText(path.join(root, "src", "app.js"));
-const sourceJsFiles = listFiles(path.join(root, "src"), (filePath) => filePath.endsWith(".js"));
+const sourceJsFiles = listFiles(path.join(root, "src"), (filePath) => /\.(?:js|ts|tsx)$/.test(filePath));
 const sourceJs = sourceJsFiles.map((filePath) => readText(filePath)).join("\n");
-const componentsJs = readText(path.join(root, "src", "ui", "components.js"));
+const componentsJs = readText(path.join(root, "src", "ui", "components.ts"));
 const runtimeContractsJs = readText(path.join(root, "src", "ui_runtime_contracts.js"));
 const cssSummaries = targetCssFiles.map(summarizeCssFile);
 const runtimeUiStatesCss = readText(path.join(root, runtimeUiStatesCssFile));
@@ -485,7 +485,7 @@ const report = {
   sourceOfTruth: {
     tokenFile: "styles/mes-ui-core.css",
     sharedCssEditPoint: "styles/ui/kit-polish.css",
-    runtimeHelpers: "src/ui/components.js",
+    runtimeHelpers: "src/ui/components.ts",
     runtimeContractMap: "src/ui_runtime_contracts.js",
   },
   testAssignment: {

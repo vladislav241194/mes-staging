@@ -5,7 +5,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { renderDispatchModulePage } from "../src/modules/dispatch/render.js";
 import { createStructureEmployeesReactIslandHost } from "../src/modules/production_structure_matrix/react_island_host.js";
-import { createMesModulePatternRenderer } from "../src/ui/module_patterns.js";
 import { getMesModuleBlueprintDefinition } from "../src/module_registry.js";
 
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-extracted-render-ui-"));
@@ -15,7 +14,8 @@ try {
   await build({
     stdin: {
       contents: [
-        'export { createUiRenderers } from "./src/ui/components.js";',
+        'export { createUiRenderers } from "./src/ui/components.ts";',
+        'export { createMesModulePatternRenderer } from "./src/ui/module_patterns.ts";',
         'export { escapeAttribute } from "./src/ui/html.ts";',
       ].join("\n"),
       resolveDir: fileURLToPath(new URL("..", import.meta.url)),
@@ -34,7 +34,7 @@ try {
   await rm(temporaryRoot, { recursive: true, force: true });
 }
 
-const { createUiRenderers, escapeAttribute } = typedUi;
+const { createMesModulePatternRenderer, createUiRenderers, escapeAttribute } = typedUi;
 
 const failures = [];
 const renderers = createUiRenderers({

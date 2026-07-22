@@ -52,7 +52,7 @@ const factoryFiles = [
   "src/module_blueprint.js",
   "src/module_registry.js",
   "src/module_runtime.js",
-  "src/ui/module_patterns.js",
+  "src/ui/module_patterns.ts",
   "scripts/module-blueprint-qa.mjs",
   "scripts/generate-module-blueprint-index.mjs",
   "scripts/scaffold-module.mjs",
@@ -101,4 +101,3 @@ const report = {
 };
 await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
-

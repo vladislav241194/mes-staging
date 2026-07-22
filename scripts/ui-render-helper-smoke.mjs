@@ -11,7 +11,7 @@ try {
   await build({
     stdin: {
       contents: [
-        'export { createUiRenderers } from "./src/ui/components.js";',
+        'export { createUiRenderers } from "./src/ui/components.ts";',
         'export { escapeAttribute, escapeHtml, isKnownUiSignalTone, joinUiClasses, normalizeUiTone } from "./src/ui/html.ts";',
       ].join("\n"),
       resolveDir: fileURLToPath(new URL("..", import.meta.url)),

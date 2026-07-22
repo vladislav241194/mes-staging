@@ -25,8 +25,7 @@ import {
   MES_MODULE_SIDEBAR_MODES,
 } from "../src/module_blueprint.js";
 import { createMesModuleRuntime } from "../src/module_runtime.js";
-import { createUiRenderers } from "../src/ui/components.js";
-import { createMesModulePatternRenderer } from "../src/ui/module_patterns.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 import {
   HARD_UI_RUNTIME_MODULE_IDS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
@@ -35,6 +34,19 @@ import { UI_VISUAL_MODULE_WAVES } from "../src/ui/contracts/visual-unification-c
 import { UI_REGRESSION_MODULE_PROFILES } from "../src/ui_regression_exceptions.js";
 import { syncGeneratedModuleBlueprintIndexes } from "./generate-module-blueprint-index.mjs";
 import { scaffoldModule } from "./scaffold-module.mjs";
+
+const [{ createUiRenderers }, { createMesModulePatternRenderer }] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/ui/components.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-ui-components-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui/module_patterns.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-ui-module-patterns-qa-" },
+  ),
+]);
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const reportPath = join(projectRoot, "reports", "module-factory-enrollment.json");

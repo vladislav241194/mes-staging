@@ -33,7 +33,7 @@ const paths = {
   bootstrapSnapshot: path.join(rootDir, "bootstrap-snapshot.json"),
   uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
   uiHtml: path.join(rootDir, "src", "ui", "html.ts"),
-  uiComponents: path.join(rootDir, "src", "ui", "components.js"),
+  uiComponents: path.join(rootDir, "src", "ui", "components.ts"),
   accessRolesModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "roles", "adapter.ts"),
   ganttRuntimeModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "gantt", "GanttScenario.tsx"),
   uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.js"),

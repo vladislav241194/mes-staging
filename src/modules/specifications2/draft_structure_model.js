@@ -1,4 +1,4 @@
-import { buildTreeTableVisualRows } from "../../ui/tree_table_visual.js";
+import { buildTreeTableVisualRows } from "../../ui/tree_table_visual.ts";
 
 const SPECIFICATIONS2_ASSEMBLY_TYPES = new Set(["се", "сборочная единица"]);
 

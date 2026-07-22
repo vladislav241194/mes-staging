@@ -1,8 +1,39 @@
-function text(value) {
+interface AccessRoleAssignmentRow {
+  id?: unknown;
+  employeeId?: unknown;
+  subjectId?: unknown;
+  roleId?: unknown;
+  [key: string]: unknown;
+}
+
+export interface AdditionalRoleAssignmentInput {
+  assignments?: unknown;
+  confirmEmployeeId?: unknown;
+  employeeId?: unknown;
+  expectedAssignmentIds?: unknown;
+  roleId?: unknown;
+}
+
+export interface PreparedAdditionalRoleAssignment {
+  id: string;
+  employeeId: string;
+  roleId: string;
+  source: "access-control";
+  sourceRef: {
+    system: "access-control";
+    command: "add-assignment";
+  };
+}
+
+export type AdditionalRoleAssignmentResult =
+  | { ok: false; code: string; message: string }
+  | { ok: true; assignment: PreparedAdditionalRoleAssignment };
+
+function text(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function sortedIds(value) {
+function sortedIds(value: unknown): string[] {
   return [...new Set((Array.isArray(value) ? value : []).map(text).filter(Boolean))].sort((left, right) => left.localeCompare(right, "en"));
 }
 
@@ -12,7 +43,7 @@ export function prepareAdditionalRoleAssignment({
   employeeId = "",
   expectedAssignmentIds = [],
   roleId = "",
-} = {}) {
+}: AdditionalRoleAssignmentInput = {}): AdditionalRoleAssignmentResult {
   const normalizedEmployeeId = text(employeeId);
   const normalizedRoleId = text(roleId);
   if (!normalizedEmployeeId || text(confirmEmployeeId) !== normalizedEmployeeId) {
@@ -21,7 +52,7 @@ export function prepareAdditionalRoleAssignment({
   if (!normalizedRoleId) {
     return { ok: false, code: "role-required", message: "Выберите дополнительную роль." };
   }
-  const rows = Array.isArray(assignments) ? assignments : [];
+  const rows: AccessRoleAssignmentRow[] = Array.isArray(assignments) ? assignments : [];
   const employeeAssignments = rows.filter((assignment) => text(assignment?.employeeId || assignment?.subjectId) === normalizedEmployeeId);
   const actualAssignmentIds = sortedIds(employeeAssignments.map((assignment) => assignment?.id));
   if (actualAssignmentIds.length !== employeeAssignments.length) {

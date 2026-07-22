@@ -3,7 +3,13 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { inferAccessRoleIdForPerson } from "../src/modules/auth_render/access_role_resolver.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { inferAccessRoleIdForPerson } = await withBundledTypeScriptClient(
+  new URL("../src/modules/auth_render/access_role_resolver.ts", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-access-role-resolver-qa-" },
+);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -29,7 +35,7 @@ const [appSource, productsRuntimeSource] = await Promise.all([
 
 assert.match(
   appSource,
-  /import \{ inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson \} from "\.\/modules\/auth_render\/access_role_resolver\.js";/,
+  /import \{ inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson \} from "\.\/modules\/auth_render\/access_role_resolver\.ts";/,
   "the app must resolve auth roles without reading the products renderer export",
 );
 const productsInitialization = appSource.slice(

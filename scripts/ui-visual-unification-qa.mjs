@@ -68,7 +68,7 @@ const cssFiles = ["styles.css", "styles/mes-ui-core.css", ...await collectFiles(
 const [runtimeSources, cssSources, uiComponentsSource] = await Promise.all([
   Promise.all(runtimeFiles.map(async (file) => ({ file, source: await fs.readFile(path.join(rootDir, file), "utf8") }))),
   Promise.all(cssFiles.map(async (file) => ({ file, source: await fs.readFile(path.join(rootDir, file), "utf8") }))),
-  fs.readFile(path.join(rootDir, "src", "ui", "components.js"), "utf8"),
+  fs.readFile(path.join(rootDir, "src", "ui", "components.ts"), "utf8"),
 ]);
 
 const runtimeSource = runtimeSources.map(({ source }) => source).join("\n");
@@ -133,7 +133,7 @@ const componentCoverage = UI_VISUAL_STANDARD_COMPONENTS.map((component) => {
   assertContract(Boolean(helperNames.length), `Standard component ${component} has no registered helper.`);
   assertContract(!missingHelpers.length, `Standard component ${component} is missing helpers: ${missingHelpers.join(", ")}.`);
   assertContract(Boolean(cssSelectors.length && availableCssSelectors.length), `Standard component ${component} has no available registered CSS selector.`);
-  assertContract(markerAvailable, `Standard component ${component} has no data-ui-component marker in components.js.`);
+  assertContract(markerAvailable, `Standard component ${component} has no data-ui-component marker in components.ts.`);
 
   return {
     component,

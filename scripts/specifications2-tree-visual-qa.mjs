@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
-import { buildTreeTableVisualRows } from "../src/ui/tree_table_visual.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 import {
   applySpecifications2EditorAction,
   removeSpecifications2EditorBranch,
@@ -25,6 +25,12 @@ import {
   getSpecifications2AoiProductionFiles,
   isSpecifications2ProductionFileAccepted,
 } from "../src/modules/specifications2/production_file_contract.js";
+
+const { buildTreeTableVisualRows } = await withBundledTypeScriptClient(
+  new URL("../src/ui/tree_table_visual.ts", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-tree-table-visual-qa-" },
+);
 
 const row = (id, depth, label = id) => ({ id, level: depth, label });
 

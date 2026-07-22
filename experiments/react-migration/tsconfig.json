@@ -30,11 +30,16 @@
     "../../src/modules/domain_api/shift_execution_commands.ts",
     "../../src/modules/domain_api/shift_execution_dispatch_read_model.ts",
     "../../src/modules/domain_api/work_orders_read_model.ts",
+    "../../src/modules/access_roles/multiple_assignment_owner.ts",
+    "../../src/modules/auth_render/access_role_resolver.ts",
     "../../src/modules/shift_work_orders/journal_owner.ts",
     "../../src/modules/specifications2/production_owner.ts",
     "../../src/types.ts",
+    "../../src/ui/components.ts",
     "../../src/ui/formatters.ts",
     "../../src/ui/html.ts",
-    "../../src/ui/long_task_overlay.ts"
+    "../../src/ui/long_task_overlay.ts",
+    "../../src/ui/module_patterns.ts",
+    "../../src/ui/tree_table_visual.ts"
   ]
 }

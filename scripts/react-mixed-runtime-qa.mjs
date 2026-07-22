@@ -32,6 +32,8 @@ assert.match(indexHtml, /<script type="module" src="\.\/src\/app\.js[^"\n]*"><\/
   "the mixed-runtime audit must track the actual active frontend boot entry");
 assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/data.ts",
+  "src/modules/access_roles/multiple_assignment_owner.ts",
+  "src/modules/auth_render/access_role_resolver.ts",
   "src/modules/contour_admin/command_contract.ts",
   "src/modules/contour_admin/server_owner_client.ts",
   "src/modules/domain_api/planning_period_read_model.ts",
@@ -50,9 +52,12 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/shift_work_orders/production_model.ts",
   "src/modules/specifications2/production_owner.ts",
   "src/types.ts",
+  "src/ui/components.ts",
   "src/ui/formatters.ts",
   "src/ui/html.ts",
   "src/ui/long_task_overlay.ts",
+  "src/ui/module_patterns.ts",
+  "src/ui/tree_table_visual.ts",
 ], "active src TypeScript must grow only through explicitly audited production boundaries");
 assert(activeJavaScriptLines < 80_000, "active JavaScript inventory regrew above the audited post-retirement ceiling");
 assert.equal(requestLegacyRenderDefinitions, 0, "the app shell must not retain any same-release legacy-render callback");

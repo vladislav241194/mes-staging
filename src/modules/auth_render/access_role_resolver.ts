@@ -1,12 +1,38 @@
-function normalizeAssignments(value = {}) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+type AccessRoleAssignmentMap = Record<PropertyKey, unknown>;
+
+export interface AccessRolePerson {
+  id?: unknown;
+  name?: unknown;
+  role?: unknown;
+  department?: unknown;
+  personKind?: unknown;
+  canDistribute?: unknown;
+  canCloseFact?: unknown;
+  canExecute?: unknown;
+  [key: string]: unknown;
 }
 
-function normalizeText(value = "") {
+export interface AccessRoleResolverOptions {
+  defaultRoleId?: unknown;
+  accessRoleAssignments?: unknown;
+  normalizeAccessRoleAssignments?: (value: unknown) => AccessRoleAssignmentMap;
+  normalizeLookupText?: (value: unknown) => string;
+}
+
+function normalizeAssignments(value: unknown = {}): AccessRoleAssignmentMap {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as AccessRoleAssignmentMap
+    : {};
+}
+
+function normalizeText(value: unknown = ""): string {
   return String(value || "").trim().toLowerCase();
 }
 
-export function inferAccessRoleIdForPerson(person = null, options = {}) {
+export function inferAccessRoleIdForPerson(
+  person: AccessRolePerson | null = null,
+  options: AccessRoleResolverOptions = {},
+): string {
   const defaultRoleId = String(options.defaultRoleId || "admin").trim() || "admin";
   if (!person?.id) return defaultRoleId;
 
@@ -17,7 +43,7 @@ export function inferAccessRoleIdForPerson(person = null, options = {}) {
     ? options.normalizeLookupText
     : normalizeText;
   const assignments = normalizeAccessRoleAssignments(options.accessRoleAssignments);
-  const assignedRoleId = String(assignments?.[person.id] || "").trim();
+  const assignedRoleId = String(assignments?.[person.id as PropertyKey] || "").trim();
   if (assignedRoleId) return assignedRoleId;
 
   const lookup = normalizeLookupText(`${person.name || ""} ${person.role || ""} ${person.department || ""}`);

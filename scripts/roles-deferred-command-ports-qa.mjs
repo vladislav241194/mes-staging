@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { transform } from "esbuild";
-import { prepareAdditionalRoleAssignment } from "../src/modules/access_roles/multiple_assignment_owner.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { prepareAdditionalRoleAssignment } = await withBundledTypeScriptClient(
+  new URL("../src/modules/access_roles/multiple_assignment_owner.ts", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-access-role-assignment-owner-qa-" },
+);
 
 const [scenario, adapter, ports, app] = await Promise.all([
   readFile(new URL("../experiments/react-migration/src/modules/roles/RolesScenario.tsx", import.meta.url), "utf8"),

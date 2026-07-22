@@ -244,7 +244,7 @@ async function collectTableMetrics() {
 }
 
 async function collectStatusMetrics(cssMetrics) {
-  const componentSource = await fs.readFile(path.join(rootDir, "src", "ui", "components.js"), "utf8");
+  const componentSource = await fs.readFile(path.join(rootDir, "src", "ui", "components.ts"), "utf8");
   const runtimeJsSource = (await collectRuntimeJsSources()).join("\n");
   const fullSource = [
     runtimeJsSource,

@@ -49,7 +49,7 @@ const [
   read("package.json"),
   read("scripts/build.mjs"),
   read("src/ui/html.ts"),
-  read("src/ui/components.js"),
+  read("src/ui/components.ts"),
   read("styles/ui/actions.css"),
   read("styles/ui/status.css"),
 ]);

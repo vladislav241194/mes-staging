@@ -264,7 +264,7 @@ function suggestTarget(name, type, risk) {
     return "src/app.js (map only in Phase 6)";
   }
   if (type === "ui-helper") {
-    return "src/ui/components.js";
+    return "src/ui/components.ts";
   }
   if (type === "pure-format-helper") {
     return "src/ui/html.ts or src/ui/formatters.ts";

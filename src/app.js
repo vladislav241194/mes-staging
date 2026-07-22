@@ -66,9 +66,9 @@ import {
 } from "./module_registry.js";
 import { createMesModuleRuntime } from "./module_runtime.js";
 import { createGeneratedModuleRuntimeAdapters } from "./generated/module_runtime_index.js";
-import { createUiRenderers } from "./ui/components.js";
+import { createUiRenderers } from "./ui/components.ts";
 import { runLongTask } from "./ui/long_task_overlay.ts";
-import { createMesModulePatternRenderer } from "./ui/module_patterns.js";
+import { createMesModulePatternRenderer } from "./ui/module_patterns.ts";
 import {
   escapeAttribute,
   escapeHtml,
@@ -89,7 +89,7 @@ import {
   projectSystemDomainsServerCommandState,
 } from "./modules/production_structure_matrix/server_capabilities.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
-import { prepareAdditionalRoleAssignment } from "./modules/access_roles/multiple_assignment_owner.js";
+import { prepareAdditionalRoleAssignment } from "./modules/access_roles/multiple_assignment_owner.ts";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
@@ -107,7 +107,7 @@ import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/empl
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createMarkingApiClient } from "./modules/marking/api_client.ts";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
-import { inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson } from "./modules/auth_render/access_role_resolver.js";
+import { inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson } from "./modules/auth_render/access_role_resolver.ts";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.ts";
 import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.ts";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.70";
+const APP_VERSION_FALLBACK = "v.1.500.71";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

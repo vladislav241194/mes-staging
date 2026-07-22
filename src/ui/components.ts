@@ -5,12 +5,242 @@ import {
   normalizeUiTone,
 } from "./html.ts";
 
-const DEFAULT_UI_MODULE_CONTRACTS = ["ops-soft-v1", "visual-parity-v2"];
+export type UiHtmlFragment = string;
+export type UiEscapedValue = unknown;
+export type UiIconRenderer = (name: string) => UiHtmlFragment;
 
-export function createUiRenderers({ icon }) {
+export interface CreateUiRenderersOptions {
+  icon?: UiIconRenderer | null;
+}
+
+export interface UiPanelHeadOptions {
+  title?: UiEscapedValue;
+  meta?: UiEscapedValue;
+  className?: string;
+  actions?: UiHtmlFragment;
+  actionsClassName?: string;
+}
+
+export interface UiPanelOptions extends UiPanelHeadOptions {
+  body?: UiHtmlFragment;
+  cornerMarker?: UiHtmlFragment;
+  attributes?: string;
+  surface?: UiEscapedValue;
+  density?: UiEscapedValue;
+  component?: UiEscapedValue;
+}
+
+export interface UiBodyOptions {
+  body?: UiHtmlFragment;
+  className?: string;
+  attributes?: string;
+  density?: UiEscapedValue;
+}
+
+export interface UiEmptyStateOptions {
+  iconName?: string;
+  title?: UiEscapedValue;
+  text?: UiEscapedValue;
+  action?: UiHtmlFragment;
+  className?: string;
+}
+
+export interface UiActionButtonOptions {
+  label?: UiEscapedValue;
+  iconName?: string;
+  tone?: UiEscapedValue;
+  size?: UiEscapedValue;
+  className?: string;
+  attributes?: string;
+  cornerMarker?: UiHtmlFragment;
+}
+
+export interface UiActionFileLabelOptions {
+  label?: UiEscapedValue;
+  iconName?: string;
+  size?: UiEscapedValue;
+  className?: string;
+  inputAttributes?: string;
+}
+
+export interface UiHtmlContainerOptions {
+  body?: UiHtmlFragment;
+  className?: string;
+  attributes?: string;
+}
+
+export interface UiFormSectionOptions extends UiHtmlContainerOptions {
+  title?: UiEscapedValue;
+  meta?: UiEscapedValue;
+  actions?: UiHtmlFragment;
+  density?: UiEscapedValue;
+}
+
+export interface UiFormGridOptions extends UiHtmlContainerOptions {
+  columns?: UiEscapedValue;
+  density?: UiEscapedValue;
+}
+
+export interface UiFormRowOptions extends UiHtmlContainerOptions {
+  align?: UiEscapedValue;
+}
+
+export interface UiFormActionsOptions {
+  actions?: UiHtmlFragment;
+  className?: string;
+  attributes?: string;
+}
+
+export interface UiSidebarItemOptions {
+  title?: UiEscapedValue;
+  meta?: UiEscapedValue;
+  badge?: UiEscapedValue;
+  badgeTone?: UiEscapedValue;
+  badgeFit?: UiEscapedValue;
+  active?: boolean;
+  className?: string;
+  attributes?: string;
+  tag?: string;
+}
+
+export interface UiModuleSidebarOptions {
+  eyebrow?: UiEscapedValue;
+  title?: UiEscapedValue;
+  actions?: UiHtmlFragment;
+  body?: UiHtmlFragment;
+  className?: string;
+  cornerMarker?: UiHtmlFragment;
+  attributes?: string;
+  variant?: UiEscapedValue;
+}
+
+export interface UiModulePageOptions {
+  ariaLabel?: UiEscapedValue;
+  className?: string;
+  sidebar?: UiHtmlFragment;
+  header?: UiHtmlFragment;
+  content?: UiHtmlFragment;
+  workspaceClassName?: string;
+  contentClassName?: string;
+  attributes?: string;
+  visualContract?: UiEscapedValue;
+  contractMode?: string;
+  density?: UiEscapedValue;
+}
+
+export interface UiModuleHeaderOptions {
+  eyebrow?: UiEscapedValue;
+  title?: UiEscapedValue;
+  description?: UiEscapedValue;
+  actions?: UiHtmlFragment;
+  className?: string;
+  cornerMarker?: UiHtmlFragment;
+  attributes?: string;
+}
+
+export interface UiTableWrapOptions extends UiHtmlContainerOptions {
+  scrollContract?: UiEscapedValue;
+}
+
+export interface UiTableControlOptions {
+  variant?: UiEscapedValue;
+  density?: UiEscapedValue;
+}
+
+export interface UiInfoItem {
+  label?: UiEscapedValue;
+  value?: UiEscapedValue;
+  meta?: UiEscapedValue;
+  className?: string;
+}
+
+export interface UiInfoGridOptions {
+  items?: readonly UiInfoItem[];
+  className?: string;
+  itemClassName?: string;
+  attributes?: string;
+}
+
+export interface UiFormFieldOptions {
+  label?: UiEscapedValue;
+  control?: UiHtmlFragment;
+  hint?: UiEscapedValue;
+  message?: UiEscapedValue;
+  state?: UiEscapedValue;
+  required?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  className?: string;
+  attributes?: string;
+}
+
+export interface UiSystemStateOptions {
+  iconName?: string;
+  title?: UiEscapedValue;
+  text?: UiEscapedValue;
+  action?: UiHtmlFragment;
+  tone?: UiEscapedValue;
+  className?: string;
+  attributes?: string;
+}
+
+export interface UiDropdownFrameOptions {
+  trigger?: UiHtmlFragment;
+  body?: UiHtmlFragment;
+  className?: string;
+  attributes?: string;
+}
+
+export interface UiModalFrameOptions extends UiPanelHeadOptions {
+  body?: UiHtmlFragment;
+  headActions?: UiHtmlFragment;
+  size?: UiEscapedValue;
+  attributes?: string;
+}
+
+export interface UiModalShellOptions {
+  className?: string;
+  attributes?: string;
+  content?: UiHtmlFragment;
+  sample?: boolean;
+  size?: UiEscapedValue;
+}
+
+export interface UiDrawerFrameOptions extends UiPanelHeadOptions {
+  body?: UiHtmlFragment;
+  size?: UiEscapedValue;
+  attributes?: string;
+}
+
+export interface UiDrawerShellOptions {
+  className?: string;
+  attributes?: string;
+  content?: UiHtmlFragment;
+  size?: UiEscapedValue;
+}
+
+export interface UiGanttSegment {
+  tone?: UiEscapedValue;
+  width?: UiEscapedValue;
+  label?: UiEscapedValue;
+  value?: UiEscapedValue;
+}
+
+export interface UiGanttBarOptions {
+  label?: UiEscapedValue;
+  meta?: UiEscapedValue;
+  value?: UiEscapedValue;
+  segments?: readonly UiGanttSegment[];
+  className?: string;
+  attributes?: string;
+}
+
+const DEFAULT_UI_MODULE_CONTRACTS = ["ops-soft-v1", "visual-parity-v2"] as const;
+
+export function createUiRenderers({ icon }: CreateUiRenderersOptions) {
   const renderIcon = typeof icon === "function" ? icon : () => "";
 
-  function renderUiPanelHead({ title, meta = "", className = "", actions = "", actionsClassName = "ui-panel-head-actions" }) {
+  function renderUiPanelHead({ title, meta = "", className = "", actions = "", actionsClassName = "ui-panel-head-actions" }: UiPanelHeadOptions) {
     return `
     <div class="${escapeAttribute(joinUiClasses("ui-panel-head", className))}" data-ui-component="PanelHead">
       <div class="ui-panel-head-copy">
@@ -36,7 +266,7 @@ export function createUiRenderers({ icon }) {
     surface = "",
     density = "",
     component = "Panel",
-  }) {
+  }: UiPanelOptions) {
     const componentAttribute = component === "Panel"
       ? 'data-ui-component="Panel"'
       : `data-ui-component="${escapeAttribute(component || "Panel")}"`;
@@ -54,19 +284,19 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiPanelBody({ body = "", className = "", attributes = "", density = "" }) {
+  function renderUiPanelBody({ body = "", className = "", attributes = "", density = "" }: UiBodyOptions) {
     if (!body) return "";
     const densityAttribute = density ? `data-ui-density="${escapeAttribute(density)}"` : "";
     return `<div class="${escapeAttribute(joinUiClasses("ui-panel-body", className))}" data-ui-component="PanelBody" ${densityAttribute} ${attributes}>${body}</div>`;
   }
 
-  function renderUiPanelFooter({ body = "", className = "", attributes = "", density = "" }) {
+  function renderUiPanelFooter({ body = "", className = "", attributes = "", density = "" }: UiBodyOptions) {
     if (!body) return "";
     const densityAttribute = density ? `data-ui-density="${escapeAttribute(density)}"` : "";
     return `<footer class="${escapeAttribute(joinUiClasses("ui-panel-footer", className))}" data-ui-component="PanelFooter" ${densityAttribute} ${attributes}>${body}</footer>`;
   }
 
-  function renderUiEmptyState({ iconName = "info", title, text, action = "", className = "" }) {
+  function renderUiEmptyState({ iconName = "info", title, text, action = "", className = "" }: UiEmptyStateOptions) {
     return `
     <div class="${escapeAttribute(joinUiClasses("bom-import-empty", "module-preview-empty", "ui-empty-state", className))}" data-ui-component="EmptyState">
       ${renderIcon(iconName)}
@@ -77,12 +307,12 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiStatusToken(label, tone = "neutral", className = "") {
+  function renderUiStatusToken(label: UiEscapedValue, tone: UiEscapedValue = "neutral", className = "") {
     const normalizedTone = normalizeUiTone(tone);
     return `<span class="${escapeAttribute(joinUiClasses("mes-signal", "ui-status-token", `is-${normalizedTone}`, className))}" data-ui-component="StatusToken">${escapeHtml(label || "")}</span>`;
   }
 
-  function renderUiDemoBadge(label = "Демо-функция", text = "") {
+  function renderUiDemoBadge(label: UiEscapedValue = "Демо-функция", text: UiEscapedValue = "") {
     return `
     <span class="ui-demo-badge mes-signal is-demo-function" data-ui-component="DemoBadge" title="Демо-функция: редактируется в прототипе и не влияет на расчеты">
       <strong>${escapeHtml(label)}</strong>
@@ -91,15 +321,15 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiDemoCornerMarker(label = "Демо-элемент: не влияет на систему", symbol = "D", className = "") {
+  function renderUiDemoCornerMarker(label: UiEscapedValue = "Демо-элемент: не влияет на систему", symbol: UiEscapedValue = "D", className = "") {
     return `<span class="${escapeAttribute(joinUiClasses("ui-demo-corner-marker", className))}" data-ui-component="DemoMarker" aria-label="${escapeAttribute(label)}" title="${escapeAttribute(label)}">${escapeHtml(symbol)}</span>`;
   }
 
-  function renderUiDemoInteractiveMarker(label = "UI-заглушка: элемент выглядит интерактивным, но пока не выполняет системное действие") {
+  function renderUiDemoInteractiveMarker(label: UiEscapedValue = "UI-заглушка: элемент выглядит интерактивным, но пока не выполняет системное действие") {
     return renderUiDemoCornerMarker(label, "D", "is-interactive");
   }
 
-  function renderUiDemoInlineMarker(label = "UI-заглушка: элемент выглядит интерактивным, но пока не выполняет системное действие") {
+  function renderUiDemoInlineMarker(label: UiEscapedValue = "UI-заглушка: элемент выглядит интерактивным, но пока не выполняет системное действие") {
     return `<em class="ui-demo-inline-marker" data-ui-component="DemoMarkerInline" aria-label="${escapeAttribute(label)}" title="${escapeAttribute(label)}">D</em>`;
   }
 
@@ -111,7 +341,7 @@ export function createUiRenderers({ icon }) {
     className = "",
     attributes = "",
     cornerMarker = "",
-  }) {
+  }: UiActionButtonOptions) {
     const normalizedTone = String(tone || "secondary").trim();
     const baseClass = normalizedTone === "primary"
       ? "primary-button"
@@ -148,12 +378,12 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiActionBar(actions = "", className = "") {
+  function renderUiActionBar(actions: UiHtmlFragment = "", className = "") {
     if (!actions) return "";
     return `<div class="${escapeAttribute(joinUiClasses("ui-action-bar", className))}" data-ui-component="ActionBar">${actions}</div>`;
   }
 
-  function renderUiActionFileLabel({ label, iconName = "upload", size = "default", className = "", inputAttributes = "" }) {
+  function renderUiActionFileLabel({ label, iconName = "upload", size = "default", className = "", inputAttributes = "" }: UiActionFileLabelOptions) {
     const normalizedSize = ["default", "compact", "touch"].includes(String(size || "")) ? String(size) : "default";
     return `
     <label class="${escapeAttribute(joinUiClasses("primary-button", "ui-action-button", className))}" data-ui-component="ActionButton" data-ui-variant="${escapeAttribute(`primary:${normalizedSize}`)}" data-ui-tone="primary" data-ui-size="${escapeAttribute(normalizedSize)}" role="button">
@@ -164,17 +394,17 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiToolbar({ body = "", className = "", attributes = "" }) {
+  function renderUiToolbar({ body = "", className = "", attributes = "" }: UiHtmlContainerOptions) {
     if (!body) return "";
     return `<div class="${escapeAttribute(joinUiClasses("ui-toolbar", className))}" data-ui-component="Toolbar" ${attributes}>${body}</div>`;
   }
 
-  function renderUiFilterBar({ body = "", className = "", attributes = "" }) {
+  function renderUiFilterBar({ body = "", className = "", attributes = "" }: UiHtmlContainerOptions) {
     if (!body) return "";
     return `<div class="${escapeAttribute(joinUiClasses("ui-filter-bar", className))}" data-ui-component="FilterBar" ${attributes}>${body}</div>`;
   }
 
-  function renderUiFormSection({ title = "", meta = "", body = "", actions = "", className = "", attributes = "", density = "" }) {
+  function renderUiFormSection({ title = "", meta = "", body = "", actions = "", className = "", attributes = "", density = "" }: UiFormSectionOptions) {
     if (!body && !title && !actions) return "";
     const densityAttribute = density ? `data-ui-density="${escapeAttribute(density)}"` : "";
     return `
@@ -193,20 +423,20 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiFormGrid({ body = "", columns = "auto", className = "", attributes = "", density = "" }) {
+  function renderUiFormGrid({ body = "", columns = "auto", className = "", attributes = "", density = "" }: UiFormGridOptions) {
     if (!body) return "";
     const normalizedColumns = ["1", "2", "3", "4", "auto"].includes(String(columns)) ? String(columns) : "auto";
     const densityAttribute = density ? `data-ui-density="${escapeAttribute(density)}"` : "";
     return `<div class="${escapeAttribute(joinUiClasses("ui-form-grid", className))}" data-ui-component="FormGrid" data-ui-columns="${normalizedColumns}" ${densityAttribute} ${attributes}>${body}</div>`;
   }
 
-  function renderUiFormRow({ body = "", className = "", attributes = "", align = "stretch" }) {
+  function renderUiFormRow({ body = "", className = "", attributes = "", align = "stretch" }: UiFormRowOptions) {
     if (!body) return "";
     const normalizedAlign = ["start", "center", "end", "stretch"].includes(String(align)) ? String(align) : "stretch";
     return `<div class="${escapeAttribute(joinUiClasses("ui-form-row", className))}" data-ui-component="FormRow" data-ui-align="${normalizedAlign}" ${attributes}>${body}</div>`;
   }
 
-  function renderUiFormActions({ actions = "", className = "", attributes = "" }) {
+  function renderUiFormActions({ actions = "", className = "", attributes = "" }: UiFormActionsOptions) {
     if (!actions) return "";
     return `<div class="${escapeAttribute(joinUiClasses("ui-form-actions", "ui-action-bar", className))}" data-ui-component="FormActions" ${attributes}>${actions}</div>`;
   }
@@ -221,7 +451,7 @@ export function createUiRenderers({ icon }) {
     className = "",
     attributes = "",
     tag = "button",
-  }) {
+  }: UiSidebarItemOptions) {
     const element = tag === "article" ? "article" : "button";
     const badgeClass = badgeTone ? `is-${normalizeUiTone(badgeTone)}` : "";
     const normalizedBadgeFit = badgeFit === "content" ? "content" : "truncate";
@@ -246,7 +476,7 @@ export function createUiRenderers({ icon }) {
     cornerMarker = "",
     attributes = "",
     variant = "list",
-  }) {
+  }: UiModuleSidebarOptions) {
     const normalizedVariant = ["list", "grouped", "queue", "filters", "registry"].includes(String(variant || ""))
       ? String(variant)
       : "list";
@@ -281,9 +511,9 @@ export function createUiRenderers({ icon }) {
     visualContract = "",
     contractMode = "standard",
     density = "",
-  }) {
+  }: UiModulePageOptions) {
     const hasSidebar = Boolean(String(sidebar || "").trim());
-    const contractTokens = new Set();
+    const contractTokens = new Set<string>();
     if (contractMode === "standard") DEFAULT_UI_MODULE_CONTRACTS.forEach((token) => contractTokens.add(token));
     String(visualContract || "").split(/\s+/).filter(Boolean).forEach((token) => contractTokens.add(token));
     const normalizedVisualContract = [...contractTokens].join(" ");
@@ -306,7 +536,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiModuleHeader({ eyebrow = "", title, description = "", actions = "", className = "directory-header", cornerMarker = "", attributes = "" }) {
+  function renderUiModuleHeader({ eyebrow = "", title, description = "", actions = "", className = "directory-header", cornerMarker = "", attributes = "" }: UiModuleHeaderOptions) {
     return `
     <header class="${escapeAttribute(joinUiClasses(className, "ui-module-header", cornerMarker ? "ui-demo-marker-host" : ""))}" data-ui-component="ModuleHeader" ${attributes}>
       ${cornerMarker}
@@ -320,7 +550,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiTableWrap({ className = "", body = "", attributes = "", scrollContract = "horizontal-only" }) {
+  function renderUiTableWrap({ className = "", body = "", attributes = "", scrollContract = "horizontal-only" }: UiTableWrapOptions) {
     const normalizedScrollContract = String(scrollContract || "horizontal-only").trim().replace(/[^a-z0-9-]+/gi, "-") || "horizontal-only";
     return `
     <div class="${escapeAttribute(joinUiClasses("ui-table-wrap", className))}" data-layout="table" data-scroll-contract="${escapeAttribute(normalizedScrollContract)}" data-ui-component="TableWrap" ${attributes}>
@@ -329,7 +559,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiTableControlAttributes({ variant = "standard", density = "default" } = {}) {
+  function renderUiTableControlAttributes({ variant = "standard", density = "default" }: UiTableControlOptions = {}) {
     const normalizedVariant = String(variant || "standard").trim().replace(/[^a-z0-9-]+/gi, "-") || "standard";
     const normalizedDensity = ["compact", "default", "touch"].includes(String(density || ""))
       ? String(density)
@@ -337,7 +567,7 @@ export function createUiRenderers({ icon }) {
     return `data-ui-component="TableControl" data-ui-variant="${escapeAttribute(normalizedVariant)}" data-ui-density="${escapeAttribute(normalizedDensity)}"`;
   }
 
-  function renderUiInfoGrid({ items = [], className = "", itemClassName = "", attributes = "" }) {
+  function renderUiInfoGrid({ items = [], className = "", itemClassName = "", attributes = "" }: UiInfoGridOptions) {
     if (!items.length) return "";
     return `
     <section class="${escapeAttribute(joinUiClasses("ui-info-grid", className))}" data-ui-component="InfoGrid" ${attributes}>
@@ -352,7 +582,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiMetricGrid({ items = [], className = "", itemClassName = "", attributes = "" }) {
+  function renderUiMetricGrid({ items = [], className = "", itemClassName = "", attributes = "" }: UiInfoGridOptions) {
     if (!items.length) return "";
     return `
     <div class="${escapeAttribute(joinUiClasses("ui-metric-grid", className))}" data-ui-component="MetricGrid" ${attributes}>
@@ -378,7 +608,7 @@ export function createUiRenderers({ icon }) {
     readOnly = false,
     className = "",
     attributes = "",
-  }) {
+  }: UiFormFieldOptions) {
     const normalizedState = ["default", "error", "warning", "success"].includes(String(state)) ? String(state) : "default";
     const stateClass = normalizedState === "default" ? "" : `is-${normalizedState}`;
     return `
@@ -391,7 +621,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiSystemState({ iconName = "info", title = "", text = "", action = "", tone = "neutral", className = "", attributes = "" }) {
+  function renderUiSystemState({ iconName = "info", title = "", text = "", action = "", tone = "neutral", className = "", attributes = "" }: UiSystemStateOptions) {
     const normalizedTone = normalizeUiTone(tone);
     return `
     <div class="${escapeAttribute(joinUiClasses("ui-system-state", `is-${normalizedTone}`, className))}" data-ui-component="SystemState" data-ui-state="${escapeAttribute(normalizedTone)}" ${attributes}>
@@ -405,7 +635,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiDropdownFrame({ trigger = "", body = "", className = "", attributes = "" }) {
+  function renderUiDropdownFrame({ trigger = "", body = "", className = "", attributes = "" }: UiDropdownFrameOptions) {
     return `
     <details class="${escapeAttribute(joinUiClasses("ui-dropdown", className))}" data-ui-component="Dropdown" ${attributes}>
       <summary class="ui-dropdown-trigger">${trigger}</summary>
@@ -414,7 +644,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiModalFrame({ title = "", meta = "", body = "", actions = "", headActions = "", size = "default", className = "", attributes = "" }) {
+  function renderUiModalFrame({ title = "", meta = "", body = "", actions = "", headActions = "", size = "default", className = "", attributes = "" }: UiModalFrameOptions) {
     const modalClassName = joinUiClasses(className.includes("is-sample") ? "" : "modal", "ui-modal", className);
     return `
     <section class="${escapeAttribute(modalClassName)}" data-ui-component="Modal" data-ui-size="${escapeAttribute(size || "default")}" role="dialog" aria-modal="true" ${attributes}>
@@ -425,7 +655,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiModalShell({ className = "", attributes = "", content = "", sample = false, size = "default" }) {
+  function renderUiModalShell({ className = "", attributes = "", content = "", sample = false, size = "default" }: UiModalShellOptions) {
     const modalClassName = joinUiClasses(sample ? "" : "modal", "ui-modal", className);
     return `
     <section class="${escapeAttribute(modalClassName)}" data-ui-component="Modal" data-ui-size="${escapeAttribute(size || "default")}" role="dialog" aria-modal="true" ${attributes}>
@@ -434,7 +664,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiDrawerFrame({ title = "", meta = "", body = "", actions = "", size = "default", className = "", attributes = "" }) {
+  function renderUiDrawerFrame({ title = "", meta = "", body = "", actions = "", size = "default", className = "", attributes = "" }: UiDrawerFrameOptions) {
     return `
     <aside class="${escapeAttribute(joinUiClasses("detail-drawer", "ui-drawer", className))}" data-ui-component="Drawer" data-ui-size="${escapeAttribute(size || "default")}" ${attributes}>
       ${renderUiPanelHead({ title, meta, className: "ui-drawer-head" })}
@@ -444,7 +674,7 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiDrawerShell({ className = "", attributes = "", content = "", size = "default" }) {
+  function renderUiDrawerShell({ className = "", attributes = "", content = "", size = "default" }: UiDrawerShellOptions) {
     return `
     <aside class="${escapeAttribute(joinUiClasses("detail-drawer", "ui-drawer", className))}" data-ui-component="Drawer" data-ui-size="${escapeAttribute(size || "default")}" ${attributes}>
       ${content}
@@ -452,8 +682,8 @@ export function createUiRenderers({ icon }) {
   `;
   }
 
-  function renderUiGanttBar({ label = "", meta = "", value = "", segments = [], className = "", attributes = "" }) {
-    const normalizedSegments = segments.length ? segments : [{ tone: "is-plan", width: "100%", label: value || label }];
+  function renderUiGanttBar({ label = "", meta = "", value = "", segments = [], className = "", attributes = "" }: UiGanttBarOptions) {
+    const normalizedSegments: readonly UiGanttSegment[] = segments.length ? segments : [{ tone: "is-plan", width: "100%", label: value || label }];
     return `
     <article class="${escapeAttribute(joinUiClasses("ui-gantt-bar", className))}" data-ui-component="GanttBar" ${attributes}>
       ${meta ? `<span class="ui-gantt-bar-meta">${escapeHtml(meta)}</span>` : ""}
@@ -507,3 +737,5 @@ export function createUiRenderers({ icon }) {
     renderUiGanttBar,
   };
 }
+
+export type UiRenderers = ReturnType<typeof createUiRenderers>;
