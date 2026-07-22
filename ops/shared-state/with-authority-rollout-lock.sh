@@ -31,6 +31,11 @@ fi
 
 lock_parent="/run/lock/mes"
 lock_file="${lock_parent}/mes-authority-rollout.lock"
+shared_app_intent="${lock_parent}/mes-shared-authority-app-verification.intent"
+pilot_root="/srv/mes/pilot"
+pilot_app="${pilot_root}/app"
+pilot_releases="${pilot_root}/releases"
+pilot_active_record="${pilot_releases}/active-release.json"
 if [[ ! -d "$lock_parent" ]]; then
   mkdir -m 0700 -- "$lock_parent"
 fi
@@ -124,12 +129,74 @@ owner_marker_matches_child() {
     && "$(sed -n 's/^START_TICKS=//p' "$marker")" =~ ^[1-9][0-9]*$ ]]
 }
 
+assert_root_regular() {
+  local path="$1" mode="$2"
+  [[ -f "$path" && ! -L "$path" \
+    && "$(readlink -f -- "$path")" == "$path" \
+    && "$(stat -Lc '%u:%g:%a:%h' -- "$path")" == "0:0:${mode}:1" ]]
+}
+
+read_stable_active_release() {
+  local expected_target release_id target_before target_after
+  [[ -L "$pilot_app" && "$(stat -c '%u:%g' -- "$pilot_app")" == 0:0 ]] || return 1
+  assert_root_regular "$pilot_active_record" 644 || return 1
+  target_before="$(readlink -f -- "$pilot_app" 2>/dev/null || true)"
+  release_id="$(/usr/bin/node --input-type=module - "$pilot_active_record" <<'NODE'
+import { readFile } from "node:fs/promises";
+const record = JSON.parse(await readFile(process.argv[2], "utf8"));
+const releaseId = String(record?.releaseId || "");
+if (!/^[A-Za-z0-9._-]{1,96}$/.test(releaseId)) process.exit(1);
+process.stdout.write(releaseId);
+NODE
+)" || return 1
+  expected_target="${pilot_releases}/${release_id}/app"
+  [[ "$target_before" == "$expected_target" \
+    && -d "$expected_target" && ! -L "$expected_target" \
+    && "$(readlink -f -- "$expected_target")" == "$expected_target" \
+    && "$(stat -Lc '%u:%g' -- "$expected_target")" == 0:0 ]] || return 1
+  target_after="$(readlink -f -- "$pilot_app" 2>/dev/null || true)"
+  [[ "$target_after" == "$target_before" ]] || return 1
+  printf '%s\n%s\n' "$release_id" "$expected_target"
+}
+
+publish_shared_app_verification_intent() {
+  local snapshot release_id expected_target start_ticks temporary
+  prove_fd_lock "$$" "$AUTHORITY_FD" "$lock_file" || return 1
+  if ! snapshot="$(read_stable_active_release)"; then
+    # Bootstrap and repair operations may legitimately run without a stable
+    # application pointer. They retain the lock, but receive no app-start
+    # exception and therefore remain fail-closed at the recovery dependency.
+    return 0
+  fi
+  release_id="${snapshot%%$'\n'*}"
+  expected_target="${snapshot#*$'\n'}"
+  start_ticks="$(awk '{print $22}' "/proc/$$/stat" 2>/dev/null || true)"
+  [[ "$start_ticks" =~ ^[1-9][0-9]*$ ]] || return 1
+  temporary="${shared_app_intent}.next.$$"
+  umask 077
+  {
+    printf 'PID=%s\n' "$$"
+    printf 'START_TICKS=%s\n' "$start_ticks"
+    printf 'INTENT=shared-authority-app-verification\n'
+    printf 'EXPECTED_TARGET=%s\n' "$expected_target"
+    printf 'ACTIVE_RELEASE_ID=%s\n' "$release_id"
+  } > "$temporary"
+  chown root:root "$temporary"
+  chmod 0600 "$temporary"
+  sync -f "$temporary"
+  mv -Tf -- "$temporary" "$shared_app_intent"
+  sync -f "$lock_parent"
+  assert_root_regular "$shared_app_intent" 600
+}
+
 if [[ ${!OWNER_REENTRY_ENV:-0} == 1 ]]; then
   owner_marker="${!OWNER_MARKER_ENV:-}"
   adopt_flock_path_fd "$AUTHORITY_FD" "$lock_file" \
     || { echo "Authority rollout lock fd hand-off could not be proved." >&2; exit 74; }
   write_owner_marker "$owner_marker" \
     || { echo "Authority rollout lock owner hand-off could not be proved." >&2; exit 74; }
+  publish_shared_app_verification_intent \
+    || { echo "Shared authority app-verification intent could not be published safely." >&2; exit 74; }
   unset "$OWNER_REENTRY_ENV" "$OWNER_MARKER_ENV"
   export MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD=1
   exec "$@"
@@ -143,6 +210,25 @@ chmod 0600 "$owner_marker"
 child_pid=""
 
 cleanup() {
+  if [[ -n "$child_pid" ]] && owner_marker_matches_child "$owner_marker" "$child_pid"; then
+    /usr/bin/flock --exclusive --wait 2 --conflict-exit-code 75 \
+      "$lock_file" /usr/bin/env -i \
+      PATH=/usr/sbin:/usr/bin:/sbin:/bin /bin/bash --noprofile --norc -ceu '
+      intent="$1"; expected_pid="$2"; lock_parent="$3"
+      if [[ -e "$intent" || -L "$intent" ]]; then
+        [[ -f "$intent" && ! -L "$intent" \
+          && "$(readlink -f -- "$intent")" == "$intent" \
+          && "$(stat -Lc "%u:%g:%a:%h" -- "$intent")" == "0:0:600:1" ]] \
+          || exit 74
+        actual_pid="$(sed -n "s/^PID=//p" "$intent" | head -n 1)"
+        if [[ "$actual_pid" == "$expected_pid" ]]; then
+          rm -f -- "$intent"
+          sync -f "$lock_parent"
+        fi
+      fi
+    ' mes-shared-app-intent-cleanup "$shared_app_intent" "$child_pid" "$lock_parent" \
+      || echo "Shared authority app-verification intent cleanup did not complete safely." >&2
+  fi
   rm -f -- "$owner_marker"
 }
 trap cleanup EXIT

@@ -7,7 +7,11 @@ import { join, resolve } from "node:path";
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const sourcePath = join(projectRoot, "ops", "frontend", "with-pilot-release-authority-lock.sh");
-const source = await readFile(sourcePath, "utf8");
+const sharedSourcePath = join(projectRoot, "ops", "shared-state", "with-authority-rollout-lock.sh");
+const [source, sharedSource] = await Promise.all([
+  readFile(sourcePath, "utf8"),
+  readFile(sharedSourcePath, "utf8"),
+]);
 
 assert.match(source, /IDENTITY_LOCK="\$\{LOCK_PARENT\}\/pilot-runtime-uid-isolation\.lock"/);
 assert.match(source, /pid="\$\(intent_value "\$RUNTIME_INTENT" PID\)"/);
@@ -23,7 +27,11 @@ for (const transitionPath of [
   "/run/lock/mes/pilot-runtime-writers-quiesced",
 ]) assert(source.includes(transitionPath), `release preflight must fail closed on ${transitionPath}`);
 assert.match(source, /case "\$operation" in[\s\S]*bootstrap\|reinode\|reinode-recovery\|release-recovery-app\|release-recovery-writer[\s\S]*assert_no_pilot_runtime_transition_state/);
-assert.match(source, /prove_release_app_verification_intent \|\| prove_runtime_intent_without_release_journal/);
+assert.match(source, /prove_release_app_verification_intent[\s\\]*\|\| prove_runtime_intent_without_release_journal[\s\\]*\|\| prove_shared_authority_app_verification_intent/);
+assert.match(source, /prove_shared_authority_app_verification_intent\(\)[\s\S]*release-recovery-app[\s\S]*runtime-security-recovery[\s\S]*release_journal_pending[\s\S]*prove_fd_lock "\$pid" "\$AUTHORITY_FD" "\$LOCK_FILE"[\s\S]*prove_stable_active_pointer[\s\S]*assert_no_pilot_runtime_transition_state[\s\S]*release_journal_pending/);
+assert.match(sharedSource, /publish_shared_app_verification_intent\(\)[\s\S]*prove_fd_lock "\$\$" "\$AUTHORITY_FD" "\$lock_file"/);
+assert.match(sharedSource, /INTENT=shared-authority-app-verification[\s\S]*EXPECTED_TARGET[\s\S]*ACTIVE_RELEASE_ID/);
+assert.match(sharedSource, /flock --exclusive --wait 2 --conflict-exit-code 75[\s\S]*mes-shared-app-intent-cleanup/);
 assert.match(source, /JOURNAL_PHASE[\s\S]*pointer-switched/);
 assert.doesNotMatch(source, /\n\s*none\)\n/);
 assert.doesNotMatch(source.slice(source.indexOf('if ! flock -n "$AUTHORITY_FD"')), /prove_release_intent/);
@@ -42,6 +50,7 @@ const identityLock = join(lockParent, "pilot-runtime-uid-isolation.lock");
 const runtimeIntent = join(lockParent, "pilot-app-verification.intent");
 const releaseIntent = join(lockParent, "mes-release-operation.intent");
 const releaseAppIntent = join(lockParent, "mes-release-app-verification.intent");
+const sharedAppIntent = join(lockParent, "mes-shared-authority-app-verification.intent");
 const switchJournal = join(root, "release-switch-pilot.json");
 const pilotRoot = join(root, "pilot");
 const reinodeRoot = join(pilotRoot, "reinode-transactions");
@@ -52,7 +61,7 @@ const python = process.env.PYTHON || "python3";
 
 const holderSource = String.raw`
 import fcntl, os, sys, time
-mode, authority, identity, runtime_intent, release_intent = sys.argv[1:]
+mode, authority, identity, runtime_intent, release_intent, shared_intent, expected_target, release_id = sys.argv[1:]
 def fixed_fd(path, fd):
     opened = os.open(path, os.O_RDWR)
     if opened != fd:
@@ -67,6 +76,11 @@ if mode == "runtime":
     with open(runtime_intent, "x", encoding="utf8") as handle:
         handle.write(f"PID={pid}\nSTART_TICKS={start}\nINTENT=app-verification\n")
     os.chmod(runtime_intent, 0o600)
+elif mode == "shared":
+    start = open(f"/proc/{pid}/stat", encoding="utf8").read().split()[21]
+    with open(shared_intent, "x", encoding="utf8") as handle:
+        handle.write(f"PID={pid}\nSTART_TICKS={start}\nINTENT=shared-authority-app-verification\nEXPECTED_TARGET={expected_target}\nACTIVE_RELEASE_ID={release_id}\n")
+    os.chmod(shared_intent, 0o600)
 else:
     metadata = os.stat(authority)
     with open(release_intent, "x", encoding="utf8") as handle:
@@ -76,10 +90,10 @@ print("LOCKED", flush=True)
 time.sleep(60)
 `;
 
-function gate(policy) {
+function gate(policy, operation = "release-recovery-app") {
   return spawnSync("/bin/bash", [
     harnessPath,
-    "--operation=release-recovery-app",
+    `--operation=${operation}`,
     `--busy-policy=${policy}`,
     "--",
     "/usr/bin/true",
@@ -89,6 +103,7 @@ function gate(policy) {
 async function startHolder(mode) {
   const child = spawn(python, [
     "-c", holderSource, mode, authorityLock, identityLock, runtimeIntent, releaseIntent,
+    sharedAppIntent, expectedTarget, releaseId,
   ], { stdio: ["ignore", "pipe", "pipe"] });
   await new Promise((resolvePromise, reject) => {
     let stdout = "";
@@ -135,7 +150,9 @@ try {
     .replace("[[ ${EUID} -eq 0 ]]", "true")
     .replace('== "0:0:${mode}"', `== "${uid}:${gid}:\${mode}"`)
     .replace('== "0:0:700"', `== "${uid}:${gid}:700"`)
+    .replaceAll("== 0:0", `== ${uid}:${gid}`)
     .replace("assert_installed_bundle() {", "assert_installed_bundle() { return 0;")
+    .replace("assert_no_pilot_runtime_transition_state() {", "assert_no_pilot_runtime_transition_state() { return 0;")
     .replaceAll("/var/lib/mes/release-switch/pilot.json", switchJournal)
     .replaceAll("/srv/mes/pilot", pilotRoot);
   await writeFile(harnessPath, harness, { mode: 0o700 });
@@ -156,6 +173,26 @@ try {
   assert.equal(gate("app-intent").status, 75, "a forged or stale runtime PID/start identity must fail closed");
   await stopHolder(holder);
   await rm(runtimeIntent, { force: true });
+
+  holder = await startHolder("shared");
+  assert.equal(gate("app-intent").status, 0, "the app gate must admit the exact live shared fd9 owner on a stable active pointer");
+  assert.equal(gate("app-intent", "runtime-security-recovery").status, 0, "the shared app intent may satisfy credential/UID recovery only after its empty-journal preflight");
+  assert.equal(gate("fail").status, 75, "the same shared owner must never admit a direct writer");
+  await writeFile(switchJournal, "{}\n", { mode: 0o600 });
+  assert.equal(gate("app-intent").status, 75, "a pending release-switch journal must revoke the shared-owner app exception");
+  await rm(switchJournal);
+  await writeFile(join(reinodeRoot, "pending.json"), `${JSON.stringify({ phase: "prepared" })}\n`, { mode: 0o600 });
+  assert.equal(gate("app-intent").status, 75, "a pending re-inode journal must revoke the shared-owner app exception");
+  await rm(join(reinodeRoot, "pending.json"));
+  const activeRecordPath = join(pilotRoot, "releases", "active-release.json");
+  await writeFile(activeRecordPath, `${JSON.stringify({ schemaVersion: 2, releaseId: "v.1.500.other" })}\n`, { mode: 0o644 });
+  assert.equal(gate("app-intent").status, 75, "an active record that disagrees with the pointer must fail closed");
+  await writeFile(activeRecordPath, `${JSON.stringify({ schemaVersion: 2, releaseId })}\n`, { mode: 0o644 });
+  const liveSharedIntent = await readFile(sharedAppIntent, "utf8");
+  await writeFile(sharedAppIntent, liveSharedIntent.replace(/^START_TICKS=.*$/m, "START_TICKS=1"), { mode: 0o600 });
+  assert.equal(gate("app-intent").status, 75, "a forged shared-owner process identity must fail closed");
+  await stopHolder(holder);
+  await rm(sharedAppIntent, { force: true });
 
   holder = await startHolder("release");
   const holderStart = (await readFile(`/proc/${holder.pid}/stat`, "utf8")).trim().split(/\s+/)[21];
@@ -212,5 +249,6 @@ try {
 
 console.log("Release recovery lock gate QA: OK");
 console.log("- exact runtime fd8+fd9 owner admits app only when no release journal is pending");
+console.log("- exact shared fd9 owner admits app only for the stable recorded pointer with no switch/re-inode journal");
 console.log("- stale runtime intent and both writer paths fail closed");
 console.log("- operation-wide and pre-verification release phases deny app; exact phase intent admits app only");

@@ -12,7 +12,12 @@ LOCK_FILE="${LOCK_PARENT}/mes-authority-rollout.lock"
 RELEASE_INTENT="${LOCK_PARENT}/mes-release-operation.intent"
 RELEASE_APP_INTENT="${LOCK_PARENT}/mes-release-app-verification.intent"
 RUNTIME_INTENT="${LOCK_PARENT}/pilot-app-verification.intent"
+SHARED_APP_INTENT="${LOCK_PARENT}/mes-shared-authority-app-verification.intent"
 IDENTITY_LOCK="${LOCK_PARENT}/pilot-runtime-uid-isolation.lock"
+PILOT_ROOT="/srv/mes/pilot"
+PILOT_APP="${PILOT_ROOT}/app"
+PILOT_RELEASES="${PILOT_ROOT}/releases"
+PILOT_ACTIVE_RECORD="${PILOT_RELEASES}/active-release.json"
 INSTALLED_ROOT="/usr/local/libexec/mes/active-bundle"
 AUTHORITY_FD=9
 IDENTITY_FD=8
@@ -305,6 +310,61 @@ prove_runtime_intent_without_release_journal() {
   prove_fd_lock "$pid" "$AUTHORITY_FD" "$LOCK_FILE"
 }
 
+prove_stable_active_pointer() {
+  local expected_target="$1" release_id="$2" recorded_release_id target_before target_after
+  [[ "$release_id" =~ ^[A-Za-z0-9._-]{1,96}$ \
+    && "$expected_target" == "${PILOT_RELEASES}/${release_id}/app" \
+    && -L "$PILOT_APP" && "$(stat -c '%u:%g' -- "$PILOT_APP")" == 0:0 ]] || return 1
+  assert_root_regular "$PILOT_ACTIVE_RECORD" 644 || return 1
+  target_before="$(readlink -f -- "$PILOT_APP" 2>/dev/null || true)"
+  [[ "$target_before" == "$expected_target" \
+    && -d "$expected_target" && ! -L "$expected_target" \
+    && "$(readlink -f -- "$expected_target")" == "$expected_target" \
+    && "$(stat -Lc '%u:%g' -- "$expected_target")" == 0:0 ]] || return 1
+  recorded_release_id="$(/usr/bin/node --input-type=module - "$PILOT_ACTIVE_RECORD" <<'NODE'
+import { readFile } from "node:fs/promises";
+const record = JSON.parse(await readFile(process.argv[2], "utf8"));
+const releaseId = String(record?.releaseId || "");
+if (!/^[A-Za-z0-9._-]{1,96}$/.test(releaseId)) process.exit(1);
+process.stdout.write(releaseId);
+NODE
+)" || return 1
+  [[ "$recorded_release_id" == "$release_id" ]] || return 1
+  target_after="$(readlink -f -- "$PILOT_APP" 2>/dev/null || true)"
+  [[ "$target_after" == "$target_before" ]]
+}
+
+prove_shared_authority_app_verification_intent() {
+  local journal_status pid start_ticks intent expected_target release_id current_start
+  [[ "$operation" == release-recovery-app || "$operation" == runtime-security-recovery ]] || return 1
+  set +e
+  release_journal_pending
+  journal_status=$?
+  set -e
+  [[ "$journal_status" -eq 1 ]] || return 1
+  assert_root_regular "$SHARED_APP_INTENT" 600 || return 1
+  [[ "$(wc -l < "$SHARED_APP_INTENT")" -eq 5 ]] || return 1
+  pid="$(intent_value "$SHARED_APP_INTENT" PID)"
+  start_ticks="$(intent_value "$SHARED_APP_INTENT" START_TICKS)"
+  intent="$(intent_value "$SHARED_APP_INTENT" INTENT)"
+  expected_target="$(intent_value "$SHARED_APP_INTENT" EXPECTED_TARGET)"
+  release_id="$(intent_value "$SHARED_APP_INTENT" ACTIVE_RELEASE_ID)"
+  [[ "$intent" == shared-authority-app-verification \
+    && "$pid" =~ ^[1-9][0-9]*$ && "$start_ticks" =~ ^[1-9][0-9]*$ ]] || return 1
+  current_start="$(awk '{print $22}' "/proc/${pid}/stat" 2>/dev/null || true)"
+  [[ "$current_start" == "$start_ticks" ]] || return 1
+  prove_fd_lock "$pid" "$AUTHORITY_FD" "$LOCK_FILE" || return 1
+  prove_stable_active_pointer "$expected_target" "$release_id" || return 1
+  # The credential/UID dependency may use this proof only when it has no
+  # recovery work. Otherwise it must retain the normal exclusive lock path.
+  assert_no_pilot_runtime_transition_state || return 1
+  set +e
+  release_journal_pending
+  journal_status=$?
+  set -e
+  [[ "$journal_status" -eq 1 ]]
+}
+
 write_intent() {
   local temporary="${RELEASE_INTENT}.next.$$"
   local lock_identity
@@ -426,7 +486,9 @@ if owner_marker_matches_child "$owner_marker" "$child_pid"; then
 fi
 if [[ "$child_status" -eq "$FLOCK_CONFLICT_STATUS" ]]; then
   if [[ "$busy_policy" == "app-intent" ]] \
-    && { prove_release_app_verification_intent || prove_runtime_intent_without_release_journal; }; then
+    && { prove_release_app_verification_intent \
+      || prove_runtime_intent_without_release_journal \
+      || prove_shared_authority_app_verification_intent; }; then
     printf '%s\n' "Release recovery gate: live canonical root operation owns authority; app verification may continue." >&2
     exit 0
   fi
