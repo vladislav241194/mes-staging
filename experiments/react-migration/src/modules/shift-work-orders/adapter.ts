@@ -1,3 +1,9 @@
+import {
+  buildShiftWorkOrdersProductionModel,
+  isShiftWorkOrdersProductionInput,
+  type ShiftWorkOrdersProductionCoverage,
+} from "./production-model";
+
 type UnknownRecord = Record<string, unknown>;
 const record = (value: unknown): UnknownRecord => value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
@@ -17,6 +23,7 @@ export interface ShiftWorkOrderRow {
   factQuantity: number; defectQuantity: number; remainingQuantity: number; unit: string; status: ShiftWorkOrderStatus; stageLabel: string;
   issuedAt: string; dateLabel: string; shiftDateKey: string; issueReportCount: number; issuePhotoCount: number;
   issueReports: ShiftWorkOrderIssueReport[];
+  assignmentId?: string; slotId?: string; routeStepId?: string; stepId?: string; updatedAt?: string;
   factEditable?: boolean; hasFact?: boolean; actualQuantity?: number; laborMinutes?: number; executorCount?: number; factComment?: string; deviationComment?: string;
   transfer: { fromOperationName: string; fromWorkCenterLabel: string; toOperationName: string; toWorkCenterLabel: string; targetLabel: string; remainingQuantity: number };
 }
@@ -42,20 +49,25 @@ function adaptRow(value: unknown, factContexts = new Map<string, UnknownRecord>(
   const id = text(source.id || source.sourceRowId); const sourceRowId = text(source.sourceRowId || source.id); const documentNumber = text(source.documentNumber);
   if (!id || !documentNumber) return null;
   const factContext = factContexts.get(id) || {};
-  const issueReports = list(source.issueReports).map((value): ShiftWorkOrderIssueReport | null => { const report = record(value); const photo = record(report.photo); const reportId = text(report.id); return reportId ? { id: reportId, employeeName: personName(report.employeeName), text: text(report.text, "Описание не заполнено."), createdAt: text(report.createdAt, "без даты"), operationName: text(report.operationName), workCenterLabel: text(report.workCenterLabel), photoId: text(photo.id || reportId), photoName: text(photo.name, "Фото проблемы"), photoUrl: text(photo.dataUrl).startsWith("data:image/") ? text(photo.dataUrl) : "", storageNote: text(photo.storageNote) } : null; }).filter(Boolean) as ShiftWorkOrderIssueReport[];
+  const issueReports = list(source.issueReports).map((value): ShiftWorkOrderIssueReport | null => { const report = record(value); const photo = record(report.photo); const reportId = text(report.id); const photoUrl = text(report.photoUrl || photo.dataUrl); return reportId ? { id: reportId, employeeName: personName(report.employeeName), text: text(report.text, "Описание не заполнено."), createdAt: text(report.createdAt, "без даты"), operationName: text(report.operationName), workCenterLabel: text(report.workCenterLabel), photoId: text(report.photoId || photo.id || reportId), photoName: text(report.photoName || photo.name, "Фото проблемы"), photoUrl: photoUrl.startsWith("data:image/") ? photoUrl : "", storageNote: text(report.storageNote || photo.storageNote) } : null; }).filter(Boolean) as ShiftWorkOrderIssueReport[];
   return {
-    id, sourceRowId, routeId: text(source.routeId || source.planningOrderId), documentNumber, orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel),
+    id, assignmentId: text(source.assignmentId), sourceRowId, slotId: text(source.slotId || source.sourceSlotId), routeId: text(source.routeId || source.planningOrderId), routeStepId: text(source.routeStepId || source.stepId), stepId: text(source.stepId || source.routeStepId), documentNumber, orderLabel: text(source.orderLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel),
     operationName: text(source.operationName, "Операция"), workCenterLabel: text(source.workCenterLabel, "Участок не задан"),
     resourceLabel: text(source.resourceLabel), masterName: personName(source.masterName, "Мастер не назначен"),
     executors: list(source.executors).map(adaptExecutor).filter(Boolean) as ShiftWorkOrderExecutor[],
     plannedQuantity: number(source.plannedQuantity), assignedQuantity: number(source.assignedQuantity), factQuantity: number(source.factQuantity),
     defectQuantity: number(source.defectQuantity), remainingQuantity: number(source.remainingQuantity), unit: text(source.unit, "шт."),
     status: { id: text(status.id, "planned"), label: text(status.label, "запланировано"), tone: tone(status.tone) },
-    stageLabel: text(source.stageLabel, "сменное задание"), issuedAt: text(source.issuedAt), dateLabel: text(source.dateLabel, "дата не задана"), shiftDateKey: text(source.shiftDateKey),
+    stageLabel: text(source.stageLabel, "сменное задание"), issuedAt: text(source.issuedAt), updatedAt: text(source.updatedAt), dateLabel: text(source.dateLabel, "дата не задана"), shiftDateKey: text(source.shiftDateKey),
     issueReportCount: number(issueSummary.reportCount || source.issueReportCount), issuePhotoCount: number(issueSummary.photoCount || source.issuePhotoCount),
     issueReports,
-    factEditable: factContext.canEdit === true, hasFact: factContext.hasFact === true, actualQuantity: number(factContext.actualQuantity),
-    laborMinutes: number(factContext.laborMinutes), executorCount: number(factContext.executorCount), factComment: text(factContext.comment), deviationComment: text(factContext.deviationComment),
+    factEditable: factContext.canEdit === true || source.factEditable === true,
+    hasFact: factContext.hasFact === true || source.hasFact === true,
+    actualQuantity: number(factContext.actualQuantity ?? source.actualQuantity),
+    laborMinutes: number(factContext.laborMinutes ?? source.laborMinutes),
+    executorCount: number(factContext.executorCount ?? source.executorCount),
+    factComment: text(factContext.comment ?? source.factComment),
+    deviationComment: text(factContext.deviationComment ?? source.deviationComment),
     transfer: {
       fromOperationName: text(transfer.fromOperationName || source.operationName, "Операция"),
       fromWorkCenterLabel: text(transfer.fromWorkCenterLabel || source.workCenterLabel, "Участок не задан"),
@@ -89,17 +101,33 @@ function adaptDocument(value: unknown, factContexts = new Map<string, UnknownRec
 }
 
 export function adaptShiftWorkOrders(payload: unknown) {
-  const root = record(payload); const source = record(root.model || payload); const capabilities = record(root.capabilities);
+  const root = record(payload);
+  const productionModel = record(root.productionModel);
+  const productionInput = Object.keys(productionModel).length ? productionModel : root;
+  const hasProductionInput = isShiftWorkOrdersProductionInput(productionInput);
+  const source = record(root.model || (hasProductionInput
+    ? buildShiftWorkOrdersProductionModel(productionInput, root.capabilities || productionModel.capabilities)
+    : payload));
+  const capabilities = record(root.capabilities || productionModel.capabilities);
   const factContexts = new Map(list(root.factContexts).map((value) => { const context = record(value); return [text(context.rowId), context] as const; }).filter(([rowId]) => rowId));
   const rows = list(source.rows).map((row) => adaptRow(row, factContexts)).filter(Boolean) as ShiftWorkOrderRow[];
   const documents = list(source.documentTree).map((document) => adaptDocument(document, factContexts)).filter(Boolean) as ShiftWorkOrderDocumentGroup[];
   const selectedId = text(record(source.selectedRow).id);
   const selectedRow = rows.find((row) => row.id === selectedId) || rows[0] || null;
   const sourceWindow = record(source.sourceWindow);
+  const coverage = record(source.readModelCoverage);
+  const readModelCoverage: ShiftWorkOrdersProductionCoverage | null = text(coverage.contract) === "postgres-shift-work-orders-read-v1"
+    ? {
+        contract: "postgres-shift-work-orders-read-v1",
+        supported: list(coverage.supported).map((value) => text(value)).filter(Boolean),
+        deferred: list(coverage.deferred).map((value) => text(value)).filter(Boolean),
+      }
+    : null;
   return {
     rows, documents, selectedRow,
     sourceWindowLabel: text(sourceWindow.label, "текущая смена"),
     operationCount: documents.reduce((sum, document) => sum + document.operations.length, 0),
     canActivate: Boolean(rows.length && documents.length && selectedRow), canSaveFact: capabilities.factSave === true, canSaveAssignment: capabilities.assignmentSave === true,
+    readModelCoverage,
   };
 }
