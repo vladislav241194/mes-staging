@@ -51,21 +51,26 @@ assert(
 );
 assert(
   appInteractionsSource.includes('import("./directory_legacy.js")')
+    && appInteractionsSource.includes("directoryLegacyInteractionsApi.bindDenseInlineSelectViewportEvents?.();")
     && appEventsSource.includes("Promise.resolve().then(() => ensureDirectoryLegacyInteractions())"),
   "Legacy Directory modal/bind handlers must load through the existing routes single-flight boundary",
 );
 assert(
   !appInteractionsSource.includes("directory-editor-form-grid")
-    && !appInteractionsSource.includes("[data-add-directory]"),
-  "Legacy Directory markup and DOM bindings must not remain in the static interaction shell",
+    && !appInteractionsSource.includes("[data-add-directory]")
+    && !appInteractionsSource.includes('document.querySelectorAll(".dense-inline-select[open]")')
+    && !appInteractionsSource.includes('options.style.setProperty("--dense-popover-left"'),
+  "Legacy Directory markup, DOM bindings, and dense select positioning must not remain in the static interaction shell",
 );
 assert(
   directoryLegacySource.includes("createDirectoryLegacyInteractions")
     && directoryLegacySource.includes("directory-editor-form-grid")
     && directoryLegacySource.includes("[data-add-directory]")
     && directoryLegacySource.includes("function bindDirectoryForm()")
-    && directoryLegacySource.includes("function deleteDirectoryRow(sectionId, rowIndex)"),
-  "The lazy Directory interaction chunk must retain rollback modal and binding behavior",
+    && directoryLegacySource.includes("function deleteDirectoryRow(sectionId, rowIndex)")
+    && directoryLegacySource.includes("function bindDenseInlineSelectViewportEvents()")
+    && directoryLegacySource.includes('options.style.setProperty("--dense-popover-left"'),
+  "The lazy Directory interaction chunk must retain rollback modal, binding, and dense select behavior",
 );
 assert(
   !appEventsSource.includes('const form = app.querySelector("#directoryForm")')

@@ -1324,35 +1324,59 @@ function bindPlanningEvents(root = app) {
 	  });
 	}
 
+let shiftCalendarLegacyApi = null;
+let shiftCalendarLegacyLoad = null;
+let shiftCalendarLegacyPendingRoot = null;
+
+function getShiftCalendarLegacyDependencies() {
+  return {
+    app,
+    escapeCssIdentifier: (value) => globalThis.CSS?.escape?.(value) || "",
+    moveShiftWorkbenchDate,
+    setShiftWorkbenchDate,
+    setShiftWorkbenchToday,
+  };
+}
+
+function ensureShiftCalendarLegacyApi() {
+  if (shiftCalendarLegacyApi) return Promise.resolve(shiftCalendarLegacyApi);
+  if (!shiftCalendarLegacyLoad) {
+    shiftCalendarLegacyLoad = import("./shift_calendar_legacy.js")
+      .then(({ createShiftCalendarLegacyApi }) => {
+        if (typeof createShiftCalendarLegacyApi !== "function") {
+          throw new Error("Shift calendar legacy runtime did not export its factory");
+        }
+        shiftCalendarLegacyApi = createShiftCalendarLegacyApi(getShiftCalendarLegacyDependencies());
+        return shiftCalendarLegacyApi;
+      })
+      .catch((error) => {
+        shiftCalendarLegacyLoad = null;
+        throw error;
+      });
+  }
+  return shiftCalendarLegacyLoad;
+}
+
+function bindShiftCalendarLegacyApi(api, renderRoot) {
+  if (!renderRoot || app.firstElementChild !== renderRoot) return false;
+  const bind = api?.bindShiftCalendarEvents;
+  if (typeof bind !== "function") return false;
+  return bind() === true;
+}
+
 function bindShiftCalendarEvents() {
-  const dateField = app.querySelector("[data-shift-calendar-date]");
-  dateField?.addEventListener("change", (event) => {
-    setShiftWorkbenchDate(event.target.value);
-  });
-
-  app.querySelectorAll("[data-shift-calendar-step]").forEach((button) => {
-    button.addEventListener("click", () => {
-      moveShiftWorkbenchDate(button.dataset.shiftCalendarStep || 0);
+  const renderRoot = app.firstElementChild;
+  if (!renderRoot) return false;
+  if (shiftCalendarLegacyApi) return bindShiftCalendarLegacyApi(shiftCalendarLegacyApi, renderRoot);
+  if (shiftCalendarLegacyPendingRoot === renderRoot) return false;
+  shiftCalendarLegacyPendingRoot = renderRoot;
+  void ensureShiftCalendarLegacyApi()
+    .then((api) => bindShiftCalendarLegacyApi(api, renderRoot))
+    .catch((error) => console.error("[MES shift calendar] legacy runtime failed to load", error))
+    .finally(() => {
+      if (shiftCalendarLegacyPendingRoot === renderRoot) shiftCalendarLegacyPendingRoot = null;
     });
-  });
-
-  app.querySelector("[data-shift-calendar-today]")?.addEventListener("click", () => {
-    setShiftWorkbenchToday();
-  });
-
-  app.querySelectorAll("[data-shift-calendar-open]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const inputId = button.dataset.shiftCalendarOpen || "";
-      const field = inputId
-        ? app.querySelector(`#${CSS.escape(inputId)}`)
-        : dateField;
-      if (!field) return;
-      field.focus({ preventScroll: true });
-      if (typeof field.showPicker === "function") {
-        field.showPicker();
-      }
-    });
-  });
+  return false;
 }
 
 function applyOperationMapChangesToRoutes(operation) {

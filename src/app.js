@@ -103,7 +103,6 @@ import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSe
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createShiftMasterBoardCommandOwner } from "./modules/shift_master_board/command_owner.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
-import { createEmployeeDesktopCommandOwner } from "./modules/employee_desktop/command_owner.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
@@ -209,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.45";
+const APP_VERSION_FALLBACK = "v.1.500.46";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -5881,12 +5880,31 @@ function getEmployeeDesktopProductionPayload() {
     },
   };
 }
-const employeeDesktopCommandOwner = createEmployeeDesktopCommandOwner({
-  getFactDrafts: () => normalizePlainRecord(ui.authSessionFactDrafts),
-  setFactDrafts: (next) => { ui.authSessionFactDrafts = normalizePlainRecord(next); },
-  persist: persistUiState,
-  makeId,
-});
+let employeeDesktopCommandOwner = null;
+let employeeDesktopCommandOwnerLoad = null;
+function ensureEmployeeDesktopCommandOwner() {
+  if (employeeDesktopCommandOwner) return Promise.resolve(employeeDesktopCommandOwner);
+  if (employeeDesktopCommandOwnerLoad) return employeeDesktopCommandOwnerLoad;
+  employeeDesktopCommandOwnerLoad = import("./modules/employee_desktop/command_owner.js")
+    .then(({ createEmployeeDesktopCommandOwner }) => {
+      if (typeof createEmployeeDesktopCommandOwner !== "function") {
+        throw new Error("Employee Desktop command owner factory is unavailable");
+      }
+      employeeDesktopCommandOwner = createEmployeeDesktopCommandOwner({
+        getFactDrafts: () => normalizePlainRecord(ui.authSessionFactDrafts),
+        setFactDrafts: (next) => { ui.authSessionFactDrafts = normalizePlainRecord(next); },
+        persist: persistUiState,
+        makeId,
+      });
+      return employeeDesktopCommandOwner;
+    })
+    .catch((error) => {
+      employeeDesktopCommandOwnerLoad = null;
+      console.error("Не удалось загрузить владельца команд рабочего стола", error);
+      return null;
+    });
+  return employeeDesktopCommandOwnerLoad;
+}
 function getEmployeeDesktopReactActivation() {
   const localQa = getEmployeeDesktopReactLocalQaOverrides();
   const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION === true;
@@ -5975,11 +5993,14 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     const task = (model.tasks || []).find((item) => item.id === taskId) || null;
     if (!task) return { ok: false, message: "Задание больше не доступно на рабочем столе." };
     if (model.authPerson?.id && task.employeeId !== model.authPerson.id) return { ok: false, message: "Нет права изменять задание другого сотрудника." };
+    const requiresCommandOwner = ["start-task", "save-fact", "prepare-report-photo"].includes(command.type);
+    const commandOwner = requiresCommandOwner ? await ensureEmployeeDesktopCommandOwner() : null;
+    if (requiresCommandOwner && !commandOwner) return { ok: false, message: "Команда рабочего стола временно недоступна. Обновите страницу и повторите действие." };
     if (command.type === "start-task") {
       if (task.isDone) return { ok: false, message: "Завершённое задание нельзя взять в работу." };
       if (task.isStarted) return { ok: false, message: "Задание уже находится в работе." };
       ui.authSessionSelectedTaskId = task.id;
-      const started = employeeDesktopCommandOwner.startTask(task);
+      const started = commandOwner.startTask(task);
       if (started.ok !== true) return { ok: false, message: "Задание не запущено: его состояние уже изменилось." };
       notifySaveSuccess("Задание взято в работу.");
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
@@ -6003,7 +6024,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       const candidate = { actualQuantity, defectQuantity, deviationComment };
       if (task.assignedQuantity > 0 && actualQuantity - defectQuantity < task.assignedQuantity * 0.95 && !deviationComment) return { ok: false, message: "Укажите причину отклонения: годное количество ниже плана больше чем на 5%." };
       ui.authSessionSelectedTaskId = task.id;
-      const saved = await employeeDesktopCommandOwner.saveFact({
+      const saved = await commandOwner.saveFact({
         task,
         siblingTasks: model.allTasks,
         fact: candidate,
@@ -6019,7 +6040,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       if (!(file instanceof File)) return { ok: false, message: "Выбранный файл недоступен." };
       if (!String(file.type || "").startsWith("image/")) return { ok: false, message: "Для Report можно прикрепить только изображение." };
       if (file.size > 20 * 1024 * 1024) return { ok: false, message: "Исходное изображение не должно превышать 20 МБ." };
-      const photo = await employeeDesktopCommandOwner.prepareReportPhoto(file, command.source === "camera" ? "camera" : "file");
+      const photo = await commandOwner.prepareReportPhoto(file, command.source === "camera" ? "camera" : "file");
       if (!photo) return { ok: false, message: "Не удалось подготовить изображение." };
       return { ok: true, photo };
     }

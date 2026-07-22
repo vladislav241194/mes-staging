@@ -115,6 +115,7 @@ function getDirectoryLegacyInteractionDependencies() {
     clearDirectorySectionFilters,
     deleteDirectoryStateRow: dependencies.deleteDirectoryStateRow,
     deleteOperationMapItem,
+    denseInlineViewportListenersBound,
     escapeAttribute,
     escapeHtml,
     formatDirectoryCell,
@@ -159,6 +160,7 @@ function ensureDirectoryLegacyInteractions() {
           throw new Error("Directory legacy interactions did not export their factory");
         }
         directoryLegacyInteractionsApi = createDirectoryLegacyInteractions(getDirectoryLegacyInteractionDependencies());
+        directoryLegacyInteractionsApi.bindDenseInlineSelectViewportEvents?.();
         return directoryLegacyInteractionsApi;
       })
       .catch((error) => {
@@ -497,91 +499,24 @@ function getDirectoryHealth(sectionId) {
   };
 }
 
-function clearDenseInlineSelectPopover(select) {
-  const options = select?.querySelector?.(".dense-inline-options");
-  if (!options) return;
-  options.classList.remove("is-viewport-popover");
-  [
-    "--dense-popover-left",
-    "--dense-popover-top",
-    "--dense-popover-width",
-    "--dense-popover-max-height",
-  ].forEach((name) => options.style.removeProperty(name));
+function clearDenseInlineSelectPopover(...args) {
+  return directoryLegacyInteractionsApi?.clearDenseInlineSelectPopover?.(...args);
 }
 
-function closeDenseInlineSelects(except = null) {
-  document.querySelectorAll(".dense-inline-select[open]").forEach((select) => {
-    if (select === except) return;
-    select.open = false;
-    clearDenseInlineSelectPopover(select);
-  });
+function closeDenseInlineSelects(...args) {
+  return directoryLegacyInteractionsApi?.closeDenseInlineSelects?.(...args);
 }
 
-function positionDenseInlineSelectPopover(select) {
-  if (!select?.open) {
-    clearDenseInlineSelectPopover(select);
-    return;
-  }
-
-  const summary = select.querySelector("summary");
-  const options = select.querySelector(".dense-inline-options");
-  if (!summary || !options) return;
-
-  options.classList.add("is-viewport-popover");
-
-  const gap = 6;
-  const edge = 8;
-  const summaryRect = summary.getBoundingClientRect();
-  const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-  const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-  const availableWidth = Math.max(160, viewportWidth - edge * 2);
-  const naturalWidth = Math.max(summaryRect.width, options.scrollWidth || 0, 220);
-  const width = Math.min(availableWidth, naturalWidth);
-  const left = Math.min(Math.max(edge, summaryRect.left), Math.max(edge, viewportWidth - width - edge));
-  const spaceBelow = Math.max(0, viewportHeight - summaryRect.bottom - gap - edge);
-  const spaceAbove = Math.max(0, summaryRect.top - gap - edge);
-  const openBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
-  const availableHeight = Math.max(96, openBelow ? spaceBelow : spaceAbove);
-  const maxHeight = Math.min(Math.max(96, availableHeight), Math.max(96, viewportHeight - edge * 2));
-  const optionsHeight = Math.min(options.scrollHeight || maxHeight, maxHeight);
-  const top = openBelow
-    ? Math.min(summaryRect.bottom + gap, viewportHeight - edge - optionsHeight)
-    : Math.max(edge, summaryRect.top - gap - optionsHeight);
-
-  options.style.setProperty("--dense-popover-left", `${Math.round(left)}px`);
-  options.style.setProperty("--dense-popover-top", `${Math.round(top)}px`);
-  options.style.setProperty("--dense-popover-width", `${Math.round(width)}px`);
-  options.style.setProperty("--dense-popover-max-height", `${Math.round(maxHeight)}px`);
+function positionDenseInlineSelectPopover(...args) {
+  return directoryLegacyInteractionsApi?.positionDenseInlineSelectPopover?.(...args);
 }
 
-function updateOpenDenseInlineSelectPopovers() {
-  document.querySelectorAll(".dense-inline-select[open]").forEach((select) => {
-    positionDenseInlineSelectPopover(select);
-  });
+function updateOpenDenseInlineSelectPopovers(...args) {
+  return directoryLegacyInteractionsApi?.updateOpenDenseInlineSelectPopovers?.(...args);
 }
 
-function bindDenseInlineSelectViewportEvents() {
-  app.querySelectorAll(".dense-inline-select").forEach((select) => {
-    if (select.dataset.denseViewportBound === "yes") return;
-    select.dataset.denseViewportBound = "yes";
-    select.addEventListener("toggle", () => {
-      if (select.open) {
-        closeDenseInlineSelects(select);
-        window.requestAnimationFrame(() => positionDenseInlineSelectPopover(select));
-        return;
-      }
-      clearDenseInlineSelectPopover(select);
-    });
-  });
-
-  if (denseInlineViewportListenersBound) return;
-  denseInlineViewportListenersBound = true;
-  window.addEventListener("resize", updateOpenDenseInlineSelectPopovers, { passive: true });
-  document.addEventListener("scroll", updateOpenDenseInlineSelectPopovers, { passive: true, capture: true });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    closeDenseInlineSelects();
-  });
+function bindDenseInlineSelectViewportEvents(...args) {
+  return directoryLegacyInteractionsApi?.bindDenseInlineSelectViewportEvents?.(...args);
 }
 
 function bindGlobalNavigation() {

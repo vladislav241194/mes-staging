@@ -26,10 +26,19 @@ assert.doesNotMatch(scenarioSource, /onRequestLegacy\?\./, "Employee Desktop act
 assert.match(scenarioSource, /data-react-complete-marker/, "completed Employee Desktop must expose the visible completion marker");
 assert.match(scenarioSource, /React TS ·/, "completed Employee Desktop marker must use the shared React TS label");
 const appSource = await readFile(join(import.meta.dirname, "..", "src", "app.js"), "utf8");
+assert.doesNotMatch(appSource, /^import[^\n]*employee_desktop\/command_owner\.js/m, "Employee Desktop command owner must not remain in the startup import graph");
+const employeeDesktopOwnerLoaderStart = appSource.indexOf("function ensureEmployeeDesktopCommandOwner()");
+const employeeDesktopHostStart = appSource.indexOf("const employeeDesktopReactIslandHost");
+const employeeDesktopOwnerLoaderSource = appSource.slice(employeeDesktopOwnerLoaderStart, employeeDesktopHostStart);
+assert(employeeDesktopOwnerLoaderStart >= 0 && employeeDesktopOwnerLoaderStart < employeeDesktopHostStart, "Employee Desktop command owner lazy boundary must be discoverable before the host");
+assert.match(employeeDesktopOwnerLoaderSource, /import\("\.\/modules\/employee_desktop\/command_owner\.js"\)/, "Employee Desktop command owner must load through a dynamic import");
+assert.match(employeeDesktopOwnerLoaderSource, /if \(employeeDesktopCommandOwnerLoad\) return employeeDesktopCommandOwnerLoad/, "concurrent Employee Desktop commands must share one cached module load");
 const employeeDesktopOwnerSlice = appSource.slice(
   appSource.indexOf("const employeeDesktopReactIslandHost"),
   appSource.indexOf("const markingReactIslandHost"),
 );
+assert.match(employeeDesktopOwnerSlice, /const commandOwner = requiresCommandOwner \? await ensureEmployeeDesktopCommandOwner\(\) : null/, "owner-backed Employee Desktop commands must await the lazy owner");
+assert(employeeDesktopOwnerSlice.indexOf("await ensureEmployeeDesktopCommandOwner()") < employeeDesktopOwnerSlice.indexOf("commandOwner.startTask(task)"), "Employee Desktop owner must be ready before a command can execute");
 assert.match(employeeDesktopOwnerSlice, /shiftExecutionCommands\.recordIssueReport\(/, "permanent Employee Desktop Report must use the PostgreSQL owner client");
 assert.match(employeeDesktopOwnerSlice, /await hydrateEmployeeDesktopIssueReports\(task, \{ force: true \}\)/, "Report completion must force a signed owner read-back");
 assert.doesNotMatch(employeeDesktopOwnerSlice, /getAuthSessionPrototypeModel\(/, "permanent Employee Desktop payload and commands must not read the legacy auth renderer model");
