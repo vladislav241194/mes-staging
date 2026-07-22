@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
-import { createShiftWorkOrdersReactIslandHost, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
+import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS, false);
 assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION, false);
@@ -27,6 +27,8 @@ assert.equal(releasePolicy.surfaces.shiftWorkOrders, "react", "release policy mu
 const appSource = await readFile("src/app.js", "utf8");
 assert.match(appSource, /surfaceId: "shiftWorkOrders"/);
 assert.match(appSource, /activation\.accessMode === "react" \|\| localQa\.writeEvaluation/);
+assert.match(appSource, /productionModel: getShiftWorkOrdersProductionInput\(\)/);
+assert.match(appSource, /shiftWorkOrders:\s*\{[\s\S]*shiftWorkOrdersReactIslandHost\.prepareRender\(\)[\s\S]*if \(reactDecision\.activateReact\)[\s\S]*ensureShiftMasterBoardModule\(\)[\s\S]*ensureShiftWorkOrdersModule\(\)/, "legacy Journal chunks must load only after React rejection");
 assert.match(appSource, /renderModals: \(\) => shiftWorkOrdersReactIslandHost\.isReactEligible\(\)/, "permanent React must not render legacy overlays");
 const sourceRow = { id: "journal-assignment", sourceRowId: "source-slot", shiftDateKey: "2026-07-19" };
 const navigation = { type: "open-workshop", journalRowId: "journal-assignment", sourceRowId: "source-slot", shiftDateKey: "2026-07-19", intent: "inspect" };
@@ -34,4 +36,11 @@ assert.deepEqual(resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: [s
 assert.equal(resolveShiftWorkOrdersWorkshopNavigation({ ...navigation, sourceRowId: "stale-slot" }, { rows: [sourceRow], canOpenWorkshop: true }).ok, false, "stale source identity must fail closed");
 assert.equal(resolveShiftWorkOrdersWorkshopNavigation({ ...navigation, shiftDateKey: "2026-07-20" }, { rows: [sourceRow], canOpenWorkshop: true }).ok, false, "stale source date must fail closed");
 assert.deepEqual(resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: [sourceRow], canOpenWorkshop: false }), { ok: false, message: "Нет права открывать Мастерскую." });
+const carryoverRow = { id: "carryover-1", sourceRowId: "source-slot", shiftDateKey: "2026-07-20" };
+const carryoverDecision = resolveShiftWorkOrdersWorkshopNavigation(
+  { ...navigation, journalRowId: carryoverRow.id, sourceRowId: carryoverRow.sourceRowId, shiftDateKey: carryoverRow.shiftDateKey },
+  { rows: [carryoverRow], canOpenWorkshop: true },
+);
+assert.equal(carryoverDecision.ok, true);
+assert.equal(isShiftWorkOrdersWorkshopTargetSelected(carryoverDecision, { selectedRow: carryoverRow, dateKey: carryoverRow.shiftDateKey }), true, "carryover navigation must select the carryover card rather than its source row");
 console.log("Shift Work Orders React runtime policy QA passed.");

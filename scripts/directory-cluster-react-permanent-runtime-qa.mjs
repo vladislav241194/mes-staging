@@ -76,13 +76,14 @@ for (const surfaceId of surfaceIds) assert.match(appSource, new RegExp(`surfaceI
 assert.equal((appSource.match(/navigateSection:\s*navigateDirectoryReactSection/g) || []).length, 4, "every Directory island must use direct React section navigation");
 assert.match(appSource, /getReactRuntimeMode\(surfaceId\) === "react" \|\| localWriteEvaluation === true/);
 assert.match(appSource, /&& !isNomenclatureServerCommandsPrimary\(\)/, "generic Directory writes must fail closed while Nomenclature commands own the monolithic projection");
+assert.match(appSource, /const reactDecision = activeReactHost\?\.prepareRender\(\);[\s\S]*if \(reactDecision\?\.activateReact\) return activeReactHost\.renderTarget\(\);[\s\S]*ensureRoutesRenderModule\(\);/, "permanent Directory routes must choose React before loading the rollback renderer");
 
 const ledger = JSON.parse(await readFile(join(projectRoot, "experiments/react-migration/cutover-ledger.json"), "utf8"));
 const directoryModule = ledger.modules.find((module) => module.id === "directories");
 assert.equal(directoryModule?.runtimeMode, "react");
 assert.equal(directoryModule?.visibleLegacyRendererPath, false);
-assert.equal(directoryModule?.runtimeLegacyModelDependency, true, "transitional JS owner/model debt must remain explicit");
-assert.equal(directoryModule?.normalLegacyPath, true, "mixed-runtime aggregate stays true until the owner/model is typed");
+assert.equal(directoryModule?.runtimeLegacyModelDependency, false, "permanent Directory routes must not load the legacy renderer/model");
+assert.equal(directoryModule?.normalLegacyPath, false, "normal Directory navigation and commands must remain in React");
 for (const surfaceId of surfaceIds) {
   assert.equal(ledger.islands.find((island) => island.id === surfaceId)?.normalActionFallback, false, `${surfaceId}: normal UI action fallback must be removed`);
   assert(ledger.candidatePolicy.surfaceIds.includes(surfaceId), `${surfaceId}: permanent rollout must remain an unaccepted candidate until Pilot verification`);
@@ -91,4 +92,4 @@ assert.equal(ledger.candidatePolicy.runtimePolicySha256, policySha256, "candidat
 
 console.log("Directory cluster permanent React runtime QA: OK");
 console.log("- componentTypes, operations, nomenclatureTypes, statuses: signed React, direct React navigation, fail-closed renderer");
-console.log("- transitional JS owner/model and deferred Pilot verification remain explicit");
+console.log("- normal routes avoid the rollback renderer; deferred Pilot verification remains explicit");

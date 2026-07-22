@@ -1,3 +1,8 @@
+import {
+  buildBoardsProductionModel,
+  isBoardsProductionInput,
+} from "./production-model";
+
 export const BOM_IMPORT_HEADERS = [
   "Порядковый номер",
   "Описание",
@@ -35,9 +40,13 @@ interface BoardDto {
   boardCode?: unknown;
   resultItem?: unknown;
   status?: unknown;
+  statusLabel?: unknown;
   sourceFileName?: unknown;
   importHeaders?: unknown;
+  headers?: unknown;
   importRows?: unknown;
+  rows?: unknown;
+  componentCounts?: unknown;
   c0402?: unknown;
   c0603?: unknown;
   c0805?: unknown;
@@ -172,14 +181,17 @@ export function summarizeBomRows(rows: BomImportRow[]): Record<BomComponentKey, 
 }
 
 function legacyComponentCounts(dto: BoardDto): Record<BomComponentKey, number> {
-  return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, normalizeQuantity(dto[field.key])])) as Record<BomComponentKey, number>;
+  const nested = dto.componentCounts && typeof dto.componentCounts === "object" && !Array.isArray(dto.componentCounts)
+    ? dto.componentCounts as Record<string, unknown>
+    : {};
+  return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, normalizeQuantity(dto[field.key] ?? nested[field.key])])) as Record<BomComponentKey, number>;
 }
 
 export function adaptBoards(payload: unknown): BoardItem[] {
   const source = Array.isArray(payload)
     ? payload
     : payload && typeof payload === "object" && !Array.isArray(payload)
-      ? (payload as Record<string, unknown>).bomLists
+      ? (payload as Record<string, unknown>).bomLists ?? (payload as Record<string, unknown>).boards
       : [];
   if (!Array.isArray(source)) return [];
 
@@ -188,10 +200,11 @@ export function adaptBoards(payload: unknown): BoardItem[] {
     const id = text(dto.id);
     const name = text(dto.name);
     if (!id || !name) return [];
-    const rows = adaptBomImportRows(dto.importRows);
+    const rows = adaptBomImportRows(dto.importRows ?? dto.rows);
     const componentCounts = rows.length ? summarizeBomRows(rows) : legacyComponentCounts(dto);
-    const statusLabel = text(dto.status) || (rows.length ? "Активен" : "Черновик");
+    const statusLabel = text(dto.statusLabel ?? dto.status) || (rows.length ? "Активен" : "Черновик");
     const statusLookup = lookup(statusLabel);
+    const rawHeaders = Array.isArray(dto.importHeaders) ? dto.importHeaders : Array.isArray(dto.headers) ? dto.headers : [];
     return [{
       id,
       name,
@@ -200,7 +213,7 @@ export function adaptBoards(payload: unknown): BoardItem[] {
       statusLabel,
       statusTone: statusLookup.includes("актив") ? "success" : statusLookup.includes("чернов") ? "warning" : "neutral",
       sourceFileName: text(dto.sourceFileName),
-      headers: Array.from({ length: BOM_IMPORT_HEADERS.length }, (_, index) => normalizeHeader(Array.isArray(dto.importHeaders) ? dto.importHeaders[index] : "", BOM_IMPORT_HEADERS[index])),
+      headers: Array.from({ length: BOM_IMPORT_HEADERS.length }, (_, index) => normalizeHeader(rawHeaders[index], BOM_IMPORT_HEADERS[index])),
       rows,
       componentCounts,
       componentTotal: Object.values(componentCounts).reduce((sum, count) => sum + count, 0),
@@ -211,9 +224,20 @@ export function adaptBoards(payload: unknown): BoardItem[] {
 
 export function adaptBoardsModel(payload: unknown): BoardsModel {
   const root = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
-  const capabilities = root.capabilities && typeof root.capabilities === "object" ? root.capabilities as Record<string, unknown> : {};
-  const boards = adaptBoards(payload);
-  const usageRoot = root.deleteUsageById && typeof root.deleteUsageById === "object" && !Array.isArray(root.deleteUsageById) ? root.deleteUsageById as Record<string, unknown> : {};
+  const productionModel = root.productionModel && typeof root.productionModel === "object" && !Array.isArray(root.productionModel)
+    ? root.productionModel as Record<string, unknown>
+    : {};
+  if (Object.keys(productionModel).length || isBoardsProductionInput(root)) {
+    return buildBoardsProductionModel(Object.keys(productionModel).length ? productionModel : root, root.capabilities);
+  }
+  const wrappedModel = root.model && typeof root.model === "object" && !Array.isArray(root.model)
+    ? root.model as Record<string, unknown>
+    : {};
+  const source = Object.keys(wrappedModel).length ? wrappedModel : root;
+  const capabilitiesSource = Object.keys(wrappedModel).length ? root.capabilities : source.capabilities;
+  const capabilities = capabilitiesSource && typeof capabilitiesSource === "object" ? capabilitiesSource as Record<string, unknown> : {};
+  const boards = adaptBoards(source);
+  const usageRoot = source.deleteUsageById && typeof source.deleteUsageById === "object" && !Array.isArray(source.deleteUsageById) ? source.deleteUsageById as Record<string, unknown> : {};
   const deleteUsageById = Object.fromEntries(boards.map((board) => {
     const entry = usageRoot[board.id] && typeof usageRoot[board.id] === "object" && !Array.isArray(usageRoot[board.id]) ? usageRoot[board.id] as Record<string, unknown> : {};
     return [board.id, {
@@ -221,7 +245,7 @@ export function adaptBoardsModel(payload: unknown): BoardsModel {
       bomRowsCount: normalizeQuantity(entry.bomRowsCount),
     }];
   }));
-  const optionSource = Array.isArray(root.bomNomenclatureOptions) ? root.bomNomenclatureOptions : [];
+  const optionSource = Array.isArray(source.bomNomenclatureOptions) ? source.bomNomenclatureOptions : [];
   const bomNomenclatureOptions = optionSource.flatMap((entry): BomNomenclatureOption[] => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
     const dto = entry as Record<string, unknown>;
@@ -233,7 +257,7 @@ export function adaptBoardsModel(payload: unknown): BoardsModel {
   return {
     boards,
     bomNomenclatureOptions,
-    selectedBoardId: boards.some((board) => board.id === text(root.selectedBoardId)) ? text(root.selectedBoardId) : boards[0]?.id || "",
+    selectedBoardId: boards.some((board) => board.id === text(source.selectedBoardId)) ? text(source.selectedBoardId) : boards[0]?.id || "",
     canCreateEdit: capabilities.createEdit === true,
     canDelete: capabilities.delete === true,
     canImportBom: capabilities.bomImport === true,

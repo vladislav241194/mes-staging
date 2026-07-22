@@ -7,7 +7,7 @@ export function BoardsReadScenario({ payload, onRequestItems, onSelectionChange 
   const model = useMemo(() => adaptBoardsModel(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.boards[0]?.id || "");
   const selected = resolveVisibleBoard(model.boards, selectedId);
-  return <ModulePage header={<ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge">React preview · только чтение</span>} />} sidebar={<ModuleSidebar label="Печатные платы" title="Платы">
+  return <ModulePage header={<ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge" data-react-complete-marker>React TS · только чтение</span>} />} sidebar={<ModuleSidebar label="Печатные платы" title="Платы">
     {onRequestItems ? <SidebarItem active={false} count={Array.isArray((payload as { nomenclature?: unknown })?.nomenclature) ? (payload as { nomenclature: unknown[] }).nomenclature.length : 0} label="Вся номенклатура" meta="вернуться к позициям" onClick={onRequestItems} /> : null}
     {model.boards.map((board) => <SidebarItem active={selected?.id === board.id} count={getVisibleComponentTotal(board)} key={board.id} label={board.name} meta={getBoardSidebarMeta(board)} onClick={() => { setSelectedId(board.id); onSelectionChange?.(board.id); }} />)}
   </ModuleSidebar>}>

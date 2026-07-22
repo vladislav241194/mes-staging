@@ -1,19 +1,31 @@
+import {
+  buildNomenclatureProductionModel,
+  isNomenclatureProductionInput,
+} from "./production-model";
+
 export interface NomenclatureItemDto {
   [key: string]: unknown;
   id?: unknown;
   article?: unknown;
+  articleValue?: unknown;
   name?: unknown;
   type?: unknown;
   unit?: unknown;
   package?: unknown;
+  packageName?: unknown;
+  packageValue?: unknown;
   manufacturer?: unknown;
+  manufacturerValue?: unknown;
   description?: unknown;
   status?: unknown;
+  statusLabel?: unknown;
+  baseline?: unknown;
 }
 
 export interface NomenclatureTypeDto {
   id?: unknown;
   name?: unknown;
+  label?: unknown;
   code?: unknown;
   description?: unknown;
   status?: unknown;
@@ -90,23 +102,29 @@ export function adaptNomenclatureItems(payload: unknown): NomenclatureItem[] {
     const id = text(dto.id);
     const name = text(dto.name);
     if (!id || !name) return [];
-    const statusLabel = text(dto.status) || "Активен";
+    const statusLabel = text(dto.statusLabel ?? dto.status) || "Активен";
+    const articleValue = text(dto.articleValue ?? dto.article);
+    const packageValue = text(dto.packageValue ?? dto.package);
+    const manufacturerValue = text(dto.manufacturerValue ?? dto.manufacturer);
+    const baseline = dto.baseline && typeof dto.baseline === "object" && !Array.isArray(dto.baseline)
+      ? dto.baseline as Record<string, unknown>
+      : { ...dto };
 
     return [{
       id,
-      article: text(dto.article) || "-",
-      articleValue: text(dto.article),
+      article: text(dto.article) || articleValue || "-",
+      articleValue,
       name,
       type: normalizeType(dto.type),
       unit: text(dto.unit) || "шт.",
-      packageName: text(dto.package) || "-",
-      packageValue: text(dto.package),
-      manufacturer: text(dto.manufacturer) || "-",
-      manufacturerValue: text(dto.manufacturer),
+      packageName: text(dto.packageName ?? dto.package) || packageValue || "-",
+      packageValue,
+      manufacturer: text(dto.manufacturer) || manufacturerValue || "-",
+      manufacturerValue,
       description: text(dto.description),
       statusLabel,
       statusTone: lookup(statusLabel).includes("актив") ? "success" : "neutral",
-      baseline: { ...dto },
+      baseline: { ...baseline },
     }];
   });
 }
@@ -116,7 +134,7 @@ export function adaptNomenclatureTypes(payload: unknown): NomenclatureTypeOption
   const seen = new Set<string>();
   return payload.flatMap((entry): NomenclatureTypeOption[] => {
     const dto = (entry ?? {}) as NomenclatureTypeDto;
-    const label = normalizeType(dto.name);
+    const label = normalizeType(dto.name ?? dto.label);
     const key = lookup(label);
     if (!label || seen.has(key) || inactiveStatuses.has(lookup(dto.status))) return [];
     seen.add(key);
@@ -130,7 +148,17 @@ export function adaptNomenclatureTypes(payload: unknown): NomenclatureTypeOption
 }
 
 export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadModel {
-  const record = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const root = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const productionModel = root.productionModel && typeof root.productionModel === "object" && !Array.isArray(root.productionModel)
+    ? root.productionModel as Record<string, unknown>
+    : {};
+  if (Object.keys(productionModel).length || isNomenclatureProductionInput(root)) {
+    return buildNomenclatureProductionModel(Object.keys(productionModel).length ? productionModel : root, root.capabilities);
+  }
+  const wrappedModel = root.model && typeof root.model === "object" && !Array.isArray(root.model)
+    ? root.model as Record<string, unknown>
+    : {};
+  const record = Object.keys(wrappedModel).length ? wrappedModel : root;
   const items = adaptNomenclatureItems(Array.isArray(payload) ? payload : record.nomenclature ?? record.items);
   const declaredTypes = adaptNomenclatureTypes(record.nomenclatureTypes ?? record.types);
   const typeKeys = new Set(declaredTypes.map((entry) => lookup(entry.label)));
@@ -141,7 +169,8 @@ export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadMo
     return [{ id: `inferred-${key.replace(/[^a-zа-я0-9]+/gi, "-")}`, label: item.type, code: "", description: "" }];
   });
   const boardCount = Array.isArray(record.bomLists) ? record.bomLists.length : 0;
-  const capabilities = record.capabilities && typeof record.capabilities === "object" ? record.capabilities as Record<string, unknown> : {};
+  const capabilitySource = Object.keys(wrappedModel).length ? root.capabilities : record.capabilities;
+  const capabilities = capabilitySource && typeof capabilitySource === "object" ? capabilitySource as Record<string, unknown> : {};
   const rawDeleteUsage = capabilities.deleteUsageById && typeof capabilities.deleteUsageById === "object"
     ? capabilities.deleteUsageById as Record<string, unknown>
     : {};

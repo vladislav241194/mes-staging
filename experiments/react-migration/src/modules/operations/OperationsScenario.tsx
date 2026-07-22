@@ -55,7 +55,7 @@ export function OperationsScenario({ payload, onCommand, onNavigateSection, onRe
     await runCommand({ type: "delete", payload: { itemId: draft.itemId } }, "Не удалось удалить операцию.");
   };
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""}` : "React · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Операции" badge={<span className="lab-badge" data-react-complete-marker>{model.canCreateEdit ? `React TS · create/edit${model.canDelete ? "/delete" : ""}` : "React TS · только чтение"}</span>} />;
   const sidebar = <ModuleSidebar label="Операции по рабочим центрам" title="Рабочие центры">
     {onRequestLegacy ? <SidebarItem active={false} count={4} label="Все справочники" meta="Вернуться в legacy-контур" onClick={onRequestLegacy} /> : null}
     <DirectorySectionNavigation activeId="operations" onNavigate={onNavigateSection} />

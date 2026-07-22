@@ -85,6 +85,7 @@ import {
   prepareNomenclatureTypeDeleteContract,
 } from "./modules/nomenclature_types/server_owner_client.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
+import { createBoardsCommandOwner } from "./modules/nomenclature/boards_command_owner.js";
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import {
   createEmptySystemDomainsServerCommandState,
@@ -106,6 +107,7 @@ import {
 } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
+import { createShiftMasterBoardCommandOwner } from "./modules/shift_master_board/command_owner.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createEmployeeDesktopCommandOwner } from "./modules/employee_desktop/command_owner.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
@@ -3375,12 +3377,12 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     const createDecision = getNomenclatureReactWriteDecision("create", activation);
     const editDecision = getNomenclatureReactWriteDecision("edit", activation);
     const deleteDecision = getNomenclatureReactWriteDecision("delete", activation);
-    const deleteUsageById = Object.fromEntries((directoryState.nomenclature || []).map((item) => [
-      String(item.id || ""),
-      getNomenclatureDeleteUsage(item.id),
-    ]));
     return {
-      ...directoryState,
+      productionModel: {
+        directory: directoryState,
+        systemDomains: { registries: getSystemDomainsRegistries() },
+        ui,
+      },
       capabilities: {
         create: createDecision.allowed,
         edit: editDecision.allowed,
@@ -3391,7 +3393,6 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
         createUnavailableReason: createDecision.reason,
         editUnavailableReason: editDecision.reason,
         deleteUnavailableReason: deleteDecision.reason,
-        deleteUsageById,
       },
     };
   },
@@ -3512,34 +3513,33 @@ function canWriteBoardsReact(activation = getBoardsReactActivation()) {
     && !isLegacyDirectoryWriteBlocked()
     && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" });
 }
+const boardsCommandOwner = createBoardsCommandOwner({
+  getDirectoryState: () => directoryState,
+  setDirectoryState: (nextState) => { directoryState = nextState; },
+  getUi: () => ui,
+  apply: (nextState) => normalizeDirectoryState(nextState, { mergeFallback: false }),
+  persist: (_nextState, { type } = {}) => type === "delete"
+    ? withDirectoryEntityRemovalAllowed(() => persistDirectoryState())
+    : persistDirectoryState(),
+  persistUi: () => persistUiState() !== false,
+  notify: (message) => notifySaveSuccess(message),
+  recordRemoval: (sectionId, rowId) => recordDirectoryEntityDeletion(sectionId, rowId),
+  makeId,
+});
 const boardsReactIslandHost = createBoardsReactIslandHost({
   getActivation: getBoardsReactActivation,
   getPayload: () => {
     const canWrite = canWriteBoardsReact();
-    const deleteUsageById = Object.fromEntries((directoryState.bomLists || []).flatMap((bom) => {
-      const boardId = String(bom?.id || "").trim();
-      return boardId ? [[boardId, {
-        specificationsCount: getBomLinkedSpecifications(boardId).length,
-        bomRowsCount: getBomImportRows(bom).length,
-      }]] : [];
-    }));
     return {
-      ...directoryState,
-      selectedBoardId: String(ui.activeBomId || "").trim(),
-      bomNomenclatureOptions: (directoryState.nomenclature || [])
-        .filter((item) => normalizeLookupText(item?.type) === normalizeLookupText("РЭА компоненты"))
-        .sort((left, right) => String(left?.name || "").localeCompare(String(right?.name || ""), "ru"))
-        .map((item) => ({
-          id: String(item?.id || "").trim(),
-          label: String(item?.name || "Компонент без названия").trim(),
-          meta: [item?.article, item?.package].map((value) => String(value || "").trim()).filter(Boolean).join(" · "),
-        }))
-        .filter((item) => item.id),
-      deleteUsageById,
+      productionModel: {
+        directory: directoryState,
+        systemDomains: { registries: getSystemDomainsRegistries() },
+        ui,
+      },
       capabilities: {
         createEdit: canWrite,
         delete: canWrite,
-        bomImport: canWrite,
+        bomImport: false,
         bomRowAdd: canWrite,
         bomRowEdit: canWrite,
         bomRowDelete: canWrite,
@@ -3565,105 +3565,14 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (!canWriteBoardsReact()) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
-    if (!["save", "delete", "import-bom-xlsx", "add-bom-nomenclature-row", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Команда Boards не поддерживается." };
-    if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
-    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
-    const rowSignature = (values = []) => values.map((value, index) => index === 6 ? Number(value || 0) : String(value ?? "").trim());
     if (command.type === "import-bom-xlsx") {
-      const file = input.file; const fileName = String(file?.name || "").trim();
-      const expectedBoardIds = Array.isArray(input.expectedBoardIds) ? input.expectedBoardIds.map((value) => String(value || "").trim()).filter(Boolean).sort() : null;
-      const actualBoardIds = (directoryState.bomLists || []).map((bom) => String(bom?.id || "").trim()).filter(Boolean).sort();
-      if (!file || typeof file.arrayBuffer !== "function" || !fileName || !/\.(xlsx|xls)$/i.test(fileName)) return { ok: false, message: "Выберите файл Excel в формате XLSX или XLS." };
-      if (!expectedBoardIds || JSON.stringify(actualBoardIds) !== JSON.stringify(expectedBoardIds)) return { ok: false, message: "Список плат изменился в другом сеансе. Обновите экран и повторите импорт." };
-      await importBomFromXlsxFile(file);
-      const importedBom = getBomList(String(ui.activeBomId || "")); const importedRows = getBomImportRows(importedBom);
-      if (!importedBom || importedBom.sourceFileName !== fileName || !importedRows.length) return { ok: false, message: "Владелец BOM не подтвердил импорт Excel." };
+      return { ok: false, code: "deferred-import", message: "Импорт XLSX временно отложен; обычное редактирование BOM уже работает в React TS." };
+    }
+    const result = boardsCommandOwner.execute(command);
+    if (result?.ok === true) {
       queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
-      return { ok: true, id: importedBom.id, rowCount: importedRows.length };
     }
-    if (command.type === "add-bom-nomenclature-row") {
-      const bomId = String(input.bomId || "").trim(); const nomenclatureId = String(input.nomenclatureId || "").trim();
-      const bom = getBomList(bomId); const rows = getBomImportRows(bom); const nomenclatureItem = getNomenclatureItem(nomenclatureId);
-      const expectedRows = Array.isArray(input.expectedRows) && input.expectedRows.every((values) => Array.isArray(values))
-        ? input.expectedRows.map((values) => normalizeBomImportRow({ values }).values)
-        : null;
-      if (!bom || !nomenclatureItem) return { ok: false, message: "Плата или позиция номенклатуры больше не существует." };
-      if (normalizeLookupText(nomenclatureItem.type) !== normalizeLookupText("РЭА компоненты")) return { ok: false, message: "В BOM можно добавить только РЭА-компонент." };
-      if (!expectedRows || JSON.stringify(rows.map((row) => rowSignature(row.values))) !== JSON.stringify(expectedRows.map(rowSignature))) return { ok: false, message: "Таблица BOM изменилась в другом сеансе. Обновите экран и повторите." };
-      const previousRows = rows.map((row) => rowSignature(row.values));
-      addNomenclatureToBom(bomId, nomenclatureId);
-      const authoritativeRows = getBomImportRows(getBomList(bomId)); const appendedRow = authoritativeRows.at(-1);
-      if (authoritativeRows.length !== rows.length + 1 || JSON.stringify(authoritativeRows.slice(0, -1).map((row) => rowSignature(row.values))) !== JSON.stringify(previousRows) || String(appendedRow?.nomenclatureId || "") !== nomenclatureId) return { ok: false, message: "Владелец BOM не подтвердил добавление строки." };
-      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
-      return { ok: true, id: `${bomId}:${authoritativeRows.length - 1}`, rowCount: authoritativeRows.length };
-    }
-    if (command.type === "update-bom-cell") {
-      const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex); const columnIndex = Number(input.columnIndex);
-      const bom = getBomList(bomId); const rows = getBomImportRows(bom);
-      const editableColumns = [0, 1, 2, 3, 4, 5, 7, 8];
-      if (!bom || typeof input.rowIndex !== "number" || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return { ok: false, message: "Строка BOM больше не существует." };
-      if (typeof input.columnIndex !== "number" || !editableColumns.includes(columnIndex) || typeof input.value !== "string") return { ok: false, message: "Поле BOM недоступно для этой команды." };
-      const expectedValues = Array.isArray(input.expectedValues) ? normalizeBomImportRow({ values: input.expectedValues }).values : null;
-      if (!expectedValues || JSON.stringify(rowSignature(rows[rowIndex].values)) !== JSON.stringify(rowSignature(expectedValues))) return { ok: false, message: "Строка BOM изменилась в другом сеансе. Обновите экран и повторите." };
-      const expectedNextValues = [...rows[rowIndex].values]; expectedNextValues[columnIndex] = input.value;
-      const expectedNextRow = normalizeBomImportRow({ ...rows[rowIndex], values: expectedNextValues });
-      updateBomImportCell(bomId, rowIndex, columnIndex, input.value);
-      const authoritativeRow = getBomImportRows(getBomList(bomId))[rowIndex];
-      if (!authoritativeRow || JSON.stringify(authoritativeRow.values) !== JSON.stringify(expectedNextRow.values)) return { ok: false, message: "Владелец BOM не подтвердил новое значение поля." };
-      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
-      return { ok: true, id: `${bomId}:${rowIndex}:${columnIndex}`, value: authoritativeRow.values[columnIndex] };
-    }
-    if (command.type === "update-bom-quantity") {
-      const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex); const rawQuantity = String(input.quantity ?? "").trim(); const quantity = Number(rawQuantity);
-      const bom = getBomList(bomId); const rows = getBomImportRows(bom);
-      if (!bom || typeof input.rowIndex !== "number" || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return { ok: false, message: "Строка BOM больше не существует." };
-      if (!rawQuantity || !Number.isInteger(quantity) || quantity < 0) return { ok: false, message: "Количество BOM должно быть целым неотрицательным числом." };
-      const expectedValues = Array.isArray(input.expectedValues) ? normalizeBomImportRow({ values: input.expectedValues }).values : null;
-      if (!expectedValues || JSON.stringify(rowSignature(rows[rowIndex].values)) !== JSON.stringify(rowSignature(expectedValues))) return { ok: false, message: "Строка BOM изменилась в другом сеансе. Обновите экран и повторите." };
-      updateBomImportCell(bomId, rowIndex, 6, quantity);
-      const authoritativeRow = getBomImportRows(getBomList(bomId))[rowIndex];
-      if (!authoritativeRow || Number(authoritativeRow.quantity) !== quantity) return { ok: false, message: "Владелец BOM не подтвердил новое количество." };
-      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
-      return { ok: true, id: `${bomId}:${rowIndex}:quantity`, quantity };
-    }
-    if (command.type === "delete-bom-row") {
-      const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex);
-      const bom = getBomList(bomId); const rows = getBomImportRows(bom);
-      const expectedRows = Array.isArray(input.expectedRows) && input.expectedRows.every((values) => Array.isArray(values))
-        ? input.expectedRows.map((values) => normalizeBomImportRow({ values }).values)
-        : null;
-      if (!bom || typeof input.rowIndex !== "number" || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return { ok: false, message: "Строка BOM больше не существует." };
-      if (!expectedRows || JSON.stringify(rows.map((row) => rowSignature(row.values))) !== JSON.stringify(expectedRows.map(rowSignature))) return { ok: false, message: "Таблица BOM изменилась в другом сеансе. Обновите экран и повторите." };
-      const expectedRemaining = rows.filter((_, index) => index !== rowIndex).map((row) => rowSignature(row.values));
-      deleteBomImportRow(bomId, rowIndex);
-      const authoritativeRows = getBomImportRows(getBomList(bomId));
-      if (JSON.stringify(authoritativeRows.map((row) => rowSignature(row.values))) !== JSON.stringify(expectedRemaining)) return { ok: false, message: "Владелец BOM не подтвердил удаление строки." };
-      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
-      return { ok: true, id: `${bomId}:${rowIndex}:deleted`, remainingRows: authoritativeRows.length };
-    }
-    if (command.type === "delete") {
-      const result = await deleteBomCommand({ bomId: String(input.bomId || "") });
-      return {
-        ok: result?.ok === true,
-        id: String(result?.id || ""),
-        code: String(result?.code || ""),
-        message: String(result?.message || ""),
-      };
-    }
-    const result = await saveBomCommand({
-      isNew: input.isNew === true,
-      bomId: String(input.bomId || ""),
-      name: String(input.name || ""),
-      boardCode: String(input.boardCode || ""),
-      resultItem: String(input.resultItem || ""),
-    });
-    return {
-      ok: result?.ok === true,
-      id: String(result?.id || ""),
-      isNew: result?.isNew === true,
-      code: String(result?.code || ""),
-      message: String(result?.message || ""),
-    };
+    return result;
   },
 });
 function resolveProductionStructureRegistryActivation({
@@ -5033,81 +4942,116 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     }
   },
 });
+function getShiftExecutionProductionProjection() {
+  const state = shiftExecutionDispatchReadModel?.getState?.() || {};
+  return {
+    ...state,
+    items: Array.isArray(state.items) ? state.items : [],
+    carryovers: Array.isArray(state.carryovers) ? state.carryovers : [],
+    reports: Object.values(shiftExecutionIssueReportsBySourceRowId || {}).flatMap((items) => Array.isArray(items) ? items : []),
+  };
+}
+function getShiftProductionSession() {
+  const person = getAuthenticatedAccessPerson();
+  const roleId = getAuthorizationBoundRoleId();
+  const role = getAccessRoleById(roleId) || getActiveInterfaceRole();
+  return {
+    authenticatedPerson: person,
+    person,
+    actor: getEmployeeServerActor(),
+    role,
+    activeRole: role,
+    roleId: String(role?.id || roleId || ""),
+  };
+}
+function getShiftProductionWindow() {
+  const dateKey = toDateInput(ui?.windowStart || new Date());
+  const start = fromDateInput(dateKey);
+  return {
+    dateKey,
+    start: Number.isNaN(start.getTime()) ? "" : start.toISOString(),
+    end: Number.isNaN(start.getTime()) ? "" : addMs(start, DAY_MS).toISOString(),
+    label: dateKey ? `${formatDate(fromDateInput(dateKey))} · 1 смена` : "Текущая смена",
+  };
+}
+function getShiftMasterBoardProductionInput() {
+  const window = getShiftProductionWindow();
+  return {
+    planning: planningState,
+    shiftExecution: getShiftExecutionProductionProjection(),
+    systemDomains: { registries: getSystemDomainsRegistries() },
+    session: getShiftProductionSession(),
+    ui: {
+      ...ui,
+      dateKey: window.dateKey,
+      laneBySlot: normalizePlainRecord(ui.shiftMasterBoardLaneBySlot),
+      selectedRowId: ui.shiftMasterBoardSelectedSlotId,
+    },
+    window,
+  };
+}
+function getShiftMasterBoardCommandPermissions() {
+  const roleId = String(getShiftProductionSession().role?.id || "");
+  return {
+    canAssign: getAccessRoleModulePermission(roleId, "shiftMasterBoard", "assign"),
+    canRecordFact: getAccessRoleModulePermission(roleId, "shiftMasterBoard", "edit"),
+    canMoveLane: true,
+  };
+}
+function applyShiftMasterBoardCommandPatch(patch = {}) {
+  Object.entries(normalizePlainRecord(patch)).forEach(([key, value]) => { ui[key] = value; });
+  persistUiState();
+}
+const shiftMasterBoardCommandOwner = createShiftMasterBoardCommandOwner({
+  getPayload: getShiftMasterBoardProductionInput,
+  getUiState: () => ui,
+  applyUiPatch: applyShiftMasterBoardCommandPatch,
+  getPermissions: getShiftMasterBoardCommandPermissions,
+  makeId,
+});
 async function executeShiftExecutionAssignmentCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
-  const rowId = String(command.rowId || "").trim(); const model = getShiftMasterBoardModel();
-  const row = (model.allRows || []).find((item) => item.id === rowId) || null;
-  if (!row) return { ok: false, message: "Задание больше не доступно в текущем PostgreSQL-окне смены." };
-  if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign")) return { ok: false, message: "Нет права распределять задания." };
-  const allowedEmployees = new Map((row.employees || []).filter((employee) => employee?.id).map((employee) => [employee.id, employee])); const seen = new Set();
-  const executors = Array.isArray(command.executors) ? command.executors.map((executor) => ({ employeeId: String(executor?.employeeId || "").trim(), quantity: Number(executor?.quantity) })) : [];
-  if (!executors.length) return { ok: false, message: "Назначьте количество хотя бы одному исполнителю." };
-  const invalidExecutor = executors.some((executor) => {
-    const employee = allowedEmployees.get(executor.employeeId);
-    if (!executor.employeeId || seen.has(executor.employeeId) || !employee || employee.availability?.isAvailable !== true || !Number.isSafeInteger(executor.quantity) || executor.quantity <= 0 || executor.quantity > 9_999_999) return true;
-    seen.add(executor.employeeId); return false;
-  });
-  if (invalidExecutor) return { ok: false, message: "Исполнители или количества не прошли проверку матрицы доступа." };
-  const assignedQuantity = executors.reduce((sum, executor) => sum + executor.quantity, 0); const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-  if (assignedQuantity > plannedQuantity) return { ok: false, message: "Распределённое количество не может превышать план сменной задачи." };
-  const saved = saveShiftMasterBoardAssignment(row.id, { masterId: row.masterProfile?.id || row.boardAssignment?.masterId || model.activeProfile?.id || "", executors, updatedAt: new Date().toISOString() }, { notifyOwner: false });
-  if (!saved) return { ok: false, message: "Распределение не сохранено владельцем доски мастера." };
-  const serverResult = await mirrorShiftMasterBoardAssignmentToServer(row, saved);
+  const prepared = shiftMasterBoardCommandOwner.execute({ ...command, type: "save-assignment" });
+  if (prepared?.ok !== true) return prepared;
+  const serverResult = await mirrorShiftMasterBoardAssignmentToServer(prepared.row, prepared.assignment);
   if (serverResult?.ok !== true) return { ok: false, message: serverResult?.conflict ? "Распределение изменилось на сервере. Данные обновлены, повторите действие." : serverResult?.error || "PostgreSQL не подтвердил распределение." };
   queueMicrotask(() => { if (ui.activeModule === activeModule) render({ skipRememberScroll: true }); });
-  return { ok: true, id: row.id };
+  return { ok: true, id: prepared.id };
 }
 async function executeShiftExecutionFactCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
-  const rowId = String(command.rowId || "").trim();
-  const model = getShiftMasterBoardModel();
-  const row = (model.allRows || []).find((item) => item.id === rowId) || null;
-  if (!row) return { ok: false, message: "Задание больше не доступно в текущем PostgreSQL-окне смены." };
-  if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit")) return { ok: false, message: "Нет права вносить факт смены." };
-  if (!getShiftExecutionServerAssignment(row)?.id) return { ok: false, message: "Сначала выпустите сменное задание и дождитесь подтверждения PostgreSQL." };
-  const values = [command.actualQuantity, command.defectQuantity, command.laborMinutes, command.executorCount].map(Number);
-  if (values.some((value) => !Number.isSafeInteger(value) || value < 0 || value > 9_999_999)) return { ok: false, message: "Количества факта должны быть целыми неотрицательными числами." };
-  const [actualQuantity, defectQuantity, laborMinutes, executorCount] = values;
-  if (defectQuantity > actualQuantity) return { ok: false, message: "Количество брака не может превышать выпуск." };
-  const comment = String(command.comment || "").trim().slice(0, 500); const deviationComment = String(command.deviationComment || "").trim().slice(0, 500);
-  const saved = saveShiftMasterBoardFact(row.id, { actualQuantity, defectQuantity, laborMinutes, executorCount, comment, deviationComment, updatedAt: new Date().toISOString() }, { notifyOwner: false });
-  if (!saved?.fact) return { ok: false, message: "Факт не сохранён владельцем доски мастера." };
-  const factResult = await mirrorShiftMasterBoardFactToServer(row, saved.fact);
+  const prepared = shiftMasterBoardCommandOwner.execute({ ...command, type: "save-fact" });
+  if (prepared?.ok !== true) return prepared;
+  const factResult = await mirrorShiftMasterBoardFactToServer(prepared.row, prepared.fact);
   if (factResult?.ok !== true) return { ok: false, message: factResult?.error || "PostgreSQL не подтвердил факт смены." };
-  if (saved.carryover && saved.carryoverChanged) {
-    const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(row, saved.carryover, saved.replacedCarryover);
+  if (prepared.carryover && prepared.carryoverChanged) {
+    const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(prepared.row, prepared.carryover, prepared.replacedCarryover);
     if (carryoverResult?.ok !== true) return { ok: false, message: carryoverResult?.error || "Факт принят, но остаток не подтверждён PostgreSQL." };
   }
-  for (const removedCarryover of saved.removedCarryovers || []) {
-    const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, removedCarryover, { reason: "Задача закрыта фактом из React" });
+  for (const removedCarryover of prepared.removedCarryovers || []) {
+    const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(prepared.row, removedCarryover, { reason: "Задача закрыта фактом из React" });
     if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
   }
   queueMicrotask(() => { if (ui.activeModule === activeModule) render({ skipRememberScroll: true }); });
-  return { ok: true, id: row.id };
+  return { ok: true, id: prepared.id };
 }
 async function executeEmployeeDesktopOperationFactCommand(command = {}) {
-  if (typeof getShiftMasterBoardModel !== "function" || typeof saveShiftMasterBoardFact !== "function") await ensureShiftMasterBoardModule();
   const rowId = String(command.rowId || "").trim();
   const runtime = getEmployeeDesktopRuntimeState();
   const row = (runtime.taskRows || []).find((item) => item?.id === rowId) || null;
   if (!row) return { ok: false, message: "Задание больше не доступно в текущем PostgreSQL-окне смены." };
   if (!getShiftExecutionServerAssignment(row)?.id) return { ok: false, message: "Сменное задание ещё не подтверждено PostgreSQL." };
-  const saved = saveShiftMasterBoardFact(row.id, {
-    actualQuantity: command.actualQuantity,
-    defectQuantity: command.defectQuantity,
-    laborMinutes: command.laborMinutes,
-    executorCount: command.executorCount,
-    comment: String(command.comment || "").slice(0, 500),
-    deviationComment: String(command.deviationComment || "").slice(0, 500),
-    updatedAt: new Date().toISOString(),
-  }, { notifyOwner: false });
-  if (!saved?.fact) return { ok: false, message: "Факт не сохранён владельцем сменного задания." };
-  const factResult = await mirrorShiftMasterBoardFactToServer(row, saved.fact);
+  const prepared = shiftMasterBoardCommandOwner.execute(
+    { ...command, rowId: row.id, type: "save-fact" },
+    { permissions: { canRecordFact: true } },
+  );
+  if (prepared?.ok !== true) return { ok: false, message: prepared?.message || "Факт не сохранён владельцем сменного задания." };
+  const factResult = await mirrorShiftMasterBoardFactToServer(prepared.row, prepared.fact);
   if (factResult?.ok !== true) return { ok: false, message: factResult?.error || "PostgreSQL не подтвердил факт смены." };
-  if (saved.carryover && saved.carryoverChanged) {
-    const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(row, saved.carryover, saved.replacedCarryover);
+  if (prepared.carryover && prepared.carryoverChanged) {
+    const carryoverResult = await mirrorShiftMasterBoardCarryoverToServer(prepared.row, prepared.carryover, prepared.replacedCarryover);
     if (carryoverResult?.ok !== true) return { ok: false, message: carryoverResult?.error || "Факт принят, но остаток не подтверждён PostgreSQL." };
   }
-  for (const removedCarryover of saved.removedCarryovers || []) {
-    const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, removedCarryover, { reason: "Задача закрыта фактом с рабочего стола" });
+  for (const removedCarryover of prepared.removedCarryovers || []) {
+    const removalResult = await mirrorShiftMasterBoardCarryoverRemovalToServer(prepared.row, removedCarryover, { reason: "Задача закрыта фактом с рабочего стола" });
     if (removalResult?.ok === false) return { ok: false, message: removalResult.error || "Факт принят, но прежний остаток не отменён PostgreSQL." };
   }
   return { ok: true, id: row.id };
@@ -5133,29 +5077,17 @@ function getShiftWorkOrdersReactActivation() {
     evaluationRequested: isShiftWorkOrdersReactEvaluationRequested(),
     localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
   });
-  const modulesReady = shiftMasterBoardModuleReady && shiftWorkOrdersModuleReady;
-  const journalRows = modulesReady ? getShiftWorkOrderJournalViewModel()?.rows || [] : [];
-  const exactScopeUnavailable = modulesReady
-    && systemDomainsServerReadState.status === "server"
-    && shiftExecutionServerState.status === "idle"
-    && journalRows.length > 0
-    && !getShiftExecutionDispatchScope();
-  const moduleFailure = shiftMasterBoardModuleError || shiftWorkOrdersModuleError;
-  const serverReadFailure = moduleFailure
-    ? "model-unavailable"
-    : exactScopeUnavailable
-      ? "model-unavailable"
-      : systemDomainsServerReadState.status === "fallback" || shiftExecutionServerState.status === "fallback"
-        ? "read-unavailable"
-        : "";
-  const legacyOverlayClosed = !ui.shiftWorkOrderPrintPreviewId
-    && !ui.workOrderPrintPreviewId
-    && !normalizePlainRecord(ui.shiftWorkOrderIssuePhotoViewer).photoId;
+  const scope = getShiftExecutionDispatchScope();
+  const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+      || planningRuntimeProjectionState.status === "fallback"
+      || shiftExecutionServerState.status === "fallback"
+      ? "read-unavailable"
+      : "";
   const authoritativeProjectionReady = shiftExecutionServerState.status === "ready"
     && shiftExecutionServerState.primaryPostgres === true
     && shiftExecutionServerState.schemaReady === true
     && shiftExecutionServerState.coverageComplete === true;
-  const emptyProjectionReady = shiftExecutionServerState.status === "idle" && journalRows.length === 0;
+  const emptyProjectionReady = planningRuntimeProjectionState.status === "server" && !scope;
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -5164,42 +5096,137 @@ function getShiftWorkOrdersReactActivation() {
         ? "write-evaluation"
         : runtimeActivation.accessMode,
     serverReadFailure,
-    serverReadReady: modulesReady
+    serverReadReady: planningRuntimeProjectionState.status === "server"
       && systemDomainsServerReadState.status === "server"
-      && (authoritativeProjectionReady || emptyProjectionReady)
-      && (runtimeActivation.runtimeMode === "react" || legacyOverlayClosed),
+      && (authoritativeProjectionReady || emptyProjectionReady),
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+function getShiftWorkOrdersProductionInput() {
+  const window = getShiftProductionWindow();
+  return {
+    planning: planningState,
+    shiftExecution: getShiftExecutionProductionProjection(),
+    systemDomains: { registries: getSystemDomainsRegistries() },
+    presentation: {
+      selectedRowId: ui.shiftWorkOrderJournalSelectedId,
+      sourceWindow: window,
+      dateKey: window.dateKey,
+    },
+  };
+}
+function getShiftWorkOrdersNavigationRows() {
+  const projection = getShiftExecutionProductionProjection();
+  return [
+    ...(projection.items || []).map((item) => ({
+      id: String(item?.sourceRowId || item?.id || ""),
+      sourceRowId: String(item?.sourceRowId || item?.id || ""),
+      shiftDateKey: String(projection.scope?.dateKey || item?.dateKey || "").slice(0, 10),
+    })),
+    ...(projection.carryovers || []).map((item) => ({
+      id: String(item?.id || ""),
+      sourceRowId: String(item?.sourceRowId || item?.id || ""),
+      shiftDateKey: String(item?.dateKey || projection.scope?.dateKey || "").slice(0, 10),
+    })),
+  ].filter((row) => row.id && row.sourceRowId && row.shiftDateKey);
+}
+function buildShiftWorkOrdersPrintPackage(rowId = "") {
+  const board = shiftMasterBoardCommandOwner.getModel();
+  const selected = (board.allRows || []).find((row) => row.id === rowId || row.sourceRowId === rowId) || null;
+  if (!selected?.routeId) return null;
+  const routeRows = (board.allRows || []).filter((row) => row.routeId === selected.routeId && !row.isBoardCarryover);
+  const toJournalRow = (row) => ({
+    ...row,
+    id: row.id,
+    sourceRowId: row.id,
+    documentNumber: row.documentNumber || `СЗН-${String(row.dateKey || "").replaceAll("-", "")}-${String(row.id || "").slice(-4).toUpperCase()}`,
+    executors: row.boardAssignment?.executors || [],
+    assignedQuantity: row.boardAssignedQuantity || 0,
+    factQuantity: row.boardGoodQuantity || 0,
+    remainingQuantity: Math.max(0, Number(row.plannedQuantity || 0) - Number(row.boardGoodQuantity || 0)),
+    status: { id: row.boardFact?.updatedAt ? "closed" : row.boardAssignment?.issued ? "issued" : "assigned", label: row.boardFact?.updatedAt ? "факт внесен" : row.boardAssignment?.issued ? "в работе" : "распределено", tone: "success" },
+    stageLabel: row.boardFact?.updatedAt ? "СЗН с фактом" : "сменное задание",
+    issuedAt: row.boardAssignment?.issuedAt || "",
+    dateLabel: row.dateKey || "дата не задана",
+    shiftDateKey: row.dateKey || board.dateKey || "",
+    transfer: row.boardFact?.transferContract || row.boardAssignment?.transferContract || {},
+  });
+  const journalRows = routeRows.map(toJournalRow);
+  const operationGroups = new Map();
+  journalRows.forEach((row) => {
+    const key = row.stepId || row.operationName || row.id;
+    const current = operationGroups.get(key) || [];
+    current.push(row);
+    operationGroups.set(key, current);
+  });
+  const operations = [...operationGroups.entries()].map(([id, rows], index) => ({
+    id,
+    index: index + 1,
+    taskLabel: rows[0]?.routePartLabel || "",
+    operationName: rows[0]?.operationName || "Операция",
+    workCenterLabel: rows[0]?.workCenterLabel || "Участок не задан",
+    durationLabel: rows[0]?.timeLabel || "не рассчитано",
+    plannedQuantity: rows.reduce((sum, row) => sum + Number(row.plannedQuantity || 0), 0),
+    assignedQuantity: rows.reduce((sum, row) => sum + Number(row.assignedQuantity || 0), 0),
+    factQuantity: rows.reduce((sum, row) => sum + Number(row.factQuantity || 0), 0),
+    remainingQuantity: rows.reduce((sum, row) => sum + Number(row.remainingQuantity || 0), 0),
+    documentCount: rows.length,
+    shiftCount: new Set(rows.map((row) => row.shiftDateKey).filter(Boolean)).size,
+    executorCount: new Set(rows.flatMap((row) => row.executors || []).map((executor) => executor.employeeId).filter(Boolean)).size,
+    statusLabel: rows.some((row) => row.hasFact || row.boardFact?.updatedAt) ? "есть факт" : "в работе",
+  }));
+  const executorRows = [...new Map(journalRows.flatMap((row) => (row.executors || []).map((executor) => {
+    const employeeId = String(executor.employeeId || executor.id || "");
+    return [employeeId, {
+      id: employeeId,
+      employeeName: executor.employeeName || executor.name || employeeId || "Исполнитель",
+      quantity: Number(executor.quantity || 0),
+      unit: row.unit || "шт.",
+      shifts: [row.shiftDateKey].filter(Boolean),
+      documents: [row.documentNumber].filter(Boolean),
+      operations: [row.operationName].filter(Boolean),
+    }];
+  }))).values()].filter((row) => row.id);
+  const planningQuantity = operations.reduce((sum, row) => sum + Number(row.plannedQuantity || 0), 0);
+  const finalFactQuantity = operations.reduce((sum, row) => sum + Number(row.factQuantity || 0), 0);
+  return {
+    workOrderView: { title: `Заказ-наряд · ${selected.orderLabel || selected.routeId}`, objectLabel: selected.orderLabel || selected.routeId, status: { label: finalFactQuantity >= planningQuantity && planningQuantity > 0 ? "выполнен" : "в работе" } },
+    route: selected.route || { id: selected.routeId, name: selected.orderLabel || selected.routeId },
+    documentDate: selected.dateKey || board.dateKey || "",
+    planningQuantity,
+    unit: selected.unit || "шт.",
+    shiftCount: new Set(journalRows.map((row) => row.shiftDateKey).filter(Boolean)).size,
+    operationCount: operations.length,
+    finalFactQuantity,
+    finalRemainingQuantity: Math.max(0, planningQuantity - finalFactQuantity),
+    journalRows,
+    operations,
+    executorRows,
   };
 }
 const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
   getActivation: getShiftWorkOrdersReactActivation,
   getPayload: () => {
-    const model = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const localQa = getShiftWorkOrdersReactLocalQaOverrides(); const activation = getShiftWorkOrdersReactActivation();
-    const roleCanRecordFact = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "edit");
-    const roleCanAssign = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "assign");
+    const localQa = getShiftWorkOrdersReactLocalQaOverrides(); const activation = getShiftWorkOrdersReactActivation();
+    const roleId = String(getShiftProductionSession().role?.id || "");
+    const roleCanRecordFact = getAccessRoleModulePermission(roleId, "shiftMasterBoard", "edit");
+    const roleCanAssign = getAccessRoleModulePermission(roleId, "shiftMasterBoard", "assign");
     const commandsReady = (activation.accessMode === "react" || localQa.writeEvaluation) && shiftExecutionServerState.commandsEnabled === true;
-    const factContexts = (board.allRows || []).map((row) => {
-      const fact = normalizePlainRecord(row.boardFact);
-      return { rowId: row.id, canEdit: commandsReady && roleCanRecordFact && Boolean(getShiftExecutionServerAssignment(row)?.id), hasFact: Boolean(fact.updatedAt), actualQuantity: Number(fact.actualQuantity || 0), laborMinutes: Number(fact.laborMinutes || 0), executorCount: Number(fact.executorCount || 0), comment: String(fact.comment || ""), deviationComment: String(fact.deviationComment || "") };
-    });
-    return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact }, factContexts };
+    return {
+      productionModel: getShiftWorkOrdersProductionInput(),
+      capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact },
+    };
   },
   getTargetRoot: () => app,
   loadAssignmentContext: async (rowId = "") => {
-    const journal = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const id = String(rowId || "").trim();
-    if (!(journal.rows || []).some((row) => row.id === id || row.sourceRowId === id)) return null;
-    const row = (board.allRows || []).find((item) => item.id === id) || null;
+    const id = String(rowId || "").trim();
+    const context = shiftMasterBoardCommandOwner.getAssignmentContext(id);
+    const row = context?.row || null;
     if (!row) return null;
-    return { rowId: row.id, operationName: row.operationName, plannedQuantity: row.plannedQuantity, unit: row.unit, executors: row.boardAssignment?.executors || [], employees: row.employees || [] };
+    return { rowId: row.id, operationName: row.operationName, plannedQuantity: row.plannedQuantity, unit: row.unit, executors: row.boardAssignment?.executors || [], employees: context.employees || [] };
   },
   loadPrintPackage: async (rowId = "") => {
-    const model = getShiftWorkOrderJournalViewModel();
-    const row = (model.rows || []).find((item) => item.id === rowId || item.sourceRowId === rowId) || null;
-    const routeId = row?.routeId || row?.planningOrderId || "";
-    if (!row?.id || !routeId) return null;
-    await ensureRoutesRenderModule();
-    if (routesRenderModuleError) return null;
-    return getWorkOrderPrintPackageViewModel(routeId);
+    return buildShiftWorkOrdersPrintPackage(String(rowId || "").trim());
   },
   printDocument: (title = "") => {
     const previousTitle = document.title;
@@ -5212,15 +5239,14 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     if (ui.activeModule === "shiftWorkOrders") render({ skipRememberScroll: true });
   },
   navigate: async (navigation = {}) => {
-    const model = getShiftWorkOrderJournalViewModel();
-    const decision = resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: model.rows, canOpenWorkshop: isModuleAllowedForRole("shiftMasterBoard") });
+    const decision = resolveShiftWorkOrdersWorkshopNavigation(navigation, { rows: getShiftWorkOrdersNavigationRows(), canOpenWorkshop: isModuleAllowedForRole("shiftMasterBoard") });
     if (decision.ok !== true) return decision;
     const row = decision.row;
     const canonicalDateKey = normalizeDateInput(row.shiftDateKey || "");
     if (!canonicalDateKey) return { ok: false, message: "Дата исходной задачи не определена." };
     const previous = { selectedSlotId: ui.shiftMasterBoardSelectedSlotId, windowStart: ui.windowStart, activeDispatchSlotId: ui.activeDispatchSlotId, focus: ui.shiftMasterBoardFocus };
     ui.shiftWorkOrderJournalSelectedId = row.id;
-    ui.shiftMasterBoardSelectedSlotId = row.sourceRowId || row.id;
+    ui.shiftMasterBoardSelectedSlotId = row.id;
     ui.windowStart = canonicalDateKey;
     ui.activeDispatchSlotId = "";
     // The journal points to an exact Workshop source. A persisted board focus
@@ -5229,7 +5255,7 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     // target visible after a successful transition and restore the previous
     // focus together with the other board state when the transition fails.
     ui.shiftMasterBoardFocus = "all";
-    if (!isShiftWorkOrdersWorkshopTargetSelected(decision, getShiftMasterBoardModel())) {
+    if (!isShiftWorkOrdersWorkshopTargetSelected(decision, shiftMasterBoardCommandOwner.getModel())) {
       ui.shiftMasterBoardSelectedSlotId = previous.selectedSlotId;
       ui.windowStart = previous.windowStart;
       ui.activeDispatchSlotId = previous.activeDispatchSlotId;
@@ -5237,7 +5263,7 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
       return { ok: false, message: "Исходная задача больше не доступна в Мастерской." };
     }
     await navigateToModule("shiftMasterBoard");
-    if (ui.activeModule !== "shiftMasterBoard" || !isShiftWorkOrdersWorkshopTargetSelected(decision, getShiftMasterBoardModel())) {
+    if (ui.activeModule !== "shiftMasterBoard" || !isShiftWorkOrdersWorkshopTargetSelected(decision, shiftMasterBoardCommandOwner.getModel())) {
       ui.shiftMasterBoardSelectedSlotId = previous.selectedSlotId;
       ui.windowStart = previous.windowStart;
       ui.activeDispatchSlotId = previous.activeDispatchSlotId;
@@ -5277,28 +5303,17 @@ function getShiftMasterBoardReactActivation() {
     evaluationRequested: isShiftMasterBoardReactEvaluationRequested(),
     localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
   });
-  const modulesReady = shiftMasterBoardModuleReady;
-  const boardRows = modulesReady ? getShiftMasterBoardModel()?.rows || [] : [];
-  const exactScopeUnavailable = modulesReady
-    && systemDomainsServerReadState.status === "server"
-    && shiftExecutionServerState.status === "idle"
-    && boardRows.length > 0
-    && !getShiftExecutionDispatchScope();
-  const serverReadFailure = shiftMasterBoardModuleError
-    ? "model-unavailable"
-    : exactScopeUnavailable
-      ? "model-unavailable"
-      : systemDomainsServerReadState.status === "fallback" || shiftExecutionServerState.status === "fallback"
-        ? "read-unavailable"
-        : "";
-  const legacyOverlayClosed = !ui.shiftMasterBoardPrintPreviewId
-    && !ui.shiftMasterBoardPendingAction
-    && !ui.shiftMasterBoardAssistOpen;
+  const scope = getShiftExecutionDispatchScope();
+  const serverReadFailure = systemDomainsServerReadState.status === "fallback"
+      || planningRuntimeProjectionState.status === "fallback"
+      || shiftExecutionServerState.status === "fallback"
+      ? "read-unavailable"
+      : "";
   const authoritativeProjectionReady = shiftExecutionServerState.status === "ready"
     && shiftExecutionServerState.primaryPostgres === true
     && shiftExecutionServerState.schemaReady === true
     && shiftExecutionServerState.coverageComplete === true;
-  const emptyProjectionReady = shiftExecutionServerState.status === "idle" && boardRows.length === 0;
+  const emptyProjectionReady = planningRuntimeProjectionState.status === "server" && !scope;
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -5307,44 +5322,48 @@ function getShiftMasterBoardReactActivation() {
         ? "write-evaluation"
         : runtimeActivation.accessMode,
     serverReadFailure,
-    serverReadReady: modulesReady
+    serverReadReady: planningRuntimeProjectionState.status === "server"
       && systemDomainsServerReadState.status === "server"
-      && (authoritativeProjectionReady || emptyProjectionReady)
-      && (runtimeActivation.runtimeMode === "react" || legacyOverlayClosed),
+      && (authoritativeProjectionReady || emptyProjectionReady),
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
 const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
   getActivation: getShiftMasterBoardReactActivation,
   getPayload: () => {
-    const model = getShiftMasterBoardModel(); const localQa = getShiftMasterBoardReactLocalQaOverrides(); const activation = getShiftMasterBoardReactActivation();
-    const roleCanAssign = getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign");
-    const roleCanRecordFact = getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "edit");
+    const localQa = getShiftMasterBoardReactLocalQaOverrides(); const activation = getShiftMasterBoardReactActivation();
+    const permissions = getShiftMasterBoardCommandPermissions();
     const permanentOrWriteEvaluation = activation.accessMode === "react" || localQa.writeEvaluation;
     const commandsReady = permanentOrWriteEvaluation && shiftExecutionServerState.commandsEnabled === true;
-    return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact, laneMove: permanentOrWriteEvaluation } };
+    return { productionModel: getShiftMasterBoardProductionInput(), capabilities: { assignmentSave: commandsReady && permissions.canAssign, factSave: commandsReady && permissions.canRecordFact, laneMove: permanentOrWriteEvaluation } };
   },
   getTargetRoot: () => app,
   openCarryover: (dateKey = "", carryoverId = "") => {
-    const carryover = Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))
+    const carryover = [...(getShiftExecutionProductionProjection().carryovers || []), ...Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))]
       .find((item) => item?.id === carryoverId && item?.dateKey === dateKey) || null;
     if (!carryover) return;
-    setShiftWorkbenchDate(dateKey, { selectedSlotId: carryover.id });
+    ui.windowStart = normalizeDateInput(dateKey) || ui.windowStart;
+    ui.shiftMasterBoardSelectedSlotId = carryover.id;
+    persistUiState();
+    hydrateShiftExecutionServerProjection();
+    queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
   },
   openSource: (dateKey = "", sourceRowId = "") => {
-    const carryover = Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))
+    const carryover = [...(getShiftExecutionProductionProjection().carryovers || []), ...Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))]
       .find((item) => item?.sourceRowId === sourceRowId && (item?.sourceDateKey === dateKey || String(sourceRowId).endsWith(`::${dateKey}`))) || null;
     if (!carryover) return;
-    setShiftWorkbenchDate(dateKey, { selectedSlotId: sourceRowId });
+    ui.windowStart = normalizeDateInput(dateKey) || ui.windowStart;
+    ui.shiftMasterBoardSelectedSlotId = sourceRowId;
+    persistUiState();
+    hydrateShiftExecutionServerProjection();
+    queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
   },
   printDocument: (rowId = "", employeeId = "", title = "") => {
-    const model = getShiftMasterBoardModel();
-    const row = (model.allRows || []).find((item) => item?.id === rowId) || null;
+    const row = shiftMasterBoardCommandOwner.getRow(rowId);
     if (!row) return;
     const executors = Array.isArray(row.boardAssignment?.executors) ? row.boardAssignment.executors : [];
     const employee = employeeId ? executors.find((item) => item?.employeeId === employeeId) || null : executors[0] || null;
     if (employeeId && !employee) return;
-    markShiftMasterBoardSheetPrinted(row.id, employee?.employeeId || "");
     const previousTitle = document.title;
     const restoreTitle = () => { document.title = previousTitle; window.removeEventListener("afterprint", restoreTitle); };
     document.title = String(title || row.documentNumber || "");
@@ -5352,7 +5371,13 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     window.requestAnimationFrame(() => window.print());
   },
   selectDate: (dateKey = "") => {
-    setShiftWorkbenchDate(dateKey);
+    const normalized = normalizeDateInput(dateKey);
+    if (!normalized || normalized === ui.windowStart) return;
+    ui.windowStart = normalized;
+    ui.shiftMasterBoardSelectedSlotId = "";
+    persistUiState();
+    hydrateShiftExecutionServerProjection();
+    queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
   },
   selectFocus: (focus = "") => {
     const nextFocus = normalizeShiftMasterBoardFocus(focus);
@@ -5362,15 +5387,15 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
   },
   selectMaster: (masterId = "") => {
     const id = String(masterId || "").trim();
-    const model = getShiftMasterBoardModel();
-    if (!model.canSelectMaster || !id || !(model.profiles || []).some((profile) => profile?.id === id) || id === model.activeProfile?.id) return;
+    if (!id || id === ui.activeShiftMasterId) return;
     ui.activeShiftMasterId = id;
     ui.shiftMasterBoardFocus = "mine";
+    persistUiState();
     queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
   },
   requestLegacyRender: (_reason, scope = "") => {
     const [action, rowId] = String(scope || "").split(":");
-    const model = getShiftMasterBoardModel();
+    const model = shiftMasterBoardCommandOwner.getModel();
     const row = (model.allRows || []).find((item) => item.id === rowId) || model.selectedRow || null;
     if (row?.id) ui.shiftMasterBoardSelectedSlotId = row.id;
     if (action === "print" && row?.id) {
@@ -5384,11 +5409,11 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     const localQa = getShiftMasterBoardReactLocalQaOverrides();
     const activation = getShiftMasterBoardReactActivation();
     if (activation.accessMode !== "react" && !localQa.writeEvaluation) return { ok: false, message: "Изменения в React недоступны." };
-    const rowId = String(command.rowId || "").trim(); const model = getShiftMasterBoardModel();
-    const row = (model.allRows || []).find((item) => item.id === rowId) || null;
+    const rowId = String(command.rowId || "").trim();
+    const row = shiftMasterBoardCommandOwner.getRow(rowId);
     if (!row) return { ok: false, message: "Задание больше не доступно на доске мастера." };
     if (command.type === "move-lane") {
-      const result = moveShiftMasterBoardCardToLane(row.id, String(command.laneId || ""));
+      const result = shiftMasterBoardCommandOwner.execute({ ...command, type: "move-lane" });
       if (result?.ok === true) queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
       return result;
     }
@@ -5490,7 +5515,7 @@ function getEmployeeDesktopRuntimeRows(boardModel = {}) {
       rowsById.set(existing.id, {
         ...existing,
         boardAssignment: {
-          ...(typeof getShiftMasterBoardAssignment === "function" ? getShiftMasterBoardAssignment(existing) : normalizePlainRecord(existing.boardAssignment)),
+          ...normalizePlainRecord(existing.boardAssignment),
           ...assignment,
           executors: normalizeShiftMasterExecutors(assignment.executors),
         },
@@ -5503,7 +5528,7 @@ function getEmployeeDesktopRuntimeRows(boardModel = {}) {
   return [...rowsById.values()];
 }
 function getEmployeeDesktopRuntimeState() {
-  const boardModel = typeof getShiftMasterBoardModel === "function" ? getShiftMasterBoardModel() : { rows: [], allRows: [] };
+  const boardModel = shiftMasterBoardCommandOwner.getModel();
   const employees = getProductionStructureEmployees(getProductionStructureMatrixRuntimeOverrides());
   const authenticatedPerson = getAuthenticatedAccessPerson();
   const selectedPerson = authenticatedPerson
@@ -5514,7 +5539,7 @@ function getEmployeeDesktopRuntimeState() {
   const drafts = normalizePlainRecord(ui.authSessionFactDrafts);
   const rows = getEmployeeDesktopRuntimeRows(boardModel);
   const allTasks = rows.flatMap((row) => {
-    const assignment = row?.boardAssignment || (typeof getShiftMasterBoardAssignment === "function" ? getShiftMasterBoardAssignment(row) : {});
+    const assignment = row?.boardAssignment || {};
     return (Array.isArray(assignment?.executors) ? assignment.executors : []).flatMap((executor) => {
       const employeeId = String(executor?.employeeId || "").trim();
       const assignedQuantity = Math.max(0, Number(executor?.quantity || 0) || 0);
@@ -5531,11 +5556,11 @@ function getEmployeeDesktopRuntimeState() {
         employee,
         operationName: row?.operationName || "Операция",
         workCenterLabel: row?.workCenterLabel || employee?.department || "Участок не задан",
-        orderLabel: typeof getShiftMasterRowOrderLabel === "function" ? getShiftMasterRowOrderLabel(row) : "Заказ-наряд",
-        routePartLabel: typeof getShiftMasterRowRoutePartLabel === "function" ? getShiftMasterRowRoutePartLabel(row) : "Маршрут",
+        orderLabel: row?.orderLabel || assignment?.sheetContract?.orderLabel || "Заказ-наряд",
+        routePartLabel: row?.routePartLabel || assignment?.sheetContract?.routePartLabel || "Маршрут",
         documentNumber: row?.documentNumber || assignment?.sheetContract?.documentNumber || "",
         assignedQuantity,
-        minutesPerUnit: typeof getShiftMasterBoardLaborMinutesPerUnit === "function" ? getShiftMasterBoardLaborMinutesPerUnit(row) : 0,
+        minutesPerUnit: Number(row?.masterMinutesPerUnit || row?.slot?.planningLaborMinutesPerUnit || 0) || 0,
         isStarted: draft.status === "in_progress",
         isDone: Boolean(draft.updatedAt),
       }];
@@ -5627,7 +5652,6 @@ function getEmployeeDesktopReactActivation() {
     && shiftExecutionServerState.primaryPostgres === true
     && shiftExecutionServerState.schemaReady === true
     && shiftExecutionServerState.coverageComplete === true;
-  const modulesReady = shiftMasterBoardModuleReady;
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -5635,14 +5659,14 @@ function getEmployeeDesktopReactActivation() {
       : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
         : runtimeActivation.accessMode,
-    serverReadFailure: shiftMasterBoardModuleError
-      ? "model-unavailable"
-      : systemDomainsServerReadState.status === "fallback" || shiftExecutionServerState.status === "fallback"
-        ? "read-unavailable"
-        : "",
-    serverReadReady: modulesReady
+    serverReadFailure: systemDomainsServerReadState.status === "fallback"
+      || planningRuntimeProjectionState.status === "fallback"
+      || shiftExecutionServerState.status === "fallback"
+      ? "read-unavailable"
+      : "",
+    serverReadReady: planningRuntimeProjectionState.status === "server"
       && systemDomainsServerReadState.status === "server"
-      && authoritativeProjectionReady,
+      && (authoritativeProjectionReady || !getShiftExecutionDispatchScope()),
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
@@ -9092,21 +9116,29 @@ async function hydratePlanningRuntimeProjection({ force = false, renderOnChange 
   return planningRuntimeProjectionLoad;
 }
 function getShiftExecutionDispatchScope() {
-  // Ask the loaded board for its actual current rows.  `slotRows` is only a
-  // fallback inside that model; using it directly would miss rows generated
-  // from work orders whenever both sources exist.
-  if (typeof getShiftMasterBoardModel !== "function") return null;
-  const model = getShiftMasterBoardModel();
-  const dateKey = toDateInput(model?.window?.start || "");
-  const sourceRowIds = [...new Set((model?.allRows || [])
-    // Carryovers are returned by the date-scoped server query.  A synthetic
-    // fallback has no durable source row and must stay client-only.
-    .filter((row) => row && !row.isBoardCarryover && !row.isBoardFallback)
-    .map((row) => String(row?.id || row?.sourceRowId || "").trim())
+  // The PostgreSQL query scope is a planning concern, not a renderer concern.
+  // Deriving it here keeps every permanent Shift surface independent from the
+  // retired Master Board view-model chunk.
+  const dateKey = toDateInput(ui?.windowStart || new Date());
+  const start = fromDateInput(dateKey);
+  const end = addMs(start, DAY_MS);
+  if (!dateKey || Number.isNaN(start.getTime())) return null;
+  const stepsById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
+  const scopedSlots = (planningState.slots || []).filter((slot) => {
+    const slotStart = toDate(slot?.plannedStart || "");
+    const slotEnd = toDate(slot?.plannedEnd || "");
+    return !Number.isNaN(slotStart.getTime())
+      && !Number.isNaN(slotEnd.getTime())
+      && slotStart < end
+      && slotEnd > start;
+  });
+  const sourceRowIds = [...new Set(scopedSlots
+    .map((slot) => getShiftRowId(slot, dateKey))
+    .map((value) => String(value || "").trim())
     .filter(Boolean))];
-  const workCenterIds = [...new Set((model?.allRows || [])
-    .filter((row) => row && !row.isBoardCarryover && !row.isBoardFallback)
-    .map((row) => String(row?.workCenterId || row?.workCenter?.id || "").trim())
+  const workCenterIds = [...new Set(scopedSlots
+    .map((slot) => getPlanningSlotWorkCenterId(slot, stepsById.get(slot.routeStepId) || null))
+    .map((value) => String(value || "").trim())
     .filter(Boolean))];
   if (!dateKey || !sourceRowIds.length || sourceRowIds.length > 200 || !workCenterIds.length || workCenterIds.length > 100) return null;
   return { dateKey, sourceRowIds: sourceRowIds.sort(), workCenterIds: workCenterIds.sort() };
@@ -11333,13 +11365,6 @@ function initializeModuleRuntime() {
     directories: {
       render: () => {
         hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY]);
-        ensureRoutesRenderModule();
-        if (routesRenderModuleError) {
-          return renderMesModulePatternPage({
-            moduleId: "directories",
-            content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
-          });
-        }
         const directoryReactHosts = {
           componentTypes: directoryComponentTypesReactIslandHost,
           operations: directoryOperationsReactIslandHost,
@@ -11352,6 +11377,15 @@ function initializeModuleRuntime() {
         });
         const reactDecision = activeReactHost?.prepareRender();
         if (reactDecision?.activateReact) return activeReactHost.renderTarget();
+        // The large routes renderer is now an immutable rollback-only chunk.
+        // Permanent React directories own both their loading and error shells.
+        ensureRoutesRenderModule();
+        if (routesRenderModuleError) {
+          return renderMesModulePatternPage({
+            moduleId: "directories",
+            content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
+          });
+        }
         return renderDirectoryPage();
       },
       bind: () => {
@@ -11401,7 +11435,6 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("authSessionPrototype", { fallbackToLegacy: false });
         }
-        ensureShiftMasterBoardModule();
         // A direct Employee Desktop entry needs the same complete Planning
         // graph as the Master Board before it can derive a bounded dispatch
         // scope. The PostgreSQL projection is the source of those task rows.
@@ -11409,7 +11442,7 @@ function initializeModuleRuntime() {
         // The employee desktop consumes the same PostgreSQL assignment/fact
         // projection as the Master Board.  Hydrate it before treating the
         // retired browser maps as an authoritative empty task list.
-        if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
+        if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();
         const reactDecision = employeeDesktopReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return employeeDesktopReactIslandHost.renderTarget();
         ensureAuthModules();
@@ -11534,13 +11567,15 @@ function initializeModuleRuntime() {
           allowBeforeInitialSync: permanentNomenclatureRuntime,
           failClosed: permanentNomenclatureRuntime,
         });
-        void ensureNomenclatureRenderModule();
         const useBoardsHost = ui.activeNomenclaturePane === "boards";
         const activeReactHost = useBoardsHost ? boardsReactIslandHost : nomenclatureReactIslandHost;
         const inactiveReactHost = useBoardsHost ? nomenclatureReactIslandHost : boardsReactIslandHost;
         inactiveReactHost.prepareRender();
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();
+        const permanentActiveRuntime = getReactRuntimeMode(useBoardsHost ? "boards" : "nomenclature") === "react";
+        if (permanentActiveRuntime) return activeReactHost.renderTarget();
+        void ensureNomenclatureRenderModule();
         return renderNomenclaturePage();
       },
       bind: () => {
@@ -11579,19 +11614,19 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("shiftMasterBoard", { fallbackToLegacy: false });
         }
+        if (planningRuntimeProjectionState.status === "idle") void hydratePlanningRuntimeProjection();
+        if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();
+        const reactDecision = shiftMasterBoardReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return shiftMasterBoardReactIslandHost.renderTarget();
+        // The immutable renderer remains available only when the signed
+        // runtime policy explicitly rejects permanent React.
         ensureShiftMasterBoardModule();
-        // The board is lazy-loaded.  Its own render cycle follows module
-        // initialization, so scope the server read only after the board can
-        // tell us which durable rows are actually on the current shift.
-        if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
         if (shiftMasterBoardModuleError) {
           return renderShiftMasterBoardShellState({
             title: "Не удалось загрузить мастерскую",
             description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
           });
         }
-        const reactDecision = shiftMasterBoardReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return shiftMasterBoardReactIslandHost.renderTarget();
         return renderShiftMasterBoardPage();
       },
       renderModals: () => shiftMasterBoardReactIslandHost.isReactEligible()
@@ -11605,11 +11640,12 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("shiftWorkOrders", { fallbackToLegacy: false });
         }
-        ensureShiftMasterBoardModule();
-        ensureShiftWorkOrdersModule();
-        if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
+        if (planningRuntimeProjectionState.status === "idle") void hydratePlanningRuntimeProjection();
+        if (planningRuntimeProjectionState.status === "server") hydrateShiftExecutionServerProjection();
         const reactDecision = shiftWorkOrdersReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return shiftWorkOrdersReactIslandHost.renderTarget();
+        ensureShiftMasterBoardModule();
+        ensureShiftWorkOrdersModule();
         if (shiftWorkOrdersModuleError) {
           return renderMesModulePatternPage({
             moduleId: "shiftWorkOrders",

@@ -55,7 +55,7 @@ export function ComponentTypesScenario({ payload, onCommand, onNavigateSection, 
   const selected = resolveVisibleComponentType(visibleItems, selectedId);
   const setDraftField = (field: keyof ComponentTypeDraft, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Типы компонентов" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""}` : "React · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Типы компонентов" badge={<span className="lab-badge" data-react-complete-marker>{model.canCreateEdit ? `React TS · create/edit${model.canDelete ? "/delete" : ""}` : "React TS · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Семейства компонентов" title="Семейства">
       {onRequestLegacy ? <SidebarItem active={false} count={4} key="directories" label="Все справочники" meta="Вернуться в legacy-контур" onClick={() => onRequestLegacy("legacy-directory")} /> : null}

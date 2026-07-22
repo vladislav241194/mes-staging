@@ -41,9 +41,9 @@ export function resolveShiftWorkOrdersWorkshopNavigation(navigation = {}, { rows
 }
 
 export function isShiftWorkOrdersWorkshopTargetSelected(decision = {}, model = {}) {
-  const sourceRowId = String(decision?.row?.sourceRowId || decision?.row?.id || "").trim();
+  const targetRowId = String(decision?.row?.id || decision?.row?.sourceRowId || "").trim();
   const dateKey = String(decision?.row?.shiftDateKey || "").trim();
-  return Boolean(sourceRowId && dateKey && String(model?.selectedRow?.id || "") === sourceRowId && String(model?.dateKey || "") === dateKey);
+  return Boolean(targetRowId && dateKey && String(model?.selectedRow?.id || "") === targetRowId && String(model?.dateKey || "") === dateKey);
 }
 
 export function createShiftWorkOrdersReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, loadAssignmentContext, loadPrintPackage, navigate, printDocument, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Work Orders React island failed", error) } = {}) {

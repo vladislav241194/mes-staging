@@ -68,7 +68,7 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 
 ## Ускоренный implementation checkpoint 2026-07-22
 
-Отдельный показатель реализации составляет **90%**, тогда как строгая
+Отдельный показатель реализации составляет **94%**, тогда как строгая
 evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
 верхнеуровневых маршрутов уже имеют React UI: **10 complete**, **4 partial** и
 **2 явных prototype**. Маркер `React TS` показывается только на десяти complete
@@ -99,6 +99,19 @@ strict TypeScript строит иерархию сотрудников из raw 
 а PIN передаётся напрямую подписанному server-session owner с повторной
 проверкой сотрудника и actor-bound elevation. Legacy picker сохранён только в
 явной fallback/rollback-ветке; Pilot PIN lifecycle остаётся отложенным.
+
+Shift Master Board и Shift Work Orders теперь строят production-модели из raw
+Planning, PostgreSQL Shift Execution, System Domains и Timesheet, а обычные
+assignment/fact/carryover/navigation команды обслуживает отдельный владелец без
+загрузки старой board-модели. Остатки предыдущей смены намеренно read-only до
+выпуска нового СЗН, чтобы ускоренный optimistic UI не создавал ложную запись.
+
+Nomenclature/Boards получили typed production adapters и отдельного владельца
+обычных CRUD/BOM-команд; XLSX-import временно отключён и явно помечен как
+отложенный, поэтому клик больше не загружает `products/render.js`. Четыре
+Directory-поверхности теперь выбирают permanent React до загрузки большого
+`routes/render.js`; старый renderer остался только в rollback-ветке. Новые
+завершённые normal-path поверхности имеют видимый маркер `React TS`.
 
 Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной
 волне отложены владельцем и не засчитываются как Pilot acceptance. До

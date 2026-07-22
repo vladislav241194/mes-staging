@@ -361,7 +361,7 @@ function resolveActiveMaster({
   const authenticatedMaster = masters.find((profile) => profile.id === personId) || null;
   const isMasterRole = roleId === "master" || session.isMaster === true;
   const scoped = isMasterRole ? authenticatedMaster : null;
-  const requestedId = firstText(ui.activeMasterId, ui.masterId, input.activeMasterId, session.activeMasterId);
+  const requestedId = firstText(ui.activeShiftMasterId, ui.activeMasterId, ui.masterId, input.activeMasterId, session.activeMasterId);
   const active = scoped || masters.find((profile) => profile.id === requestedId) || authenticatedMaster || masters[0] || null;
   const capability = asRecord(input.capabilities);
   const canSelect = session.canSelectMaster === true

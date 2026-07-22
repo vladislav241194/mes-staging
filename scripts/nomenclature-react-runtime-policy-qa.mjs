@@ -49,12 +49,37 @@ assert(script.includes('"MES_REACT_NOMENCLATURE_WRITE_EVALUATION":true'), "publi
 assert(script.includes('"MES_NOMENCLATURE_SERVER_COMMANDS_PRIMARY":true'), "public runtime script must contain the command-primary boolean");
 assert(!script.includes("must-not-leak"), "public runtime script must never expose deployment secrets");
 
-const [appSource, productsEventsSource, runtimeStateSource, sharedStateEndpointSource] = await Promise.all([
+const [appSource, boardsOwnerSource, productsEventsSource, runtimeStateSource, sharedStateEndpointSource] = await Promise.all([
   readFile(join(root, "src/app.js"), "utf8"),
+  readFile(join(root, "src/modules/nomenclature/boards_command_owner.js"), "utf8"),
   readFile(join(root, "src/modules/products/events.js"), "utf8"),
   readFile(join(root, "src/modules/runtime_state/service.js"), "utf8"),
   readFile(join(root, "scripts/shared-state-endpoint.mjs"), "utf8"),
 ]);
+const nomenclatureHostStart = appSource.indexOf("const nomenclatureReactIslandHost");
+const boardsHostStart = appSource.indexOf("const boardsReactIslandHost", nomenclatureHostStart);
+const boardsHostEnd = appSource.indexOf("function resolveProductionStructureRegistryActivation", boardsHostStart);
+const nomenclatureHostSource = appSource.slice(nomenclatureHostStart, boardsHostStart);
+const boardsHostSource = appSource.slice(boardsHostStart, boardsHostEnd);
+const nomenclaturePayloadSource = nomenclatureHostSource.slice(nomenclatureHostSource.indexOf("getPayload:"), nomenclatureHostSource.indexOf("getTargetRoot:"));
+const boardsPayloadSource = boardsHostSource.slice(boardsHostSource.indexOf("getPayload:"), boardsHostSource.indexOf("getTargetRoot:"));
+assert(nomenclatureHostStart >= 0 && boardsHostStart > nomenclatureHostStart && boardsHostEnd > boardsHostStart, "Nomenclature and Boards host boundaries must be discoverable");
+assert(/getPayload:[^]*productionModel:\s*\{[^]*directory:\s*directoryState[^]*systemDomains:\s*\{\s*registries:\s*getSystemDomainsRegistries\(\)\s*\}[^]*\bui\b[^]*capabilities:/.test(nomenclaturePayloadSource), "Nomenclature must build its read payload from the typed raw production contract");
+assert(!/getNomenclatureDeleteUsage\(/.test(nomenclaturePayloadSource), "Nomenclature read payload must not call the legacy view-model usage helper");
+assert(/getPayload:[^]*productionModel:\s*\{[^]*directory:\s*directoryState[^]*systemDomains:\s*\{\s*registries:\s*getSystemDomainsRegistries\(\)\s*\}[^]*\bui\b[^]*capabilities:/.test(boardsPayloadSource), "Boards must build its read payload from the typed raw production contract");
+assert(!/(getBomLinkedSpecifications|getBomImportRows|normalizeLookupText)\(/.test(boardsPayloadSource), "Boards read payload must not call legacy model projection helpers");
+const nomenclatureRouteStart = appSource.indexOf("    nomenclature: {\n      render: () => {");
+const planningRouteStart = appSource.indexOf("    planning: {", nomenclatureRouteStart);
+const nomenclatureRouteSource = appSource.slice(nomenclatureRouteStart, planningRouteStart);
+const reactDecisionIndex = nomenclatureRouteSource.indexOf("activeReactHost.prepareRender()");
+const legacyLoadIndex = nomenclatureRouteSource.indexOf("ensureNomenclatureRenderModule()");
+assert(nomenclatureRouteStart >= 0 && planningRouteStart > nomenclatureRouteStart, "Nomenclature route boundary must be discoverable");
+assert(reactDecisionIndex >= 0 && legacyLoadIndex > reactDecisionIndex, "Nomenclature route must decide React ownership before loading the legacy renderer");
+assert(/permanentActiveRuntime[^]*return activeReactHost\.renderTarget\(\)[^]*ensureNomenclatureRenderModule\(\)/.test(nomenclatureRouteSource), "permanent Nomenclature and Boards routes must fail closed in React before the rollback-only legacy load");
+assert(boardsHostSource.includes("boardsCommandOwner.execute(command)"), "ordinary Boards commands must use the isolated React command owner");
+assert(!boardsHostSource.includes("ensureNomenclatureRenderModule()"), "ordinary Boards commands must not load the legacy products renderer");
+assert(boardsHostSource.includes('code: "deferred-import"'), "XLSX must be explicitly deferred instead of entering the legacy path");
+assert(!/products\/render\.js|ensureNomenclatureRenderModule|saveBomCommand|deleteBomCommand/.test(boardsOwnerSource), "Boards command owner must remain isolated from the retired renderer and commands");
 assert(appSource.includes("requireDurable: true"), "Pilot Nomenclature React saves must require a durable owner acknowledgement");
 assert(productsEventsSource.includes("persistNomenclatureDirectoryMutationDurably({"), "Nomenclature owner must await the isolated durable mutation path");
 assert(productsEventsSource.includes('code: "persistence-unconfirmed"'), "Nomenclature save must fail closed when persistence is not confirmed");
@@ -78,5 +103,8 @@ assert(runtimeStateSource.includes("if (isDirectoryStateReason(reason) && !isNom
 assert(sharedStateEndpointSource.includes("isCompactDirectoryAcknowledgementRequest"), "The shared-state endpoint must recognize the narrow directory acknowledgement contract");
 assert(sharedStateEndpointSource.includes("compactDirectoryAcknowledgement ? projectSnapshotValues"), "Directory acknowledgement conflicts must not return the full compatibility snapshot");
 assert(sharedStateEndpointSource.includes("compactAcknowledgement") && sharedStateEndpointSource.includes("responseMode"), "Successful directory writes must return the compact acknowledgement envelope");
+const ledger = JSON.parse(await readFile(join(root, "experiments/react-migration/cutover-ledger.json"), "utf8"));
+const nomenclatureLedger = ledger.modules.find((module) => module.id === "nomenclature");
+assert(nomenclatureLedger?.runtimeLegacyModelDependency === false && nomenclatureLedger?.normalLegacyPath === false, "Nomenclature/Boards normal route must be recorded as legacy-free");
 
 console.log("Nomenclature React runtime policy QA: server-command primary and CAS rollback OK");

@@ -83,7 +83,7 @@ export function NomenclatureScenario({ payload, onCommand, onRequestBoards }: { 
     if (!draft || draft.isNew || !model.canDelete || !draft.expectedRow) return;
     await runCommand({ type: "delete", payload: { itemId: draft.itemId, expectedRow: draft.expectedRow, idempotencyKey: `${draft.idempotencyKey}-delete` } }, "Не удалось удалить позицию.");
   };
-  const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">React</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge" data-react-complete-marker>React TS</span>} />;
   const sidebar = (
     <ModuleSidebar label="Разделы номенклатуры" title="Разделы">
       {filters.map((entry) => (

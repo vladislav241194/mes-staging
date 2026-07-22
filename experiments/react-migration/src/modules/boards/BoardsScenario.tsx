@@ -25,7 +25,7 @@ export function BoardsScenario({
   const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
   const selected = resolveVisibleBoard(boards, selectedId);
   const setDraftField = (field: "name" | "boardCode" | "resultItem", value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
-  const header = <ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React migration lab"}</span>} />;
+  const header = <ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge" data-react-complete-marker>{model.canCreateEdit ? `React TS · create/edit${model.canDelete ? "/delete" : ""}` : "React TS · read-only"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Печатные платы" title="Платы">
       {onRequestItems ? (

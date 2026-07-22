@@ -1,11 +1,11 @@
 {
   "schemaVersion": 3,
-  "updatedAt": "2026-07-21",
+  "updatedAt": "2026-07-22",
   "baselineProgress": 46,
   "currentProgress": 50,
-  "implementationProgress": 86,
+  "implementationProgress": 94,
   "implementationProgressUpdatedAt": "2026-07-22",
-  "implementationProgressBasis": "16/16 top-level routes have React UI: 9 complete, 5 partial, 2 explicit prototypes; strict Pilot acceptance remains separate at 50%.",
+  "implementationProgressBasis": "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; accelerated normal-path cutover is 94%, while strict Pilot acceptance remains separate at 50%.",
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
@@ -260,10 +260,10 @@
       "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["Boards/BOM non-empty Pilot read", "Boards/BOM disposable Pilot write lifecycle", "typed owner/model independence", "permanent Pilot acceptance"]
+      "remainingScopes": ["deferred XLSX import owner", "Boards/BOM non-empty Pilot read", "Boards/BOM disposable Pilot write lifecycle", "permanent Pilot acceptance"]
     },
     {
       "id": "specifications2",
@@ -337,10 +337,10 @@
       "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["Pilot assignment/fact/carryover lifecycle", "typed owner/model independence from legacy board adapters"]
+      "remainingScopes": ["Pilot assignment/fact/carryover lifecycle", "deferred print audit and historical board metadata"]
     },
     {
       "id": "shiftWorkOrders",
@@ -350,10 +350,10 @@
       "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["Pilot assignment/fact lifecycle", "typed owner independence from legacy view-model adapters"]
+      "remainingScopes": ["Pilot assignment/fact lifecycle", "historical pagination and immutable print snapshot parity"]
     },
     {
       "id": "dispatch",
@@ -428,10 +428,10 @@
       "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["four disposable Pilot write lifecycles", "typed owner/model independence", "permanent Pilot acceptance"]
+      "remainingScopes": ["four disposable Pilot write lifecycles", "command-owner extraction from app.js", "permanent Pilot acceptance"]
     },
     {
       "id": "authPrototype",
