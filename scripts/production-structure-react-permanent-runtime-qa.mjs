@@ -11,7 +11,7 @@ const {
   createStructureResponsibilityPoliciesReactIslandHost,
   createStructureWorkCentersReactIslandHost,
 } = await withBundledTypeScriptClient(
-  new URL("../src/modules/production_structure_matrix/react_island_host.js", import.meta.url),
+  new URL("../src/modules/production_structure_matrix/react_island_host.ts", import.meta.url),
   async (module) => module,
   { prefix: "mes-production-structure-host-qa-" },
 );

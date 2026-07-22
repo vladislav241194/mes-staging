@@ -22,7 +22,7 @@ await assert.rejects(
   "The full legacy Structure matrix must stay outside the browser runtime",
 );
 const appSource = await readFile(join(root, "src", "app.js"), "utf8");
-const hostSource = await readFile(join(root, "src", "modules", "production_structure_matrix", "react_island_host.js"), "utf8");
+const hostSource = await readFile(join(root, "src", "modules", "production_structure_matrix", "react_island_host.ts"), "utf8");
 const capabilitiesSource = await readFile(join(root, "src", "modules", "production_structure_matrix", "server_capabilities.js"), "utf8");
 const lifecycleSource = await readFile(join(root, "src", "domain", "system_domains_lifecycle.js"), "utf8");
 const authPickerSource = await readFile(join(root, "experiments", "react-migration", "src", "modules", "auth-picker", "AuthPickerScenario.tsx"), "utf8");

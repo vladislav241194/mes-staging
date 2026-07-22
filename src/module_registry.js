@@ -247,7 +247,7 @@ const CORE_MODULE_BLUEPRINTS = [
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: READ_ONLY_ACCESS, technologist: READ_ONLY_ACCESS, master: READ_ONLY_ACCESS },
     capabilities: { table: true, actions: true },
     sourceFiles: [
-      "src/modules/production_structure_matrix/react_island_host.js",
+      "src/modules/production_structure_matrix/react_island_host.ts",
       "src/modules/production_structure_matrix/server_capabilities.js",
       "experiments/react-migration/src/structure-employees-island.tsx",
       "experiments/react-migration/src/structure-positions-island.tsx",

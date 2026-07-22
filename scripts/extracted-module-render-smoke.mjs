@@ -8,7 +8,7 @@ import { getMesModuleBlueprintDefinition } from "../src/module_registry.js";
 import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
 const { createStructureEmployeesReactIslandHost } = await withBundledTypeScriptClient(
-  new URL("../src/modules/production_structure_matrix/react_island_host.js", import.meta.url),
+  new URL("../src/modules/production_structure_matrix/react_island_host.ts", import.meta.url),
   async (module) => module,
   { prefix: "mes-extracted-structure-host-qa-" },
 );

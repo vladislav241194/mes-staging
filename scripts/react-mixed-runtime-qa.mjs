@@ -58,6 +58,7 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/nomenclature/boards_react_island_host.ts",
   "src/modules/nomenclature/react_island_host.ts",
   "src/modules/planning_workbench/react_island_host.ts",
+  "src/modules/production_structure_matrix/react_island_host.ts",
   "src/modules/react_island_host.ts",
   "src/modules/react_runtime_policy.ts",
   "src/modules/shift_master_board/react_island_host.ts",

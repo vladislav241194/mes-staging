@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
 const { createStructureMigrationDiagnosticsReactIslandHost } = await withBundledTypeScriptClient(
-  new URL("../src/modules/production_structure_matrix/react_island_host.js", import.meta.url),
+  new URL("../src/modules/production_structure_matrix/react_island_host.ts", import.meta.url),
   async (module) => module,
   { prefix: "mes-structure-migration-diagnostics-host-qa-" },
 );
@@ -72,9 +72,16 @@ try {
   });
   assert.equal(await evaluationHost.mount(), false);
   await new Promise((resolve) => queueMicrotask(resolve));
-  assert.equal(evaluationLegacyRenders, 1, "evaluation Diagnostics mount failure must retain legacy rollback");
-  assert.equal(evaluationHost.getFallbackReason(), "mount-error");
-  assert.equal(evaluationTelemetry.filter((event) => event.state === "legacy-fallback").length, 1);
+  assert.equal(evaluationLegacyRenders, 0, "evaluation Diagnostics mount failure must not request same-release legacy");
+  assert.equal(evaluationHost.getFailureReason(), "mount-error");
+  assert.equal(evaluationHost.getFallbackReason(), "");
+  assert.equal(evaluationTarget.dataset.reactIslandState, "error");
+  assert.equal(evaluationTelemetry.filter((event) => (
+    event.state === "error"
+    && event.stage === "mount"
+    && event.reason === "mount-error"
+  )).length, 1);
+  assert.equal(evaluationTelemetry.filter((event) => event.state === "legacy-fallback").length, 0);
 
   const shellTelemetry = [];
   let shellActivation = { runtimeMode: "react", accessMode: "react", featureFlagEnabled: true, serverReadReady: false, serverReadFailure: "", policyId: "qa-diagnostics-react" };
@@ -94,7 +101,7 @@ try {
   assert.match(shellHost.renderTarget(), /data-react-island-state="error"/);
   assert.equal(shellTelemetry.filter((event) => event.state === "error" && event.stage === "read" && event.reason === "read-unavailable").length, 1, "read-error telemetry must stay bounded");
 
-  console.log("Structure Migration Diagnostics permanent React runtime QA passed: fail-closed ownership, bounded telemetry, no remount loop and evaluation rollback.");
+  console.log("Structure Migration Diagnostics permanent React runtime QA passed: fail-closed ownership, bounded telemetry, no remount loop and evaluation fail-closed.");
 } finally {
   if (previousHTMLElement === undefined) delete globalThis.HTMLElement;
   else globalThis.HTMLElement = previousHTMLElement;

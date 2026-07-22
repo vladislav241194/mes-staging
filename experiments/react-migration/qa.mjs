@@ -1152,7 +1152,7 @@ try {
   assert.match(eligibleBoardsProductionHost.renderTarget(), /data-react-boards-island/);
   assert.deepEqual(makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Boards must accept only its explicit create/edit evaluation mode in addition to read-only evaluation");
 
-  const structureProductionHostModule = await loadProductionHost("src/modules/production_structure_matrix/react_island_host.js");
+  const structureProductionHostModule = await loadProductionHost("src/modules/production_structure_matrix/react_island_host.ts");
   const makeStructureProductionHost = (activation) => structureProductionHostModule.createStructureEmployeesReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1547,7 +1547,7 @@ try {
   assert.match(nomenclatureProductionHostSource, /canFallbackToLegacy:[\s\S]*?accessMode !== "react"/, "permanent Nomenclature failures must stay fail-closed");
   assert.match(nomenclatureProductionHostSource, /getShellState:[\s\S]*?serverReadFailure/, "permanent Nomenclature must own loading and read-error shells");
   assert.match(nomenclatureProductionHostSource, /onRequestBoards:[\s\S]*?navigateBoards/, "Boards navigation must bypass generic legacy fallback telemetry");
-  const structureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js"), "utf8");
+  const structureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.ts"), "utf8");
   assert.match(structureProductionHostSource, /createReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructurePositionsReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructureOrgUnitsReactIslandHost/);

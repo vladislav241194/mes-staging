@@ -127,7 +127,7 @@ const MODULE_FEATURE_OVERRIDES = {
     css: ["styles/layers/70-planning-table-and-matrix.css"],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
     files: [
-      "src/modules/production_structure_matrix/react_island_host.js",
+      "src/modules/production_structure_matrix/react_island_host.ts",
       "src/modules/production_structure_matrix/server_capabilities.js",
       "src/production_structure_bootstrap_data.js",
       "src/production_structure_service.js",

@@ -399,7 +399,7 @@ await bundleReactMigrationIsland(
   structureEmployeesReactIslandOutput,
 );
 const structureEmployeesReactIslandVersion = await fileHash(structureEmployeesReactIslandOutput);
-const structureEmployeesReactIslandHostPath = join(stagingDistDir, "src", "modules", "production_structure_matrix", "react_island_host.js");
+const structureEmployeesReactIslandHostPath = join(stagingDistDir, "src", "modules", "production_structure_matrix", "react_island_host.ts");
 const structureEmployeesReactIslandHostSource = await readFile(structureEmployeesReactIslandHostPath, "utf8");
 const structureEmployeesReactIslandVersionMarker = "__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__";
 if (!structureEmployeesReactIslandHostSource.includes(structureEmployeesReactIslandVersionMarker)) {

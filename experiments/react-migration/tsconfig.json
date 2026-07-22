@@ -41,6 +41,7 @@
     "../../src/modules/gantt_runtime/react_island_host.ts",
     "../../src/modules/marking/react_island_host.ts",
     "../../src/modules/planning_workbench/react_island_host.ts",
+    "../../src/modules/production_structure_matrix/react_island_host.ts",
     "../../src/modules/react_island_host.ts",
     "../../src/modules/nomenclature/boards_react_island_host.ts",
     "../../src/modules/nomenclature/react_island_host.ts",
