@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.71-dc067b3`; последний strict-accepted release остаётся
+> `v.1.500.72-4c052bc`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.71-dc067b3`; immediate previous:
-  `v.1.500.70-fb09aa4`; pinned legacy:
+- Активный accelerated release: `v.1.500.72-4c052bc`; immediate previous:
+  `v.1.500.71-dc067b3`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -134,9 +134,9 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
 ## Что делать следующим
 
 1. Продолжить strict-TS вывод активного JavaScript пакетами по `4–6`
-   совместимых owners. Следующий рекомендуемый пакет: базовый
-   `src/modules/react_island_host.js` и несколько простых browser-only island
-   hosts после короткого import/QA preflight.
+   совместимых owners. Базовый React island host уже типизирован в `.72`;
+   следующий пакет выбирать из оставшихся browser-only host wrappers после
+   короткого import/QA preflight.
 2. На пакет выполнять один focused QA, один commit/push, один accelerated Pilot
    release и одно обновление handoff. Не выпускать отдельный релиз на каждый
    файл.
@@ -148,7 +148,7 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
    закрытия одного из partial production-сценариев с owner-backed parity.
 5. Не заявлять live parity для Boards/BOM или Responsibility Policies на пустом
    наборе. Для записи нужен отдельный disposable record и явная cleanup-проверка.
-6. Сохранять `.70` как immediate rollback и sealed `.18` как legacy baseline;
+6. Сохранять `.71` как immediate rollback и sealed `.18` как legacy baseline;
    не добавлять evaluation flags и не обходить compatibility guard.
 
 ## Важные ограничения
@@ -2317,3 +2317,41 @@ release rather than one release per file.
 Next accelerated batch: type the shared base React island host and `4–5`
 compatible browser-only host leaves in one release, then perform one focused
 QA/review/release/handoff cycle.
+
+## React island host strict TypeScript batch 2026-07-22: release `.72`
+
+This block supersedes `.71` as the live Pilot pointer. It types the shared
+island lifecycle boundary and five compatible leaf hosts without changing
+layout, backend authority or command behavior.
+
+- Active Pilot is `v.1.500.72-4c052bc` at exact commit
+  `4c052bc76517e21bcb979d7d4dd7a1654b5f1a8c`; immediate previous is
+  `v.1.500.71-dc067b3`, pinned legacy remains `v.1.500.18-93d02ed`, and
+  Staging remains `v.1.499.70-c3b4059`.
+- Source/dist SHA-256 are
+  `408dd44894aea98a216d7fe7574dead7ef5e28b62b9e0b2952cf5f8164078808` and
+  `41b4d794de87686b3cfdf34295a621162094d6ee51912d2644778740b15b0de4`.
+- The shared React island host plus Marking, Dispatch, Employee Desktop,
+  Specifications 2 and Timesheet hosts now execute from strict `.ts`; the six
+  old `.js` files are absent. All remaining JS host wrappers import the typed
+  base, while app/build/registry paths use the typed leaves.
+- Active JavaScript fell from `50,942` to `50,504` lines and from `106` to
+  `100` files; strict production inventory grew from `27` to `33` TypeScript
+  files. No module completion marker changed.
+- Direct and mega-QA host imports now use the shared esbuild loader so the
+  typed graph is executable on Node 20. Strict typecheck, syntax, focused host
+  contracts, React cutover/runtime policy, module/feature registries, clean
+  build and `git diff --check` passed. Independent review returned `GO`.
+- Two pre-existing stale assertions were not weakened: the broad migration QA
+  still expects a removed print-view-model call, and Diagnostics QA expects an
+  evaluation legacy fallback that the current fail-closed host forbids. No
+  visual/browser QA was claimed for this mechanical batch.
+- Local/public health report `ok`, version `v.1.500.72`, shared state `ready`,
+  all 25 surfaces React, zero evaluation/legacy surfaces, no effective
+  `MES_REACT_*` flags and no evaluation drop-ins. `.71` passed rollback
+  dry-run; sealed `.18` remains unchanged.
+- Implementation remains `99%`; honest evidence-weighted progress remains
+  `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: type `4–6` of the remaining browser-only island host
+wrappers, keeping one focused QA/review/release/handoff cycle.

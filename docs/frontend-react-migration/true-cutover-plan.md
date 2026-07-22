@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.71-dc067b3`
+Текущий accelerated Pilot release: `v.1.500.72-4c052bc`
 
 ## Исправление прежней оценки
 
@@ -952,6 +952,36 @@ Structure Migration Diagnostics. Responsive/narrow Pilot-приёмка дока
 Следующий accelerated batch: типизировать базовый React island host и `4–5`
 совместимых browser-only host leaves одним release, без отдельного выпуска на
 каждый файл.
+
+## React island host strict TypeScript batch 2026-07-22: release `.72`
+
+- Pilot активирован на `v.1.500.72-4c052bc`; source/dist SHA-256 —
+  `408dd44894aea98a216d7fe7574dead7ef5e28b62b9e0b2952cf5f8164078808` и
+  `41b4d794de87686b3cfdf34295a621162094d6ee51912d2644778740b15b0de4`.
+- Общий React island lifecycle host и пять leaf-hosts — Marking, Dispatch,
+  Employee Desktop, Specifications 2 и Timesheet — переведены в strict
+  TypeScript. Старые шесть `.js` файлов отсутствуют; app, build и ownership
+  registries используют typed paths.
+- Активный JavaScript уменьшен с `50 942` до `50 504` строк и со `106` до `100`
+  файлов; strict inventory вырос с `27` до `33` TypeScript-файлов. Layout,
+  PostgreSQL/API/schema authority и команды не менялись.
+- Host QA переведены на общий esbuild-loader для совместимости с Node 20.
+  Typecheck, syntax, focused host contracts, React cutover/runtime policy,
+  module/feature registries, deterministic build и `git diff --check` прошли;
+  независимый P1/P2 review — `GO`.
+- Два старых противоречивых broad asserts не ослаблялись: migration QA ожидает
+  удалённый print-view-model call, Diagnostics QA — запрещённый fail-closed
+  host-ом evaluation fallback. Визуальный/browser QA для механического пакета
+  не выполнялся.
+- Service/health/pointer подтверждают `.72`, shared state `ready`, все 25
+  surfaces — React, evaluation/legacy surfaces, effective `MES_REACT_*` flags
+  и evaluation drop-ins отсутствуют. Immediate `.71` прошёл rollback dry-run;
+  sealed `.18` сохранён, Staging остался на `v.1.499.70-c3b4059`.
+- Completion markers и Pilot acceptance не менялись: implementation checkpoint
+  остаётся `99%`, честный evidence-weighted прогресс — `50%`.
+
+Следующий accelerated batch: типизировать `4–6` оставшихся browser-only island
+host wrappers одним release.
 
 Статус 2026-07-21: исторические rollback chains `.21 -> .20 -> .21` и
 `.21 -> .18 -> .19 -> .20 -> .21` сохранены как evidence своей контрольной
