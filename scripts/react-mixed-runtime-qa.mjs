@@ -34,6 +34,7 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/domain_api/specifications2_publish_commands.ts",
   "src/modules/domain_api/specifications2_revisions_read_model.ts",
   "src/modules/domain_api/specifications2_work_order_commands.ts",
+  "src/modules/domain_api/work_orders_read_model.ts",
   "src/modules/marking/api_client.ts",
   "src/modules/shift_work_orders/production_model.ts",
   "src/modules/specifications2/production_owner.ts",

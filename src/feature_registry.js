@@ -57,6 +57,7 @@ const MODULE_FEATURE_OVERRIDES = {
     css: ["styles/ui/planning-order.css", "styles/layers/70-planning-table-and-matrix.css"],
     files: [
       "src/modules/planning_workbench/react_island_host.js",
+      "src/modules/domain_api/work_orders_read_model.ts",
       "experiments/react-migration/src/modules/planning-workbench/PlanningWorkbenchScenario.tsx",
       "experiments/react-migration/src/modules/planning-workbench/production-model.ts",
     ],

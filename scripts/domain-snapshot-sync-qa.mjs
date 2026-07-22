@@ -1,11 +1,26 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
 
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
 import { inspectDomainSnapshotSyncOutcome } from "./domain-snapshot-sync-runner.mjs";
 import { createWorkOrdersRepository, PLANNING_STATE_KEY } from "./domain-work-orders-repository.mjs";
-import { inspectPlanningCompatibilityResult } from "../src/modules/domain_api/work_orders_read_model.js";
+
+const workOrdersReadModelTemporaryRoot = await mkdtemp(join(tmpdir(), "mes-snapshot-sync-work-orders-client-"));
+try {
+const workOrdersReadModelOutput = join(workOrdersReadModelTemporaryRoot, "work-orders-read-model.mjs");
+await build({
+  entryPoints: [fileURLToPath(new URL("../src/modules/domain_api/work_orders_read_model.ts", import.meta.url))],
+  outfile: workOrdersReadModelOutput,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  logLevel: "silent",
+});
+const { inspectPlanningCompatibilityResult } = await import(`${pathToFileURL(workOrdersReadModelOutput).href}?qa=${Date.now()}`);
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -528,3 +543,6 @@ assert(inspectDomainSnapshotSyncOutcome({ failed: 1, workOrders: { conflicts: 0,
   "retryable delivery failures must continue to fail the worker invocation");
 
 console.log("Domain snapshot sync QA: OK");
+} finally {
+  await rm(workOrdersReadModelTemporaryRoot, { recursive: true, force: true });
+}

@@ -1,4 +1,22 @@
-import { createWorkOrdersReadModel, inspectPlanningCompatibilityResult } from "../src/modules/domain_api/work_orders_read_model.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-work-orders-read-model-"));
+try {
+const output = join(temporaryRoot, "work-orders-read-model.mjs");
+await build({
+  entryPoints: [fileURLToPath(new URL("../src/modules/domain_api/work_orders_read_model.ts", import.meta.url))],
+  outfile: output,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  logLevel: "silent",
+});
+const { createWorkOrdersReadModel, inspectPlanningCompatibilityResult } = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
 
 function assert(value, message) { if (!value) throw new Error(message); }
 
@@ -448,4 +466,38 @@ const appliedReceipt = inspectPlanningCompatibilityResult({
 });
 assert(appliedReceipt.compatibilityReady === true,
   "only the exact applied receipt with no unresolved aggregate rows may approve rollback readiness");
+
+const primitivePayloadModel = createWorkOrdersReadModel({
+  fetchImpl: async (requestUrl, options = {}) => {
+    if (options.method === "PATCH") return {
+      status: 200,
+      ok: true,
+      headers: { get: () => '"2"' },
+      json: async () => ({ ok: true, item: "truthy-primitive" }),
+    };
+    if (String(requestUrl).includes("?view=workbench")) return {
+      status: 200,
+      ok: true,
+      headers: { get: () => '"1"' },
+      json: async () => ({ ok: true, item: "truthy-primitive" }),
+    };
+    return {
+      status: 200,
+      ok: true,
+      headers: { get: () => '"1"' },
+      json: async () => ({ ok: true, items: [{ id: "route-primitive", concurrencyRevision: 1 }] }),
+    };
+  },
+});
+await primitivePayloadModel.refresh();
+const rejectedPrimitiveDetail = await primitivePayloadModel.refreshDetail("route-primitive", { force: true });
+assert(!rejectedPrimitiveDetail.ok && rejectedPrimitiveDetail.item === null,
+  "a truthy primitive detail payload must retain the old invalid-payload failure behavior");
+const rejectedPrimitiveCommandItem = await primitivePayloadModel.changeQuantity("route-primitive", 2, 1);
+assert(!rejectedPrimitiveCommandItem.ok && rejectedPrimitiveCommandItem.kind === "unavailable"
+  && primitivePayloadModel.getItems()[0]?.id === "route-primitive",
+"a truthy primitive command item must fail closed without mutating the typed projection cache");
 console.log("Domain read model QA: OK");
+} finally {
+  await rm(temporaryRoot, { recursive: true, force: true });
+}

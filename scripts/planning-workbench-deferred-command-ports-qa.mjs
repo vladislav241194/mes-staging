@@ -5,7 +5,7 @@ import { transform } from "esbuild";
 const [scenario, adapter, readModel, domainApi, app, completionRegistry] = await Promise.all([
   readFile(new URL("../experiments/react-migration/src/modules/planning-workbench/PlanningWorkbenchScenario.tsx", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/planning-workbench/adapter.ts", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/domain_api/work_orders_read_model.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/domain_api/work_orders_read_model.ts", import.meta.url), "utf8"),
   readFile(new URL("./domain-api.mjs", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/react_completion_registry.js", import.meta.url), "utf8"),

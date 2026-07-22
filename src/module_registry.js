@@ -139,7 +139,10 @@ const CORE_MODULE_BLUEPRINTS = [
     regression: { type: "contract", hasTable: true, hasActions: true, hasTree: true, requiredSelectors: [".planning-order-page"] },
     mobileLimitedReason: "Planning order labor table is data-dense; narrow smoke allows internal table scroll.",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: PLANNING_ACCESS, technologist: READ_ONLY_ACCESS, master: READ_ONLY_ACCESS, dispatcher: READ_ONLY_ACCESS },
-    capabilities: { table: true, tree: true, actions: true }, sourceFiles: ["src/modules/planning_workbench/react_island_host.js"],
+    capabilities: { table: true, tree: true, actions: true }, sourceFiles: [
+      "src/modules/planning_workbench/react_island_host.js",
+      "src/modules/domain_api/work_orders_read_model.ts",
+    ],
   }),
   coreBlueprint({
     id: "weeklyProductionControl", label: "Контроль недели", icon: "chart", groupId: "loadPlanning", navigationOrder: 30, flowOrder: 70,

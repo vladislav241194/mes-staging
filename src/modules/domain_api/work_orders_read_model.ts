@@ -2,29 +2,152 @@ import { isExactIsoCalendarDate, isExactIsoInstantWithOffset } from "../../domai
 
 const DEFAULT_MAX_AGE_MS = 30_000;
 
-function makePlanningIdempotencyKey(prefix = "planning") {
+type UnknownRecord = Record<string, unknown>;
+type FetchLike = typeof globalThis.fetch;
+
+export interface WorkOrderProjection extends UnknownRecord {
+  id?: unknown;
+  number?: unknown;
+  operations?: unknown;
+}
+
+export interface PlanningCompatibilityResult {
+  snapshotSync: UnknownRecord | null;
+  compatibilityReceipt: UnknownRecord | null;
+  compatibilityReady: boolean;
+}
+
+export interface WorkOrdersReadModelOptions {
+  fetchImpl?: FetchLike;
+  url?: string;
+  now?: () => number;
+}
+
+export interface WorkOrderListRefreshResult extends UnknownRecord {
+  ok: boolean;
+  changed: boolean;
+  items: WorkOrderProjection[];
+  error?: string;
+}
+
+export interface WorkOrderDetailRefreshResult extends UnknownRecord {
+  ok: boolean;
+  changed: boolean;
+  item: WorkOrderProjection | null;
+  error?: string;
+}
+
+export interface WorkOrderBootstrapRefreshResult extends WorkOrderDetailRefreshResult {
+  items: WorkOrderProjection[];
+  activeId: unknown;
+}
+
+export interface WorkOrderSummaryRefreshResult extends UnknownRecord {
+  ok: boolean;
+  changed: boolean;
+  summary: UnknownRecord | null;
+  error?: string;
+}
+
+export interface WorkOrderCommandResult extends UnknownRecord {
+  ok: boolean;
+  kind?: string;
+  item?: WorkOrderProjection | null;
+  error?: unknown;
+}
+
+export interface WorkOrdersReadModel {
+  refresh(options?: { force?: boolean }): Promise<WorkOrderListRefreshResult>;
+  refreshWorkbenchBootstrap(activeId?: unknown, options?: { force?: boolean }): Promise<WorkOrderBootstrapRefreshResult>;
+  refreshSummary(options?: { force?: boolean }): Promise<WorkOrderSummaryRefreshResult>;
+  refreshDetail(id: unknown, options?: { force?: boolean }): Promise<WorkOrderDetailRefreshResult>;
+  getCommandCapabilities(): Promise<UnknownRecord>;
+  changeQuantity(id: unknown, quantity: unknown, expectedRevision: unknown): Promise<WorkOrderCommandResult>;
+  changeStartDate(id: unknown, planningStartDate: unknown, expectedRevision: unknown, options?: { idempotencyKey?: unknown }): Promise<WorkOrderCommandResult>;
+  changeSlotSchedule(id: unknown, operationId: unknown, slotId: unknown, plannedStart: unknown, expectedRevision: unknown): Promise<WorkOrderCommandResult>;
+  getItems(): WorkOrderProjection[];
+  getSummary(): UnknownRecord | null;
+  getDetail(id: unknown): WorkOrderProjection | null;
+  getStatus(): UnknownRecord;
+}
+
+interface DetailCache {
+  item: WorkOrderProjection | null;
+  etag: string;
+  fetchedAt: number;
+  loading: Promise<WorkOrderDetailRefreshResult> | null;
+  error: string;
+}
+
+interface BootstrapEntry {
+  activeId: string;
+  etag: string;
+  fetchedAt: number;
+}
+
+interface WorkOrdersReadModelState {
+  items: WorkOrderProjection[];
+  etag: string;
+  fetchedAt: number;
+  loading: Promise<WorkOrderListRefreshResult> | null;
+  error: string;
+  details: Map<string, DetailCache>;
+  summary: UnknownRecord | null;
+  summaryEtag: string;
+  summaryFetchedAt: number;
+  summaryLoading: Promise<WorkOrderSummaryRefreshResult> | null;
+  summaryError: string;
+  bootstrapEntries: Map<unknown, BootstrapEntry>;
+  bootstrapLoading: Map<unknown, Promise<WorkOrderBootstrapRefreshResult>>;
+  bootstrapError: string;
+  bootstrapActiveId: string;
+  bootstrapCapability: "unknown" | "supported" | "unsupported";
+  bootstrapRequestSequence: number;
+  bootstrapDataEpoch: number;
+}
+
+function record(value: unknown): UnknownRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function nullableWorkOrder(value: unknown): WorkOrderProjection | null {
+  // A malformed truthy primitive used to leak through command responses.
+  // The typed boundary rejects it instead of silently rewriting it to `{}`.
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as WorkOrderProjection
+    : null;
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return String(record(error).message || fallback);
+}
+
+function makePlanningIdempotencyKey(prefix = "planning"): string {
   const random = globalThis.crypto?.randomUUID?.()
     || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   return `${prefix}:${random}`;
 }
 
-function normalizeItems(value) {
-  return Array.isArray(value) ? value.filter((item) => item && typeof item === "object" && item.id) : [];
+function normalizeItems(value: unknown): WorkOrderProjection[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is WorkOrderProjection => Boolean(item && typeof item === "object" && (item as UnknownRecord).id))
+    : [];
 }
 
-export function inspectPlanningCompatibilityResult(payload = {}) {
-  const snapshotSync = payload?.snapshotSync && typeof payload.snapshotSync === "object" && !Array.isArray(payload.snapshotSync)
-    ? payload.snapshotSync
+export function inspectPlanningCompatibilityResult(payload: unknown = {}): PlanningCompatibilityResult {
+  const source = record(payload);
+  const snapshotSync = source.snapshotSync && typeof source.snapshotSync === "object" && !Array.isArray(source.snapshotSync)
+    ? source.snapshotSync as UnknownRecord
     : null;
   const total = Number(snapshotSync?.total || 0);
   const applied = Number(snapshotSync?.applied || 0);
   const failed = Number(snapshotSync?.failed || 0);
   const conflicts = Number(snapshotSync?.conflicts || 0);
   const skipped = Number(snapshotSync?.skipped || 0);
-  const compatibilityReceipt = payload?.compatibilityReceipt
-    && typeof payload.compatibilityReceipt === "object"
-    && !Array.isArray(payload.compatibilityReceipt)
-    ? payload.compatibilityReceipt
+  const compatibilityReceipt = source.compatibilityReceipt
+    && typeof source.compatibilityReceipt === "object"
+    && !Array.isArray(source.compatibilityReceipt)
+    ? source.compatibilityReceipt as UnknownRecord
     : null;
   // Aggregate counters can omit this command because the worker is bounded,
   // or report total=0 after its row became a terminal conflict. Rollback is
@@ -40,21 +163,21 @@ export function inspectPlanningCompatibilityResult(payload = {}) {
 }
 
 // Projection cache: a failed request never mutates snapshot-backed planning data.
-export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = "/api/v1/planning/work-orders", now = () => Date.now() } = {}) {
-  const state = {
-    items: [], etag: "", fetchedAt: 0, loading: null, error: "", details: new Map(),
+export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = "/api/v1/planning/work-orders", now = () => Date.now() }: WorkOrdersReadModelOptions = {}): WorkOrdersReadModel {
+  const state: WorkOrdersReadModelState = {
+    items: [], etag: "", fetchedAt: 0, loading: null, error: "", details: new Map<string, DetailCache>(),
     summary: null, summaryEtag: "", summaryFetchedAt: 0, summaryLoading: null, summaryError: "",
-    bootstrapEntries: new Map(), bootstrapLoading: new Map(), bootstrapError: "", bootstrapActiveId: "", bootstrapCapability: "unknown", bootstrapRequestSequence: 0, bootstrapDataEpoch: 0,
+    bootstrapEntries: new Map<unknown, BootstrapEntry>(), bootstrapLoading: new Map<unknown, Promise<WorkOrderBootstrapRefreshResult>>(), bootstrapError: "", bootstrapActiveId: "", bootstrapCapability: "unknown", bootstrapRequestSequence: 0, bootstrapDataEpoch: 0,
   };
 
-  function findItemByIdOrNumber(id) {
+  function findItemByIdOrNumber(id: unknown): WorkOrderProjection | null {
     const key = String(id || "");
     return state.items.find((item) => String(item?.id || "") === key)
       || state.items.find((item) => String(item?.number || "") === key)
       || null;
   }
 
-  function invalidateWorkbenchBootstrap() {
+  function invalidateWorkbenchBootstrap(): void {
     // A write or direct detail refresh is newer than every in-flight
     // bootstrap response. Its epoch is checked before such a response may
     // update either the selected aggregate or the compact list cache.
@@ -63,7 +186,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     state.bootstrapActiveId = "";
   }
 
-  async function refresh({ force = false } = {}) {
+  async function refresh({ force = false }: { force?: boolean } = {}): Promise<WorkOrderListRefreshResult> {
     if (!force && state.items.length && now() - state.fetchedAt < DEFAULT_MAX_AGE_MS) return { ok: true, changed: false, items: state.items };
     if (state.loading) return state.loading;
     state.loading = (async () => {
@@ -71,8 +194,8 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         const response = await fetchImpl(url, { headers: state.etag ? { "If-None-Match": state.etag } : {}, cache: "no-store", credentials: "same-origin" });
         if (response.status === 304) { state.fetchedAt = now(); return { ok: true, changed: false, items: state.items }; }
         if (!response.ok) throw new Error(`Work-order read API returned ${response.status}`);
-        const payload = await response.json();
-        if (!payload?.ok) throw new Error(payload?.error || "Work-order read API returned an invalid payload");
+        const payload = record(await response.json());
+        if (!payload.ok) throw new Error(String(payload.error || "Work-order read API returned an invalid payload"));
         const items = normalizeItems(payload.items);
         const changed = JSON.stringify(items) !== JSON.stringify(state.items);
         state.items = items;
@@ -81,14 +204,14 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         state.error = "";
         invalidateWorkbenchBootstrap();
         return { ok: true, changed, items };
-      } catch (error) {
-        state.error = error?.message || "Work-order read API is unavailable";
+      } catch (error: unknown) {
+        state.error = errorMessage(error, "Work-order read API is unavailable");
         return { ok: false, changed: false, items: state.items, error: state.error };
       } finally { state.loading = null; }
     })();
     return state.loading;
   }
-  async function refreshDetail(id, { force = false } = {}) {
+  async function refreshDetail(id: unknown, { force = false }: { force?: boolean } = {}): Promise<WorkOrderDetailRefreshResult> {
     const key = String(id || "");
     if (!key) return { ok: false, changed: false, item: null };
     const cached = state.details.get(key) || { item: null, etag: "", fetchedAt: 0, loading: null, error: "" };
@@ -99,17 +222,18 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         const response = await fetchImpl(`${url}/${encodeURIComponent(key)}?view=workbench`, { headers: cached.etag ? { "If-None-Match": cached.etag } : {}, cache: "no-store", credentials: "same-origin" });
         if (response.status === 304) { cached.fetchedAt = now(); return { ok: true, changed: false, item: cached.item }; }
         if (!response.ok) throw new Error(`Work-order detail API returned ${response.status}`);
-        const payload = await response.json();
-        if (!payload?.ok || !payload.item?.id) throw new Error(payload?.error || "Work-order detail API returned an invalid payload");
-        const changed = JSON.stringify(payload.item) !== JSON.stringify(cached.item);
-        cached.item = payload.item;
+        const payload = record(await response.json());
+        const item = nullableWorkOrder(payload.item);
+        if (!payload.ok || !item?.id) throw new Error(String(payload.error || "Work-order detail API returned an invalid payload"));
+        const changed = JSON.stringify(item) !== JSON.stringify(cached.item);
+        cached.item = item;
         cached.etag = response.headers?.get?.("ETag") || cached.etag;
         cached.fetchedAt = now();
         cached.error = "";
         invalidateWorkbenchBootstrap();
         return { ok: true, changed, item: cached.item };
-      } catch (error) {
-        cached.error = error?.message || "Work-order detail API is unavailable";
+      } catch (error: unknown) {
+        cached.error = errorMessage(error, "Work-order detail API is unavailable");
         return { ok: false, changed: false, item: cached.item, error: cached.error };
       } finally { cached.loading = null; }
     })();
@@ -117,7 +241,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     return cached.loading;
   }
 
-  async function refreshLegacyWorkbenchBootstrap(requestedId, { force = false } = {}) {
+  async function refreshLegacyWorkbenchBootstrap(requestedId: unknown, { force = false }: { force?: boolean } = {}): Promise<WorkOrderBootstrapRefreshResult> {
     const listResult = await refresh({ force });
     if (!listResult.ok) return { ok: false, changed: false, items: state.items, activeId: "", item: null, error: listResult.error };
     const selected = findItemByIdOrNumber(requestedId) || state.items[0] || null;
@@ -133,7 +257,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     };
   }
 
-  async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {}) {
+  async function refreshWorkbenchBootstrap(activeId: unknown = "", { force = false }: { force?: boolean } = {}): Promise<WorkOrderBootstrapRefreshResult> {
     const requestedId = String(activeId || "").trim();
     const requestedItem = requestedId ? findItemByIdOrNumber(requestedId) : null;
     const requestKey = requestedItem?.id || requestedId || "__default__";
@@ -151,8 +275,8 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     if (inFlight) return inFlight;
     const requestSequence = ++state.bootstrapRequestSequence;
     const dataEpoch = state.bootstrapDataEpoch;
-    let request;
-    request = (async () => {
+    let request!: Promise<WorkOrderBootstrapRefreshResult>;
+    request = (async (): Promise<WorkOrderBootstrapRefreshResult> => {
       try {
         const params = requestedId ? `?active=${encodeURIComponent(requestedId)}` : "";
         const response = await fetchImpl(`${url}/bootstrap${params}`, {
@@ -177,11 +301,12 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
           return { ok: true, changed: false, items: state.items, activeId: cached.activeId, item: cached.activeId ? state.details.get(cached.activeId)?.item || null : null };
         }
         if (!response.ok) throw new Error(`Work-order bootstrap API returned ${response.status}`);
-        const payload = await response.json();
-        if (!payload?.ok) throw new Error(payload?.error || "Work-order bootstrap API returned an invalid payload");
+        const payload = record(await response.json());
+        if (!payload.ok) throw new Error(String(payload.error || "Work-order bootstrap API returned an invalid payload"));
         const items = normalizeItems(payload.items);
         const selectedId = String(payload.activeId || "");
-        const item = payload.item?.id ? payload.item : null;
+        const payloadItem = nullableWorkOrder(payload.item);
+        const item = payloadItem?.id ? payloadItem : null;
         if ((selectedId && !item) || (item && String(item.id) !== selectedId)) {
           throw new Error("Work-order bootstrap API returned an inconsistent selected aggregate");
         }
@@ -216,8 +341,8 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
           state.bootstrapError = "";
         }
         return { ok: true, changed: isCurrentRequest && changed, items: state.items, activeId: selectedId, item };
-      } catch (error) {
-        state.bootstrapError = error?.message || "Work-order bootstrap API is unavailable";
+      } catch (error: unknown) {
+        state.bootstrapError = errorMessage(error, "Work-order bootstrap API is unavailable");
         return { ok: false, changed: false, items: state.items, activeId: "", item: null, error: state.bootstrapError };
       } finally {
         if (state.bootstrapLoading.get(requestKey) === request) state.bootstrapLoading.delete(requestKey);
@@ -227,7 +352,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     return request;
   }
 
-  async function refreshSummary({ force = false } = {}) {
+  async function refreshSummary({ force = false }: { force?: boolean } = {}): Promise<WorkOrderSummaryRefreshResult> {
     if (!force && state.summary && now() - state.summaryFetchedAt < DEFAULT_MAX_AGE_MS) return { ok: true, changed: false, summary: state.summary };
     if (state.summaryLoading) return state.summaryLoading;
     state.summaryLoading = (async () => {
@@ -235,29 +360,29 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         const response = await fetchImpl(`${url}/summary`, { headers: state.summaryEtag ? { "If-None-Match": state.summaryEtag } : {}, cache: "no-store", credentials: "same-origin" });
         if (response.status === 304) { state.summaryFetchedAt = now(); return { ok: true, changed: false, summary: state.summary }; }
         if (!response.ok) throw new Error(`Work-order summary API returned ${response.status}`);
-        const payload = await response.json();
-        if (!payload?.ok || !payload.summary || typeof payload.summary !== "object") throw new Error(payload?.error || "Work-order summary API returned an invalid payload");
+        const payload = record(await response.json());
+        if (!payload.ok || !payload.summary || typeof payload.summary !== "object") throw new Error(String(payload.error || "Work-order summary API returned an invalid payload"));
         const changed = JSON.stringify(payload.summary) !== JSON.stringify(state.summary);
-        state.summary = payload.summary;
+        state.summary = payload.summary as UnknownRecord;
         state.summaryEtag = response.headers?.get?.("ETag") || state.summaryEtag;
         state.summaryFetchedAt = now();
         state.summaryError = "";
         return { ok: true, changed, summary: state.summary };
-      } catch (error) {
-        state.summaryError = error?.message || "Work-order summary API is unavailable";
+      } catch (error: unknown) {
+        state.summaryError = errorMessage(error, "Work-order summary API is unavailable");
         return { ok: false, changed: false, summary: state.summary, error: state.summaryError };
       } finally { state.summaryLoading = null; }
     })();
     return state.summaryLoading;
   }
-  async function getCommandCapabilities() {
+  async function getCommandCapabilities(): Promise<UnknownRecord> {
     try {
       const response = await fetchImpl(`${url}/capabilities`, {
         cache: "no-store",
         credentials: "same-origin",
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload?.ok !== true) {
+      const payload = record(await response.json().catch(() => ({})));
+      if (!response.ok || payload.ok !== true) {
         return {
           ok: false,
           status: Number(response.status || 0),
@@ -268,11 +393,11 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         };
       }
       return { ...payload, ok: true, status: response.status };
-    } catch (error) {
-      return { ok: false, status: 0, unavailable: true, error: error?.message || "Planning command capabilities are unavailable" };
+    } catch (error: unknown) {
+      return { ok: false, status: 0, unavailable: true, error: errorMessage(error, "Planning command capabilities are unavailable") };
     }
   }
-  async function changeQuantity(id, quantity, expectedRevision) {
+  async function changeQuantity(id: unknown, quantity: unknown, expectedRevision: unknown): Promise<WorkOrderCommandResult> {
     const key = String(id || "");
     const revision = Number(expectedRevision);
     if (!key || !Number.isFinite(Number(quantity)) || Number(quantity) <= 0 || !Number.isInteger(revision)) return { ok: false, kind: "invalid", error: "Invalid work-order quantity command" };
@@ -284,9 +409,9 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         cache: "no-store",
         credentials: "same-origin",
       });
-      const payload = await response.json().catch(() => ({}));
+      const payload = record(await response.json().catch(() => ({})));
       if (response.status === 409) {
-        const item = payload.item || null;
+        const item = nullableWorkOrder(payload.item);
         if (item) {
           state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
           state.etag = response.headers?.get?.("ETag") || state.etag;
@@ -301,8 +426,8 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         }
         return { ok: false, kind: "conflict", item, error: payload.error || "Work order changed by another client" };
       }
-      if (!response.ok || !payload?.ok || !payload.item) return { ok: false, kind: "unavailable", error: payload?.error || `Work-order write API returned ${response.status}` };
-      const item = payload.item;
+      const item = nullableWorkOrder(payload.item);
+      if (!response.ok || !payload.ok || !item) return { ok: false, kind: "unavailable", error: payload.error || `Work-order write API returned ${response.status}` };
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
       state.etag = response.headers?.get?.("ETag") || state.etag;
       state.fetchedAt = now();
@@ -317,11 +442,16 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         cached.fetchedAt = 0;
       }
       return { ok: true, item, ...inspectPlanningCompatibilityResult(payload) };
-    } catch (error) {
-      return { ok: false, kind: "unavailable", error: error?.message || "Work-order write API is unavailable" };
+    } catch (error: unknown) {
+      return { ok: false, kind: "unavailable", error: errorMessage(error, "Work-order write API is unavailable") };
     }
   }
-  async function changeStartDate(id, planningStartDate, expectedRevision, { idempotencyKey = makePlanningIdempotencyKey("planning-start-date") } = {}) {
+  async function changeStartDate(
+    id: unknown,
+    planningStartDate: unknown,
+    expectedRevision: unknown,
+    { idempotencyKey = makePlanningIdempotencyKey("planning-start-date") }: { idempotencyKey?: unknown } = {},
+  ): Promise<WorkOrderCommandResult> {
     const key = String(id || "");
     const date = planningStartDate === null
       ? null
@@ -344,10 +474,10 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         cache: "no-store",
         credentials: "same-origin",
       });
-      const payload = await response.json().catch(() => ({}));
+      const payload = record(await response.json().catch(() => ({})));
       if (response.status === 409
-        && (payload?.code === "superseded-idempotent-replay" || payload?.superseded === true)) {
-        const item = payload.item || null;
+        && (payload.code === "superseded-idempotent-replay" || payload.superseded === true)) {
+        const item = nullableWorkOrder(payload.item);
         if (item) {
           state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
           state.etag = response.headers?.get?.("ETag") || state.etag;
@@ -366,13 +496,13 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
           code: "superseded-idempotent-replay",
           superseded: true,
           item,
-          error: payload?.error || "The original start-date command has been superseded",
+          error: payload.error || "The original start-date command has been superseded",
           ...inspectPlanningCompatibilityResult(payload),
         };
       }
       if (response.status === 409) {
-        const item = payload.item || null;
-        const definitiveConflict = payload?.conflict === true && Boolean(item);
+        const item = nullableWorkOrder(payload.item);
+        const definitiveConflict = payload.conflict === true && Boolean(item);
         if (!definitiveConflict) {
           // Parity/schema readiness responses are emitted before the owner can
           // inspect its idempotency receipt. They do not prove that the
@@ -381,9 +511,9 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
           return {
             ok: false,
             kind: "unavailable",
-            code: String(payload?.code || (payload?.fallbackReason ? "planning-parity-not-ready" : "planning-start-date-not-ready")),
+            code: String(payload.code || (payload.fallbackReason ? "planning-parity-not-ready" : "planning-start-date-not-ready")),
             reconciliationPending: true,
-            error: payload?.error || "Planning start-date owner is temporarily unavailable",
+            error: payload.error || "Planning start-date owner is temporarily unavailable",
           };
         }
         if (item) {
@@ -400,8 +530,8 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         }
         return { ok: false, kind: "conflict", item, error: payload.error || "Work order changed by another client" };
       }
-      if (!response.ok || !payload?.ok || !payload.item) return { ok: false, kind: "unavailable", error: payload?.error || `Work-order start-date API returned ${response.status}` };
-      const item = payload.item;
+      const item = nullableWorkOrder(payload.item);
+      if (!response.ok || !payload.ok || !item) return { ok: false, kind: "unavailable", error: payload.error || `Work-order start-date API returned ${response.status}` };
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
       state.etag = response.headers?.get?.("ETag") || state.etag;
       state.fetchedAt = now();
@@ -419,16 +549,16 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         superseded: payload.superseded === true,
         ...inspectPlanningCompatibilityResult(payload),
       };
-    } catch (error) {
-      return { ok: false, kind: "unavailable", error: error?.message || "Work-order start-date API is unavailable" };
+    } catch (error: unknown) {
+      return { ok: false, kind: "unavailable", error: errorMessage(error, "Work-order start-date API is unavailable") };
     }
   }
-  async function changeSlotSchedule(id, operationId, slotId, plannedStart, expectedRevision) {
+  async function changeSlotSchedule(id: unknown, operationId: unknown, slotId: unknown, plannedStart: unknown, expectedRevision: unknown): Promise<WorkOrderCommandResult> {
     const key = String(id || "");
     const operationKey = String(operationId || "");
     const slotKey = String(slotId || "");
     const revision = Number(expectedRevision);
-    if (!key || !operationKey || !slotKey || !isExactIsoInstantWithOffset(plannedStart) || !Number.isInteger(revision)) {
+    if (!key || !operationKey || !slotKey || typeof plannedStart !== "string" || !isExactIsoInstantWithOffset(plannedStart) || !Number.isInteger(revision)) {
       return { ok: false, kind: "invalid", error: "Invalid planning slot schedule command" };
     }
     const start = new Date(plannedStart);
@@ -440,21 +570,22 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         cache: "no-store",
         credentials: "same-origin",
       });
-      const payload = await response.json().catch(() => ({}));
-      if (response.status === 409) return { ok: false, kind: "conflict", item: payload.item || null, error: payload.error || "Work order changed by another client" };
-      if (!response.ok || !payload?.ok || !payload.item) return { ok: false, kind: "unavailable", error: payload?.error || `Work-order schedule API returned ${response.status}` };
-      if (!payload.slot?.id || String(payload.slot.id) !== slotKey) return { ok: false, kind: "unavailable", error: "Planning owner returned another physical slot" };
-      const item = payload.item;
+      const payload = record(await response.json().catch(() => ({})));
+      if (response.status === 409) return { ok: false, kind: "conflict", item: nullableWorkOrder(payload.item), error: payload.error || "Work order changed by another client" };
+      const item = nullableWorkOrder(payload.item);
+      if (!response.ok || !payload.ok || !item) return { ok: false, kind: "unavailable", error: payload.error || `Work-order schedule API returned ${response.status}` };
+      const slot = record(payload.slot);
+      if (!slot.id || String(slot.id) !== slotKey) return { ok: false, kind: "unavailable", error: "Planning owner returned another physical slot" };
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
       state.etag = response.headers?.get?.("ETag") || state.etag;
       state.fetchedAt = now();
       invalidateWorkbenchBootstrap();
       const cached = state.details.get(key);
       if (cached) { cached.etag = ""; cached.fetchedAt = 0; }
-      return { ok: true, item, slot: payload.slot, ...inspectPlanningCompatibilityResult(payload) };
-    } catch (error) {
-      return { ok: false, kind: "unavailable", error: error?.message || "Work-order schedule API is unavailable" };
+      return { ok: true, item, slot, ...inspectPlanningCompatibilityResult(payload) };
+    } catch (error: unknown) {
+      return { ok: false, kind: "unavailable", error: errorMessage(error, "Work-order schedule API is unavailable") };
     }
   }
-  return { refresh, refreshWorkbenchBootstrap, refreshSummary, refreshDetail, getCommandCapabilities, changeQuantity, changeStartDate, changeSlotSchedule, getItems: () => state.items.map((item) => ({ ...item })), getSummary: () => state.summary ? { ...state.summary } : null, getDetail: (id) => state.details.get(String(id || ""))?.item || null, getStatus: () => ({ available: Boolean(state.items.length), loading: Boolean(state.loading), error: state.error, fetchedAt: state.fetchedAt, bootstrapAvailable: state.bootstrapEntries.size > 0, bootstrapLoading: state.bootstrapLoading.size > 0, bootstrapError: state.bootstrapError, bootstrapCapability: state.bootstrapCapability, summaryAvailable: Boolean(state.summary), summaryLoading: Boolean(state.summaryLoading), summaryError: state.summaryError, summaryFetchedAt: state.summaryFetchedAt }) };
+  return { refresh, refreshWorkbenchBootstrap, refreshSummary, refreshDetail, getCommandCapabilities, changeQuantity, changeStartDate, changeSlotSchedule, getItems: () => state.items.map((item) => ({ ...item })), getSummary: () => state.summary ? { ...state.summary } : null, getDetail: (id: unknown) => state.details.get(String(id || ""))?.item || null, getStatus: () => ({ available: Boolean(state.items.length), loading: Boolean(state.loading), error: state.error, fetchedAt: state.fetchedAt, bootstrapAvailable: state.bootstrapEntries.size > 0, bootstrapLoading: state.bootstrapLoading.size > 0, bootstrapError: state.bootstrapError, bootstrapCapability: state.bootstrapCapability, summaryAvailable: Boolean(state.summary), summaryLoading: Boolean(state.summaryLoading), summaryError: state.summaryError, summaryFetchedAt: state.summaryFetchedAt }) };
 }

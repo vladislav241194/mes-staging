@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const source = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
 const appEventsSource = await readFile(resolve(process.cwd(), "src/modules/app_events/service.js"), "utf8");
-const readModelSource = await readFile(resolve(process.cwd(), "src/modules/domain_api/work_orders_read_model.js"), "utf8");
+const readModelSource = await readFile(resolve(process.cwd(), "src/modules/domain_api/work_orders_read_model.ts"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
 expect(!source.includes('import("./modules/planning_workbench/render.js")'), "Planning Workbench normal runtime must not load the legacy renderer");
@@ -28,9 +28,9 @@ expect(source.includes('hydratePlanningWorkOrderReadModel();\n  if (ui.activeMod
 expect(source.includes("if (planningWorkbenchReactIslandHost.update())"), "Planning refresh must update the mounted React island before considering a shell render.");
 expect(source.includes("await restorePlanningWorkbenchSnapshotFallback();"), "A deferred Planning entry must retain the runtime-owned compatibility fallback.");
 expect(!source.includes("if (restored && renderOnChange && ui.activeModule === \"planning\") render({ skipRememberScroll: true });"), "Planning fallback must not trigger a duplicate full render after runtime state already applied the snapshot.");
-expect(readModelSource.includes('async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {})'), "Work-order read model must expose the combined workbench bootstrap reader.");
+expect(/async function refreshWorkbenchBootstrap\(activeId:\s*unknown\s*=\s*"",\s*\{ force = false \}:\s*\{ force\?: boolean \}\s*=\s*\{\}\)/.test(readModelSource), "Work-order read model must expose the typed combined workbench bootstrap reader.");
 expect(readModelSource.includes('`${url}/bootstrap${params}`'), "Workbench bootstrap must use the dedicated one-request endpoint.");
-expect(readModelSource.includes('bootstrapEntries: new Map()') && readModelSource.includes('bootstrapLoading: new Map()'), "Independent selections must retain keyed bootstrap cache and in-flight requests.");
+expect(readModelSource.includes('bootstrapEntries: new Map<unknown, BootstrapEntry>()') && readModelSource.includes('bootstrapLoading: new Map<unknown, Promise<WorkOrderBootstrapRefreshResult>>()'), "Independent selections must retain typed keyed bootstrap cache and in-flight requests without coercing legacy keys.");
 expect(source.includes('async function hydrateInitialPlanningServerBootstrap()'), "Initial Planning bootstrap must choose a server projection by the active module.");
 expect(source.includes('["gantt", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui?.activeModule)') && /const applied = await hydratePlanningRuntimeProjection\(\);/.test(source), "Direct Gantt and Shift Execution consumers, including Employee Desktop, must request the PostgreSQL runtime projection before the compatibility snapshot.");
 expect(source.includes('return hydratePlanningWorkbenchBootstrap();'), "Planning startup must retain the compact workbench bootstrap outside full-runtime consumers.");

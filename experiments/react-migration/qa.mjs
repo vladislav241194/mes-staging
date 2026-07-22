@@ -2136,7 +2136,7 @@ try {
     "scripts/planning-runtime-projection-postgres-repository-qa.mjs",
     "scripts/planning-workbench-bootstrap-postgres-repository-qa.mjs",
     "src/domain/calendar_date.js",
-    "src/modules/domain_api/work_orders_read_model.js",
+    "src/modules/domain_api/work_orders_read_model.ts",
   ]);
   if ([...planningStartDatePersistenceContractPaths].some((path) => changedPaths.includes(path))) {
     assert.deepEqual(
