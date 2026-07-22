@@ -12,7 +12,8 @@ export function createMarkingReactIslandHost({ getActivation, getPayload, getTar
     reportError,
     targetSelector: MARKING_REACT_TARGET,
     renderTarget: '<div class="mes-react-marking-island" data-react-marking-island data-react-island-state="loading" aria-live="polite"></div>',
-    getIneligibilityReason: (activation) => activation.demoEnabled === true ? "" : "disabled",
+    getIneligibilityReason: (activation) => activation.productionEnabled === true ? "" : "disabled",
+    canFallbackToLegacy: () => false,
     loadIsland: async () => {
       const islandUrl = new URL("./react-islands/marking.js", import.meta.url);
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");

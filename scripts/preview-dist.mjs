@@ -19,9 +19,10 @@ import {
   renderRuntimeConfigScript,
 } from "./shared-state-storage.mjs";
 import { writeContourFavicon } from "./contour-favicon.mjs";
-import { handlePublicAuthRequest } from "./public-auth-guard.mjs";
+import { getPublicAuthPrincipal, handlePublicAuthRequest } from "./public-auth-guard.mjs";
 import { handleEmployeeAuthRequest } from "./employee-auth-endpoint.mjs";
 import { inspectEmployeeAuthSession } from "./employee-auth-guard.mjs";
+import { handleMarkingPhase1Request } from "./domain-marking-phase1-endpoint.mjs";
 import {
   getCurrentDirectoryAuthorization,
   getCurrentNomenclatureAuthorization,
@@ -234,6 +235,36 @@ createServer(async (req, res) => {
 
   if (await handleEmployeeAuthRequest(req, res, url, {
     headers: noCacheHeaders,
+  })) {
+    return;
+  }
+
+  if (await handleMarkingPhase1Request(req, res, url, {
+    env: process.env,
+    headers: noCacheHeaders,
+    getAuthorization: async ({ action }) => {
+      const session = await inspectEmployeeAuthSession(req, process.env);
+      if (session.principal) {
+        return getCurrentDirectoryAuthorization(session.principal, {
+          databaseUrl: process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
+          moduleId: "marking",
+          resourceId: "marking-phase1",
+          action,
+          resourceContext: { stateScope: "test-state" },
+        });
+      }
+      // Phase 1 is intentionally isolated from production rows. The existing
+      // contour login may therefore operate one explicit test actor without a
+      // second PIN ceremony; later production traceability keeps employee RBAC.
+      const publicPrincipal = getPublicAuthPrincipal(req, process.env);
+      if (!publicPrincipal) return { allowed: false, reason: "marking-session-required", principal: null };
+      const employeeId = String(process.env.MES_MARKING_PHASE1_TEST_ACTOR_ID || "MOK-MARKING-PILOT-USER").trim();
+      return {
+        allowed: true,
+        reason: "marking-phase1-public-test-state",
+        principal: { id: `employee:${employeeId}`, employeeId, scope: "employee" },
+      };
+    },
   })) {
     return;
   }

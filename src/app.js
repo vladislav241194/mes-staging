@@ -104,6 +104,7 @@ import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_bo
 import { createShiftMasterBoardCommandOwner } from "./modules/shift_master_board/command_owner.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
+import { createMarkingApiClient } from "./modules/marking/api_client.ts";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.js";
@@ -208,7 +209,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.46";
+const APP_VERSION_FALLBACK = "v.1.500.47";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -6095,9 +6096,15 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     return { ok: false, message: "Неизвестная команда рабочего стола." };
   },
 });
+const markingApiClient = createMarkingApiClient();
 const markingReactIslandHost = createMarkingReactIslandHost({
-  getActivation: () => ({ demoEnabled: true }),
-  getPayload: () => ({ mode: "mock", persistence: "memory-only", source: "phase-1-demo" }),
+  getActivation: () => ({ productionEnabled: true }),
+  getPayload: () => ({
+    mode: "production",
+    persistence: "postgresql-isolated-phase-1",
+    source: "marking-phase-1-api",
+    api: markingApiClient,
+  }),
   getTargetRoot: () => app,
   requestLegacyRender: () => {
     if (ui.activeModule === "marking") render({ skipRememberScroll: true });
@@ -11978,7 +11985,7 @@ function initializeModuleRuntime() {
         return renderMesModulePatternPage({
           moduleId: "marking",
           header: { eyebrow: "Оперативное управление", title: "Маркировка" },
-          content: renderUiEmptyState({ title: "Демо-модуль временно недоступен", description: "Вернитесь к предыдущему релизу или обновите страницу." }),
+          content: renderUiEmptyState({ title: "Модуль маркировки временно недоступен", description: "Обновите страницу; при повторной ошибке вернитесь к предыдущему релизу." }),
         });
       },
       bind: () => {},

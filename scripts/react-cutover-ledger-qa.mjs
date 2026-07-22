@@ -31,9 +31,9 @@ assert.equal(ledger.schemaVersion, 3, "cutover ledger schema must be explicit");
 assert.equal(ledger.designSystem, "mes-line", "React cutover must retain the MES Line design system");
 assert.equal(ledger.updatedAt, "2026-07-22", "cutover ledger date must match the accelerated implementation checkpoint");
 assert.equal(ledger.baselineProgress, 46, "the pre-rollout audited baseline must remain explicit");
-assert.equal(ledger.implementationProgress, 98, "accelerated implementation progress must remain separate from evidence-weighted acceptance");
+assert.equal(ledger.implementationProgress, 99, "accelerated implementation progress must remain separate from evidence-weighted acceptance");
 assert.equal(ledger.implementationProgressUpdatedAt, "2026-07-22", "implementation progress must name its checkpoint date");
-assert.equal(ledger.implementationProgressBasis, "16/16 top-level routes have React UI: 11 complete (Dispatch is production-backed read-only), 4 partial and 1 explicit prototype; Dispatch no longer loads its rollback renderer on the normal path, bringing accelerated implementation to 98%, while strict Pilot acceptance remains separate at 50%.", "implementation progress must retain its auditable route basis");
+assert.equal(ledger.implementationProgressBasis, "16/16 top-level routes have React UI: 11 complete (Dispatch is production-backed read-only), 4 partial and 1 explicit Phase 1 prototype; Marking now uses typed React ports plus an isolated PostgreSQL/API test-state owner, bringing accelerated implementation to 99%, while production traceability and strict Pilot acceptance remain separate at 50%.", "implementation progress must retain its auditable route basis");
 assert(ledger.implementationProgress >= ledger.currentProgress, "implementation progress may not understate evidence-weighted acceptance");
 assert.equal(ledger.acceptedPilotRelease, "v.1.500.26-097d66c", "permanent Pilot evidence must name the immutable active release");
 assert.equal(ledger.acceptedPilotPreviousRelease, "v.1.500.25-1f8369c", "permanent Pilot evidence must name its immutable immediate rollback release");
@@ -283,7 +283,7 @@ assert.deepEqual(
 assert.deepEqual(
   ledger.modules.filter((module) => module.reactSurface === "mock-island").map((module) => module.id),
   ["marking"],
-  "Marking must remain explicitly non-production until it has owners, APIs and persistence",
+  "Marking must remain explicitly non-production until production traceability, printer ownership and Pilot acceptance are complete",
 );
 const reactRuntimeModules = ledger.modules.filter((module) => module.runtimeMode === "react");
 assert(reactRuntimeModules.some((module) => module.id === "weeklyProductionControl"), "the accepted Weekly React route must remain permanent");

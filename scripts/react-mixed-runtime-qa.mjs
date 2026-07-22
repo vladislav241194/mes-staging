@@ -22,6 +22,7 @@ async function listFiles(root) {
 const sourceFiles = await listFiles(join(repositoryRoot, "src"));
 const activeJavaScriptFiles = sourceFiles.filter((path) => extname(path) === ".js");
 const activeTypeScriptFiles = sourceFiles.filter((path) => [".ts", ".tsx"].includes(extname(path)));
+const activeTypeScriptRelativePaths = activeTypeScriptFiles.map((path) => path.slice(repositoryRoot.length + 1)).sort();
 const activeJavaScriptLines = (await Promise.all(activeJavaScriptFiles.map(async (path) => (
   (await readFile(path, "utf8")).split("\n").length - 1
 )))).reduce((sum, lines) => sum + lines, 0);
@@ -29,7 +30,7 @@ const requestLegacyRenderDefinitions = (appSource.match(/requestLegacyRender\s*:
 
 assert.match(indexHtml, /<script type="module" src="\.\/src\/app\.js[^"\n]*"><\/script>/,
   "the mixed-runtime audit must track the actual active frontend boot entry");
-assert.equal(activeTypeScriptFiles.length, 0, "active src remains JavaScript until production slices are moved behind strict TypeScript boundaries");
+assert.deepEqual(activeTypeScriptRelativePaths, ["src/modules/marking/api_client.ts"], "active src TypeScript must grow only through explicitly audited production boundaries");
 assert(activeJavaScriptLines > 80_000, "active JavaScript inventory unexpectedly fell below the audited mixed-runtime floor");
 assert(requestLegacyRenderDefinitions > 0, "legacy-render callbacks must remain explicitly inventoried until final cutover");
 

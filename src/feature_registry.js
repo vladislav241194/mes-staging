@@ -143,11 +143,11 @@ const MODULE_FEATURE_OVERRIDES = {
   marking: {
     css: ["styles/react-marking-island.css"],
     files: ["src/modules/marking/react_island_host.js", "experiments/react-migration/src/modules/marking/MarkingScenario.tsx"],
-    storage: [],
-    api: [],
+    storage: ["PostgreSQL: marking_phase1_*"],
+    api: ["/api/v1/marking"],
     qa: ["scripts/marking-module-qa.mjs", "scripts/marking-module-functional-qa.mjs", "scripts/module-smoke-qa.mjs"],
-    domains: ["worker-desktop", "mock-memory-only"],
-    removalContract: "Фаза 1 не создаёт серверные данные. Удаление модуля не должно затрагивать рабочие столы, СЗН, маршруты или историю производства.",
+    domains: ["worker-desktop", "marking-phase1-test-state"],
+    removalContract: "Удаление фазы 1 затрагивает только marking_phase1_*; рабочие столы, СЗН, маршруты, реальные статусы и производственная история остаются неизменными.",
   },
 };
 

@@ -3,9 +3,9 @@
   "updatedAt": "2026-07-22",
   "baselineProgress": 46,
   "currentProgress": 50,
-  "implementationProgress": 98,
+  "implementationProgress": 99,
   "implementationProgressUpdatedAt": "2026-07-22",
-  "implementationProgressBasis": "16/16 top-level routes have React UI: 11 complete (Dispatch is production-backed read-only), 4 partial and 1 explicit prototype; Dispatch no longer loads its rollback renderer on the normal path, bringing accelerated implementation to 98%, while strict Pilot acceptance remains separate at 50%.",
+  "implementationProgressBasis": "16/16 top-level routes have React UI: 11 complete (Dispatch is production-backed read-only), 4 partial and 1 explicit Phase 1 prototype; Marking now uses typed React ports plus an isolated PostgreSQL/API test-state owner, bringing accelerated implementation to 99%, while production traceability and strict Pilot acceptance remain separate at 50%.",
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
@@ -214,7 +214,7 @@
     { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "implementationMarker": "React TS · read-only", "commands": { "implemented": ["read-production"], "missing": [] } },
     { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "select-task", "start-task", "save-fact", "prepare-photo", "save-report", "structure-context", "route-context", "pdf-context"], "missing": [] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "blocked": ["refresh", "edit-dependency", "drag", "resize", "optimize"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
-    { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
+    { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": ["phase1-test-state-owner", "read-api", "write-api", "database-persistence", "phase1-rbac-adapter"], "missing": ["production-owner", "production-traceability", "printer-outbox", "Pilot production acceptance"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "nomenclatureTypes", "routeId": "directories", "entry": "experiments/react-migration/src/nomenclature-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "operations", "routeId": "directories", "entry": "experiments/react-migration/src/operations-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
@@ -472,7 +472,7 @@
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["production owner", "API and database persistence", "RBAC", "traceability lifecycle", "Pilot production acceptance"]
+      "remainingScopes": ["production owner", "production traceability lifecycle", "real printer outbox", "employee RBAC acceptance", "Pilot production acceptance"]
     }
   ]
 }

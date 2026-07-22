@@ -68,10 +68,10 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 
 ## Ускоренный implementation checkpoint 2026-07-22
 
-Отдельный показатель реализации составляет **98%**, тогда как строгая
+Отдельный показатель реализации составляет **99%**, тогда как строгая
 evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
 верхнеуровневых маршрутов уже имеют React UI: **11 complete**, **4 partial** и
-**1 явный prototype**. Маркер `React TS` показывается только на complete
+**1 явный Phase 1 prototype**. Маркер `React TS` показывается только на complete
 модулях; partial и prototype не выдаются за завершённые.
 
 - Complete: Nomenclature, Weekly Production Control, Shift Master Board,
@@ -79,6 +79,15 @@ evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
   Directories, Auth Prototype, Contour Admin, Timesheet, Auth Session Prototype.
 - Partial: Specifications 2, Planning, Gantt, Roles.
 - Prototype: Marking.
+
+Marking Phase 1 больше не является memory-only экраном: нормальный путь
+использует typed React port, `/api/v1/marking` и изолированные PostgreSQL
+таблицы `marking_phase1_*`. Доступны конфигурация, комплекты/коды, партии
+печати, подтверждение/ошибка, reprint, завершение, передача/отмена и поиск
+кода. Данные остаются явно тестовыми и не меняют production owners;
+production traceability, реальный принтер/outbox и Pilot lifecycle acceptance
+не засчитаны. Поэтому реализация выросла до 99%, а строгий показатель остаётся
+50%.
 
 Auth Session Prototype / Employee Desktop теперь строит рабочие задания,
 маршрутный контекст, факты и Report-сводки собственной strict TypeScript
@@ -230,8 +239,9 @@ release pointer остался на `.46`.
   rollback selector.
 - `requestLegacyRender` остаётся в 25 явных host/runtime definitions.
 - `dispatch` имеет production-backed read-only React-island; свежая Pilot read-приёмка отложена.
-- `marking` всегда открывается через React, но пока явно является
-  `memory-only MOCK`: без API, БД и сохранения.
+- `marking` всегда открывается через React и имеет durable Phase 1 API/БД в
+  отдельном `test-state`; production traceability и printer owner ещё не
+  подключены.
 - Strict TypeScript покрывает React-island-дерево и новый Weekly read-model, но
   не весь активный frontend-runtime: исполняемый audit сейчас видит 145
   JavaScript-файлов и 93 441 строку кода в `src`, при нулевом числе
@@ -300,9 +310,9 @@ Functional parity остаётся 18.
 
 ### Marking
 
-- утвердить production owner и API;
-- заменить memory-only MOCK настоящим чтением/записью;
-- выполнить traceability, reload, cleanup и RBAC-приёмку.
+- утвердить production owner поверх готового Phase 1 API;
+- подключить реальный printer outbox и production traceability;
+- выполнить cleanup, employee-RBAC и Pilot lifecycle-приёмку.
 
 ### Dispatch
 
@@ -493,7 +503,8 @@ fresh authenticated Pilot read, row parity с `.25` и rollback/reactivation
 - React постоянно включён, а не активируется evaluation/query-флагом;
 - переходы и reload не переключают пользователя между двумя верстками;
 - весь активный frontend проходит строгую TypeScript-проверку;
-- memory-only Marking MOCK не считается production-модулем;
+- изолированный Marking Phase 1 test-state не считается завершённой production
+  traceability;
 - legacy отсутствует в normal runtime, но предыдущий release сохранён и
   проверен как rollback;
 - интерфейс принят вручную и соответствует дизайну MES Line;
