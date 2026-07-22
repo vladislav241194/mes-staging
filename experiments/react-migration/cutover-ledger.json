@@ -14,6 +14,7 @@
       "nomenclature",
       "boards",
       "componentTypes",
+      "employeeDesktop",
       "operations",
       "planningWorkbench",
       "nomenclatureTypes",
@@ -27,7 +28,7 @@
       "shiftWorkOrders",
       "timesheet"
     ],
-    "runtimePolicySha256": "545bb84e1f2bcb7d2b2d7d3e56c377421fcc9754c6685a43c0a6711a35c45200",
+    "runtimePolicySha256": "7edb13cec499ac684c186cb0932414b5dc20f6a861020c14feaafbcc4cc2e484",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",
@@ -200,7 +201,7 @@
     { "id": "boards", "routeId": "nomenclature", "entry": "experiments/react-migration/src/boards-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-board", "delete-board", "import-xlsx", "add-bom-row", "update-bom-row", "delete-bom-row"], "missing": [] } },
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["execute-ops"], "missing": ["deploy-request-owner-action"] } },
-    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["durable-report-persistence"] } },
+    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["durable-report-persistence"] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
@@ -442,12 +443,12 @@
       "scenarios": ["employeeDesktop"],
       "reactSurface": "production-island",
       "functionalStatus": "partial",
-      "runtimeMode": "legacy-default",
-      "visibleLegacyRendererPath": true,
+      "runtimeMode": "react",
+      "visibleLegacyRendererPath": false,
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["Report durable persistence", "Pilot task/fact/Report lifecycle", "permanent React runtime"]
+      "remainingScopes": ["Report durable persistence", "Pilot task/fact/Report lifecycle", "typed owner/model independence"]
     },
     {
       "id": "marking",

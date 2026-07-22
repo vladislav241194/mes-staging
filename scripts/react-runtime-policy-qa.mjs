@@ -54,6 +54,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "shiftWorkOrders",
   "authPicker",
   "planningWorkbench",
+  "employeeDesktop",
 ], "permanent allowlist must stay explicit and limited to fully wired consumers");
 const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
 assert.deepEqual(
@@ -74,6 +75,7 @@ if (candidatePolicy) {
     "authPicker",
     "boards",
     "componentTypes",
+    "employeeDesktop",
     "nomenclature",
     "nomenclatureTypes",
     "operations",

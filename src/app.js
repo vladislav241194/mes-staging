@@ -5237,23 +5237,53 @@ function isEmployeeDesktopReactEvaluationRequested() {
   if (params.get("react-employee-desktop-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function getEmployeeDesktopReactActivation() {
+  const localQa = getEmployeeDesktopReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "employeeDesktop",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP === true && serverEvaluationAllowed,
+    evaluationRequested: isEmployeeDesktopReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const authoritativeProjectionReady = shiftExecutionServerState.status === "ready"
+    && shiftExecutionServerState.primaryPostgres === true
+    && shiftExecutionServerState.schemaReady === true
+    && shiftExecutionServerState.coverageComplete === true;
+  const modulesReady = authModulesReady && shiftMasterBoardModuleReady;
+  return {
+    ...runtimeActivation,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
+        ? "write-evaluation"
+        : runtimeActivation.accessMode,
+    serverReadFailure: shiftMasterBoardModuleError
+      ? "model-unavailable"
+      : systemDomainsServerReadState.status === "fallback" || shiftExecutionServerState.status === "fallback"
+        ? "read-unavailable"
+        : "",
+    serverReadReady: modulesReady
+      && systemDomainsServerReadState.status === "server"
+      && authoritativeProjectionReady,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
 const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
-  getActivation: () => {
-    const localQa = getEmployeeDesktopReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION === true;
-    const overlayClosed = !normalizePlainRecord(ui.authSessionModal).type;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_EMPLOYEE_DESKTOP === true || localQa.featureFlagEnabled,
-      serverReadReady: authModulesReady && systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isEmployeeDesktopReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
-    };
-  },
+  getActivation: getEmployeeDesktopReactActivation,
   getPayload: () => {
     const model = getAuthSessionPrototypeModel();
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
+    const activation = getEmployeeDesktopReactActivation();
     const authPersonId = String(model.authPerson?.id || "");
-    const canStartTask = localQa.writeEvaluation && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
-    const canSaveFact = localQa.writeEvaluation && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
+    const roleCanEdit = getAccessRoleModulePermission(model.role?.id, "authSessionPrototype", "edit");
+    const commandsReady = (activation.accessMode === "react" || localQa.writeEvaluation)
+      && shiftExecutionServerState.commandsEnabled === true
+      && roleCanEdit;
+    const canStartTask = commandsReady && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
+    const canSaveFact = commandsReady && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
+    // Report remains visible in React but fail-closed until a durable server
+    // owner replaces the browser-only issue store.
     const canSaveReport = localQa.writeEvaluation && (model.tasks || []).some((task) => !authPersonId || task.employeeId === authPersonId);
     const reportSummaries = Object.fromEntries((model.tasks || []).map((task) => [task.id, getShiftWorkOrderIssueSummary(task.rowId)]));
     return { model, reportSummaries, capabilities: { taskStart: canStartTask, factSave: canSaveFact, reportSave: canSaveReport, sessionNavigation: model.isLoggedIn === true } };
@@ -5271,6 +5301,7 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
+    const activation = getEmployeeDesktopReactActivation();
     const model = getAuthSessionPrototypeModel();
     if (command.type === "select-person") {
       if (command.personId === null) {
@@ -5292,7 +5323,9 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
       return { ok: true, id: personId };
     }
-    if (!localQa.writeEvaluation) return { ok: false, message: "Команды рабочего стола в React недоступны." };
+    const permanentCommand = activation.accessMode === "react" && ["start-task", "save-fact"].includes(String(command.type || ""));
+    if ((!permanentCommand && !localQa.writeEvaluation) || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Команда рабочего стола пока недоступна." };
+    if (!getAccessRoleModulePermission(model.role?.id, "authSessionPrototype", "edit")) return { ok: false, message: "Нет права изменять рабочее задание." };
     const taskId = String(command.taskId || "").trim();
     const task = (model.tasks || []).find((item) => item.id === taskId) || null;
     if (!task) return { ok: false, message: "Задание больше не доступно на рабочем столе." };
@@ -10603,7 +10636,7 @@ function initializeModuleRuntime() {
         if (reactDecision.activateReact) return employeeDesktopReactIslandHost.renderTarget();
         return renderAuthSessionPrototypePage();
       },
-      renderModals: () => renderAuthSessionModal(),
+      renderModals: () => employeeDesktopReactIslandHost.isReactEligible() ? "" : renderAuthSessionModal(),
       bind: () => {
         if (employeeDesktopReactIslandHost.isReactEligible()) return;
         bindAuthPrototypeEvents();

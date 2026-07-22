@@ -350,6 +350,7 @@ if (candidatePolicy) {
     "authPicker",
     "boards",
     "componentTypes",
+    "employeeDesktop",
     "nomenclature",
     "nomenclatureTypes",
     "operations",

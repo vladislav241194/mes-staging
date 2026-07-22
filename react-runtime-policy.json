@@ -21,7 +21,7 @@
     "planningWorkbench": "react",
     "shiftWorkOrders": "react",
     "shiftMasterBoard": "evaluation",
-    "employeeDesktop": "evaluation",
+    "employeeDesktop": "react",
     "specifications2": "evaluation",
     "gantt": "evaluation",
     "authPicker": "react",

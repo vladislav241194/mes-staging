@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 import { createAuthEventsModule } from "../src/modules/auth_render/events.js";
 import { createEmployeeDesktopReactIslandHost } from "../src/modules/auth_render/employee_desktop_react_island_host.js";
@@ -15,6 +17,12 @@ assert.doesNotMatch(script, /must-not-leak/);
 
 const writeHost = createEmployeeDesktopReactIslandHost({ getActivation: () => ({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }), getPayload: () => ({}), getTargetRoot: () => null });
 assert.deepEqual(writeHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop must accept only the explicit write-evaluation host mode");
+const permanentHost = createEmployeeDesktopReactIslandHost({ getActivation: () => ({ featureFlagEnabled: true, runtimeMode: "react", serverReadReady: true, accessMode: "react" }), getPayload: () => ({}), getTargetRoot: () => null });
+assert.deepEqual(permanentHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop permanent policy must activate React without URL flags");
+const pendingPermanentHost = createEmployeeDesktopReactIslandHost({ getActivation: () => ({ featureFlagEnabled: true, runtimeMode: "react", serverReadReady: false, accessMode: "react" }), getPayload: () => ({}), getTargetRoot: () => null });
+assert.deepEqual(pendingPermanentHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop permanent route must retain a React loading/error shell instead of legacy");
+const scenarioSource = await readFile(join(import.meta.dirname, "..", "experiments", "react-migration", "src", "modules", "employee-desktop", "EmployeeDesktopScenario.tsx"), "utf8");
+assert.doesNotMatch(scenarioSource, /onRequestLegacy\?\./, "Employee Desktop actions must not navigate to legacy UI");
 
 let task = { id: "task-1", rowId: "row-1", employeeId: "employee-1", employeeName: "Исполнитель QA", assignedQuantity: 10, minutesPerUnit: 2, isDone: false, isStarted: false };
 let patch = null; let persists = 0; let notifications = 0; let renders = 0; let rejectBoardFact = false; const drafts = {}; const uiState = { authSessionFactDrafts: drafts }; const boardFacts = [];
