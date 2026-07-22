@@ -71,7 +71,8 @@ assert.match(runtimeState, /delete values\[DIRECTORY_STORAGE_KEY\];[\s\S]*?delet
 const directoryCapability = functionBody(app, "canEditDirectorySection", "canEditCustomStatusDirectorySection");
 assert(directoryCapability.indexOf("isNomenclatureServerCommandsPrimary()") < directoryCapability.indexOf("authorizeSystemDomainAction"), "Directory controls must become read-only before RBAC grants are considered");
 assert.match(functionBody(app, "canEditCustomStatusDirectorySection", "isUserManagedDirectoryStatus"), /isNomenclatureServerCommandsPrimary\(\).*return false/s);
-assert.match(app, /createEdit: localQa\.writeEvaluation && !isLegacyDirectoryWriteBlocked\(\)/, "Boards capabilities must be visibly read-only under command-primary");
+assert.match(app, /function canWriteBoardsReact[\s\S]*?!isLegacyDirectoryWriteBlocked\(\)[\s\S]*?authorizeSystemDomainAction\("nomenclature", "edit", \{ resourceId: "boards" \}\)/, "Boards React writes must fail closed under command-primary before RBAC can grant them");
+assert.match(app, /const boardsReactIslandHost[\s\S]*?capabilities:\s*\{[\s\S]*?createEdit: canWrite,[\s\S]*?delete: canWrite,[\s\S]*?bomImport: canWrite/, "Boards React must expose the fail-closed write decision to every visible editor capability");
 assert.match(app, /const commitSpecifications2Publication[\s\S]*?if \(isLegacyDirectoryWriteBlocked\(\)\)[\s\S]*?buildSpecifications2Publication/, "Specifications 2 publication must fail before compatibility state is built");
 
 for (const [name, nextName] of [
