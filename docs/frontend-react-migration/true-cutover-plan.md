@@ -390,6 +390,27 @@ Immediate rollback dry-run точно возвращает `.55`; pinned legacy 
 сохранён под прежним Specifications 2 compatibility guard. Implementation
 остаётся 99%, strict acceptance — 50%. Blueprint UI не используется.
 
+Release `v.1.500.57-0b8953d` активирован на Pilot из точного commit
+`0b8953d5f8b14f5d2f32895008d1059925171858`. Orphan renderer Журнала СЗН
+(1 136 строк) и stale browser QA, требовавший same-release legacy origin,
+физически удалены. Полный cut удаляет 1 339 строк при 42 строках production
+ownership/policy guards. Permanent React route, journal owner, typed models,
+assignment/fact/carryover RBAC/server owners и lazy print/fact boundaries
+сохранены. Registry ownership теперь перечисляет реальные React/TypeScript
+файлы; overlay probe закреплён на стабильном React-действии `Печать СЗН`.
+
+Local/public health `ok`, версия `v.1.500.57`, shared state `ready`, evaluation
+и runtime legacy surfaces пусты; service/pointer указывают на `.57`, effective
+`MES_REACT_*` flags отсутствуют. Source/dist SHA-256 —
+`7100e3a164a77b8f40eca5281bcb6baae858338a0376a2067c63ddff288b3cbd` и
+`5d0abf3118d79dd9a9b7039f4b6a5dcdb8047c9c8a0e06bc07386df83f8ae947`.
+Strict TypeScript, syntax, model/command/server, module blueprint, feature
+registry, icon system, deterministic build и mixed-runtime gates прошли;
+independent review дал GO. Visual/browser QA намеренно пропущен. Immediate
+rollback dry-run точно возвращает `.56`; pinned legacy `.18` сохранён под
+прежним Specifications 2 compatibility guard. Implementation остаётся 99%,
+strict acceptance — 50%. Blueprint UI не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,

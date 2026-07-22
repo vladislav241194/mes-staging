@@ -1658,6 +1658,44 @@ Routes UI layer while preserving the still-live route event owner.
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: remove the orphaned Shift Work Orders renderer while
-preserving the React journal owner, typed production model, Shift Master Board
-command owners and immutable print/rollback boundaries.
+## Shift Work Orders legacy retirement 2026-07-22: release `.57`
+
+This block supersedes `.56` as the live Pilot pointer and removes the orphaned
+Journal renderer while preserving its React read/write and print owners.
+
+- Active Pilot is `v.1.500.57-0b8953d` at exact commit
+  `0b8953d5f8b14f5d2f32895008d1059925171858`; immediate previous is
+  `v.1.500.56-238c5c4` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `7100e3a164a77b8f40eca5281bcb6baae858338a0376a2067c63ddff288b3cbd` and
+  `5d0abf3118d79dd9a9b7039f4b6a5dcdb8047c9c8a0e06bc07386df83f8ae947`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Local/public health report `ok`, version `v.1.500.57`, shared state `ready`,
+  zero active evaluation/legacy surfaces and no effective `MES_REACT_*`
+  flags. The service is active and `/srv/mes/pilot/app` resolves to `.57`.
+- `src/modules/shift_work_orders/render.js` (1,136 lines) and the stale
+  same-release legacy-origin browser QA (194 lines) were physically removed.
+  The full cut deletes 1,339 lines and adds 42 production ownership and policy
+  lines.
+- The permanent React route, `journal_owner.js`, both typed production models,
+  assignment/fact/carryover RBAC/server owners, lazy fact editor, lazy print
+  renderer and app print-package builder are preserved. Module/feature
+  registries now point to those real React/TypeScript owners.
+- The former overlay probe referenced only the removed renderer. The React
+  `Печать СЗН` action now exposes a stable trigger contract and policy guard;
+  no legacy overlay edge was reintroduced.
+- Strict TypeScript, syntax, Shift Work Orders runtime/model, Shift Master
+  command/server bridge, module blueprint, feature registry, icon system,
+  deterministic build, mixed-runtime and diff gates passed. Independent
+  review returned GO. Visual/browser QA was deliberately skipped.
+- Immediate previous `.56` passed rollback dry-run. The sealed legacy `.18`
+  pointer remains protected by the existing Specifications 2 compatibility
+  guard.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: remove the orphaned Timesheet renderer, replace its stale
+ownership/evaluation QA with typed model/command contracts, and remove unused
+production legacy callback ports while preserving personnel-calendar owners.
