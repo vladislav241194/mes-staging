@@ -66,24 +66,8 @@ function classifyTable(source, index, helperNames) {
   return { status: "violation", reason: "missing TableWrap contract" };
 }
 
-const expectedAliasedRenderers = [
-  "src/modules/planning_table/render.js",
-  "src/modules/visual_system/render.js",
-];
-
 runtimeSources.forEach((runtimeSource) => {
   runtimeSource.tableWrapHelperNames = getTableWrapHelperNames(runtimeSource.source);
-});
-
-expectedAliasedRenderers.forEach((relativePath) => {
-  const runtimeSource = runtimeSources.find((item) => item.relativePath === relativePath);
-  if (!runtimeSource || runtimeSource.tableWrapHelperNames.size < 2) {
-    throw new Error(`TableWrap alias regression failed: ${relativePath} must expose a destructured renderUiTableWrap alias`);
-  }
-  const tableIndex = runtimeSource.source.indexOf("<table");
-  if (tableIndex < 0 || !findTableWrapHelperCall(runtimeSource.source, tableIndex, runtimeSource.tableWrapHelperNames)) {
-    throw new Error(`TableWrap alias regression failed: ${relativePath} must use its destructured alias to wrap its first table`);
-  }
 });
 
 const tables = runtimeSources.flatMap(({ relativePath, source, tableWrapHelperNames }) => (

@@ -15,9 +15,10 @@ function functionSource(fileSource, functionName) {
   return fileSource.slice(start, next >= 0 ? next : fileSource.length);
 }
 
-const [app, structure, timesheetScenario, timesheetAdapter, roles, rolesAdapter, rolesHost, directories, events, server, publicAuth, domainApi, sharedState] = await Promise.all([
+const [app, structureScenario, structureAdapter, timesheetScenario, timesheetAdapter, roles, rolesAdapter, rolesHost, directories, events, server, publicAuth, domainApi, sharedState] = await Promise.all([
   source("src/app.js"),
-  source("src/modules/production_structure_matrix/render.js"),
+  source("experiments/react-migration/src/modules/structure-employees/StructureEmployeesScenario.tsx"),
+  source("experiments/react-migration/src/modules/structure-employees/adapter.ts"),
   source("experiments/react-migration/src/modules/timesheet/TimesheetScenario.tsx"),
   source("experiments/react-migration/src/modules/timesheet/adapter.ts"),
   source("experiments/react-migration/src/modules/roles/RolesScenario.tsx"),
@@ -48,7 +49,10 @@ expectations.forEach(([functionName, guard]) => {
 });
 
 assert(functionSource(app, "canEditSystemDomainRegistry").includes('service?.can(subject, "productionStructureMatrix", "edit"'), "Structure mutations are not guarded by canonical can().");
-assert(structure.includes("canEditSystemDomainRegistry(registryId) === true"), "Structure UI does not consume the edit guard.");
+assert(structureAdapter.includes("canCreateEdit: capabilities.createEdit === true"), "Structure React adapter must fail closed without an explicit create/edit capability.");
+assert(structureAdapter.includes("canArchive: capabilities.archive === true"), "Structure React adapter must fail closed without an explicit archive capability.");
+assert(structureScenario.includes("disabled={!model.canCreateEdit}"), "Structure React create action does not fail closed without the projected capability.");
+assert(structureScenario.includes("selected && model.canCreateEdit"), "Structure React mutation actions do not fail closed without the projected capability.");
 assert(timesheetScenario.includes("disabled={!canEditSchedule}"), "Timesheet schedule action does not fail closed without the projected capability.");
 assert(timesheetScenario.includes("disabled={!canEditDay}"), "Timesheet attendance action does not fail closed without the projected capability.");
 assert(!timesheetScenario.includes("onRequestLegacy"), "Timesheet must not expose an action fallback to the removed renderer.");

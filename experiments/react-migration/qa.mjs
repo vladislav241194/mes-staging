@@ -490,67 +490,6 @@ try {
   assert.equal(diagnosticsModel.metrics.sourceRows, 152);
   assert.deepEqual(diagnosticsAdapter.adaptStructureMigrationDiagnostics({}).rows, []);
 
-  const { createProductionStructureMatrixModule } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/render.js")).href}?qa=${Date.now()}`);
-  const registryListeners = new Map();
-  const employeesRegistryButton = {
-    dataset: { systemDomainRegistry: "employees" },
-    addEventListener(type, listener) { registryListeners.set(type, listener); },
-    fire(type) { registryListeners.get(type)?.({ currentTarget: this, preventDefault() {} }); },
-  };
-  const structurePage = {
-    querySelector() { return null; },
-    querySelectorAll(selector) { return selector === "[data-system-domain-registry]" ? [employeesRegistryButton] : []; },
-  };
-  const legacyStructureModule = createProductionStructureMatrixModule({
-    PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
-    PRODUCTION_STRUCTURE_MATRIX_ROWS,
-    canEditSystemDomainRegistry: () => false,
-    escapeAttribute: escapeLegacyText,
-    escapeHtml: escapeLegacyText,
-    getApp: () => ({ querySelector: (selector) => selector === ".production-structure-page" ? structurePage : null }),
-    getSystemDomainsState: () => structureEmployeesFixture,
-    render: () => {},
-    renderUiActionButton: ({ label = "", attributes = "" }) => `<button ${attributes}>${escapeLegacyText(label)}</button>`,
-    renderUiEmptyState: ({ title = "", text = "" }) => `<div>${escapeLegacyText(title)}${escapeLegacyText(text)}</div>`,
-    renderUiFormField: ({ control = "" }) => control,
-    renderUiFormGrid: ({ body = "" }) => body,
-    renderUiModuleHeader: ({ title = "", description = "" }) => `<header><h1>${escapeLegacyText(title)}</h1><p>${escapeLegacyText(description)}</p></header>`,
-    renderUiModulePage: ({ sidebar = "", header = "", content = "" }) => `<main>${sidebar}${header}${content}</main>`,
-    renderUiModuleSidebar: ({ body = "" }) => `<aside>${body}</aside>`,
-    renderUiPanel: ({ title = "", meta = "", body = "" }) => `<section><h2>${escapeLegacyText(title)}</h2><p>${escapeLegacyText(meta)}</p>${body}</section>`,
-    renderUiPanelBody: ({ body = "" }) => body,
-    renderUiSidebarItem: ({ title = "", meta = "", badge = "", attributes = "" }) => `<button ${attributes}><span>${escapeLegacyText(title)}</span><small>${escapeLegacyText(meta)}</small><b>${escapeLegacyText(badge)}</b></button>`,
-    renderUiStatusToken: (label = "") => `<span>${escapeLegacyText(label)}</span>`,
-    renderUiTableControlAttributes: () => "",
-    renderUiTableWrap: ({ body = "", attributes = "" }) => `<div ${attributes}>${body}</div>`,
-  });
-  legacyStructureModule.bindProductionStructureMatrixEvents();
-  employeesRegistryButton.fire("click");
-  const legacyStructureHtml = legacyStructureModule.renderProductionStructureMatrixPage();
-  const legacyEmployeeTable = legacyStructureHtml.match(/<table class="directory-table ui-table production-structure-registry-table">([\s\S]*?)<\/table>/)?.[1] || "";
-  assert.ok(legacyEmployeeTable, "actual legacy Structure and Employees table must render");
-  const legacyEmployeeHeaders = [...legacyEmployeeTable.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => decodeLegacyText(match[1]));
-  assert.deepEqual(legacyEmployeeHeaders.slice(0, -1), structureViewModel.STRUCTURE_EMPLOYEE_READ_COLUMNS, "React employee columns must match the actual legacy order");
-  assert.equal(legacyEmployeeHeaders.at(-1), "Действие", "legacy employee command column must remain outside the read-only React slice");
-  const legacyEmployeeBody = legacyEmployeeTable.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || "";
-  const legacyEmployeeRows = [...legacyEmployeeBody.matchAll(/<tr[^>]*data-system-domain-row="([^"]+)"[^>]*>([\s\S]*?)<\/tr>/g)].map((match) => {
-    const cells = [...match[2].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => cell[1]);
-    return {
-      id: match[1],
-      displayName: decodeLegacyText(cells[0].match(/<strong>([\s\S]*?)<\/strong>/)?.[1] || ""),
-      stableId: decodeLegacyText(cells[0].match(/<span>([\s\S]*?)<\/span>/)?.[1] || ""),
-      cells: [decodeLegacyText(cells[1]), decodeLegacyText(cells[2]), decodeLegacyText(cells[3])],
-    };
-  });
-  assert.deepEqual(legacyEmployeeRows, structureModel.employees.map((employee) => ({
-    id: employee.id,
-    displayName: employee.displayName,
-    stableId: employee.id,
-    cells: [employee.personnelNumber, employee.employmentLabel, employee.statusLabel],
-  })), "React employees adapter must preserve actual legacy visible rows, identity and order");
-  const legacyStructureSidebar = [...legacyStructureHtml.matchAll(/<button[^>]*data-system-domain-registry="([^"]+)"[^>]*>[\s\S]*?<b>([^<]*)<\/b><\/button>/g)].map((match) => [match[1], decodeLegacyText(match[2])]);
-  assert.deepEqual(legacyStructureSidebar, structureRegistryOptions.map((option) => [option.id, String(option.count)]), "React registry navigation counts must match the actual legacy sidebar");
-
   const componentTypesAdapterOutput = join(temporaryRoot, "component-types-adapter.mjs");
   await build({
     entryPoints: [join(sourceRoot, "modules/component-types/adapter.ts")],

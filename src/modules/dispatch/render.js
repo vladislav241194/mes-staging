@@ -1,7 +1,13 @@
-export function renderDispatchModulePage({ renderMesModulePatternPage, renderUiPanel, renderUiPanelBody, renderUiSystemState }) {
+export function renderDispatchModulePage({ renderMesModulePatternPage, renderUiModuleHeader, renderUiPanel, renderUiPanelBody, renderUiSystemState }) {
   return renderMesModulePatternPage({
     moduleId: "dispatch",
-    content: renderUiPanel({
+    header: renderUiModuleHeader({
+      eyebrow: "Оперативное управление",
+      title: "Диспетчерская",
+      description: "Безопасный rollback-экран отключенного модуля.",
+      className: "dispatch-placeholder-header",
+    }),
+    content: `<div class="dispatch-placeholder-page">${renderUiPanel({
       title: "Диспетчерская",
       meta: "модуль отключен",
       className: "dispatch-placeholder-panel",
@@ -14,6 +20,6 @@ export function renderDispatchModulePage({ renderMesModulePatternPage, renderUiP
           attributes: "data-dispatch-disabled-state",
         }),
       }),
-    }),
+    })}</div>`,
   });
 }

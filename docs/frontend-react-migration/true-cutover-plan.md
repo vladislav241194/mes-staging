@@ -465,6 +465,17 @@ mixed-runtime gates прошли; independent review дал GO. Visual/browser Q
 legacy `.18` сохранён. Implementation остаётся 99%, strict acceptance — 50%.
 Blueprint UI не используется.
 
+Source cut `.60` подготовлен с маркером
+`✅ FULL REACT — Structure & employees`. Same-release renderer
+`src/modules/production_structure_matrix/render.js`, его legacy QA и пять
+доказанных orphan-renderer файлов (`employees`, `planning_table`, `shop_map`,
+`supply`, `visual_system`) физически удалены. `qa:structure`, module/feature
+metadata и extracted smoke теперь привязаны к permanent React + TypeScript
+host/islands; consolidation gate проверяет физическое отсутствие renderer и
+запрещает возврат его metadata-ссылок. CSS/assets не менялись, visual/browser
+QA намеренно пропущен. До commit/stage/activation этот блок не считается
+новой Pilot-приёмкой: strict acceptance остаётся `50%`.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -9,13 +9,38 @@ import {
 } from "../src/domain/system_domains_lifecycle.js";
 
 const root = process.cwd();
+const removedRendererPath = join(root, "src", "modules", "production_structure_matrix", "render.js");
+await assert.rejects(
+  () => access(removedRendererPath),
+  (error) => error?.code === "ENOENT",
+  "Production Structure legacy renderer must be physically absent",
+);
 const appSource = await readFile(join(root, "src", "app.js"), "utf8");
 const hostSource = await readFile(join(root, "src", "modules", "production_structure_matrix", "react_island_host.js"), "utf8");
 const capabilitiesSource = await readFile(join(root, "src", "modules", "production_structure_matrix", "server_capabilities.js"), "utf8");
 const lifecycleSource = await readFile(join(root, "src", "domain", "system_domains_lifecycle.js"), "utf8");
 const authPickerSource = await readFile(join(root, "experiments", "react-migration", "src", "modules", "auth-picker", "AuthPickerScenario.tsx"), "utf8");
 const authPickerAdapterSource = await readFile(join(root, "experiments", "react-migration", "src", "modules", "auth-picker", "adapter.ts"), "utf8");
+const packageSource = await readFile(join(root, "package.json"), "utf8");
+const moduleRegistrySource = await readFile(join(root, "src", "module_registry.js"), "utf8");
+const featureRegistrySource = await readFile(join(root, "src", "feature_registry.js"), "utf8");
+const legacyInventorySource = await readFile(join(root, "scripts", "legacy-inventory.mjs"), "utf8");
+const packageManifest = JSON.parse(packageSource);
 const policy = JSON.parse(await readFile(join(root, "react-runtime-policy.json"), "utf8"));
+for (const [label, source] of [
+  ["package metadata", packageSource],
+  ["module registry", moduleRegistrySource],
+  ["feature registry", featureRegistrySource],
+  ["legacy inventory", legacyInventorySource],
+]) {
+  assert.doesNotMatch(source, /production_structure_matrix\/render\.js/, `${label} must not reference the removed Structure renderer`);
+  assert.doesNotMatch(source, /production-structure-matrix-qa\.mjs/, `${label} must not reference the removed Structure renderer QA`);
+}
+assert.equal(
+  packageManifest.scripts?.["qa:structure"],
+  "node scripts/production-structure-react-consolidation-qa.mjs && node scripts/production-structure-react-permanent-runtime-qa.mjs && npm run typecheck:react",
+  "qa:structure must exercise the permanent React owners",
+);
 const registries = [
   ["employees", "structureEmployees"],
   ["positions", "structurePositions"],

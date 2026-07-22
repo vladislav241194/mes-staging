@@ -33,7 +33,6 @@ const trackedFiles = [
   "scripts/mobile-qa.mjs",
   "scripts/ui-contract-qa.mjs",
   "scripts/flow-contract-qa.mjs",
-  "scripts/production-structure-matrix-qa.mjs",
   "docs/mes-contract-migration-v1.md",
   "docs/mes-prototyping-speed-v1.md",
   "docs/object-relationship-map.md",
