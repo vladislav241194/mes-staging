@@ -1618,6 +1618,46 @@ its PostgreSQL command owners.
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: remove the orphaned Routes renderer and directory
-presentation layer, retain the live Routes events owner, move the one shared
-task-type label helper to a production owner, and repair stale navigation.
+## Routes legacy retirement 2026-07-22: release `.56`
+
+This block supersedes `.55` as the live Pilot pointer and removes an orphaned
+Routes UI layer while preserving the still-live route event owner.
+
+- Active Pilot is `v.1.500.56-238c5c4` at exact commit
+  `238c5c4741f7d218069e8bcd85a6ba6e79fcec15`; immediate previous is
+  `v.1.500.55-6b14e93` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `446f86a4d29de7c0e61702146be336fd62d20485c75d972ee6dfed18fd3f37d8` and
+  `145e1e5df4b5d8267bf9a59bf1c3b8adc238edc420627c40ec979c86f3edaa9b`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Local/public health report `ok`, version `v.1.500.56`, shared state `ready`,
+  zero active evaluation/legacy surfaces and no effective `MES_REACT_*`
+  flags. The service is active and `/srv/mes/pilot/app` resolves to `.56`.
+- `src/modules/routes/render.js` (1,955 lines), its dead app loader/factory,
+  and the orphaned `directory_presentation.js` (273 lines) were physically
+  removed. The complete cut deletes 2,572 lines and adds 81 focused owner,
+  navigation, generator and contract lines. The live `routes/events.js`
+  dynamic single-flight loader remains present in the sealed release.
+- Exact `getRouteTaskTypeLabel` precedence moved to the operational production
+  owner. A Planning failure can no longer navigate to the retired `routes`
+  module; it stays in Planning or opens the owning Specifications 2 entry.
+- A pre-commit review caught a rollback-only `trash` icon regression. The icon
+  generator now recognizes nested literal calls and custom-icon fallbacks,
+  retains indirect `edit`/`filter` bindings, and deterministically reproduces
+  the same 53-icon registry. The sealed Pilot release resolves the rollback
+  directory delete icon.
+- Strict TypeScript, syntax, Routes events, Directory permanent React,
+  Planning/Gantt owners, feature registry, UI contract, icon system,
+  deterministic build, mixed-runtime and diff gates passed. Independent
+  review returned GO. Visual/browser QA was deliberately skipped.
+- Immediate previous `.55` passed rollback dry-run. The sealed legacy `.18`
+  pointer remains protected by the existing Specifications 2 compatibility
+  guard.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: remove the orphaned Shift Work Orders renderer while
+preserving the React journal owner, typed production model, Shift Master Board
+command owners and immutable print/rollback boundaries.
