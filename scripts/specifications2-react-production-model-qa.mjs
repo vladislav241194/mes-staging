@@ -4,19 +4,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import {
-  createSpecifications2ProductionOwner,
-  SPECIFICATIONS2_PRODUCTION_DEFERRED_COMMANDS,
-} from "../src/modules/specifications2/production_owner.js";
 
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-specifications2-production-model-"));
 try {
-  const output = join(temporaryRoot, "adapter.mjs");
+  const adapterOutput = join(temporaryRoot, "adapter.mjs");
+  const ownerOutput = join(temporaryRoot, "production-owner.mjs");
   const adapterPath = new URL("../experiments/react-migration/src/modules/specifications2/adapter.ts", import.meta.url);
   const modelPath = new URL("../experiments/react-migration/src/modules/specifications2/production-model.ts", import.meta.url);
-  const ownerPath = new URL("../src/modules/specifications2/production_owner.js", import.meta.url);
-  await build({ entryPoints: [adapterPath.pathname], outfile: output, bundle: true, platform: "node", format: "esm", target: "node20" });
-  const { adaptSpecifications2Payload } = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
+  const ownerPath = new URL("../src/modules/specifications2/production_owner.ts", import.meta.url);
+  await Promise.all([
+    build({ entryPoints: [adapterPath.pathname], outfile: adapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" }),
+    build({ entryPoints: [ownerPath.pathname], outfile: ownerOutput, bundle: true, platform: "node", format: "esm", target: "node20" }),
+  ]);
+  const [{ adaptSpecifications2Payload }, {
+    createSpecifications2ProductionOwner,
+    SPECIFICATIONS2_PRODUCTION_DEFERRED_COMMANDS,
+  }] = await Promise.all([
+    import(`${pathToFileURL(adapterOutput).href}?qa=${Date.now()}`),
+    import(`${pathToFileURL(ownerOutput).href}?qa=${Date.now()}`),
+  ]);
 
   const entry = {
     id: "spec-controller",

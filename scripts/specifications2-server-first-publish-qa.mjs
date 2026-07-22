@@ -1,11 +1,21 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { build } from "esbuild";
 
 import {
   buildSpecifications2ReleaseFingerprint,
   publishSpecifications2Entry,
 } from "../src/modules/specifications2/publication.js";
-import { createSpecifications2ProductionOwner } from "../src/modules/specifications2/production_owner.js";
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-specifications2-server-first-"));
+try {
+const ownerPath = new URL("../src/modules/specifications2/production_owner.ts", import.meta.url);
+const ownerOutput = join(temporaryRoot, "production-owner.mjs");
+await build({ entryPoints: [ownerPath.pathname], outfile: ownerOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+const { createSpecifications2ProductionOwner } = await import(`${pathToFileURL(ownerOutput).href}?qa=${Date.now()}`);
 
 const draftEntry = {
   id: "spec-1",
@@ -307,7 +317,7 @@ assert.equal(staleCached.revision, 8);
 
 const [appSource, ownerSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/specifications2/production_owner.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/specifications2/production_owner.ts", import.meta.url), "utf8"),
 ]);
 await assert.rejects(
   access(new URL("../src/modules/specifications2/publish_flow.js", import.meta.url)),
@@ -324,3 +334,6 @@ console.log("Specifications 2.0 server-first publication QA: OK");
 console.log("- canonical N+1 request, prepared fingerprint, suppressed ACK write and forced PostgreSQL read-back: pass");
 console.log("- unchanged draft, rejected/throwing commands and stale cached read-back fail closed: pass");
 console.log("- concurrent draft content/timestamps/selection survive; ACK changes only publication envelope: pass");
+} finally {
+  await rm(temporaryRoot, { recursive: true, force: true });
+}

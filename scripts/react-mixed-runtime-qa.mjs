@@ -31,8 +31,10 @@ const requestLegacyRenderDefinitions = (appSource.match(/requestLegacyRender\s*:
 assert.match(indexHtml, /<script type="module" src="\.\/src\/app\.js[^"\n]*"><\/script>/,
   "the mixed-runtime audit must track the actual active frontend boot entry");
 assert.deepEqual(activeTypeScriptRelativePaths, [
+  "src/modules/domain_api/specifications2_publish_commands.d.ts",
   "src/modules/marking/api_client.ts",
   "src/modules/shift_work_orders/production_model.ts",
+  "src/modules/specifications2/production_owner.ts",
 ], "active src TypeScript must grow only through explicitly audited production boundaries");
 assert(activeJavaScriptLines < 80_000, "active JavaScript inventory regrew above the audited post-retirement ceiling");
 assert.equal(requestLegacyRenderDefinitions, 0, "the app shell must not retain any same-release legacy-render callback");

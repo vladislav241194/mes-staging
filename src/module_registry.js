@@ -218,7 +218,7 @@ const CORE_MODULE_BLUEPRINTS = [
     capabilities: { table: true, tree: true, actions: true },
     sourceFiles: [
       "src/modules/specifications2/react_island_host.js",
-      "src/modules/specifications2/production_owner.js",
+      "src/modules/specifications2/production_owner.ts",
     ],
   }),
   coreBlueprint({

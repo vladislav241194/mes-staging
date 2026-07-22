@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "../../src/modules/marking/api_client.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../../src/modules/marking/api_client.ts", "../../src/modules/specifications2/production_owner.ts"]
 }

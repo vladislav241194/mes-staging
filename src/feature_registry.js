@@ -40,7 +40,7 @@ const MODULE_FEATURE_OVERRIDES = {
     css: ["styles/layers/20-technology-specifications.css"],
     files: [
       "src/modules/specifications2/react_island_host.js",
-      "src/modules/specifications2/production_owner.js",
+      "src/modules/specifications2/production_owner.ts",
       "src/modules/specifications2/publication.js",
       "experiments/react-migration/src/modules/specifications2/Specifications2Scenario.tsx",
       "experiments/react-migration/src/modules/specifications2/production-model.ts",

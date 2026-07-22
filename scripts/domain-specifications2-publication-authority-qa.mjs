@@ -44,7 +44,7 @@ try {
 }
 assert.match(staleFingerprint, /changed after its client publication was prepared/, "server must reject a client fingerprint that no longer matches editor content");
 
-const ownerSource = await readFile(fileURLToPath(new URL("../src/modules/specifications2/production_owner.js", import.meta.url)), "utf-8");
+const ownerSource = await readFile(fileURLToPath(new URL("../src/modules/specifications2/production_owner.ts", import.meta.url)), "utf-8");
 const canonicalPrepareOffset = ownerSource.indexOf("preparePublication(selected, { now: now() })");
 const publishCallOffset = ownerSource.indexOf("await publicationOwner.publishRevision");
 const compatibilityWriteOffset = ownerSource.indexOf("writeStore(nextStore, { suppressSharedStatePush: true })", publishCallOffset);

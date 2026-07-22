@@ -112,7 +112,7 @@ import { createContourAdminReactIslandHost } from "./modules/contour_admin/react
 import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.js";
 import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
-import { createSpecifications2ProductionOwner } from "./modules/specifications2/production_owner.js";
+import { createSpecifications2ProductionOwner } from "./modules/specifications2/production_owner.ts";
 import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.63";
+const APP_VERSION_FALLBACK = "v.1.500.64";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
