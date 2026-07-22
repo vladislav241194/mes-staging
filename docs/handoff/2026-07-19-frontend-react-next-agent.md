@@ -1426,3 +1426,45 @@ without upgrading any partial module to complete.
   pinned `.18` baseline is preserved.
 - Browser/visual QA was deliberately skipped. Implementation remains `99%`
   and strict accepted evidence remains `50%`. Blueprint UI was not introduced.
+
+## Partial-module fail-closed cut 2026-07-22: release `.52`
+
+This block supersedes `.51` as the live Pilot pointer. It removes ordinary UI
+fallback where the missing parity can be expressed explicitly inside React,
+without misclassifying any partial module as complete.
+
+- Active Pilot is `v.1.500.52-ee9cfd5` at exact commit
+  `ee9cfd5f3083e5b7e417736a54f925bb148e20ab`; immediate previous is
+  `v.1.500.51-6ec4524` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `7c2589795b93905b817496c3a0a3fab00dfc8de10479e257f8742a180b42ceee` and
+  `2e421fcb6262b89bc790ddd310faa32998f482d6ad77738857b4c9b868895d80`.
+  Git provenance is `fresh-upstream-fetch`; accelerated staging passed strict
+  TypeScript, recursive syntax, cutover/runtime-policy gates, targeted module
+  contracts, server preflight and two deterministic production builds.
+- Local/public health report `ok`, version `v.1.500.52`, shared state `ready`,
+  runtime-policy SHA
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`,
+  and zero active evaluation surfaces. `mes-pilot.service` is active and the
+  release pointer resolves to `.52`.
+- Planning and Marking routes now always return fail-closed React targets.
+  Planning's renderer and selection helpers were physically removed (2,155
+  source lines). Labor, initial Gantt transfer and cancellation remain
+  explicitly disabled with `owner-unavailable` until PostgreSQL owners exist.
+  Marking no longer imports its in-memory mock client into the production
+  island; the module remains partial because its backend is isolated
+  `marking_phase1_*` test-state, not production assignments/traceability/print.
+- Roles gained an owner-backed immediate second-role add through the existing
+  PostgreSQL access-control aggregate, with exact assignment-set, stable-ID,
+  duplicate, employee RBAC, self-mutation, window and scope guards. Effective
+  windows, responsibility scopes and durable `readOnly` persistence remain
+  fail-closed; Roles stays partial.
+- `requestLegacyRender` usage in `src/app.js` fell from 5 to 3. The remaining
+  bridges belong only to partial Specifications 2, Gantt and Roles. Completion
+  markers were not promoted.
+- Immediate previous `.51` passed rollback dry-run without changing the live
+  pointer. Operational rollback remains immutable-release switching and the
+  pinned `.18` baseline is preserved.
+- Browser/visual QA was deliberately skipped. Implementation remains `99%`
+  and strict accepted evidence remains `50%`. Blueprint UI was not introduced.

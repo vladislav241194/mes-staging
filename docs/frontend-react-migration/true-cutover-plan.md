@@ -271,6 +271,26 @@ release `v.1.500.50-8e8a384`; pinned legacy `.18` сохранён. Browser/visu
 намеренно не выполнялся; implementation остаётся 99%, strict acceptance —
 50%.
 
+Release `v.1.500.52-ee9cfd5` активирован на Pilot из точного commit
+`ee9cfd5f3083e5b7e417736a54f925bb148e20ab`. Planning и Marking теперь
+всегда возвращают fail-closed React target и не имеют same-release UI
+fallback. Из checkout физически удалены Planning renderer и legacy selection
+helpers — 2 155 строк; `requestLegacyRender` в app shell снижен с 5 до 3 и
+остался только у partial Specifications 2, Gantt и Roles. Planning явно
+блокирует `labor`, `transfer-to-gantt` и `cancel` кодом `owner-unavailable`, а
+Marking production bundle больше не импортирует memory-only mock client.
+Roles получил owner-backed немедленное добавление второй роли через
+PostgreSQL access-control aggregate с exact assignment-set/stable-ID/RBAC
+guards; effective window, scopes и durable `readOnly` остаются partial.
+Маркеры partial/complete намеренно не повышались. Local/public health `ok`,
+версия `v.1.500.52`, shared state `ready`, evaluation surfaces пусты; service
+и release pointer указывают на `.52`. Source/dist SHA-256 —
+`7c2589795b93905b817496c3a0a3fab00dfc8de10479e257f8742a180b42ceee` и
+`2e421fcb6262b89bc790ddd310faa32998f482d6ad77738857b4c9b868895d80`.
+Immediate rollback dry-run точно возвращает `v.1.500.51-6ec4524`; pinned
+legacy `.18` сохранён. Browser/visual QA намеренно не выполнялся;
+implementation остаётся 99%, strict acceptance — 50%.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,
