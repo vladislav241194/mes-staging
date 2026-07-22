@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.67-6983dcd`; последний strict-accepted release остаётся
+> `v.1.500.68-5539716`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.67-6983dcd`; immediate previous:
-  `v.1.500.66-7783dcb`; pinned legacy:
+- Активный accelerated release: `v.1.500.68-5539716`; immediate previous:
+  `v.1.500.67-6983dcd`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -2136,3 +2136,48 @@ module completion markers.
 Next accelerated candidate: type the remaining broad browser UI helpers
 `ui/html.js` and `ui/formatters.js` as a separately reviewed 114-line batch, or
 take the global `react_runtime_policy.js` boundary in its own release.
+
+## Shared HTML and formatter helpers strict TypeScript 2026-07-22: release `.68`
+
+This block supersedes `.67` as the live Pilot pointer. It removes the shared
+HTML-escaping and runtime-formatting JavaScript helpers without changing their
+rendered-value contract or performing a visual redesign.
+
+- Active Pilot is `v.1.500.68-5539716` at exact commit
+  `55397164a6036ed2009d3aafafcd3c049a97b92c`; immediate previous is
+  `v.1.500.67-6983dcd` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `5ff993c4fc6d7e69f0fbd4a4314cafac5c73b73d86f9c7039533f1b213570352` and
+  `1775fa836793835a68e078d7c02f0dd16bb4b0cb2e7c7ac5d41c75d536dab454`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- `src/ui/html.js` and `src/ui/formatters.js` are absent. Their strict `.ts`
+  replacements preserve escaping, attribute/text coercion, falsy/null values,
+  number/date display, Russian plural forms and employee-name formatting.
+  Seven active consumers, strict tsconfig, runtime/feature maps, mixed-runtime
+  inventory and semantic QA use only the TypeScript paths.
+- Three executable semantic QA bundle the TypeScript helpers for Node 20 and
+  clean temporary directories in `finally`. Exact Node `20.19.5`, strict
+  typecheck, UI/formatter contracts, module/feature, mixed-runtime, syntax,
+  clean build and built runtime-policy gates passed. Independent review
+  returned GO with no P1/P2.
+- Active JavaScript fell from 52,569 to 52,468 lines and from 120 to 118 files;
+  the strict inventory now contains 15 TypeScript files. The historical Phase
+  6 runtime-map artifacts were deliberately not regenerated: the current
+  generator has no deterministic `--check` mode and would overwrite the
+  recorded 1,699-function baseline with an unrelated full refresh.
+- One broad pre-existing UI-hardening assertion still expects a removed Gantt
+  opened-modal marker. It was not weakened or counted as passing; the focused
+  HTML/formatter behavior contracts are green.
+- Local/public health report `ok`, version `v.1.500.68`, shared state `ready`,
+  all 25 policy surfaces are React, evaluation/legacy surfaces are empty,
+  effective `MES_REACT_*` flags are absent and service/pointer resolve to `.68`.
+- Immediate previous `.67` passed rollback dry-run. The sealed legacy `.18`
+  pointer remains unchanged and its compatibility guard was not bypassed.
+- No module completion marker changed. Implementation remains `99%`; strict
+  accepted evidence remains `50%`. Blueprint UI was not introduced.
+
+Next accelerated candidate: migrate `react_runtime_policy.js` in its own
+high-blast-radius strict TypeScript cut, or select the next browser-only owner
+from the active mixed-runtime inventory.
