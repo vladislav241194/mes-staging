@@ -182,7 +182,7 @@ rm -f "${MANAGED_DROPINS[@]}"
 # the canonical 63-* activator naturally supersedes it after activation.
 printf '%s\n' \
   '[Service]' \
-  'Environment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS=0' \
+  'UnsetEnvironment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS' \
   > "${BACKUP_DIR}/62-specifications2-work-orders-off.conf.next"
 install -o root -g root -m 0644 \
   "${BACKUP_DIR}/62-specifications2-work-orders-off.conf.next" \

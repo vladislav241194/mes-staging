@@ -230,7 +230,7 @@ for (const dropin of [
   "50-directory-cluster-commands.conf",
 ]) assert(bridgeSource.includes(dropin), `the staged bridge must manage ${dropin}`);
 assert(bridgeSource.includes('[[ "$configured" == "$expected" ]]'), "the staged bridge must accept only exact managed drop-in paths");
-assert(bridgeSource.includes("Environment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS=0")
+assert(bridgeSource.includes("UnsetEnvironment=MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS")
   && bridgeSource.indexOf("APPLIED=1") < bridgeSource.indexOf('rm -f "${MANAGED_DROPINS[@]}"'),
 "the staged bridge must override a predecessor EnvironmentFile command flag and arm rollback before mutation");
 assert(!bridgeSource.includes('50-shift-execution-*.conf'), "the legacy Shift compatibility path must not broaden into a filename glob");
