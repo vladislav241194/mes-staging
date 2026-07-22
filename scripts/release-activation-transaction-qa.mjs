@@ -53,7 +53,7 @@ const compatibleManifest = {
   directoryClusterCommandCompatibility: buildDirectoryClusterCommandManifestContract(directoryClusterCompatibilityMarker),
 };
 const startMarker = "const activationScript = String.raw`";
-const endMarker = "\n`;\n\nasync function main()";
+const endMarker = "\n`;\n\n// String.raw intentionally";
 const start = activationSource.indexOf(startMarker);
 const end = activationSource.indexOf(endMarker, start + startMarker.length);
 

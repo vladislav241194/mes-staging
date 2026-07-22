@@ -21,6 +21,10 @@ assert(source.includes('MES_RELEASE_AUTHORITY_LOCK_HELD:-0')
   && source.includes('$6 == owner_pid')
   && source.includes('identity[3] == lock_inode'),
 "production activation must prove the inherited fd9 owner PID and canonical inode before mutation");
+assert(source.includes('const executableActivationScript = activationScript')
+  && source.includes('.replaceAll("\\\\${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}", "${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}")')
+  && source.includes('{ input: executableActivationScript }'),
+"the root runner must remove JavaScript raw escapes from the two Bash lock expansions before execution");
 assert(source.includes('root_seal_helper="/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"'), "activation must use the atomically selected root-owned seal verifier");
 assert(source.indexOf('/usr/bin/node "$root_seal_helper" release') < source.indexOf('cd "$release_app_path"'), "candidate code must not execute before recursive root-seal verification");
 assert(source.includes('emit_failure_diagnostics 1 "service_restart_failed"'), "restart failures must emit diagnostics before rollback");
@@ -37,7 +41,7 @@ const activationSuccess = source.indexOf("printf 'ACTIVATED", rollbackGuardDisar
 assert(activeRecordCommit >= 0 && rollbackGuardDisarm > activeRecordCommit && activationSuccess > rollbackGuardDisarm, "the rollback guard must remain armed until the active release record is committed");
 
 const startMarker = "const activationScript = String.raw`";
-const endMarker = "\n`;\n\nasync function main()";
+const endMarker = "\n`;\n\n// String.raw intentionally";
 const start = source.indexOf(startMarker);
 const end = source.indexOf(endMarker, start + startMarker.length);
 assert(start >= 0 && end >= 0, "activation shell must remain extractable for deterministic syntax and failure-path QA");

@@ -1482,6 +1482,13 @@ rm -f "$activation_record_backup_path"
 printf 'ACTIVATED release=%s previous_kind=%s previous_target=%s\n' "$release_id" "$previous_kind" "$previous_target"
 `;
 
+// String.raw intentionally preserves the shell program byte-for-byte, but
+// these two JavaScript-escaped parameter expansions must reach Bash without
+// the escape backslash so the inherited lock contract is actually evaluated.
+const executableActivationScript = activationScript
+  .replaceAll("\\${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}", "${MES_RELEASE_AUTHORITY_LOCK_HELD:-0}")
+  .replaceAll("\\${MES_RELEASE_AUTHORITY_LOCK_FD:-}", "${MES_RELEASE_AUTHORITY_LOCK_FD:-}");
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const contour = CONTOURS[args.contour];
@@ -1508,7 +1515,7 @@ async function main() {
       `${contour.url}/healthz`,
       String(args.dryRun),
       String(args.pinLegacyBaseline),
-    ], { input: activationScript });
+    ], { input: executableActivationScript });
     if (result.stdout.trim()) console.log(result.stdout.trim());
     return;
   }
