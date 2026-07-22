@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.65-bf92a5b`
+Текущий accelerated Pilot release: `v.1.500.66-7783dcb`
 
 ## Исправление прежней оценки
 

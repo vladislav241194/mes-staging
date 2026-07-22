@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.65-bf92a5b`; последний strict-accepted release остаётся
+> `v.1.500.66-7783dcb`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.65-bf92a5b`; immediate previous:
-  `v.1.500.64-94b6375`; pinned legacy:
+- Активный accelerated release: `v.1.500.66-7783dcb`; immediate previous:
+  `v.1.500.65-bf92a5b`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -2043,3 +2043,54 @@ not claim that the still-partial Specifications 2 module is complete.
 Next accelerated cut: audit and type the remaining Specifications 2 read-model
 boundary, beginning with `work_orders_read_model.js`, while preserving the
 existing PostgreSQL owner and fail-closed lazy runtime.
+
+## Planning Work Order read model strict TypeScript 2026-07-22: release `.66`
+
+This block supersedes `.65` as the live Pilot pointer. It removes a shared
+Planning normal-runtime JavaScript boundary without claiming completion of the
+still-partial Planning module.
+
+- Active Pilot is `v.1.500.66-7783dcb` at exact commit
+  `7783dcbb0721f43d2910e4f03d2bd2c35be9828a`; immediate previous is
+  `v.1.500.65-bf92a5b` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `98ef3daa06898c306fee2050c42969a26f5ab330da24f28f90e6a0a7835767b5` and
+  `480edcf1c5565b261fd7ab2e41b52348a730204059008219b15bb5a377241faa`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- `src/modules/domain_api/work_orders_read_model.js` is absent. Its strict
+  `.ts` replacement preserves list/detail/summary caching, separate ETags,
+  combined-bootstrap capability fallback, request-sequence/data-epoch race
+  guards, quantity/start-date/physical-slot commands, idempotency and exact
+  compatibility receipts. Malformed truthy `payload.item` values now fail
+  closed instead of being treated as work orders.
+- Runtime imports, strict tsconfig, Planning feature/module ownership and all
+  exact source-path QA reference the TypeScript file. Active JavaScript fell
+  from 53,226 to 52,770 lines; the strict inventory now contains seven
+  TypeScript files.
+- Node-executable domain read-model/snapshot QA bundle the TypeScript boundary
+  to temporary Node 20 ESM and clean it in `finally`. Exact Node `20.19.5`,
+  strict typecheck, bootstrap/lazy/deferred-command, mixed-runtime,
+  module/feature, syntax, clean build and built runtime-policy gates passed.
+  Independent review returned GO with no P1/P2.
+- Two broader baseline assertions remain stale outside this cut: the aggregate
+  domain-read-model script expects a removed schedule source string, and the
+  full experiment QA expects an old print-view-model call. They were not
+  weakened or counted as passing. The accepted accelerated release profile
+  and all focused owner/cache gates are green.
+- Local/public health report `ok`, version `v.1.500.66`, shared state `ready`,
+  all 25 policy surfaces are React, evaluation/legacy surfaces are empty,
+  effective `MES_REACT_*` flags are absent and service/pointer resolve to `.66`.
+- Immediate previous `.65` passed rollback dry-run. Sealed legacy `.18`
+  remains attested; its dry-run correctly refuses while Specifications 2
+  attachment, Work Order and publication command drop-ins `50`, `63`, `64`
+  are ON. The guard was not bypassed.
+- Planning remains `PARTIAL`; no new `FULL REACT` marker is assigned.
+  Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated batch: convert the low-risk browser-only leaves `data.js`,
+`types.js`, Contour Admin command contract/client, Shift Work Orders journal
+owner and long-task overlay to strict TypeScript. Estimated removable active
+JavaScript: 201 lines, without backend/schema or UI redesign.
