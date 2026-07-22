@@ -90,7 +90,7 @@ import {
 } from "./modules/production_structure_matrix/server_capabilities.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.ts";
 import { prepareAdditionalRoleAssignment } from "./modules/access_roles/multiple_assignment_owner.ts";
-import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
+import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.ts";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.ts";
 import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.ts";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.74";
+const APP_VERSION_FALLBACK = "v.1.500.75";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

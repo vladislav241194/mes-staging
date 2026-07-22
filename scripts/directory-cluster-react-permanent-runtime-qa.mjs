@@ -15,7 +15,7 @@ const {
   createDirectoryOperationsReactIslandHost,
   createDirectoryStatusesReactIslandHost,
 } = await withBundledTypeScriptClient(
-  new URL("../src/modules/directories/react_island_host.js", import.meta.url),
+  new URL("../src/modules/directories/react_island_host.ts", import.meta.url),
   (factories) => factories,
   { prefix: "mes-directory-cluster-leaf-host-qa-" },
 );
@@ -83,7 +83,7 @@ for (const [surfaceId, factory] of Object.entries(factories)) {
   assert.equal(await disabledHost.mount(), false, `${surfaceId}: an ineligible active route must not mount or fall back to legacy`);
 }
 
-const hostSource = await readFile(join(projectRoot, "src/modules/directories/react_island_host.js"), "utf8");
+const hostSource = await readFile(join(projectRoot, "src/modules/directories/react_island_host.ts"), "utf8");
 assert.match(hostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/, "all four Directory hosts must fail closed for every activation mode");
 assert.match(hostSource, /getShellState:\s*\(activation\)[\s\S]*state:\s*"error"/, "the active host must own its ineligibility shell");
 assert.doesNotMatch(hostSource, /allowPermanentReact|requestLegacyRender|onRequestLegacy|legacy-directory/, "the shared Directory host must not expose a same-release legacy bridge");

@@ -604,7 +604,7 @@ await bundleReactMigrationIsland(
   directoryComponentTypesReactIslandOutput,
 );
 const directoryComponentTypesReactIslandVersion = await fileHash(directoryComponentTypesReactIslandOutput);
-const directoryComponentTypesReactIslandHostPath = join(stagingDistDir, "src", "modules", "directories", "react_island_host.js");
+const directoryComponentTypesReactIslandHostPath = join(stagingDistDir, "src", "modules", "directories", "react_island_host.ts");
 const directoryComponentTypesReactIslandHostSource = await readFile(directoryComponentTypesReactIslandHostPath, "utf8");
 const directoryComponentTypesReactIslandVersionMarker = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
 if (!directoryComponentTypesReactIslandHostSource.includes(directoryComponentTypesReactIslandVersionMarker)) {

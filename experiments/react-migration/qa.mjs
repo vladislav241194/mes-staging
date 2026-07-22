@@ -1271,7 +1271,7 @@ try {
   assert.match(eligibleRolesProductionHost.renderTarget(), /data-react-roles-island/);
   assert.deepEqual(makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Roles metadata write evaluation must use the same bounded host");
 
-  const directoryComponentTypesHostModule = await loadProductionHost("src/modules/directories/react_island_host.js");
+  const directoryComponentTypesHostModule = await loadProductionHost("src/modules/directories/react_island_host.ts");
   const makeDirectoryComponentTypesHost = (activation) => directoryComponentTypesHostModule.createDirectoryComponentTypesReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1603,7 +1603,7 @@ try {
   const specifications2ProductionHostSource = await readFile(join(repositoryRoot, "src/modules/specifications2/react_island_host.ts"), "utf8");
   assert.match(specifications2ProductionHostSource, /createReactIslandHost/);
   assert.match(specifications2ProductionHostSource, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
-  const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");
+  const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.ts"), "utf8");
   assert.match(directoryComponentTypesHostSource, /createReactIslandHost/);
   assert.doesNotMatch(directoryComponentTypesHostSource, /onRequestLegacy|requestLegacyRender|legacy-directory/, "permanent Directory hosts must not expose a live legacy renderer path");
   assert.match(directoryComponentTypesHostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/);

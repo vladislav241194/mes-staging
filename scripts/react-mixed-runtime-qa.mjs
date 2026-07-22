@@ -40,6 +40,7 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/contour_admin/command_contract.ts",
   "src/modules/contour_admin/react_island_host.ts",
   "src/modules/contour_admin/server_owner_client.ts",
+  "src/modules/directories/react_island_host.ts",
   "src/modules/dispatch/react_island_host.ts",
   "src/modules/domain_api/planning_period_read_model.ts",
   "src/modules/domain_api/planning_runtime_projection_read_model.ts",

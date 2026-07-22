@@ -36,6 +36,7 @@
     "../../src/modules/auth_render/auth_picker_react_island_host.ts",
     "../../src/modules/auth_render/employee_desktop_react_island_host.ts",
     "../../src/modules/contour_admin/react_island_host.ts",
+    "../../src/modules/directories/react_island_host.ts",
     "../../src/modules/dispatch/react_island_host.ts",
     "../../src/modules/gantt_runtime/react_island_host.ts",
     "../../src/modules/marking/react_island_host.ts",
