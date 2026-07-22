@@ -346,6 +346,28 @@ Immediate rollback dry-run точно возвращает `.53`. Pinned legacy 
 command owners до штатной root-controlled деактивации. Implementation остаётся
 99%, strict acceptance — 50%. Blueprint UI не используется.
 
+Release `v.1.500.55-6b14e93` активирован на Pilot из точного commit
+`6b14e93a71fd365f655f1b47af738cbfd02a1652`. Orphan renderer Мастерской
+`src/modules/shift_master_board/render.js`, его невызываемый loader/factory и
+два renderer-specific browser QA физически удалены; полный cut удаляет 5 425
+строк при 118 строках owner/policy/registry guards. Normal route неизменно
+возвращает fail-closed React target с маркером `React TS`, а shared model
+принадлежит command owner. Sidebar badge теперь считает `intake` по
+`allRows/rows + boardLaneId`, а не по удалённой renderer-проекции `lanes`.
+
+Local/public health `ok`, версия `v.1.500.55`, shared state `ready`, evaluation
+и runtime legacy surfaces пусты; service/pointer указывают на `.55`, effective
+`MES_REACT_*` flags отсутствуют. Source/dist SHA-256 —
+`9547157f7303d66b6cfebf63f1ea1d4b731619ab988d23eb4b29db362e16b93a` и
+`a10e22aedc199025ef74dbc257c159d78ab30d548854a77b9a45bfbff0d7c016`.
+Strict TypeScript, syntax, owner/server/carryover, feature registry, UI
+contract, deterministic build и mixed-runtime gate прошли; два независимых
+review дали GO. Visual/browser QA намеренно пропущен. Immediate rollback
+dry-run точно возвращает `.54`; pinned legacy `.18` запечатан, но его switch
+правильно блокируется активными Specifications 2 command owners до штатной
+root-controlled деактивации. Implementation остаётся 99%, strict acceptance —
+50%. Blueprint UI не используется.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,

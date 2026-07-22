@@ -1577,7 +1577,47 @@ access-control write owner.
 - Implementation remains `99%`; strict accepted evidence remains `50%`.
   Blueprint UI was not introduced.
 
-Next accelerated cut: delete the orphaned Shift Master Board legacy renderer
-and its dead loader (about 4.1k lines). The normal route already uses the React
-host and command owner; keep the module completion marker and server owners,
-skip visual QA, and retain immutable release rollback.
+## Shift Master Board legacy retirement 2026-07-22: release `.55`
+
+This block supersedes `.54` as the live Pilot pointer and removes the orphaned
+same-release Workshop renderer without changing the permanent React route or
+its PostgreSQL command owners.
+
+- Active Pilot is `v.1.500.55-6b14e93` at exact commit
+  `6b14e93a71fd365f655f1b47af738cbfd02a1652`; immediate previous is
+  `v.1.500.54-48ee37f` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `9547157f7303d66b6cfebf63f1ea1d4b731619ab988d23eb4b29db362e16b93a` and
+  `a10e22aedc199025ef74dbc257c159d78ab30d548854a77b9a45bfbff0d7c016`.
+  Runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Local/public health report `ok`, version `v.1.500.55`, shared state `ready`,
+  zero active evaluation surfaces and zero runtime legacy surfaces. The
+  service is active, `/srv/mes/pilot/app` resolves to `.55`, no effective
+  `MES_REACT_*` variables or evaluation drop-ins exist, and the retired
+  renderer is absent from the sealed release.
+- `src/modules/shift_master_board/render.js` (3,818 lines), its dead factory/
+  loader and two renderer-specific browser QA scripts were physically
+  removed. The complete cut deletes 5,425 lines and adds 118 focused owner,
+  policy and registry lines.
+- The normal route still always returns the fail-closed React target with the
+  `React TS` completion marker. Shared consumers now read the command-owner
+  production model; the sidebar badge counts `intake` rows from `allRows` or
+  `rows` instead of the retired renderer's `lanes` projection. Quantity/date
+  normalization and assignment/fact/carryover server owners retain parity.
+- Strict React TypeScript, recursive syntax, runtime policy, command owner,
+  server command/bridge, carryover lifecycle, feature registry, UI contract,
+  deterministic build, mixed-runtime gate and `git diff --check` passed.
+  Two independent reviews returned GO with P0/P1 = 0. Visual/browser QA was
+  deliberately skipped under the accelerated profile.
+- Immediate previous `.54` passed rollback dry-run. The sealed legacy `.18`
+  manifest verifies, while its switch remains correctly blocked by active
+  Specifications 2 attachments/Work Orders/publication command owners; do not
+  bypass that compatibility guard.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: remove the orphaned Routes renderer and directory
+presentation layer, retain the live Routes events owner, move the one shared
+task-type label helper to a production owner, and repair stale navigation.
