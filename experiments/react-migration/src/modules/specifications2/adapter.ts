@@ -1,3 +1,9 @@
+import {
+  buildSpecifications2ProductionModel,
+  isSpecifications2ProductionInput,
+  type Specifications2ProductionCoverage,
+} from "./production-model";
+
 const record = (value: unknown): Record<string, any> => value && typeof value === "object" ? value as Record<string, any> : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const text = (value: unknown, fallback = ""): string => String(value ?? fallback).trim();
@@ -85,7 +91,11 @@ function adaptTreeItems(value: unknown): Specifications2TreeItem[] {
 
 export function adaptSpecifications2Payload(payload: unknown) {
   const root = record(payload);
-  const model = record(root.model || payload);
+  const productionModel = record(root.productionModel);
+  const productionInput = Object.keys(productionModel).length ? productionModel : root;
+  const model = record(root.model || (isSpecifications2ProductionInput(productionInput)
+    ? buildSpecifications2ProductionModel(productionInput)
+    : payload));
   const capabilities = record(root.capabilities);
   const selected = record(model.selectedEntry);
   const serverRevision = record(selected.serverRevision);
@@ -127,6 +137,14 @@ export function adaptSpecifications2Payload(payload: unknown) {
       unitOfMeasure: text(item.unitOfMeasure),
     };
   }).filter((item, index, items) => item.id && items.findIndex((candidate) => candidate.id === item.id) === index);
+  const coverage = record(model.readModelCoverage);
+  const readModelCoverage: Specifications2ProductionCoverage | null = text(coverage.contract) === "postgres-specifications2-read-v1"
+    ? {
+        contract: "postgres-specifications2-read-v1",
+        supported: list(coverage.supported).map((value) => text(value)).filter(Boolean),
+        deferred: list(coverage.deferred).map((value) => text(value)).filter(Boolean),
+      }
+    : null;
   return {
     registry,
     canEditDraft: Boolean(capabilities.draftEdit),
@@ -134,6 +152,7 @@ export function adaptSpecifications2Payload(payload: unknown) {
     canCreateWorkOrder: Boolean(capabilities.workOrder),
     serverStatus: text(model.serverStatus, "empty"),
     serverError: text(model.serverError),
+    readModelCoverage,
     selectedEntry: selected.id ? {
       id: text(selected.id),
       title: text(selected.title, "Спецификация XLSX"),
