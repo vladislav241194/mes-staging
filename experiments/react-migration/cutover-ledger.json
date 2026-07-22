@@ -203,6 +203,7 @@
     { "id": "boards", "routeId": "nomenclature", "entry": "experiments/react-migration/src/boards-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-board", "delete-board", "import-xlsx", "add-bom-row", "update-bom-row", "delete-bom-row"], "missing": [] } },
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
     { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["execute-ops"], "missing": ["deploy-request-owner-action"] } },
+    { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["approved-scope", "production-owner", "read-api", "write-api", "rbac"] } },
     { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["durable-report-persistence"] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": true, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
@@ -352,14 +353,14 @@
       "id": "dispatch",
       "navigationScope": "user",
       "scenarios": [],
-      "reactSurface": "missing",
+      "reactSurface": "mock-island",
       "functionalStatus": "placeholder",
-      "runtimeMode": "legacy-placeholder",
-      "visibleLegacyRendererPath": true,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeMode": "react-mock",
+      "visibleLegacyRendererPath": false,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["product scope decision", "approved specification or explicit scope exclusion"]
+      "remainingScopes": ["product scope decision", "approved specification", "production owner", "API and RBAC contracts"]
     },
     {
       "id": "productionStructureMatrix",

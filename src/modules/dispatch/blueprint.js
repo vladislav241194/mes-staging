@@ -66,12 +66,14 @@ export const MODULE_BLUEPRINT = defineMesModuleBlueprint({
   sourceFiles: [
     "src/modules/dispatch/blueprint.js",
     "src/modules/dispatch/render.js",
+    "src/modules/dispatch/react_island_host.js",
     "src/modules/dispatch/runtime.js",
   ],
   ownership: {
     files: [
       "src/modules/dispatch/blueprint.js",
       "src/modules/dispatch/render.js",
+      "src/modules/dispatch/react_island_host.js",
       "src/modules/dispatch/runtime.js",
     ],
     css: [],

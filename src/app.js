@@ -10899,6 +10899,7 @@ function initializeModuleRuntime() {
     },
   };
   const prototypeAdapters = createGeneratedModuleRuntimeAdapters({
+    getApp: () => app,
     renderMesModulePatternPage,
     renderUiPanel,
     renderUiPanelBody,

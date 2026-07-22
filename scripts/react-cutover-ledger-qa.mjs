@@ -251,7 +251,7 @@ for (const alias of ledger.aliases) {
 
 const islandIds = ledger.islands.map((island) => island.id);
 const islandEntries = ledger.islands.map((island) => island.entry);
-assert.equal(ledger.islands.length, 25, "all twenty-five React island entries must be audited");
+assert.equal(ledger.islands.length, 26, "all twenty-six React island entries must be audited");
 assert(unique(islandIds), "React island IDs must be unique");
 assert(unique(islandEntries), "React island entries must be unique");
 assert(ledger.islands.every((island) => ledgerModuleIds.includes(island.routeId)), "every React island must map to a registered route");
@@ -262,7 +262,7 @@ const discoveredIslandEntries = (await listFiles(join(migrationRoot, "src")))
   .filter((path) => path.endsWith("-island.tsx"))
   .map((path) => path.slice(repositoryRoot.length + 1));
 assert.deepEqual(sorted(islandEntries), sorted(discoveredIslandEntries), "every built React island entry must appear exactly once in the cutover ledger");
-assert.deepEqual(ledger.islands.filter((island) => island.disposition === "mock-not-production").map((island) => island.id), ["marking"], "Marking is the only explicitly non-production MOCK island");
+assert.deepEqual(ledger.islands.filter((island) => island.disposition === "mock-not-production").map((island) => island.id), ["dispatch", "marking"], "Dispatch and Marking must remain explicit non-production React prototypes");
 assert(ledger.islands.filter((island) => island.normalActionFallback).length <= 19, "accelerated cutover must not add normal user-action fallback to legacy");
 for (const island of ledger.islands) {
   const module = ledger.modules.find((candidate) => candidate.id === island.routeId);
@@ -273,13 +273,13 @@ for (const island of ledger.islands) {
 
 assert.deepEqual(
   ledger.modules.filter((module) => module.reactSurface === "missing").map((module) => module.id),
-  ["dispatch"],
-  "Dispatch must remain an explicit missing React surface until scoped or excluded",
+  [],
+  "Every registered route must now have a React surface, including explicit prototypes",
 );
 assert.deepEqual(
   ledger.modules.filter((module) => module.reactSurface === "mock-island").map((module) => module.id),
-  ["marking"],
-  "Marking must remain explicitly MOCK until it has an owner, API and persistence",
+  ["dispatch", "marking"],
+  "Dispatch and Marking must remain explicitly non-production until they have owners, APIs and persistence",
 );
 const reactRuntimeModules = ledger.modules.filter((module) => module.runtimeMode === "react");
 assert(reactRuntimeModules.some((module) => module.id === "weeklyProductionControl"), "the accepted Weekly React route must remain permanent");

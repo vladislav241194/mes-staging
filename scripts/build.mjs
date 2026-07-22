@@ -536,6 +536,15 @@ const markingReactIslandVersionMarker = "__MES_MARKING_REACT_BUNDLE_VERSION__";
 if (!markingReactIslandHostSource.includes(markingReactIslandVersionMarker)) throw new Error("Cannot find Marking React island bundle version marker");
 await writeFile(markingReactIslandHostPath, markingReactIslandHostSource.replaceAll(markingReactIslandVersionMarker, markingReactIslandVersion));
 
+const dispatchReactIslandOutput = join(stagingDistDir, "src", "react-islands", "dispatch.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "dispatch-island.tsx"), dispatchReactIslandOutput);
+const dispatchReactIslandVersion = await fileHash(dispatchReactIslandOutput);
+const dispatchReactIslandHostPath = join(stagingDistDir, "src", "modules", "dispatch", "react_island_host.js");
+const dispatchReactIslandHostSource = await readFile(dispatchReactIslandHostPath, "utf8");
+const dispatchReactIslandVersionMarker = "__MES_DISPATCH_REACT_BUNDLE_VERSION__";
+if (!dispatchReactIslandHostSource.includes(dispatchReactIslandVersionMarker)) throw new Error("Cannot find Dispatch React island bundle version marker");
+await writeFile(dispatchReactIslandHostPath, dispatchReactIslandHostSource.replaceAll(dispatchReactIslandVersionMarker, dispatchReactIslandVersion));
+
 const authPickerReactIslandOutput = join(stagingDistDir, "src", "react-islands", "auth-picker.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "auth-picker-island.tsx"), authPickerReactIslandOutput);
 const authPickerReactIslandVersion = await fileHash(authPickerReactIslandOutput);
@@ -748,6 +757,7 @@ console.log(`- src/react-islands/shift-work-orders-fact.js?v=${shiftWorkOrdersFa
 console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReactIslandVersion}`);
 console.log(`- src/react-islands/employee-desktop.js?v=${employeeDesktopReactIslandVersion}`);
 console.log(`- src/react-islands/marking.js?v=${markingReactIslandVersion}`);
+console.log(`- src/react-islands/dispatch.js?v=${dispatchReactIslandVersion}`);
 console.log(`- src/react-islands/auth-picker.js?v=${authPickerReactIslandVersion}`);
 console.log(`- src/react-islands/contour-admin.js?v=${contourAdminReactIslandVersion}`);
 console.log(`- src/react-islands/specifications2.js?v=${specifications2ReactIslandVersion}`);
