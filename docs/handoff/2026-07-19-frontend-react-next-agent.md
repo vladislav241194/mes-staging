@@ -1865,3 +1865,47 @@ Next accelerated cut: remove the always-loaded obsolete
 `app_interactions/render.js` service only after preserving global navigation,
 logout, confirm dispatch and Directory read-model helpers. Keep
 `saveDirectoryRow` / `deleteDirectoryStateRow` React command ownership.
+
+## Directory legacy interaction purge 2026-07-22: release `.62`
+
+This block supersedes `.61` as the live Pilot pointer. It does not claim a new
+`FULL REACT` module because the four Directory surfaces were already marked;
+it removes their remaining unreachable same-release interaction fallback.
+
+- Active Pilot is `v.1.500.62-7c0664f` at exact commit
+  `7c0664fc5180ee4876f18abb02988a31c9dcc1bd`; immediate previous is
+  `v.1.500.61-80b143c` and pinned legacy remains `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `52865b79b51e714979855fde4c176a32509563cb88e4de137a3c5838cb1d2262` and
+  `ac7bf81ca27a42553e777a29cc95b608531b4a6bf75699637f927c8a302cda82`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- `app_interactions/directory_legacy.js` is absent from sealed source/dist.
+  Its loader, modal/form/delete proxies, dense-select state and app facades are
+  gone. Active JavaScript fell from 63,934 to 62,953 lines.
+- Live Directory command owners `saveDirectoryRow` and
+  `deleteDirectoryStateRow` remain, together with enriched reads, formatting,
+  global navigation, canonical logout and generic confirm dispatch.
+- A cold Nomenclature command executes through the real lazy Routes and
+  Products modules with one load each. The dist contains the Routes chunk and
+  no Directory legacy markers or chunk.
+- Removing the legacy literal exposed generated-registry coupling for dynamic
+  `save`/`trash` icons. The generator and icon contract were fixed; both SVGs
+  survive deterministic builds.
+- React cutover, Directory permanent/runtime and server-command gates,
+  Nomenclature write boundary, TypeScript, syntax, build, mixed-runtime and
+  diff checks passed. Independent review returned GO with no P0/P1. Visual and
+  browser QA were deliberately skipped.
+- Public health reports `ok`, version `v.1.500.62`, shared state `ready`, zero
+  evaluation/legacy surfaces, no effective `MES_REACT_*` flags and no React
+  systemd drop-ins. Service and pointer resolve to `.62`.
+- Immediate previous `.61` passed rollback dry-run. Sealed legacy `.18` is
+  still attested, but its dry-run correctly refuses while root-owned
+  Specifications 2 attachment, Work Order and publication commands are ON;
+  do not bypass that compatibility guard.
+- Implementation remains `99%`; strict accepted evidence remains `50%`.
+  Blueprint UI was not introduced.
+
+Next accelerated cut: audit and retire the remaining active legacy interaction
+owners in small immutable releases. Do not rename `app_interactions/render.js`
+until its global navigation/logout/confirm ownership is separated or typed.
