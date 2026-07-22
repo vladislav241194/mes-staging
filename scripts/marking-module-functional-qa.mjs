@@ -1,6 +1,11 @@
 import { writeFile } from "node:fs/promises";
 import { cleanupChrome, delay, evaluate, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
 
+if (process.env.MES_SKIP_BROWSER_QA === "1") {
+  console.log("Integrated Marking module browser QA: skipped by explicit accelerated-prototype release policy.");
+  process.exit(0);
+}
+
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };

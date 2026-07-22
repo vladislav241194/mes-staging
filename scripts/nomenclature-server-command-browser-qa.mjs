@@ -15,6 +15,11 @@ import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
 import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 
+if (process.env.MES_SKIP_BROWSER_QA === "1") {
+  console.log("Nomenclature command browser QA: skipped by explicit accelerated-prototype release policy.");
+  process.exit(0);
+}
+
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
 const EMPLOYEE_ID = "ROLE-D-TECH-RUKOVODITEL-TEHNOLOGICHESKOGO-NAPR-1-EMP-01";

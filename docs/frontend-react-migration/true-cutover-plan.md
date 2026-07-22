@@ -80,8 +80,9 @@ evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
   Auth Session Prototype.
 - Prototype: Dispatch и Marking.
 
-Visual QA на этой ускоренной волне отложен владельцем и не засчитывается как
-Pilot acceptance. До настоящих 100% остаются: закрыть action/owner parity и
+Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной
+волне отложены владельцем и не засчитываются как Pilot acceptance. До
+настоящих 100% остаются: закрыть action/owner parity и
 legacy data/model dependencies в partial-модулях; довести Dispatch и Marking до
 production-контрактов с API, БД и RBAC; перевести активный runtime на strict
 TypeScript; пройти Pilot read/write lifecycle с cleanup; затем выполнить
