@@ -15,11 +15,12 @@ import {
 } from "../src/module_registry.js";
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const [ledger, policy, runtimeSource, navigationCss] = await Promise.all([
+const [ledger, policy, runtimeSource, navigationCss, authPickerSource] = await Promise.all([
   readFile(join(repositoryRoot, "experiments/react-migration/cutover-ledger.json"), "utf8").then(JSON.parse),
   readFile(join(repositoryRoot, "react-runtime-policy.json"), "utf8").then(JSON.parse),
   readFile(join(repositoryRoot, "src/modules/operational_runtime/service.js"), "utf8"),
   readFile(join(repositoryRoot, "styles/ui/app-navigation.css"), "utf8"),
+  readFile(join(repositoryRoot, "experiments/react-migration/src/modules/auth-picker/AuthPickerScenario.tsx"), "utf8"),
 ]);
 
 const { COMPLETE, PARTIAL, LEGACY } = MES_REACT_COMPLETION_STATES;
@@ -118,6 +119,8 @@ assert(runtimeSource.includes("data-react-completion-status"), "sidebar tabs mus
 assert(runtimeSource.includes("data-react-verification-status"), "sidebar tabs must expose deferred/accepted verification separately");
 assert(runtimeSource.includes("UI-код переведён на React + TypeScript"), "completion marker must explain its implementation-only meaning");
 assert(navigationCss.includes(".module-react-complete-marker"), "completion marker must use the existing navigation stylesheet");
+assert(authPickerSource.includes("data-react-complete-marker"), "standalone Auth route must expose a visible React completion marker without the sidebar");
+assert(authPickerSource.includes("React TS ·"), "standalone Auth marker must use the same visible completion label");
 
 const completedModules = MES_REACT_COMPLETION_MODULE_REGISTRY.filter((entry) => entry.status === COMPLETE).map((entry) => entry.id);
 const completedSurfaces = MES_REACT_COMPLETION_SURFACE_REGISTRY.filter((entry) => entry.status === COMPLETE).map((entry) => entry.id);
