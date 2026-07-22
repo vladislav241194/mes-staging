@@ -1,7 +1,6 @@
 import { renderDispatchModulePage } from "../src/modules/dispatch/render.js";
 import { createAccessRolesModule } from "../src/modules/access_roles/render.js";
 import { createProductionStructureMatrixModule } from "../src/modules/production_structure_matrix/render.js";
-import { createWeeklyProductionControlModule } from "../src/modules/weekly_production_control/render.js";
 import { createUiRenderers } from "../src/ui/components.js";
 import { createMesModulePatternRenderer } from "../src/ui/module_patterns.js";
 import { getMesModuleBlueprintDefinition } from "../src/module_registry.js";
@@ -35,49 +34,6 @@ check("dispatch module", dispatchHtml, [
   "data-ui-component=\"Panel\"",
   "data-ui-component=\"SystemState\"",
   "Диспетчерская временно отключена",
-]);
-
-const weekly = createWeeklyProductionControlModule({
-  DAY_MS: 24 * 60 * 60 * 1000,
-  addMs: (date, ms) => new Date(new Date(date).getTime() + ms),
-  escapeAttribute,
-  escapeHtml,
-  formatDate: (date) => new Date(date).toLocaleDateString("ru-RU"),
-  formatDateTimeShort: () => "01.07, 10:00",
-  formatShiftWorkOrderPersonName: (value) => String(value || ""),
-  formatShortDate: (date) => new Date(date).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }),
-  getApp: () => ({ querySelectorAll: () => [] }),
-  getAuthSessionFactEntriesForGanttSlot: () => [],
-  getGanttLinkedRecordEntries: () => [],
-  getPlanningState: () => ({ shiftMasterAssignments: {} }),
-  getPlanningTableSlotRows: () => [],
-  getProductionStructureMatrixRuntimeOverrides: () => ({}),
-  getProductionStructureResources: () => [],
-  getProductionStructureWorkCenters: () => [],
-  getShiftMasterAssignmentsForGanttSlot: () => [],
-  getShiftMasterBoardFactEntriesForGanttSlot: () => [],
-  getShiftWorkOrderIssueReports: () => [],
-  getUi: () => ({ weeklyProductionControlWeekAnchor: "2026-07-01" }),
-  getWeekNumber: () => 27,
-  isGanttFactRecordReported: () => true,
-  mapLegacyWorkCenterId: (value) => value,
-  normalizeLookupText: (value) => String(value || "").trim().toLowerCase(),
-  normalizePlainRecord: (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {}),
-  normalizeShiftMasterBoardQuantity: (value) => Number(value || 0) || 0,
-  normalizeShiftMasterFactQuantity: (value) => Number(value || 0) || 0,
-  renderPlanningTableInlineEmpty: () => "<p>empty</p>",
-  renderMesModulePatternPage,
-  ...renderers,
-  startOfDay: (date) => new Date(new Date(date).setHours(0, 0, 0, 0)),
-  startOfWeek: () => new Date("2026-07-06T00:00:00"),
-  toDate: (value) => new Date(value),
-  toDateInput: (value) => new Date(value).toISOString().slice(0, 10),
-});
-
-check("weekly production control module", weekly.renderWeeklyProductionControlPage(), [
-  "weekly-production-control-page",
-  "Контроль недели",
-  "Нет данных недели",
 ]);
 
 const productionStructure = createProductionStructureMatrixModule({

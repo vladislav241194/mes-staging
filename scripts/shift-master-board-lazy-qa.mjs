@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const source = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
-const authEventsSource = await readFile(resolve(process.cwd(), "src/modules/auth_render/events.js"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
 
@@ -38,21 +37,32 @@ expect(source.includes('import("./modules/domain_api/shift_execution_commands.js
 expect(source.includes("function ensureShiftExecutionDomainApiModule()"),
   "server bridge Мастерской должен иметь single-flight ленивый загрузчик");
 
-const authEventsInitializationStart = source.indexOf("function initializeAuthEventsModule");
-const authEventsInitializationEnd = source.indexOf("function ensureAuthEventsModule", authEventsInitializationStart);
-const authEventsInitialization = authEventsInitializationStart >= 0 && authEventsInitializationEnd > authEventsInitializationStart
-  ? source.slice(authEventsInitializationStart, authEventsInitializationEnd)
+expect(!source.includes("function initializeAuthEventsModule"),
+  "current runtime не должен сохранять инициализацию legacy Auth events");
+expect(!source.includes("function ensureAuthEventsModule"),
+  "current runtime не должен сохранять loader legacy Auth events");
+expect(!source.includes('import("./modules/auth_render/events.js")'),
+  "legacy Auth events chunk не должен загружаться current runtime");
+
+const employeeDesktopOwnerStart = source.indexOf("function ensureEmployeeDesktopCommandOwner()");
+const employeeDesktopOwnerEnd = source.indexOf("function getEmployeeDesktopReactActivation", employeeDesktopOwnerStart);
+const employeeDesktopOwner = employeeDesktopOwnerStart >= 0 && employeeDesktopOwnerEnd > employeeDesktopOwnerStart
+  ? source.slice(employeeDesktopOwnerStart, employeeDesktopOwnerEnd)
   : "";
-expect(Boolean(authEventsInitialization),
-  "инициализация событий Рабочего стола должна существовать");
-expect(authEventsInitialization.includes("saveShiftMasterBoardFact: async (...args) => {"),
-  "Рабочий стол должен получать факт через ленивый resolver Мастерской, а не захватывать пустую ссылку при bootstrap");
-expect(authEventsInitialization.includes("await ensureShiftMasterBoardModule()"),
-  "ленивый resolver факта Рабочего стола должен загрузить Мастерскую до записи общего факта");
-expect(authEventsSource.includes("async function saveAuthSessionTaskFact(taskId = \"\")"),
-  "сохранение факта Рабочего стола должно ожидать ленивую запись общего слоя");
-expect(authEventsSource.includes("await saveShiftMasterBoardFact(task.rowId, {"),
-  "Рабочий стол должен завершать запись факта до повторного рендера");
+expect(Boolean(employeeDesktopOwner),
+  "Рабочий стол должен иметь отдельный ленивый command owner");
+expect(employeeDesktopOwner.includes('import("./modules/employee_desktop/command_owner.js")'),
+  "command owner Рабочего стола должен загружаться отдельным динамическим модулем");
+
+const employeeDesktopHostStart = source.indexOf("const employeeDesktopReactIslandHost");
+const employeeDesktopHostEnd = source.indexOf("const markingApiClient", employeeDesktopHostStart);
+const employeeDesktopHost = employeeDesktopHostStart >= 0 && employeeDesktopHostEnd > employeeDesktopHostStart
+  ? source.slice(employeeDesktopHostStart, employeeDesktopHostEnd)
+  : "";
+expect(employeeDesktopHost.includes("await ensureEmployeeDesktopCommandOwner()"),
+  "React Рабочий стол должен ожидать отдельного command owner перед локальными командами");
+expect(employeeDesktopHost.includes("shiftExecutionCommands.recordIssueReport"),
+  "React Рабочий стол должен сохранять Report через server command owner");
 
 if (failures.length) {
   console.error(failures.map((message) => `FAIL: ${message}`).join("\n"));

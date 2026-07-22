@@ -171,76 +171,15 @@ try {
     target: "node20",
   });
   const { nomenclatureFixture } = await import(`${pathToFileURL(fixtureOutput).href}?qa=${Date.now()}`);
-  const { renderNomenclatureModulePage } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/render.js")).href}?qa=${Date.now()}`);
-  const escapeLegacyText = (value) => String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-  const activeTypes = nomenclatureFixture.nomenclatureTypes
-    .filter((entry) => !["архив", "отключен", "удален"].includes(String(entry.status || "").toLocaleLowerCase("ru-RU")))
-    .map((entry) => ({ value: entry.name, label: entry.name }));
-  const firstLegacyItem = nomenclatureFixture.nomenclature[0];
-  const legacyHtml = renderNomenclatureModulePage({
-    BOARD_BOM_TERM: "BOM платы",
-    BOARD_SPEC_LIST_TERM: "Платы",
-    BOM_COMPONENT_FIELDS: [],
-    BOM_IMPORT_COLUMN_COUNT: 0,
-    BOM_IMPORT_FALLBACK_HEADERS: [],
-    NOMENCLATURE_REA_COMPONENT_TYPE: "РЭА компоненты",
-    directoryState: nomenclatureFixture,
-    escapeAttribute: escapeLegacyText,
-    escapeHtml: escapeLegacyText,
-    getActiveNomenclatureItem: () => firstLegacyItem,
-    getActiveNomenclaturePane: () => "items",
-    getFilteredNomenclatureItems: (items) => items,
-    getNomenclatureTypeCounts: (items) => Object.fromEntries(activeTypes.map((type) => [type.value, items.filter((item) => item.type === type.value).length])),
-    getNomenclatureTypeFilterValue: () => "all",
-    getNomenclatureTypeOptions: () => activeTypes,
-    icon: () => "",
-    normalizeNomenclatureType: (value) => String(value || "РЭА компоненты"),
-    renderDenseInlineSelect: () => "<select></select>",
-    renderMesModulePatternPage: ({ content }) => `<main>${content}</main>`,
-    renderUiActionButton: ({ label = "" }) => `<button>${escapeLegacyText(label)}</button>`,
-    renderUiEmptyState: ({ title = "", text = "" }) => `<div>${escapeLegacyText(title)}${escapeLegacyText(text)}</div>`,
-    renderUiFilterBar: ({ body = "" }) => body,
-    renderUiFormActions: ({ actions = "" }) => actions,
-    renderUiFormField: ({ control = "" }) => control,
-    renderUiFormGrid: ({ body = "" }) => body,
-    renderUiPanel: ({ body = "" }) => `<section>${body}</section>`,
-    renderUiPanelBody: ({ body = "" }) => body,
-    renderUiSidebarItem: ({ title = "", badge = "", attributes = "" }) => `<button ${attributes}>${escapeLegacyText(title)} ${escapeLegacyText(badge)}</button>`,
-    renderUiStatusToken: (label) => `<span>${escapeLegacyText(label)}</span>`,
-    renderUiTableWrap: ({ body = "" }) => `<div>${body}</div>`,
-    ui: { activeNomenclatureId: firstLegacyItem.id },
-  });
-  const legacyTable = legacyHtml.match(/<table class="directory-table nomenclature-table ui-table">([\s\S]*?)<\/table>/)?.[1] || "";
-  assert.ok(legacyTable, "actual legacy Nomenclature table must render");
-  const decodeLegacyText = (html) => html
-    .replace(/<[^>]+>/g, "")
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replace(/\s+/g, " ")
-    .trim();
-  const legacyHeaders = [...legacyTable.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => decodeLegacyText(match[1]));
-  assert.deepEqual(legacyHeaders.slice(0, -1), viewModel.NOMENCLATURE_READ_COLUMNS, "React read columns must match the actual legacy table order");
-  assert.equal(legacyHeaders.at(-1), "Действия", "legacy write column must remain explicitly outside the read-only React slice");
-  const legacyBody = legacyTable.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || "";
-  const legacyRows = [...legacyBody.matchAll(/<tr([^>]*)>([\s\S]*?)<\/tr>/g)].map((match) => ({
-    id: match[1].match(/data-nomenclature-row-open="([^"]+)"/)?.[1] || "",
-    selected: /\bis-selected\b/.test(match[1]),
-    cells: [...match[2].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => decodeLegacyText(cell[1])).slice(0, -1),
-  }));
   const adaptedFixtureItems = adaptNomenclatureReadModel(nomenclatureFixture).items;
-  assert.deepEqual(legacyRows.map((row) => ({ id: row.id, cells: row.cells })), adaptedFixtureItems.map((item) => ({
+  assert.deepEqual(adaptedFixtureItems.map((item) => ({
     id: item.id,
     cells: viewModel.getNomenclatureReadCells(item),
-  })), "React adapter rows must preserve actual legacy visible data");
-  assert.deepEqual(legacyRows.filter((row) => row.selected).map((row) => row.id), [firstLegacyItem.id], "legacy selected row must match React initial selection");
+  })), nomenclatureFixture.nomenclature.map((item) => ({
+    id: item.id,
+    cells: [item.name, item.article, item.type, item.package || "-", item.unit || "шт.", item.manufacturer || "-", item.status || "Активен"],
+  })), "React adapter rows must preserve the canonical Nomenclature fixture fields");
+  assert.equal(viewModel.resolveVisibleSelection(adaptedFixtureItems, "")?.id, nomenclatureFixture.nomenclature[0]?.id, "React selection must default to the first canonical item");
 
   const boardsAdapterOutput = join(temporaryRoot, "boards-adapter.mjs");
   await build({
@@ -321,7 +260,7 @@ try {
   assert.equal(boardsViewModel.getVisibleComponentTotal(legacyCounterOnlyBoard), 0, "Boards UI must keep the legacy zero badge when importRows are absent");
 
   const { createProductsRenderModule } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/products/render.js")).href}?qa=${Date.now()}`);
-  const legacyProductsModule = createProductsRenderModule({
+  const productsModule = createProductsRenderModule({
     BOM_COMPONENT_FIELDS: boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => ({ ...field, componentId: `ct-${field.key}` })),
     BOM_IMPORT_COLUMN_COUNT: boardsAdapter.BOM_IMPORT_HEADERS.length,
     BOM_IMPORT_FALLBACK_HEADERS: boardsAdapter.BOM_IMPORT_HEADERS,
@@ -329,81 +268,8 @@ try {
     getPlanningState: () => ({ routes: [] }),
     getUi: () => ({ activeBomId: "board-control" }),
   });
-  const firstLegacyBoard = boardsFixture.bomLists[0];
-  const legacyBomRows = legacyProductsModule.getBomImportRows(firstLegacyBoard);
-  const classifyLegacyRow = (row) => {
-    const combined = `${row.package || ""} ${row.description || ""}`.toLocaleLowerCase("ru-RU").replace(/[.,\s]/g, "").replace(/ё/g, "е");
-    if (combined.includes("0402")) return "c0402";
-    if (combined.includes("0603")) return "c0603";
-    if (combined.includes("0805") || combined.includes("2012")) return "c0805";
-    if (["sot23", "sot223", "sod"].some((token) => combined.includes(token))) return "csot23";
-    if (["soic", "tssop", "ssop", "so16", "hsop"].some((token) => combined.includes(token))) return "csoic";
-    if (["qfn", "dfn", "lga"].some((token) => combined.includes(token))) return "cqfn";
-    if (combined.includes("bga")) return "cbga";
-    return "cconnector";
-  };
-  const getLegacyComponentCounts = (board) => {
-    const rows = legacyProductsModule.getBomImportRows(board);
-    const counts = Object.fromEntries(boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => [field.key, 0]));
-    if (rows.length) rows.forEach((row) => { counts[classifyLegacyRow(row)] += Number(row.quantity || 0); });
-    else boardsAdapter.BOM_COMPONENT_FIELDS.forEach((field) => { counts[field.key] = Math.max(0, Math.round(Number(board[field.key] || 0))); });
-    return counts;
-  };
-  const getLegacyBomHeaders = (board) => Array.from({ length: boardsAdapter.BOM_IMPORT_HEADERS.length }, (_, index) => {
-    const label = String(board.importHeaders?.[index] || boardsAdapter.BOM_IMPORT_HEADERS[index]).trim();
-    return label.toLocaleLowerCase("ru-RU").replace(/\s+/g, " ") === "аритикул производителя" ? "Артикул производителя" : label;
-  });
-  const legacyBoardsHtml = renderNomenclatureModulePage({
-    BOARD_BOM_TERM: "BOM платы",
-    BOARD_SPEC_LIST_TERM: "Платы",
-    BOM_COMPONENT_FIELDS: boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => ({ ...field, componentId: `ct-${field.key}` })),
-    BOM_IMPORT_COLUMN_COUNT: boardsAdapter.BOM_IMPORT_HEADERS.length,
-    BOM_IMPORT_FALLBACK_HEADERS: boardsAdapter.BOM_IMPORT_HEADERS,
-    NOMENCLATURE_REA_COMPONENT_TYPE: "РЭА компоненты",
-    directoryState: { ...boardsFixture, nomenclature: [], nomenclatureTypes: [] },
-    escapeAttribute: escapeLegacyText,
-    escapeHtml: escapeLegacyText,
-    getActiveBomForModule: () => firstLegacyBoard,
-    getActiveNomenclaturePane: () => "boards",
-    getBomComponentCounts: getLegacyComponentCounts,
-    getBomComponentFieldCounts: (counts) => Object.fromEntries(boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => [field.key, counts[field.key] ?? counts[`ct-${field.key}`] ?? 0])),
-    getBomImportHeaders: getLegacyBomHeaders,
-    getBomImportRows: (board) => legacyProductsModule.getBomImportRows(board),
-    getNomenclatureTypeCounts: () => ({}),
-    getNomenclatureTypeFilterValue: () => "all",
-    getNomenclatureTypeOptions: () => [],
-    getReaNomenclatureItems: () => [],
-    icon: () => "",
-    renderDenseInlineSelect: () => "<select></select>",
-    renderUiActionButton: ({ label = "", attributes = "" }) => `<button ${attributes}>${escapeLegacyText(label)}</button>`,
-    renderUiActionFileLabel: ({ label = "" }) => `<label>${escapeLegacyText(label)}</label>`,
-    renderUiEmptyState: ({ title = "", text = "" }) => `<div>${escapeLegacyText(title)}${escapeLegacyText(text)}</div>`,
-    renderUiFilterBar: ({ body = "" }) => body,
-    renderUiFormActions: ({ actions = "" }) => actions,
-    renderUiFormField: ({ control = "" }) => control,
-    renderUiFormGrid: ({ body = "" }) => body,
-    renderUiModuleHeader: ({ title = "", description = "" }) => `<header><h1>${escapeLegacyText(title)}</h1><p>${escapeLegacyText(description)}</p></header>`,
-    renderUiModulePage: ({ sidebar = "", header = "", content = "" }) => `<main>${sidebar}${header}${content}</main>`,
-    renderUiModuleSidebar: ({ body = "" }) => `<aside>${body}</aside>`,
-    renderUiPanel: ({ body = "" }) => `<section>${body}</section>`,
-    renderUiPanelBody: ({ body = "" }) => body,
-    renderUiSidebarItem: ({ title = "", meta = "", badge = "", attributes = "" }) => `<button ${attributes}><span>${escapeLegacyText(title)}</span><small>${escapeLegacyText(meta)}</small><b>${escapeLegacyText(badge)}</b></button>`,
-    renderUiTableWrap: ({ body = "" }) => `<div>${body}</div>`,
-    ui: { activeBomId: firstLegacyBoard.id },
-  });
-  const legacyBoardTable = legacyBoardsHtml.match(/<table class="directory-table bom-import-table">([\s\S]*?)<\/table>/)?.[1] || "";
-  assert.ok(legacyBoardTable, "actual legacy Boards/BOM table must render");
-  const legacyBoardHeaders = [...legacyBoardTable.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => decodeLegacyText(match[1]));
-  assert.deepEqual(legacyBoardHeaders.slice(0, -1), adaptedBoards[0].headers, "React BOM headers must match the actual legacy order");
-  assert.equal(legacyBoardHeaders.at(-1), "Действия", "legacy BOM write column must remain outside the read-only React slice");
-  const legacyBoardBody = legacyBoardTable.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || "";
-  const legacyBoardRows = [...legacyBoardBody.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((match) => (
-    [...match[1].matchAll(/<input[\s\S]*?value="([^"]*)"[\s\S]*?\/>/g)].map((cell) => decodeLegacyText(cell[1]))
-  ));
-  assert.deepEqual(legacyBoardRows, adaptedBoards[0].rows.map((row) => row.values.map(String)), "React BOM rows must preserve actual legacy visible data and order");
-  const legacyBoardButtons = [...legacyBoardsHtml.matchAll(/<button data-bom-open="([^"]+)"[^>]*>[\s\S]*?<b>([^<]*)<\/b><\/button>/g)].map((match) => [match[1], decodeLegacyText(match[2])]);
-  assert.deepEqual(legacyBoardButtons, adaptedBoards.map((board) => [board.id, String(board.rows.length ? board.componentTotal : 0)]), "React board list must preserve legacy badge totals");
-  assert.deepEqual(legacyBomRows.map((row) => row.values.map(String)), adaptedBoards[0].rows.map((row) => row.values.map(String)), "React adapter must match the actual legacy BOM row normalizer");
+  const productBomRows = productsModule.getBomImportRows(boardsFixture.bomLists[0]);
+  assert.deepEqual(productBomRows.map((row) => row.values.map(String)), adaptedBoards[0].rows.map((row) => row.values.map(String)), "React adapter must match the retained Products BOM helper");
 
   const rolesAdapterOutput = join(temporaryRoot, "roles-adapter.mjs");
   await build({
@@ -1213,9 +1079,6 @@ try {
   assert.match(appEventsSource, /createAppInteractionsModule\(\{[\s\S]*deleteEmployeeSession,/, "App Events must pass signed employee-session cleanup to the canonical global-navigation owner");
   const appInteractionsSource = await readFile(join(repositoryRoot, "src/modules/app_interactions/render.js"), "utf8");
   assert.match(appInteractionsSource, /function performAuthLogout\(\)[\s\S]*Promise\.resolve\(deleteEmployeeSession\(\)\)\.catch\(\(\) => \{\}\);[\s\S]*lockAuthGate\(\)/, "canonical global logout must clear server command authority before locking the local gate");
-  const authEventsSource = await readFile(join(repositoryRoot, "src/modules/auth_render/events.js"), "utf8");
-  assert.match(authEventsSource, /AUTH_PIN_TEMPORARILY_DISABLED\s*&&\s*!isEmployeeAuthRequired\(\)/, "the local no-PIN compatibility path must never bypass required server employee auth");
-  assert.match(authEventsSource, /Promise\.resolve\(deleteEmployeeSession\(\)\)\.catch\(\(\) => \{\}\)/, "module-local logout must also clear the signed employee session when it owns the event");
   assert.match(productsEventsSource, /getSpecificationStructureItems\(specification\)\.some\(\(item\) => item\.bomListId === bomId\)/, "Board delete command must report structure references before cleanup");
   assert.match(productsEventsSource, /withDirectoryEntityRemovalAllowed\(\(\) => persistDirectoryState\(\)\)/, "Board delete command must use the existing removal owner");
   assert.match(productsEventsSource, /\.\.\.\(previousBom \|\| \{\}\)/, "Board edit must retain hidden metadata before applying typed fields");

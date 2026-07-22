@@ -231,6 +231,16 @@ Dry-run immediate rollback на `.48` прошёл. Pinned legacy `.18` сохр
 его dry-run ожидаемо остановлен compatibility guard трёх включённых
 Specifications 2 command-owner drop-ins; guard не обходился.
 
+Кандидат `v.1.500.50` физически удаляет из current checkout четыре уже
+недостижимых legacy-файла: Auth render/events, Weekly Production Control
+renderer и Nomenclature renderer — суммарно 3 349 строк legacy source.
+Сохранённые contract-QA теперь проверяют React production models, owners и
+физическое отсутствие retired artifacts. Runtime-поведение, API, RBAC,
+PostgreSQL owners и completion-маркеры не меняются. Операционный rollback
+по-прежнему выполняется переключением на предыдущий immutable release, а не
+возвратом к удалённому renderer внутри нового bundle. Browser/visual QA для
+этого cleanup намеренно не выполняется; strict acceptance остаётся 50%.
+
 ## Что проверено 2026-07-21
 
 - Текущий live Pilot release `v.1.500.26-097d66c` прошёл полный чистый QA,
