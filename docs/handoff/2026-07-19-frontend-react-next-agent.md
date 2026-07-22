@@ -1389,3 +1389,40 @@ artifacts only after `.49` proved that the current routes no longer reach them.
   same-release legacy renderer was reintroduced.
 - Browser/visual QA was deliberately skipped. Implementation remains `99%`
   and strict accepted evidence remains `50%`. Blueprint UI was not introduced.
+
+## Completed-module fallback cut 2026-07-22: release `.51`
+
+This block supersedes `.50` as the live Pilot pointer. It removes same-release
+legacy UI fallback from modules that already carry complete React markers,
+without upgrading any partial module to complete.
+
+- Active Pilot is `v.1.500.51-6ec4524` at exact commit
+  `6ec45246b1e87b166948a819270e2a2ae9810f1b`; immediate previous is
+  `v.1.500.50-8e8a384` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `436a9a9be80d67b1d071d57de1f71e58ab6f391d4742752de62ed8570b3ba7b6` and
+  `6ff1ce0eb27c9c234c0f5c12c1e654d774f3a293137f1e500f476a08ed7a0025`.
+  Git provenance is `fresh-upstream-fetch`; accelerated staging passed strict
+  TypeScript, recursive syntax, cutover/runtime-policy gates, module contract
+  QA, server preflight and two deterministic production builds.
+- Local/public health report `ok`, version `v.1.500.51`, shared state `ready`,
+  runtime-policy SHA
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`,
+  and zero active evaluation surfaces. `mes-pilot.service` is active and the
+  release pointer resolves to `.51`.
+- Shift Master Board, all four Directories sections and all seven Production
+  Structure registries now return fail-closed React targets from their current
+  routes. Legacy modal/bind/action fallback bridges were removed. Existing
+  server owners, RBAC, navigation, print/fact behavior and complete markers
+  remain in place.
+- `requestLegacyRender` usage in `src/app.js` fell from 17 to 5. The five
+  remaining bridges belong only to partial Planning, Marking, Specifications
+  2, Gantt and Roles surfaces. Large Shift Master/Production Structure source
+  files remain solely where shared models, helpers or compatibility QA still
+  consume them; the current UI routes do not load their legacy renderers.
+- Immediate previous `.50` passed rollback dry-run without changing the live
+  pointer. Operational rollback remains immutable-release switching; the
+  pinned `.18` baseline is preserved.
+- Browser/visual QA was deliberately skipped. Implementation remains `99%`
+  and strict accepted evidence remains `50%`. Blueprint UI was not introduced.

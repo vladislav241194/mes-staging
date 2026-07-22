@@ -250,17 +250,26 @@ Immediate rollback dry-run на `.49` прошёл. Первая попытка 
 tracked icon registry после удаления двух legacy-only иконок. Generated diff
 включён в `8e8a384`; незавершённый кандидат не активировался.
 
-Кандидат `v.1.500.51` удаляет same-release UI fallback ещё у трёх полностью
-отмеченных модулей: `Мастерская`, `Справочники` (4/4 раздела) и
-`Структура и сотрудники` (7/7 реестров). Их маршруты всегда возвращают
-fail-closed React target; legacy modals/bind и action-level fallback-мосты
-удалены. Количество `requestLegacyRender` в app shell снижено с 17 до 5; пять
-оставшихся относятся только к честно partial-модулям Planning, Marking,
-Specifications 2, Gantt и Roles. Большие legacy-файлы Мастерской/Структуры
-пока сохранены как shared model/helper compatibility source, но current route
-их больше не загружает как UI. Server owners, RBAC, навигация, print/fact и
-completion-маркеры сохранены. Browser/visual QA намеренно не выполняется;
-strict acceptance остаётся 50%.
+Release `v.1.500.51-6ec4524` активирован на Pilot из точного commit
+`6ec45246b1e87b166948a819270e2a2ae9810f1b`. Он удаляет same-release UI
+fallback ещё у трёх полностью отмеченных модулей: `Мастерская`,
+`Справочники` (4/4 раздела) и `Структура и сотрудники` (7/7 реестров). Их
+маршруты всегда возвращают fail-closed React target; legacy modals/bind и
+action-level fallback-мосты удалены. Количество `requestLegacyRender` в app
+shell снижено с 17 до 5; пять оставшихся относятся только к честно
+partial-модулям Planning, Marking, Specifications 2, Gantt и Roles. Большие
+legacy-файлы Мастерской/Структуры пока сохранены как shared model/helper
+compatibility source, но current route их больше не загружает как UI. Server
+owners, RBAC, навигация, print/fact и completion-маркеры сохранены.
+Local/public health `ok`, версия `v.1.500.51`, shared state `ready`, active
+evaluation surfaces пусты; service и release pointer указывают на `.51`.
+Source/dist SHA-256 —
+`436a9a9be80d67b1d071d57de1f71e58ab6f391d4742752de62ed8570b3ba7b6` и
+`6ff1ce0eb27c9c234c0f5c12c1e654d774f3a293137f1e500f476a08ed7a0025`.
+Immediate rollback dry-run разрешён и точно возвращает предыдущий immutable
+release `v.1.500.50-8e8a384`; pinned legacy `.18` сохранён. Browser/visual QA
+намеренно не выполнялся; implementation остаётся 99%, strict acceptance —
+50%.
 
 ## Что проверено 2026-07-21
 
