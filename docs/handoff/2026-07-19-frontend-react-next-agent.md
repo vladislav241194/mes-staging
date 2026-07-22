@@ -1265,3 +1265,51 @@ strict accepted-evidence baseline above.
 - No visual/browser tests were run in this accelerated block. TypeScript,
   syntax, Marking contract QA, cutover QA, runtime-policy QA, deterministic
   build and diff checks passed. Blueprint UI was not introduced.
+
+## Accelerated mixed-runtime cut 2026-07-22: release `.48`
+
+This block supersedes `.47` only as the current live Pilot pointer. It does not
+claim browser or write-lifecycle acceptance and therefore does not replace the
+strict accepted-evidence baseline.
+
+- Active Pilot is `v.1.500.48-e02dbb0` at commit
+  `e02dbb0dd78fbdeb34457feb411f7877eb7acf11`; source/dist SHA-256 are
+  `2357701b920506ddd39e3a6e150199f1efecfd864d051655123b0616e22e3b12` and
+  `bb224f2115bee1b77fe7b079340926f55633432ea97e7565250817a406ede4d9`.
+  Immediate previous is `v.1.500.47-37f7ecb`; pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Public health is `ok`, version is `v.1.500.48`, shared state is `ready`,
+  runtime-policy SHA is
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`,
+  and active evaluation surfaces are empty. The service is active/running and
+  `/srv/mes/pilot/app` resolves to the `.48` release.
+- Current runtime no longer imports or renders the legacy Shift Work Orders,
+  Timesheet or Contour Admin renderers. Their existing `React TS` completion
+  markers remain the visible completion marker. A React failure stays inside
+  a fail-closed shell; operational rollback is the previous immutable release.
+- Shift Work Orders now shares one active TypeScript production model between
+  the React island and journal consumers. Auth role resolution no longer comes
+  from the Products renderer. Server-configured Nomenclature Types skips its
+  legacy delete-usage calculation.
+- Gantt now supports owner-backed same-lane drag of slot start and bounded
+  PostgreSQL projection refresh. Planning and Roles expose typed controls for
+  their deferred commands but keep capabilities `false` until PostgreSQL
+  owners exist. Specifications 2 enables existing-revision publication and
+  work-order creation through server owners while mutable draft, first
+  publication, routes and attachment binding remain partial/fail-closed.
+- Marking cleanup was run in dry-run mode only and reported zero tasks, kits,
+  codes, print batches/items, audit events and command requests. No production
+  or test rows were deleted.
+- Rollback dry-run to immediate previous `.47` passed with verified manifest,
+  exact version and policy. Pinned legacy `.18` remains immutable; its known
+  command-owner compatibility guard must still be respected rather than
+  bypassed.
+- Reduced nonvisual verification passed: strict React TypeScript, recursive
+  syntax, cutover/completion policy, runtime policy including built dist,
+  narrow module owner tests, Marking contract, deterministic build and
+  `git diff --check`. Browser/visual tests were deliberately skipped. Blueprint
+  UI was not introduced.
+- Accelerated implementation remains `99%`; strict accepted evidence remains
+  `50%`. There are 11/16 top-level modules and 21/26 audited surfaces with the
+  complete React marker. Partial modules are Specifications 2, Planning, Gantt,
+  Roles and Marking.

@@ -191,8 +191,10 @@ previous `.46` успешно разрешается dry-run. Pinned legacy `.18
 обходился. Визуальная и authenticated lifecycle-приёмка `.47` пропущены по
 ускоренному режиму, поэтому strict acceptance остаётся 50%.
 
-Кандидат `.48` продолжает именно удаление mixed runtime без визуальной
-полировки. У полностью отмеченных `Shift Work Orders`, `Timesheet` и
+Accelerated release `v.1.500.48-e02dbb0` продолжает именно удаление mixed
+runtime без визуальной полировки. Он активирован на Pilot: local/public health
+`ok`, shared state `ready`, active evaluation surfaces отсутствуют, release
+pointer ведёт на `.48`. У полностью отмеченных `Shift Work Orders`, `Timesheet` и
 `Contour Admin` удалены достижимые current-release legacy renderer imports,
 страницы, overlays и event fallback: ошибка React теперь остаётся в
 fail-closed React shell, а возврат обеспечивается предыдущим immutable
@@ -206,7 +208,9 @@ legacy delete usage. Planning и Roles получили typed controls для о
 существующую ревизию через server owner; mutable draft/first publish/routes и
 attachment binding остаются partial. Визуальные проверки кандидата пропущены,
 implementation-показатель остаётся 99%, strict acceptance — 50% до Pilot
-lifecycle.
+lifecycle. Marking cleanup dry-run показал ноль строк во всех семи isolated
+Phase 1 таблицах; destructive cleanup не запускался. Immediate previous `.47`
+успешно прошёл rollback dry-run.
 
 ## Что проверено 2026-07-21
 
