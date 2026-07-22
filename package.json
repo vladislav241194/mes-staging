@@ -20,6 +20,7 @@
     "deploy:staging:dist": "node scripts/deploy-contour.mjs --contour=staging --mode=dist-only",
     "release:stage:pilot": "node scripts/release-stage.mjs --contour=pilot",
     "release:stage:staging": "node scripts/release-stage.mjs --contour=staging",
+    "qa:release-stage-profile": "node scripts/release-stage-qa-profile-qa.mjs",
     "release:activate:pilot": "node scripts/release-activate.mjs --contour=pilot",
     "release:activate:staging": "node scripts/release-activate.mjs --contour=staging",
     "release:rollback:pilot": "node scripts/release-rollback.mjs --contour=pilot",

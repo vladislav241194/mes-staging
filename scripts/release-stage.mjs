@@ -54,6 +54,7 @@ import {
 } from "./release-root-reinode-active.mjs";
 import { materializePublishedGitSnapshot } from "./release-immutable-source.mjs";
 import { bootstrapPublishedPilotRootTrust } from "./pilot-root-trust-bootstrap.mjs";
+import { resolveReleaseQaProfile } from "./release-stage-qa-profile.mjs";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sshControlPath = join(process.env.HOME || "/tmp", ".ssh", "mes-codex-%C");
@@ -143,7 +144,7 @@ function shellQuote(value) {
 }
 
 function parseArgs(argv) {
-  const args = { contour: "pilot", remote: "", releaseId: "", dryRun: false };
+  const args = { contour: "pilot", remote: "", releaseId: "", dryRun: false, qaProfile: "standard" };
   for (const arg of argv) {
     if (!arg.startsWith("--")) throw new Error(`Unknown positional argument: ${arg}`);
     const [key, rawValue] = arg.slice(2).split("=");
@@ -152,6 +153,7 @@ function parseArgs(argv) {
     else if (key === "remote") args.remote = String(value);
     else if (key === "release-id") args.releaseId = String(value);
     else if (key === "dry-run") args.dryRun = true;
+    else if (key === "qa-profile") args.qaProfile = String(value);
     else throw new Error(`Unknown option: --${key}`);
   }
   return args;
@@ -452,6 +454,7 @@ function fixedActivePilotReleaseVerificationCommand() {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const qaProfile = resolveReleaseQaProfile(args.qaProfile);
   const contour = CONTOURS[args.contour];
   if (!contour) throw new Error(`Unknown contour: ${args.contour}`);
   args.remote = resolveReleaseStageRemote(args.contour, args.remote);
@@ -517,10 +520,12 @@ async function main() {
   console.log(`- remote: ${args.remote}`);
   console.log(`- release: ${releaseId}`);
   console.log(`- commit: ${gitCommit}`);
+  console.log(`- QA profile: ${qaProfile.id}`);
   console.log(`- Git provenance: ${gitProvenance.verification} (${gitProvenance.upstreamRef} @ ${gitProvenance.upstreamCommit})`);
 
   if (args.dryRun) {
     console.log(`- would build immutable Git-object source inputs and upload ${SOURCE_INCLUDES.join(", ")} plus dist/`);
+    console.log(`- would run ${qaProfile.id} local QA before the immutable double build`);
     console.log(`- would pin the root-sealed bootstrap source at ${contour.bootstrapSnapshotPath}`);
     console.log(`- would stage into ${releaseAppPath} without changing ${contour.appPath}`);
     return;
@@ -549,7 +554,9 @@ async function main() {
   const cleanupWorkspaceBootstrap = await installPinnedBootstrapIntoWorkspaceForQa(bootstrapSnapshotArtifact);
   try {
     await run("npm", ["ci"]);
-    await run("npm", ["run", "qa:stabilize"]);
+    for (const step of qaProfile.workspaceSteps) {
+      await run(step.command, [...step.args]);
+    }
   } finally {
     await cleanupWorkspaceBootstrap();
   }
@@ -571,6 +578,9 @@ async function main() {
   });
   if (firstDistTreeSha256 !== secondDistTreeSha256) {
     throw new Error("Refusing non-deterministic build output; the two dist digests differ");
+  }
+  if (qaProfile.verifyBuiltRuntimePolicy) {
+    await run("npm", ["run", "qa:react-runtime-policy", "--", "--require-dist"], { cwd: sourceRoot });
   }
   bootstrapSnapshotArtifact.generatedPaths = await collectGeneratedCompatibilityArtifacts(
     BOOTSTRAP_SNAPSHOT_GENERATED_PATHS,
@@ -624,7 +634,8 @@ async function main() {
       generatedPaths: bootstrapSnapshotArtifact.generatedPaths,
     }],
     verification: {
-      localBuild: "workspace QA plus immutable Git-object npm ci --ignore-scripts and two matching builds",
+      qaProfile: qaProfile.id,
+      localBuild: qaProfile.localBuildDescription,
       remotePreflight: "fixed root helper verifies explicit digests before npm ci --omit=dev --ignore-scripts and server:preflight",
       activation: "not activated by stage command",
     },
