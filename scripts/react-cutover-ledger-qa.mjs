@@ -31,9 +31,9 @@ assert.equal(ledger.schemaVersion, 3, "cutover ledger schema must be explicit");
 assert.equal(ledger.designSystem, "mes-line", "React cutover must retain the MES Line design system");
 assert.equal(ledger.updatedAt, "2026-07-22", "cutover ledger date must match the accelerated implementation checkpoint");
 assert.equal(ledger.baselineProgress, 46, "the pre-rollout audited baseline must remain explicit");
-assert.equal(ledger.implementationProgress, 94, "accelerated implementation progress must remain separate from evidence-weighted acceptance");
+assert.equal(ledger.implementationProgress, 95, "accelerated implementation progress must remain separate from evidence-weighted acceptance");
 assert.equal(ledger.implementationProgressUpdatedAt, "2026-07-22", "implementation progress must name its checkpoint date");
-assert.equal(ledger.implementationProgressBasis, "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; accelerated normal-path cutover is 94%, while strict Pilot acceptance remains separate at 50%.", "implementation progress must retain its auditable route basis");
+assert.equal(ledger.implementationProgressBasis, "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; accelerated normal-path cutover is 95%, while strict Pilot acceptance remains separate at 50%.", "implementation progress must retain its auditable route basis");
 assert(ledger.implementationProgress >= ledger.currentProgress, "implementation progress may not understate evidence-weighted acceptance");
 assert.equal(ledger.acceptedPilotRelease, "v.1.500.26-097d66c", "permanent Pilot evidence must name the immutable active release");
 assert.equal(ledger.acceptedPilotPreviousRelease, "v.1.500.25-1f8369c", "permanent Pilot evidence must name its immutable immediate rollback release");
@@ -298,7 +298,7 @@ assert.deepEqual(
 const productionStructureModule = ledger.modules.find((module) => module.id === "productionStructureMatrix");
 assert.equal(productionStructureModule?.runtimeMode, "react", "all seven Structure destinations must use the signed React UI route");
 assert.equal(productionStructureModule?.visibleLegacyRendererPath, false, "the complete Structure UI route may not expose a legacy renderer");
-assert.equal(productionStructureModule?.normalLegacyPath, true, "the transitional Structure data model must remain explicit until typed owner independence");
+assert.equal(productionStructureModule?.normalLegacyPath, false, "the permanent Structure route must not load its rollback renderer/model");
 assert.equal(productionStructureModule?.productionReady, false, "deferred Pilot lifecycle acceptance must remain separate from the completed React UI route");
 
 const commandScenarioIds = commandMatrix.scenarios.map((scenario) => scenario.id);

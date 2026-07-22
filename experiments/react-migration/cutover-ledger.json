@@ -3,9 +3,9 @@
   "updatedAt": "2026-07-22",
   "baselineProgress": 46,
   "currentProgress": 50,
-  "implementationProgress": 94,
+  "implementationProgress": 95,
   "implementationProgressUpdatedAt": "2026-07-22",
-  "implementationProgressBasis": "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; accelerated normal-path cutover is 94%, while strict Pilot acceptance remains separate at 50%.",
+  "implementationProgressBasis": "16/16 top-level routes have React UI: 10 complete, 4 partial, 2 explicit prototypes; accelerated normal-path cutover is 95%, while strict Pilot acceptance remains separate at 50%.",
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
@@ -376,10 +376,10 @@
       "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["non-empty Responsibility Policies Pilot read", "six writable registry Pilot lifecycles", "typed owner/model independence", "permanent Pilot acceptance"]
+      "remainingScopes": ["non-empty Responsibility Policies Pilot read", "six writable registry Pilot lifecycles", "permanent Pilot acceptance"]
     },
     {
       "id": "timesheet",

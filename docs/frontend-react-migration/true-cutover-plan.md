@@ -68,7 +68,7 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 
 ## Ускоренный implementation checkpoint 2026-07-22
 
-Отдельный показатель реализации составляет **94%**, тогда как строгая
+Отдельный показатель реализации составляет **95%**, тогда как строгая
 evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
 верхнеуровневых маршрутов уже имеют React UI: **10 complete**, **4 partial** и
 **2 явных prototype**. Маркер `React TS` показывается только на десяти complete
@@ -112,6 +112,11 @@ Nomenclature/Boards получили typed production adapters и отдельн
 Directory-поверхности теперь выбирают permanent React до загрузки большого
 `routes/render.js`; старый renderer остался только в rollback-ветке. Новые
 завершённые normal-path поверхности имеют видимый маркер `React TS`.
+
+Production Structure больше не загружает legacy matrix renderer даже для
+диагностики: read-only экран получает только компактные исходные строки и
+серверный migration report, тогда как полный старый модуль доступен исключительно
+после явного отклонения permanent React.
 
 Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной
 волне отложены владельцем и не засчитываются как Pilot acceptance. До

@@ -2528,8 +2528,28 @@ let renderProductionStructureMatrixPage = () => renderUiModulePage({
 let productionStructureMatrixModuleLoad = null;
 let productionStructureMatrixModuleState = { status: "idle", error: "" };
 let productionStructureMatrixData = { PRODUCTION_STRUCTURE_MATRIX_COLUMNS: [], PRODUCTION_STRUCTURE_MATRIX_ROWS: [] };
+let productionStructureDiagnosticsDataLoad = null;
+let productionStructureDiagnosticsDataState = { status: "idle", error: "" };
+function ensureProductionStructureDiagnosticsData() {
+  if (productionStructureDiagnosticsDataLoad) return productionStructureDiagnosticsDataLoad;
+  productionStructureDiagnosticsDataState = { status: "loading", error: "" };
+  productionStructureDiagnosticsDataLoad = import("./production_structure_matrix_data.js")
+    .then((matrixData) => {
+      productionStructureMatrixData = matrixData;
+      productionStructureDiagnosticsDataState = { status: "ready", error: "" };
+      if (ui.activeModule === "productionStructureMatrix" && getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") render();
+      return matrixData;
+    })
+    .catch((error) => {
+      productionStructureDiagnosticsDataState = { status: "error", error: error?.message || "Production Structure diagnostics data is unavailable" };
+      if (ui.activeModule === "productionStructureMatrix" && getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") render();
+      return null;
+    });
+  return productionStructureDiagnosticsDataLoad;
+}
 function initializeProductionStructureMatrixModule(factory, matrixData) {
   productionStructureMatrixData = matrixData;
+  productionStructureDiagnosticsDataState = { status: "ready", error: "" };
   const legacyModule = factory({
   PRODUCTION_STRUCTURE_MATRIX_COLUMNS: matrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
   PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS: matrixData.PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS,
@@ -4213,10 +4233,10 @@ function getStructureMigrationDiagnosticsReactLocalQaOverrides() {
 }
 function isStructureMigrationDiagnosticsReactEvaluationRequested() { const params = new URLSearchParams(window.location.search); if (params.get("react-structure-migration-diagnostics-evaluation") !== "1") return false; return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson()); }
 function getStructureMigrationDiagnosticsReactReadState() {
-  const report = productionStructureMatrixModuleState.status === "ready" ? getSystemDomainsMigrationReport() : null;
+  const report = productionStructureDiagnosticsDataState.status === "ready" ? getSystemDomainsMigrationReport() : null;
   const sourceCounts = normalizePlainRecord(report?.sourceCounts);
   const targetCounts = normalizePlainRecord(report?.targetCounts);
-  const matrixReady = productionStructureMatrixModuleState.status === "ready"
+  const matrixReady = productionStructureDiagnosticsDataState.status === "ready"
     && Array.isArray(productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS)
     && productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS.length > 0
     && Array.isArray(productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS)
@@ -4224,7 +4244,7 @@ function getStructureMigrationDiagnosticsReactReadState() {
   const reportReady = Boolean(report)
     && Number(sourceCounts.matrixRows) === productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS.length
     && ["employees", "orgUnits", "positions"].every((id) => Number.isFinite(Number(targetCounts[id])));
-  const serverReadFailure = productionStructureMatrixModuleState.status === "error"
+  const serverReadFailure = productionStructureDiagnosticsDataState.status === "error"
     ? "model-unavailable"
     : systemDomainsServerReadState.status === "fallback"
       ? "read-unavailable"
@@ -11498,7 +11518,7 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
         const activeReactHost = getActiveProductionStructureReactHost();
-        if (getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") ensureProductionStructureMatrixModule();
+        if (getProductionStructureMatrixActiveRegistry() === "migrationDiagnostics") ensureProductionStructureDiagnosticsData();
         Object.values(productionStructureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();
