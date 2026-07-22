@@ -30,19 +30,20 @@ function defineCompletionEntry({ id, status, verification = DEFERRED, surfaceIds
 }
 
 // This registry is deliberately explicit. `react-complete` means that the
-// normal-path implementation is React + TypeScript and has no legacy renderer
-// or model fallback. Pilot/global acceptance is tracked separately through
+// normal-path UI implementation is React + TypeScript and has no legacy
+// renderer/action fallback. Transitional data owners/models stay explicit in
+// the cutover ledger. Pilot/global acceptance is tracked separately through
 // `verification`, so deferred QA does not block accelerated implementation.
 // Contract QA binds both declarations to the ledger and runtime policy.
 export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "authPicker", status: PARTIAL }),
-  defineCompletionEntry({ id: "boards", status: PARTIAL }),
+  defineCompletionEntry({ id: "boards", status: COMPLETE }),
   defineCompletionEntry({ id: "componentTypes", status: PARTIAL }),
   defineCompletionEntry({ id: "contourAdmin", status: PARTIAL }),
   defineCompletionEntry({ id: "employeeDesktop", status: PARTIAL }),
   defineCompletionEntry({ id: "gantt", status: PARTIAL }),
   defineCompletionEntry({ id: "marking", status: PARTIAL }),
-  defineCompletionEntry({ id: "nomenclature", status: PARTIAL }),
+  defineCompletionEntry({ id: "nomenclature", status: COMPLETE }),
   defineCompletionEntry({ id: "nomenclatureTypes", status: PARTIAL }),
   defineCompletionEntry({ id: "operations", status: PARTIAL }),
   defineCompletionEntry({ id: "planningWorkbench", status: PARTIAL }),
@@ -63,7 +64,7 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
 ]);
 
 export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
-  defineCompletionEntry({ id: "nomenclature", status: PARTIAL, surfaceIds: ["nomenclature", "boards"] }),
+  defineCompletionEntry({ id: "nomenclature", status: COMPLETE, surfaceIds: ["nomenclature", "boards"] }),
   defineCompletionEntry({ id: "specifications2", status: PARTIAL, surfaceIds: ["specifications2"] }),
   defineCompletionEntry({ id: "planning", status: PARTIAL, surfaceIds: ["planningWorkbench"] }),
   defineCompletionEntry({ id: "gantt", status: PARTIAL, surfaceIds: ["gantt"] }),

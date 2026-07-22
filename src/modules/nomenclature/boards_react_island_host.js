@@ -19,11 +19,13 @@ export function createBoardsReactIslandHost({
     getTargetRoot,
     requestLegacyRender,
     reportError,
+    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
     targetSelector: BOARDS_REACT_TARGET,
     renderTarget: '<div class="mes-react-nomenclature-island mes-react-boards-island" data-react-boards-island data-react-island-state="loading" aria-live="polite"></div>',
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.activePane !== "boards") return "unsupported-scope";
+      if (activation.accessMode === "react") return "";
       if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") return "write-parity-incomplete";
       return "";
     },

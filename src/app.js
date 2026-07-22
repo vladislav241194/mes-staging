@@ -3462,22 +3462,35 @@ function isBoardsReactEvaluationRequested() {
   if (params.get("react-boards-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
-const boardsReactIslandHost = createBoardsReactIslandHost({
-  getActivation: () => {
-    const localQa = getBoardsReactLocalQaOverrides();
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_BOARDS_READ_ONLY_EVALUATION === true;
-    return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_BOARDS === true || localQa.featureFlagEnabled,
-      activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
-      accessMode: localQa.writeEvaluation
+function getBoardsReactActivation() {
+  const localQa = getBoardsReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_BOARDS_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "boards",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_BOARDS === true && serverEvaluationAllowed,
+    evaluationRequested: isBoardsReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  return {
+    ...runtimeActivation,
+    activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
-        : (serverEvaluationAllowed && isBoardsReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
-    };
-  },
+        : runtimeActivation.accessMode,
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+function canWriteBoardsReact(activation = getBoardsReactActivation()) {
+  return (activation.accessMode === "react" || activation.accessMode === "write-evaluation")
+    && !isLegacyDirectoryWriteBlocked()
+    && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" });
+}
+const boardsReactIslandHost = createBoardsReactIslandHost({
+  getActivation: getBoardsReactActivation,
   getPayload: () => {
-    const localQa = getBoardsReactLocalQaOverrides();
+    const canWrite = canWriteBoardsReact();
     const deleteUsageById = Object.fromEntries((directoryState.bomLists || []).flatMap((bom) => {
       const boardId = String(bom?.id || "").trim();
       return boardId ? [[boardId, {
@@ -3499,12 +3512,12 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
         .filter((item) => item.id),
       deleteUsageById,
       capabilities: {
-        createEdit: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        delete: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomImport: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomRowAdd: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomRowEdit: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
-        bomRowDelete: localQa.writeEvaluation && !isLegacyDirectoryWriteBlocked() && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        createEdit: canWrite,
+        delete: canWrite,
+        bomImport: canWrite,
+        bomRowAdd: canWrite,
+        bomRowEdit: canWrite,
+        bomRowDelete: canWrite,
       },
     };
   },
@@ -3521,11 +3534,10 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
   },
   onSelectionChange: (boardId) => { ui.activeBomId = String(boardId || ""); },
   executeCommand: async (command = {}) => {
-    const localQa = getBoardsReactLocalQaOverrides();
     if (isLegacyDirectoryWriteBlocked()) {
       return { ok: false, message: "Платы доступны только для чтения: серверная команда этого раздела ещё не подключена." };
     }
-    if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
+    if (!canWriteBoardsReact()) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
     if (!["save", "delete", "import-bom-xlsx", "add-bom-nomenclature-row", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Команда Boards не поддерживается." };

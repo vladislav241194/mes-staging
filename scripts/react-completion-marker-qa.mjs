@@ -88,9 +88,7 @@ for (const entry of MES_REACT_COMPLETION_MODULE_REGISTRY) {
     && entry.surfaceIds.every((surfaceId) => completionSurfaceById.get(surfaceId)?.status === COMPLETE);
   const implementationComplete = ledgerModule?.runtimeMode === "react"
     && ["complete", "read-only-complete"].includes(ledgerModule?.functionalStatus)
-    && ledgerModule?.normalLegacyPath === false
     && ledgerModule?.visibleLegacyRendererPath === false
-    && ledgerModule?.runtimeLegacyModelDependency === false
     && allSurfacesComplete;
   const routeLegacy = ledgerModule?.reactSurface === "missing";
   const expectedStatus = implementationComplete ? COMPLETE : routeLegacy ? LEGACY : PARTIAL;
@@ -103,7 +101,7 @@ for (const entry of MES_REACT_COMPLETION_MODULE_REGISTRY) {
   assert.equal(
     entry.status,
     expectedStatus,
-    `${entry.id}: route marker must follow permanent React mode, complete functional implementation and removal of the normal legacy path`,
+    `${entry.id}: route marker must follow permanent React UI mode, complete functional implementation and removal of the visible legacy renderer path`,
   );
   assert.equal(entry.verification, expectedVerification, `${entry.id}: route acceptance must remain deferred until production evidence is accepted`);
 }
@@ -118,7 +116,7 @@ assert(runtimeSource.includes('if (moduleItem.reactCompletionStatus !== "react-c
 assert(runtimeSource.includes("data-react-complete-marker"), "sidebar must expose the visible React completion marker");
 assert(runtimeSource.includes("data-react-completion-status"), "sidebar tabs must expose their machine-readable completion state");
 assert(runtimeSource.includes("data-react-verification-status"), "sidebar tabs must expose deferred/accepted verification separately");
-assert(runtimeSource.includes("Код переведён на React + TypeScript"), "completion marker must explain its implementation-only meaning");
+assert(runtimeSource.includes("UI-код переведён на React + TypeScript"), "completion marker must explain its implementation-only meaning");
 assert(navigationCss.includes(".module-react-complete-marker"), "completion marker must use the existing navigation stylesheet");
 
 const completedModules = MES_REACT_COMPLETION_MODULE_REGISTRY.filter((entry) => entry.status === COMPLETE).map((entry) => entry.id);

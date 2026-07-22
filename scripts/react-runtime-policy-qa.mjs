@@ -37,6 +37,7 @@ assert.equal(Object.keys(policy.surfaces).length, 24);
 assert(REACT_RUNTIME_SURFACE_IDS.every((id) => ["legacy", "evaluation", "react"].includes(policy.surfaces[id])));
 assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "nomenclature",
+  "boards",
   "structureEmployees",
   "structurePositions",
   "structureOrgUnits",
@@ -62,13 +63,15 @@ assert.deepEqual(summarizeReactRuntimePolicy(policy).activeEvaluationSurfaces, [
 if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate policy must stay explicitly unaccepted");
   assert.deepEqual(candidateSurfaceIds, [
+    "boards",
+    "nomenclature",
     "structureEmployees",
     "structureEquipment",
     "structureOrgUnits",
     "structurePositions",
     "structureResponsibilityPolicies",
     "structureWorkCenters",
-  ], "this candidate policy must contain the complete writable Production Structure registry set");
+  ], "this candidate policy must contain every accelerated permanent React surface awaiting Pilot acceptance");
   assert.equal(candidatePolicy.runtimePolicySha256, policy.sha256, "candidate evidence contract must bind the exact current policy bytes");
   assert.equal(candidatePolicy.baseAcceptedRelease, ledger.acceptedPilotRelease, "candidate must name the accepted release it extends");
   assert.deepEqual(candidatePolicy.requiredEvidence, [

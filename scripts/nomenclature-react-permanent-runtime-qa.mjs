@@ -24,11 +24,11 @@ class FakeElement {
 }
 
 const releasePolicy = JSON.parse(await readFile(join(root, "react-runtime-policy.json"), "utf8"));
-assert.notEqual(releasePolicy.surfaces?.boards, "react", "Nomenclature cutover must not silently absorb the separately governed Boards surface");
+assert.equal(releasePolicy.surfaces?.boards, "react", "the complete Nomenclature route must keep Boards on permanent React");
 const permanentCandidatePolicy = {
   ...releasePolicy,
   policyId: "qa-nomenclature-permanent-candidate",
-  surfaces: { ...releasePolicy.surfaces, nomenclature: "react", boards: "legacy" },
+  surfaces: { ...releasePolicy.surfaces, nomenclature: "react", boards: "react" },
 };
 
 const publishedConfig = getPublicRuntimeConfig({

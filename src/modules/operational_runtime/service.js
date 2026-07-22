@@ -2142,7 +2142,7 @@ function renderReactCompletionMarker(moduleItem = {}) {
       class="module-react-complete-marker is-${accepted ? "accepted" : "deferred"}"
       data-react-complete-marker
       data-react-verification-status="${accepted ? "accepted" : "deferred"}"
-      title="Код переведён на React + TypeScript; ${verificationLabel}"
+      title="UI-код переведён на React + TypeScript; ${verificationLabel}"
       aria-hidden="true"
     >React TS</em>
   `;
@@ -2154,7 +2154,7 @@ function getModuleAccessibleLabel(moduleItem = {}) {
     ? "приёмка подтверждена"
     : "приёмка отложена";
   return moduleItem.reactCompletionStatus === "react-complete"
-    ? `${label}. Код полностью переведён на React и TypeScript; ${verificationLabel}`
+    ? `${label}. UI-код полностью переведён на React и TypeScript; ${verificationLabel}`
     : label;
 }
 

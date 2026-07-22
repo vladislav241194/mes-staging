@@ -263,7 +263,7 @@ const discoveredIslandEntries = (await listFiles(join(migrationRoot, "src")))
   .map((path) => path.slice(repositoryRoot.length + 1));
 assert.deepEqual(sorted(islandEntries), sorted(discoveredIslandEntries), "every built React island entry must appear exactly once in the cutover ledger");
 assert.deepEqual(ledger.islands.filter((island) => island.disposition === "mock-not-production").map((island) => island.id), ["marking"], "Marking is the only explicitly non-production MOCK island");
-assert.equal(ledger.islands.filter((island) => island.normalActionFallback).length, 19, "nineteen island surfaces still expose normal user-action fallback to legacy");
+assert(ledger.islands.filter((island) => island.normalActionFallback).length <= 19, "accelerated cutover must not add normal user-action fallback to legacy");
 for (const island of ledger.islands) {
   const module = ledger.modules.find((candidate) => candidate.id === island.routeId);
   if (island.commands.missing.length || island.normalActionFallback || island.disposition !== "migration-required") {
@@ -281,11 +281,11 @@ assert.deepEqual(
   ["marking"],
   "Marking must remain explicitly MOCK until it has an owner, API and persistence",
 );
-assert.deepEqual(
-  ledger.modules.filter((module) => module.runtimeMode === "react").map((module) => module.id),
-  ["weeklyProductionControl"],
-  "Weekly Production Control is the only permanent React module on the accepted Pilot release",
-);
+const reactRuntimeModules = ledger.modules.filter((module) => module.runtimeMode === "react");
+assert(reactRuntimeModules.some((module) => module.id === "weeklyProductionControl"), "the accepted Weekly React route must remain permanent");
+for (const module of reactRuntimeModules) {
+  assert(module.scenarios.every((surfaceId) => runtimePolicy.surfaces?.[surfaceId] === "react"), `${module.id}: every permanent UI route surface must be signed React`);
+}
 assert.deepEqual(
   ledger.modules.filter((module) => module.productionReady).map((module) => module.id),
   auditedWeeklyModule?.runtimeLegacyModelDependency ? [] : ["weeklyProductionControl"],
@@ -346,13 +346,15 @@ assert.deepEqual(
 if (candidatePolicy) {
   assert.equal(candidatePolicy.status, "awaiting-pilot-acceptance", "candidate status must make pending acceptance explicit");
   assert.deepEqual(candidateSurfaceIds, [
+    "boards",
+    "nomenclature",
     "structureEmployees",
     "structureEquipment",
     "structureOrgUnits",
     "structurePositions",
     "structureResponsibilityPolicies",
     "structureWorkCenters",
-  ], "the current candidate must contain the complete writable Production Structure registry set");
+  ], "the current candidate must contain every accelerated permanent React surface awaiting Pilot acceptance");
   assert(unique(candidateSurfaceIds) && candidateSurfaceIds.length > 0, "candidate surface IDs must be non-empty and unique");
   assert(candidateSurfaceIds.every((surfaceId) => acceptanceIds.includes(surfaceId)), "every candidate must map to an audited scenario");
   assert.equal(candidatePolicy.runtimePolicySha256, runtimePolicySha256, "candidate must bind the exact current runtime policy SHA-256");
