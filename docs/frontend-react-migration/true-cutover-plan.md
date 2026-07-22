@@ -7,6 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
+Текущий accelerated Pilot release: `v.1.500.63-f0e68dc`
 
 ## Исправление прежней оценки
 
@@ -555,6 +556,35 @@ Immediate rollback dry-run точно возвращает `.61`. Pinned legacy 
 Specifications 2 command drop-ins `50`, `63`, `64`; их нельзя обходить без
 root-controlled deactivation владельцев команд. Implementation остаётся 99%,
 strict acceptance — 50%. Blueprint UI не используется.
+
+Release `v.1.500.63-f0e68dc` активирован на Pilot из точного commit
+`f0e68dca2a14a699e0e1d4ec345879858a080f3e`. Этот cleanup не получает новый
+`FULL REACT` marker: Production Structure уже завершён как React-модуль, а
+срез удаляет диагностический full-matrix artifact из browser runtime.
+Матрица на 9 217 строк перенесена из `src` в test-only fixture; приложение
+загружает компактную generated projection. Inventory JavaScript сократился с
+62 953 до 53 740 строк, а реально достижимый import graph — с 56 536 до
+47 323 строк. В обоих измерениях удалено 9 213 строк.
+
+Fresh-build gate доказывает 152 строки, упорядоченную 51-полевую схему, шесть
+используемых Diagnostics-полей, точное совпадение serialized System Domains и
+migration report. Dist не содержит full-matrix chunk и сохраняет compact lazy
+boundary. Дополнительно permanent Weekly при read error теперь остаётся
+владельцем маршрута и показывает React fail-closed shell, не выбирая
+`compatibility-fallback`.
+
+Structure clean build, strict React TypeScript, syntax, bundle budget, feature
+registry, React cutover и mixed-runtime gates прошли; независимый review дал
+GO после исправления двух clean-build замечаний. Public/local health `ok`,
+версия `v.1.500.63`, shared state `ready`; 25 policy surfaces работают в React,
+evaluation/legacy surfaces пусты, effective `MES_REACT_*` flags отсутствуют.
+Source/dist SHA-256 —
+`85523018ad3df5562426703b4c3c52c2bc512edf62bdea3765e1289283080b88` и
+`1611b5d4baa48ce3f70533d715c1f5f95b117cf5b0bb8c0b957a8c9892501036`.
+Immediate rollback dry-run возвращает `.62`; pinned legacy `.18` сохранён и
+fail-closed блокируется совместимостью активных Specifications 2 команд
+`50`, `63`, `64`. Visual/browser QA намеренно пропущен. Implementation остаётся
+99%, strict acceptance — 50%. Blueprint UI не используется.
 
 ## Что проверено 2026-07-21
 
