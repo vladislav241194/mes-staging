@@ -200,5 +200,10 @@ assert(recoverySource.includes("for attempt in $(seq 1 12)")
   && recoverySource.includes("assert-pilot-employee-auth-readiness.sh")
   && recoverySource.includes("sleep 1"),
 "primary recovery must bound employee-auth readiness while the restarted HTTP listener opens");
+const activationSource = await readFile(new URL("../ops/postgres/activate-system-domains-command-surfaces.sh", import.meta.url), "utf8");
+assert(activationSource.includes("for attempt in $(seq 1 12)")
+  && activationSource.includes("assert-pilot-employee-auth-readiness.sh")
+  && activationSource.includes("sleep 1"),
+"staged activation must bound employee-auth readiness while the restarted HTTP listener opens");
 
 console.log("System Domains release command contract QA: OK");
