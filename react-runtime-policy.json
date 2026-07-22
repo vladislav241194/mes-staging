@@ -22,7 +22,7 @@
     "shiftWorkOrders": "react",
     "shiftMasterBoard": "react",
     "employeeDesktop": "react",
-    "specifications2": "evaluation",
+    "specifications2": "react",
     "gantt": "react",
     "authPicker": "react",
     "contourAdmin": "react"

@@ -28,6 +28,7 @@ export const REACT_RUNTIME_PERMANENT_CONSUMERS = Object.freeze([
   "employeeDesktop",
   "contourAdmin",
   "gantt",
+  "specifications2",
 ]);
 export const REACT_RUNTIME_SURFACE_IDS = Object.freeze([
   "nomenclature",

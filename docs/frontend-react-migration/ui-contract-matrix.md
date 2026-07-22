@@ -357,15 +357,16 @@ fallback, cancellation with zero calls and one exact mocked confirmed call.
 
 ## Specifications 2.0 production evidence
 
-The protected-canvas proof keeps immutable revision inspection and now adds one
-bounded existing-row draft editor. The legacy host derives registry summaries,
+The protected-canvas route now permanently uses React + TypeScript for immutable
+revision inspection, registry switching and one bounded existing-row draft editor. The compatibility model derives registry summaries,
 allowlisted draft fields and accepts the selected server item only when source
 entry, revision number and fingerprint match PostgreSQL. React reuses
 ModulePage, ModuleSidebar, Panel, MetricGrid, TableWrap, StatusToken and
-ActionButton, while owning local tree collapse and form state. Production-shell
-QA proves revision 7 with four hierarchy rows, default legacy, exact server
-parity, one owner-backed draft save, one compatibility persistence, unchanged
-published tree and zero publication, attachment or work-order API writes.
+ActionButton, while owning local tree collapse and form state. The existing
+signed owners retain draft edit, exact-ID publication and exact-revision work
+order commands. Add/remove/reparent, attachment binding and route/norm editing
+remain visibly disabled until owner APIs exist; no ordinary action renders
+legacy. The route marker remains partial and Pilot acceptance is deferred.
 
 ## Gantt production evidence
 

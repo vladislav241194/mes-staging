@@ -59,6 +59,7 @@ assert.deepEqual(REACT_RUNTIME_PERMANENT_CONSUMERS, [
   "employeeDesktop",
   "contourAdmin",
   "gantt",
+  "specifications2",
 ], "permanent allowlist must stay explicit and limited to fully wired consumers");
 const expectedReactSurfaceIds = [...new Set([...acceptedSurfaceIds, ...candidateSurfaceIds])].sort();
 assert.deepEqual(
@@ -89,6 +90,7 @@ if (candidatePolicy) {
     "roles",
     "shiftMasterBoard",
     "shiftWorkOrders",
+    "specifications2",
     "statuses",
     "structureEmployees",
     "structureEquipment",

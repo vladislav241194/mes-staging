@@ -3063,6 +3063,7 @@ let publishSpecifications2EntryById = () => Promise.resolve({ ok: false, error: 
 let createSpecifications2WorkOrder = () => Promise.resolve({ ok: false, error: "Модуль Specifications 2.0 ещё не загружен." });
 let specifications2ModuleLoad = null;
 let specifications2ModuleReady = false;
+let specifications2ModuleError = "";
 let specifications2RevisionsReadModel = null;
 let specifications2PublishCommands = null;
 let specifications2AttachmentCommands = null;
@@ -3204,14 +3205,19 @@ function ensureSpecifications2Module() {
       { createSpecifications2PublishCommands },
       { createSpecifications2AttachmentCommands },
     ]) => {
+      specifications2ModuleError = "";
       specifications2RevisionsReadModel = createSpecifications2RevisionsReadModel();
       specifications2PublishCommands = createSpecifications2PublishCommands();
       specifications2AttachmentCommands = createSpecifications2AttachmentCommands();
       initializeSpecifications2Module(createSpecifications2Module, publishSpecifications2Entry);
+      void specifications2PublishCommands.refreshCapability().then(() => {
+        if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      });
       if (ui.activeModule === "specifications2") render();
     })
     .catch((error) => {
       specifications2ModuleReady = false;
+      specifications2ModuleError = error?.message || "model-unavailable";
       console.error("Не удалось загрузить модуль Спецификации 2.0", error);
       renderSpecifications2Page = () => renderUiModulePage({
         ariaLabel: "Спецификации 2.0",
@@ -5615,35 +5621,70 @@ function isSpecifications2ReactEvaluationRequested() {
   if (params.get("react-specifications2-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
-const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
-  getActivation: () => {
-    const localQa = getSpecifications2ReactLocalQaOverrides();
-    const featureFlagEnabled = MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2 === true || localQa.featureFlagEnabled;
-    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION === true;
-    const model = featureFlagEnabled && specifications2ModuleReady ? getSpecifications2ReactModel() : null;
-    return {
-      featureFlagEnabled,
-      moduleReady: specifications2ModuleReady,
-      serverReadReady: model?.serverStatus === "ready",
-      accessMode: localQa.writeEvaluation
+function getSpecifications2ReactActivation() {
+  const localQa = getSpecifications2ReactLocalQaOverrides();
+  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION === true;
+  const runtimeActivation = resolveReactRuntimeActivation({
+    surfaceId: "specifications2",
+    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2 === true && serverEvaluationAllowed,
+    evaluationRequested: isSpecifications2ReactEvaluationRequested(),
+    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
+  });
+  const model = specifications2ModuleReady ? getSpecifications2ReactModel() : null;
+  return {
+    ...runtimeActivation,
+    accessMode: runtimeActivation.runtimeMode === "react"
+      ? "react"
+      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
-        : (serverEvaluationAllowed && isSpecifications2ReactEvaluationRequested()) || localQa.readOnlyEvaluation
-          ? "read-only-evaluation"
-          : "editor",
-    };
-  },
+        : runtimeActivation.accessMode,
+    moduleReady: specifications2ModuleReady,
+    serverReadReady: model?.serverStatus === "ready",
+    serverReadFailure: specifications2ModuleError ? "model-unavailable" : "",
+    policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
+  };
+}
+function canEditSpecifications2WithSignedRole() {
+  return getAccessRoleModulePermission(getAuthorizationBoundRoleId(), "specifications2", "edit");
+}
+const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
+  getActivation: getSpecifications2ReactActivation,
   getPayload: () => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
+    const activation = getSpecifications2ReactActivation();
     const model = getSpecifications2ReactModel();
-    return { model, capabilities: { draftEdit: localQa.writeEvaluation, publication: localQa.writeEvaluation, workOrder: localQa.writeEvaluation && model.workOrderReady === true } };
+    const permanentWrite = activation.accessMode === "react" && canEditSpecifications2WithSignedRole();
+    const publicationCapability = specifications2PublishCommands?.getCapability?.() || {};
+    return {
+      model,
+      capabilities: {
+        draftEdit: localQa.writeEvaluation || permanentWrite,
+        publication: localQa.writeEvaluation || (permanentWrite && publicationCapability.enabled === true),
+        workOrder: (localQa.writeEvaluation || permanentWrite) && model.workOrderReady === true,
+      },
+    };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const localQa = getSpecifications2ReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-draft-row", "publish-draft", "create-work-order"].includes(command.type)) {
+    const payload = command.payload || {};
+    if (command.type === "select-entry") {
+      const entryId = String(payload.entryId || "").trim();
+      const model = getSpecifications2ReactModel();
+      if (!entryId || !(model.registry || []).some((entry) => entry.id === entryId)) return { ok: false, message: "Спецификация больше не входит в реестр." };
+      try {
+        const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
+        localStorage.setItem("mes-specifications-2-registry-v1", JSON.stringify({ ...store, selectedId: entryId }));
+      } catch (_error) {
+        return { ok: false, message: "Локальное состояние выбора повреждено. Обновите страницу." };
+      }
+      if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+      return { ok: true, id: entryId };
+    }
+    const permanentWrite = getSpecifications2ReactActivation().accessMode === "react" && canEditSpecifications2WithSignedRole();
+    if ((!localQa.writeEvaluation && !permanentWrite) || !["save-draft-row", "publish-draft", "create-work-order"].includes(command.type)) {
       return { ok: false, message: "Изменение Specifications 2.0 недоступно." };
     }
-    const payload = command.payload || {};
     if (command.type === "create-work-order") {
       const entryId = String(payload.entryId || "").trim();
       const revisionId = String(payload.revisionId || "").trim();
@@ -5691,17 +5732,7 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
     if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
     return result;
   },
-  requestLegacyRender: (_reason, scope = "") => {
-    const [action, targetId] = String(scope || "").split(":");
-    if (action === "select" && targetId) {
-      try {
-        const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
-        localStorage.setItem("mes-specifications-2-registry-v1", JSON.stringify({ ...store, selectedId: targetId }));
-      } catch (_error) {
-        // Invalid compatibility state is normalized by the legacy module.
-      }
-    }
-    localStorage.setItem("mes-specifications-2-tab-v1", action === "routes" || action === "attachments" ? "route-drafts" : "tree");
+  requestLegacyRender: () => {
     if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
   },
 });

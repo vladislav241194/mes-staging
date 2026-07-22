@@ -15,9 +15,11 @@ interface Specifications2DraftRowValue {
   unitOfMeasure: string;
 }
 
-export type Specifications2ReactCommand = { type: "save-draft-row"; payload: { entryId: string; rowId: string; value: Specifications2DraftRowValue } };
+export type Specifications2SelectionCommand = { type: "select-entry"; payload: { entryId: string } };
+export type Specifications2DraftCommand = { type: "save-draft-row"; payload: { entryId: string; rowId: string; value: Specifications2DraftRowValue } };
 export type Specifications2PublishCommand = { type: "publish-draft"; payload: { entryId: string; confirmEntryId: string; expectedPreviousRevision: number } };
 export type Specifications2WorkOrderCommand = { type: "create-work-order"; payload: { entryId: string; revisionId: string; confirmRevisionId: string; routeSourceDraftId: string; quantity: number } };
+export type Specifications2ReactCommand = Specifications2SelectionCommand | Specifications2DraftCommand | Specifications2PublishCommand | Specifications2WorkOrderCommand;
 
 const createDraft = (row: Specifications2DraftRow): Specifications2DraftRowValue & { rowId: string } => ({
   rowId: row.id,
@@ -28,7 +30,7 @@ const createDraft = (row: Specifications2DraftRow): Specifications2DraftRowValue
   unitOfMeasure: row.unitOfMeasure,
 });
 
-export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: Specifications2ReactCommand | Specifications2PublishCommand | Specifications2WorkOrderCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
+export function Specifications2Scenario({ payload, onCommand }: { payload: unknown; onCommand?(command: Specifications2ReactCommand): Promise<{ ok?: boolean; message?: string } | void> }) {
   const model = useMemo(() => adaptSpecifications2Payload(payload), [payload]);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [draft, setDraft] = useState<(Specifications2DraftRowValue & { rowId: string }) | null>(null);
@@ -38,6 +40,8 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
   const [publishing, setPublishing] = useState(false);
   const [workOrderDraft, setWorkOrderDraft] = useState<{ routeId: string; quantity: string } | null>(null);
   const [creatingWorkOrder, setCreatingWorkOrder] = useState(false);
+  const [selectingEntryId, setSelectingEntryId] = useState("");
+  const [selectionError, setSelectionError] = useState("");
   const selected = model.selectedEntry;
   const revision = selected?.serverRevision;
   const visibleRows = useMemo(() => {
@@ -55,6 +59,19 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
     return next;
   });
   const setDraftField = (field: keyof Specifications2DraftRowValue, value: string) => setDraft((current) => current ? { ...current, [field]: value } : current);
+  const selectEntry = async (entryId: string) => {
+    if (!entryId || !onCommand || selectingEntryId) return;
+    setSelectingEntryId(entryId);
+    setSelectionError("");
+    try {
+      const result = await onCommand({ type: "select-entry", payload: { entryId } });
+      if (result?.ok === false) setSelectionError(result.message || "Не удалось выбрать спецификацию.");
+    } catch (error) {
+      setSelectionError(error instanceof Error ? error.message : "Не удалось выбрать спецификацию.");
+    } finally {
+      setSelectingEntryId("");
+    }
+  };
   const selectDraftRow = (rowId: string) => {
     const row = selected?.draftRows.find((item) => item.id === rowId);
     if (row) setDraft(createDraft(row));
@@ -96,18 +113,19 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
     finally { setCreatingWorkOrder(false); }
   };
   return <ModulePage
-    header={<ModuleHeader eyebrow="Технологии" title="Спецификации 2.0" badge={<span className="lab-badge">{model.canEditDraft ? "React · draft edit evaluation" : "PostgreSQL · read-only React"}</span>} />}
+    header={<ModuleHeader eyebrow="Технологии" title="Спецификации 2.0" badge={<span className="lab-badge">React + TypeScript · основной UI</span>} />}
     sidebar={<ModuleSidebar label="Реестр Спецификаций 2.0" title="Реестр 2.0">
-      {model.registry.map((item) => <SidebarItem active={item.selected} count={item.rowCount} key={item.id} label={item.title} meta={<>{item.errorCount ? `Ошибки: ${item.errorCount}` : item.publicationLabel}</>} onClick={() => item.selected ? undefined : onRequestLegacy?.(`select:${item.id}`)} />)}
-      <ActionButton onClick={() => onRequestLegacy?.("upload")} variant="secondary">Загрузить XLSX</ActionButton>
+      {model.registry.map((item) => <SidebarItem active={item.selected} count={item.rowCount} key={item.id} label={item.title} meta={<>{selectingEntryId === item.id ? "Открываем…" : item.errorCount ? `Ошибки: ${item.errorCount}` : item.publicationLabel}</>} onClick={() => { if (!item.selected) void selectEntry(item.id); }} />)}
+      {selectionError ? <small role="alert">{selectionError}</small> : null}
+      <ActionButton disabled title="Импорт XLSX будет включён после подключения серверного владельца команды." variant="secondary">Загрузить XLSX · недоступно</ActionButton>
     </ModuleSidebar>}
   >
     <section className="workspace-main specifications2-react">
-      {!selected || !revision || model.serverStatus !== "ready" ? <Panel heading={<div className="panel-heading"><div><p>Опубликованная ревизия</p><h2>Серверная проекция не готова</h2></div></div>}><SystemState title="Открываем legacy-интерфейс" text={model.serverError || "React-срез доступен только после подтверждения той же опубликованной ревизии и fingerprint в PostgreSQL."} tone="neutral" /></Panel> : <>
+      {!selected || !revision || model.serverStatus !== "ready" ? <Panel heading={<div className="panel-heading"><div><p>Опубликованная ревизия</p><h2>Серверная проекция не готова</h2></div></div>}><SystemState title="React-интерфейс ожидает данные" text={model.serverError || "Опубликованная ревизия появится после подтверждения того же номера и fingerprint в PostgreSQL. Legacy-интерфейс автоматически не открывается."} tone="neutral" /></Panel> : <>
         <Panel heading={<div className="panel-heading"><div><p>{revision.designation || "Опубликованная спецификация"}</p><h2>{revision.title}</h2></div><StatusToken label={`Ревизия ${revision.revisionNo}`} tone="success" /></div>}>
           <div className="specifications2-react-summary" data-specifications2-revision={revision.id}>
             <MetricGrid label="Сводка опубликованной ревизии"><MetricCard label="Позиции" value={revision.treeItems.length} /><MetricCard label="Маршруты" value={revision.routes.length} /><MetricCard label="Операции" value={revision.operationCount} /><MetricCard label="Опубликовано" value={dateTime(revision.releasedAt)} /></MetricGrid>
-            <div className="specifications2-react-publication"><StatusToken label={selected.publicationLabel} tone={publicationTone(selected.publicationState)} /><span>PostgreSQL подтвердил ревизию {revision.revisionNo} и неизменяемый состав.</span>{model.canEditDraft && selected.draftRows.length ? <ActionButton onClick={() => { setDraft(createDraft(selected.draftRows[0])); setPublishConfirm(false); }} variant="secondary">Изменить строку черновика</ActionButton> : null}{model.canPublish && selected.publicationState === "changed" ? <ActionButton onClick={() => { setPublishConfirm(true); setDraft(null); setCommandError(""); }}>Опубликовать ревизию {selected.publicationRevision + 1}</ActionButton> : null}<ActionButton onClick={() => onRequestLegacy?.("edit")} variant="secondary">Полный редактор и публикация</ActionButton><ActionButton onClick={() => onRequestLegacy?.("routes")} variant="secondary">Маршруты и нормы</ActionButton></div>
+            <div className="specifications2-react-publication"><StatusToken label={selected.publicationLabel} tone={publicationTone(selected.publicationState)} /><span>PostgreSQL подтвердил ревизию {revision.revisionNo} и неизменяемый состав.</span>{model.canEditDraft && selected.draftRows.length ? <ActionButton onClick={() => { setDraft(createDraft(selected.draftRows[0])); setPublishConfirm(false); }} variant="secondary">Изменить строку черновика</ActionButton> : <ActionButton disabled title="Редактирование разрешается только подписанной роли с доступной командой владельца." variant="secondary">Редактирование · недоступно</ActionButton>}{selected.publicationState === "changed" ? model.canPublish ? <ActionButton onClick={() => { setPublishConfirm(true); setDraft(null); setCommandError(""); }}>Опубликовать ревизию {selected.publicationRevision + 1}</ActionButton> : <ActionButton disabled title="Публикация будет доступна после подтверждения RBAC и server-primary owner." variant="secondary">Публикация · недоступна</ActionButton> : null}<ActionButton disabled title="Добавление, удаление и перенос строк требуют отдельного серверного владельца." variant="secondary">Структура строк · недоступна</ActionButton><ActionButton disabled title="Редактирование маршрутов и норм требует отдельного серверного владельца." variant="secondary">Маршруты и нормы · недоступны</ActionButton></div>
           </div>
         </Panel>
         {publishConfirm ? <Panel heading={<div className="panel-heading"><div><p>Server-primary publication</p><h2>Подтвердить публикацию ревизии {selected.publicationRevision + 1}</h2></div></div>}><div className="react-nomenclature-delete-confirm" data-specifications2-publish-confirm={selected.id} role="alertdialog"><p>Публикуется черновик <strong>{selected.title}</strong> со stable ID <code>{selected.id}</code>. Предыдущая неизменяемая ревизия: {selected.publicationRevision}.</p>{commandError ? <p className="specifications2-react-command-error" role="alert">{commandError}</p> : null}<div className="specifications2-react-editor-actions"><ActionButton disabled={publishing} onClick={() => { setPublishConfirm(false); setCommandError(""); }} variant="secondary">Отмена</ActionButton><ActionButton disabled={publishing} onClick={() => void publishDraft()}>{publishing ? "Публикация…" : `Подтвердить ревизию ${selected.publicationRevision + 1}`}</ActionButton></div></div></Panel> : null}
@@ -129,6 +147,6 @@ export function Specifications2Scenario({ payload, onCommand, onRequestLegacy }:
         </Panel>
       </>}
     </section>
-    <aside className="detail specifications2-react-detail"><p>Паспорт ревизии</p><h2>{revision ? `Ревизия ${revision.revisionNo}` : "Нет ревизии"}</h2>{revision ? <dl><div><dt>Источник</dt><dd>PostgreSQL</dd></div><div><dt>Документ</dt><dd>{revision.specificationId}</dd></div><div><dt>Опубликовано</dt><dd>{dateTime(revision.releasedAt)}</dd></div><div><dt>Исходник обновлён</dt><dd>{dateTime(revision.sourceUpdatedAt)}</dd></div></dl> : null}{revision && model.canCreateWorkOrder && revision.routes.length ? <ActionButton onClick={() => { setWorkOrderDraft({ routeId: revision.routes[0].id, quantity: "1" }); setPublishConfirm(false); setDraft(null); setCommandError(""); }}>Создать заказ-наряд</ActionButton> : null}<ActionButton onClick={() => onRequestLegacy?.("attachments")} variant="secondary">Вложения в legacy</ActionButton></aside>
+    <aside className="detail specifications2-react-detail"><p>Паспорт ревизии</p><h2>{revision ? `Ревизия ${revision.revisionNo}` : "Нет ревизии"}</h2>{revision ? <dl><div><dt>Источник</dt><dd>PostgreSQL</dd></div><div><dt>Документ</dt><dd>{revision.specificationId}</dd></div><div><dt>Опубликовано</dt><dd>{dateTime(revision.releasedAt)}</dd></div><div><dt>Исходник обновлён</dt><dd>{dateTime(revision.sourceUpdatedAt)}</dd></div></dl> : null}{revision && revision.routes.length ? model.canCreateWorkOrder ? <ActionButton onClick={() => { setWorkOrderDraft({ routeId: revision.routes[0].id, quantity: "1" }); setPublishConfirm(false); setDraft(null); setCommandError(""); }}>Создать заказ-наряд</ActionButton> : <ActionButton disabled title="Команда появится после подтверждения RBAC и PostgreSQL-primary capability." variant="secondary">Заказ-наряд · недоступен</ActionButton> : null}<ActionButton disabled title="Привязка вложений требует отдельного серверного владельца команды." variant="secondary">Вложения · недоступны</ActionButton></aside>
   </ModulePage>;
 }

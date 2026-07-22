@@ -62,12 +62,15 @@ async function stop(child) {
 
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-specifications2-react-"));
 const sharedStateFile = join(temporaryRoot, "shared-state.json");
+const runtimePolicyFile = join(temporaryRoot, "react-runtime-policy.evaluation.json");
 const snapshot = { version: 1, updatedAt: "2026-07-19T08:30:00.000Z", updatedBy: { actor: "specifications2-react-qa" }, values: { [STORAGE_KEY]: JSON.stringify({ selectedId: entry.id, registry: [entry] }) }, sharedUi: {}, events: [] };
 await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+const repositoryPolicy = JSON.parse(await readFile(join(process.cwd(), "react-runtime-policy.json"), "utf8"));
+await writeFile(runtimePolicyFile, `${JSON.stringify({ ...repositoryPolicy, policyId: "qa-specifications2-evaluation", surfaces: { ...repositoryPolicy.surfaces, specifications2: "evaluation" } }, null, 2)}\n`, { mode: 0o600 });
 assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state permissions changed");
 const original = await readFile(sharedStateFile, "utf8");
 const port = await getFreePort(); const origin = `http://127.0.0.1:${port}`;
-const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_SPECIFICATIONS2: "1", MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION: "1", MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: "1" }, stdio: ["ignore", "pipe", "pipe"] });
+const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_RUNTIME_POLICY_PATH: runtimePolicyFile, MES_REACT_SPECIFICATIONS2: "1", MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION: "1", MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: "1" }, stdio: ["ignore", "pipe", "pipe"] });
 let previewOutput = ""; preview.stdout.on("data", (chunk) => { previewOutput += chunk; }); preview.stderr.on("data", (chunk) => { previewOutput += chunk; });
 let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0; let sharedStateWrites = 0; let publishAttempts = 0; let workOrderWrites = 0; let forcePublishConflictOnce = false; const publishRequests = []; const workOrderRequests = []; const observedSpecificationsRequests = [];
 try {
@@ -175,8 +178,9 @@ try {
   assert(compact.layoutColumns === 1 && compact.sidebarColumns === 2 && compact.metricColumns === 2 && !compact.pageOverflow, `Specifications 2.0 compact UI contract failed: ${JSON.stringify(compact)}`);
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await evaluate(client, () => document.querySelector(".specifications2-react-publication .action")?.click());
-  await waitForCondition(client, () => !document.querySelector("[data-react-specifications2-island]") && document.querySelectorAll(".specifications2-table tbody tr[data-specifications2-tree-row]").length === 4, { message: "Specifications 2.0 edit action did not return to legacy", timeoutMs: 15_000 });
-  assert(revisionReads >= 2, "legacy and React paths must read the PostgreSQL revision projection");
+  await delay(150);
+  assert(await evaluate(client, () => Boolean(document.querySelector('[data-react-specifications2-island][data-react-island-state="ready"]')) && !document.querySelector(".specifications2-page")), "unsupported action must remain fail-closed inside React");
+  assert(revisionReads >= 1, "React path must read the PostgreSQL revision projection");
   assert(specificationWrites === 0, "read-only Specifications 2.0 evaluation must never call publication, attachment or work-order writes");
   assert(await readFile(sharedStateFile, "utf8") === original, "Specifications 2.0 read-only QA changed shared state");
 
@@ -222,7 +226,7 @@ try {
   }
   assert(writeResult.publicationRevision === 7 && writeResult.publicationFingerprint === entry.publication.fingerprint, `published revision metadata changed during draft edit: ${JSON.stringify(writeResult)}`);
   assert(writeResult.draftLabel === "Плата управления КТ-7" && writeResult.publishedLabel === "АБВГ.468332.002", `draft/published separation failed: ${JSON.stringify(writeResult)}`);
-  assert(writeResult.badge === "React · draft edit evaluation", `write-evaluation badge missing: ${JSON.stringify(writeResult)}`);
+  assert(writeResult.badge === "React + TypeScript · основной UI", `React UI badge missing: ${JSON.stringify(writeResult)}`);
   assert(specificationWrites === 0, "draft editor must not call publication, attachment or work-order APIs");
 
   await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Опубликовать ревизию 8"), { message: "changed draft did not expose typed publication action", timeoutMs: 10_000 });

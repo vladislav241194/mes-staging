@@ -1257,7 +1257,7 @@ try {
 
   const specifications2IslandSource = await readFile(join(sourceRoot, "specifications2-island.tsx"), "utf8");
   assert.match(specifications2IslandSource, /export function mountSpecifications2ReactIsland/);
-  assert.match(specifications2IslandSource, /onRequestLegacy/);
+  assert.doesNotMatch(specifications2IslandSource, /onRequestLegacy/, "Specifications 2.0 user actions must not request the legacy renderer");
 
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
@@ -1420,6 +1420,9 @@ try {
   const eligibleSpecifications2Host = makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleSpecifications2Host.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleSpecifications2Host.renderTarget(), /data-react-specifications2-island/);
+  const permanentSpecifications2LoadingHost = makeSpecifications2ProductionHost({ featureFlagEnabled: true, runtimeMode: "react", policyId: "qa-specifications2-react", moduleReady: false, serverReadReady: false, serverReadFailure: "", accessMode: "react" });
+  assert.deepEqual(permanentSpecifications2LoadingHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Specifications 2.0 must own the route before its model loads");
+  assert.match(permanentSpecifications2LoadingHost.renderTarget(), /data-react-island-runtime-mode="react"[\s\S]*data-react-island-state="loading"/);
 
   const rolesProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_roles/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({

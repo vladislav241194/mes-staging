@@ -143,8 +143,11 @@ revision, forces PostgreSQL read-back and accepts only the next immutable
 revision. Production-shell QA proves cancel-without-write, conflict/retry,
 revision `7 -> 8`, React and legacy read-back and one draft compatibility write.
 Exact-revision work-order creation also uses the existing PostgreSQL-primary
-owner with two-step confirmation and idempotency. Add/remove/reparent,
-attachments and route editing remain legacy.
+owner with two-step confirmation and idempotency. The ordinary route is now a
+permanent React + TypeScript UI and never opens a legacy renderer for a user
+action. Registry switching stays in React; XLSX upload, add/remove/reparent,
+attachment binding and route/norm editing are shown as unavailable until their
+server owners exist. The module marker therefore remains partial.
 
 Authorization now has locally complete PIN entry and failed-attempt feedback.
 The five digits remain only in React component memory and cross one transient
@@ -180,7 +183,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 17 | Shift Work Orders | Local complete: attachment viewer, SZN/package print previews and owner-backed assignment plus fact entry/correction; Workshop remains legacy; Pilot read accepted | Critical | Keep default-off; any assignment/fact write acceptance on Pilot requires explicit disposable cleanup approval |
 | 18 | Shift Master Board | React UI complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer, SZN preview/print and manual lane movement through the existing owner; historical Pilot read accepted | Critical | Permanent candidate is default-on in code; Pilot write lifecycle, cleanup and rollback acceptance remain deferred |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
-| 20 | Specifications 2.0 | Local complete: existing draft-row edit, exact-ID server-primary publication with conflict/retry and PostgreSQL/legacy read-back, plus idempotent exact-revision work-order creation; add/remove/reparent, attachments and route editing remain legacy | Critical | Separately gated disposable Pilot publication/work-order acceptance before any default-on decision |
+| 20 | Specifications 2.0 | Permanent React UI candidate: existing draft-row edit, exact-ID server-primary publication with conflict/retry and PostgreSQL read-back, plus idempotent exact-revision work-order creation; no legacy renderer/action fallback | Critical | Pilot publication/work-order acceptance, then server owners for add/remove/reparent, attachment binding and route/norm editing; unsupported actions stay visibly disabled |
 | 21 | Gantt | Local complete: dependency inspection, target-slot selection, revision-checked start-time reschedule and React-native period/scale/zoom, expand/collapse, quantity visibility and today persisted by the existing UI-state owner; Pilot read accepted | Critical | Keep default-off; read-only slot edit fallback, schedule-mutating refresh, dependency editing, drag, resize and optimization remain separate scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |

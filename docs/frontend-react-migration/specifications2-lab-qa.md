@@ -1,7 +1,7 @@
 # Specifications 2.0 React lab QA
 
-Date: 2026-07-19
-Status: authenticated Pilot read acceptance complete; disabled by default
+Date: 2026-07-22
+Status: permanent React UI candidate; implementation marker partial; Pilot acceptance deferred
 
 ## Vertical scenario
 
@@ -10,8 +10,10 @@ Status: authenticated Pilot read acceptance complete; disabled by default
 -> keep the published revision immutable -> confirm the exact specification ID
 and previous revision -> publish through the existing server-primary owner ->
 force PostgreSQL read-back -> verify the same revision and tree in React and
-legacy -> create an idempotent work order from that exact immutable revision.
-Structural add/remove/reparent, route editing and attachments remain legacy.`
+legacy rollback release -> create an idempotent work order from that exact
+immutable revision. Structural add/remove/reparent, route/norm editing,
+attachment binding and XLSX upload are visibly unavailable until server owners
+exist; no ordinary action opens a legacy renderer.`
 
 The legacy module exposes one compact `getSpecifications2ReactModel()` boundary.
 It contains registry summaries, allowlisted selected draft-row fields and the
@@ -19,8 +21,9 @@ selected published revision only after source entry and revision number match
 the PostgreSQL read model and the server exposes either the original legacy
 fingerprint or its immutable `sha256:` migration digest.
 React receives no storage handle, API client or attachment command.
-Its typed `save-draft-row` and `publish-draft` callbacks are admitted only by
-the localhost QA write gate. Publication uses a two-step exact-ID confirmation,
+Its typed `save-draft-row` and `publish-draft` callbacks are admitted in the
+permanent route only for the signed role with `specifications2:edit`; the
+existing localhost gate remains isolated QA infrastructure. Publication uses a two-step exact-ID confirmation,
 rechecks the immutable previous revision, delegates to the existing server-first
 owner, handles `409` conflict/retry and forces a PostgreSQL read after `201`.
 The work-order command is exposed only after the existing capability reports
@@ -35,8 +38,8 @@ idempotency coordinates through the unchanged owner.
 - two registry entries, PostgreSQL revision 7, four hierarchy rows and four
   revision metrics;
 - local tree collapse and payload revision `7 -> 8`;
-- upload, registry switch, editor, routes, norms and attachments return to
-  legacy; disabled flag restores legacy;
+- registry switching remains in React; upload, structural row operations,
+  routes, norms and attachment binding are explicit disabled controls;
 - no viewport overflow and a clean browser console;
 - independent entry `218,918 B` raw / `66,198 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
@@ -47,10 +50,12 @@ idempotency coordinates through the unchanged owner.
 
 ## Production integration
 
-The host requires two false-by-default runtime permissions, an explicit
-read-only session request, a loaded legacy module and exact PostgreSQL parity
-for the selected published revision. Missing, loading, errored, unpublished or
-mismatched projections keep the legacy UI.
+The signed runtime policy now assigns `specifications2` to permanent React.
+The host owns loading and model-error states before the compatibility model is
+ready and cannot fall back from permanent mode. Missing, unpublished or
+mismatched revisions stay inside the React status surface. Evaluation flags are
+masked by the permanent policy; immutable previous releases remain the actual
+legacy rollback.
 
 Production-shell QA proves default legacy, the same PostgreSQL revision and four
 tree rows, scoped CSS, one existing-row save through the current owner, exactly

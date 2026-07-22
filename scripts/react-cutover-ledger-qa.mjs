@@ -360,6 +360,7 @@ if (candidatePolicy) {
     "roles",
     "shiftMasterBoard",
     "shiftWorkOrders",
+    "specifications2",
     "statuses",
     "structureEmployees",
     "structureEquipment",
