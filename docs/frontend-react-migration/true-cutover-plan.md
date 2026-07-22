@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.73-36727f3`
+Текущий accelerated Pilot release: `v.1.500.74-902dd57`
 
 ## Исправление прежней оценки
 
@@ -1010,6 +1010,33 @@ host wrappers одним release.
 Следующий accelerated batch: совместно типизировать bounded Shift Execution,
 Roles и Nomenclature/Boards wrappers; Directories и Production Structure
 оставить отдельными scope, если dynamic mount contracts требуют изоляции.
+
+## Production React host strict TypeScript batch 2026-07-22: release `.74`
+
+- Pilot активирован на `v.1.500.74-902dd57`; source/dist SHA-256 —
+  `3cdaf2d133659732d429d8f5bad1831d341aff55b0cd9b11d8cb0aa0269e611f` и
+  `1dcb245abee4cd9d28b084698c9ffb47a04f9698950cdd3d89d8afc2318354d1`.
+- Пять связанных production hosts переведены из JavaScript в strict
+  TypeScript: Shift Master Board, Shift Work Orders, Roles, Nomenclature и
+  Boards. Старые `.js` файлы отсутствуют; восемь version markers, общий Shift
+  print/fact lazy seam и существующие command owners сохранены.
+- Активный JavaScript уменьшен с `50 155` до `49 742` строк и с `95` до `90`
+  файлов; strict inventory вырос с `38` до `43` TypeScript-файлов. Roles
+  остаётся `PARTIAL`, completion markers не менялись.
+- Typecheck, syntax, focused Shift/Nomenclature/Boards/Roles QA, mixed-runtime,
+  React cutover/runtime policy, module/feature registries, deterministic build,
+  marker/specifier checks и `git diff --check` прошли; независимый P1/P2
+  review — `GO`. Визуальный/browser QA для механического пакета не выполнялся.
+- Service/health/pointer подтверждают `.74`, shared state `ready`, все 25
+  surfaces — React, evaluation/legacy surfaces, effective `MES_REACT_*` flags
+  и evaluation drop-ins отсутствуют. Immediate `.73` прошёл rollback dry-run;
+  sealed `.18` сохранён, Staging остался на `v.1.499.70-c3b4059`.
+- Implementation checkpoint остаётся `99%`, честный evidence-weighted прогресс
+  — `50%`. Blueprint UI не используется.
+
+Следующий accelerated batch: отдельным релизом типизировать общий Directories
+host с четырьмя literal mount mappings; затем отдельно закрыть семиповерхностный
+Production Structure/Diagnostics host.
 
 Статус 2026-07-21: исторические rollback chains `.21 -> .20 -> .21` и
 `.21 -> .18 -> .19 -> .20 -> .21` сохранены как evidence своей контрольной

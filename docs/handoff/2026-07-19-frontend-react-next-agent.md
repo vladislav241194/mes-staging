@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.73-36727f3`; последний strict-accepted release остаётся
+> `v.1.500.74-902dd57`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.73-36727f3`; immediate previous:
-  `v.1.500.72-4c052bc`; pinned legacy:
+- Активный accelerated release: `v.1.500.74-902dd57`; immediate previous:
+  `v.1.500.73-36727f3`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -133,10 +133,10 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
 
 ## Что делать следующим
 
-1. Продолжить strict-TS вывод активного JavaScript пакетами по `4–6`
-   совместимых owners. Базовый React island host уже типизирован в `.72`;
-   следующий пакет выбирать из оставшихся browser-only host wrappers после
-   короткого import/QA preflight.
+1. Продолжить strict-TS вывод активного JavaScript bounded-пакетами. После
+   `.74` следующий изолированный scope — общий Directories host с четырьмя
+   literal mount mappings; Production Structure оставить отдельным следующим
+   пакетом из-за семи mounts и самостоятельного Diagnostics contract.
 2. На пакет выполнять один focused QA, один commit/push, один accelerated Pilot
    release и одно обновление handoff. Не выпускать отдельный релиз на каждый
    файл.
@@ -148,7 +148,7 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
    закрытия одного из partial production-сценариев с owner-backed parity.
 5. Не заявлять live parity для Boards/BOM или Responsibility Policies на пустом
    наборе. Для записи нужен отдельный disposable record и явная cleanup-проверка.
-6. Сохранять `.72` как immediate rollback и sealed `.18` как legacy baseline;
+6. Сохранять `.73` как immediate rollback и sealed `.18` как legacy baseline;
    не добавлять evaluation flags и не обходить compatibility guard.
 
 ## Важные ограничения
@@ -2392,3 +2392,39 @@ Next accelerated batch: type the compatible Shift Execution, Roles and
 Nomenclature/Boards host wrappers in one bounded release; keep Directories and
 the larger Production Structure host as separate follow-up scopes if the
 focused preflight confirms their dynamic mount contracts need isolation.
+
+## Production React host strict TypeScript batch 2026-07-22: release `.74`
+
+This block supersedes `.73` as the live Pilot pointer. It types five coupled
+production host wrappers while preserving their existing fail-closed policies,
+lazy chunks, command owners and completion classifications.
+
+- Active Pilot is `v.1.500.74-902dd57` at exact commit
+  `902dd57b0f6fd8c546c5129bb9f1c332d8b4146b`; immediate previous is
+  `v.1.500.73-36727f3`, pinned legacy remains `v.1.500.18-93d02ed`, and
+  Staging remains `v.1.499.70-c3b4059`.
+- Source/dist SHA-256 are
+  `3cdaf2d133659732d429d8f5bad1831d341aff55b0cd9b11d8cb0aa0269e611f` and
+  `1dcb245abee4cd9d28b084698c9ffb47a04f9698950cdd3d89d8afc2318354d1`.
+- Shift Master Board, Shift Work Orders, Roles, Nomenclature and Boards hosts
+  now execute from strict `.ts`; their five old `.js` files are absent. The
+  shared Shift print/fact lazy seams and all eight build version markers remain
+  intact.
+- Active JavaScript fell from `50,155` to `49,742` lines and from `95` to `90`
+  files; strict production inventory grew from `38` to `43` TypeScript files.
+  Roles remains honestly `PARTIAL`; no completion marker changed.
+- Strict typecheck, syntax, focused Shift/Nomenclature/Boards/Roles contracts,
+  mixed-runtime inventory, React cutover/runtime policy, module/feature
+  registries, deterministic build, marker/specifier checks and
+  `git diff --check` passed. Independent review returned `GO` with no P1/P2.
+  No visual/browser QA was claimed for this mechanical batch.
+- Local/public health report `ok`, version `v.1.500.74`, shared state `ready`,
+  all 25 surfaces React, zero evaluation/legacy surfaces, no effective
+  `MES_REACT_*` flags and no evaluation drop-ins. `.73` passed rollback
+  dry-run; sealed `.18` remains unchanged.
+- Implementation remains `99%`; honest evidence-weighted progress remains
+  `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: convert the shared Directories host using a closed
+literal mapping for its four mounts, then keep the seven-surface Production
+Structure/Diagnostics host as a dedicated follow-up release.
