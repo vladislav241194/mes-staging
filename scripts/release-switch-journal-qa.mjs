@@ -70,6 +70,12 @@ async function runQa() {
     && source.includes('FIXED_ROOT_SEAL_HELPER = "/usr/local/libexec/mes/active-bundle/release-root-seal-verify.mjs"')
     && source.includes('runSeal(["bundle"])'),
   "boot/manual recovery must execute only the fixed root-owned helper and fixed seal verifier");
+  assert(source.includes("MES_RELEASE_AUTHORITY_LOCK_OWNER_PID")
+    && source.includes("ownerPid !== process.pid && ownerPid !== process.ppid")
+    && source.includes('stat(`/proc/${ownerPid}/fd/${AUTHORITY_LOCK_FD}`')
+    && source.includes("ownerProcessMetadata.uid !== 0n")
+    && source.includes("fdInfo: ownerFdInfo, ownerPid"),
+  "the production journal may run only as the exact lock owner or its direct root child while proving both fd9 views");
   const trustedRootCreation = source.slice(
     source.indexOf("Never let recursive mkdir traverse"),
     source.indexOf("async function readActiveRecord"),

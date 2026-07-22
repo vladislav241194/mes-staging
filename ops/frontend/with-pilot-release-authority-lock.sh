@@ -400,6 +400,7 @@ if [[ ${!OWNER_REENTRY_ENV:-0} == 1 ]]; then
   write_intent
   export MES_RELEASE_AUTHORITY_LOCK_HELD=1
   export MES_RELEASE_AUTHORITY_LOCK_FD="$AUTHORITY_FD"
+  export MES_RELEASE_AUTHORITY_LOCK_OWNER_PID="$$"
   unset "$OWNER_REENTRY_ENV" "$OWNER_MARKER_ENV"
   exec "$@"
 fi

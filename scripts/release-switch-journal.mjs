@@ -443,10 +443,18 @@ async function assertProductionBoundary() {
     || Number(process.env.MES_RELEASE_AUTHORITY_LOCK_FD) !== AUTHORITY_LOCK_FD) {
     throw new Error("Release-switch journal requires the inherited authority lock on fd9");
   }
-  const [lockMetadata, fdMetadata, fdInfo] = await Promise.all([
+  const ownerPid = Number(process.env.MES_RELEASE_AUTHORITY_LOCK_OWNER_PID);
+  if (!Number.isSafeInteger(ownerPid) || ownerPid < 1
+    || (ownerPid !== process.pid && ownerPid !== process.ppid)) {
+    throw new Error("Release-switch journal requires the exact self or direct-parent authority owner PID");
+  }
+  const [lockMetadata, fdMetadata, fdInfo, ownerProcessMetadata, ownerFdMetadata, ownerFdInfo] = await Promise.all([
     stat(AUTHORITY_LOCK_FILE, { bigint: true }),
     stat(`/proc/self/fd/${AUTHORITY_LOCK_FD}`, { bigint: true }),
     readFile(`/proc/self/fdinfo/${AUTHORITY_LOCK_FD}`, "utf8"),
+    stat(`/proc/${ownerPid}`, { bigint: true }),
+    stat(`/proc/${ownerPid}/fd/${AUTHORITY_LOCK_FD}`, { bigint: true }),
+    readFile(`/proc/${ownerPid}/fdinfo/${AUTHORITY_LOCK_FD}`, "utf8"),
   ]);
   if (!lockMetadata.isFile()
     || lockMetadata.uid !== 0n
@@ -454,7 +462,11 @@ async function assertProductionBoundary() {
     || (lockMetadata.mode & 0o777n) !== 0o600n
     || lockMetadata.dev !== fdMetadata.dev
     || lockMetadata.ino !== fdMetadata.ino
-    || !fdInfoProvesCanonicalFlock({ fdInfo, ownerPid: process.pid, inode: lockMetadata.ino })) {
+    || ownerProcessMetadata.uid !== 0n
+    || ownerFdMetadata.dev !== lockMetadata.dev
+    || ownerFdMetadata.ino !== lockMetadata.ino
+    || !fdInfoProvesCanonicalFlock({ fdInfo, ownerPid, inode: lockMetadata.ino })
+    || !fdInfoProvesCanonicalFlock({ fdInfo: ownerFdInfo, ownerPid, inode: lockMetadata.ino })) {
     throw new Error("Release-switch journal could not prove the canonical authority flock on fd9");
   }
 }

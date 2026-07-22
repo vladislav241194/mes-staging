@@ -82,6 +82,7 @@ assert.match(releaseAuthorityWrapper, /^AUTHORITY_FD=9$/m);
 assert.match(releaseAuthorityWrapper, /^IDENTITY_FD=8$/m);
 assert.match(releaseAuthorityWrapper, /MES_RELEASE_AUTHORITY_LOCK_HELD=1/);
 assert.match(releaseAuthorityWrapper, /MES_RELEASE_AUTHORITY_LOCK_FD="\$AUTHORITY_FD"/);
+assert.match(releaseAuthorityWrapper, /MES_RELEASE_AUTHORITY_LOCK_OWNER_PID="\$\$"/);
 assert.match(releaseAuthorityWrapper, /owner_marker_matches_child[\s\S]*Preserve command exit codes verbatim/,
   "release wrapper must distinguish an acquisition conflict from protected status 75/200");
 assert.match(releaseAuthorityWrapper, /flock --exclusive --wait 2 --conflict-exit-code 75/,
