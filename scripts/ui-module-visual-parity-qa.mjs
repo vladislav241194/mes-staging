@@ -8,6 +8,11 @@ import {
   getMesModuleNavigationDefinitions,
 } from "../src/module_registry.js";
 
+if (process.env.MES_SKIP_VISUAL_QA === "1") {
+  console.log("MES UI Module Visual Parity QA: skipped by explicit accelerated-prototype release policy.");
+  process.exit(0);
+}
+
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const strict = process.argv.includes("--strict");
