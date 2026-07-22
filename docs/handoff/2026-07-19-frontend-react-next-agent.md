@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.66-7783dcb`; последний strict-accepted release остаётся
+> `v.1.500.67-6983dcd`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.66-7783dcb`; immediate previous:
-  `v.1.500.65-bf92a5b`; pinned legacy:
+- Активный accelerated release: `v.1.500.67-6983dcd`; immediate previous:
+  `v.1.500.66-7783dcb`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -2094,3 +2094,45 @@ Next accelerated batch: convert the low-risk browser-only leaves `data.js`,
 `types.js`, Contour Admin command contract/client, Shift Work Orders journal
 owner and long-task overlay to strict TypeScript. Estimated removable active
 JavaScript: 201 lines, without backend/schema or UI redesign.
+
+## Shared browser runtime leaf TypeScript batch 2026-07-22: release `.67`
+
+This block supersedes `.66` as the live Pilot pointer. It removes six small
+normal-runtime JavaScript leaves without changing layout, API authority or
+module completion markers.
+
+- Active Pilot is `v.1.500.67-6983dcd` at exact commit
+  `6983dcdfcac146ed4a04ee81c6cf2f4576bb1365`; immediate previous is
+  `v.1.500.66-7783dcb` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `73b988b312f810edbdcf8e704b660a43d3a4dedd449cc73382540bbd0f789c7d` and
+  `d3cbdd20bf70341c4660c7ab61841e7571d6614c78fe119d88565f62affc44ae`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Default Planning data, shared runtime types, Contour Admin command contract
+  and server client, Shift Work Orders journal owner and the long-task overlay
+  now execute from strict `.ts` sources. All normal imports, generator paths,
+  strict tsconfig, feature/module ownership, mixed-runtime and legacy inventory
+  references were updated; the six old `.js` files are absent.
+- Contour Admin and Shift Work Orders executable policy QA bundle the real
+  TypeScript sources to temporary Node 20 ESM and clean the directories in
+  `finally`. Two independent reviews returned GO with no P1/P2; exact Node 20,
+  strict typecheck, completion/mixed-runtime/legacy inventory, module/feature,
+  syntax, clean build and built runtime-policy gates passed.
+- Active JavaScript fell from 52,770 to 52,569 lines and from 126 to 120 files;
+  the strict inventory now contains 13 TypeScript files. The change is
+  browser-only: PostgreSQL, schema, service command owners and UI design were
+  not changed. Blueprint UI was not introduced.
+- Local/public health report `ok`, version `v.1.500.67`, shared state `ready`,
+  all 25 policy surfaces are React, evaluation/legacy surfaces are empty,
+  effective `MES_REACT_*` flags are absent and service/pointer resolve to `.67`.
+- Immediate previous `.66` passed rollback dry-run. The sealed legacy `.18`
+  pointer remains unchanged; its compatibility guard and the three active
+  Specifications 2 command drop-ins were not bypassed.
+- No module moved from `PARTIAL` to `FULL REACT`; implementation remains `99%`
+  and strict accepted evidence remains `50%`.
+
+Next accelerated candidate: type the remaining broad browser UI helpers
+`ui/html.js` and `ui/formatters.js` as a separately reviewed 114-line batch, or
+take the global `react_runtime_policy.js` boundary in its own release.
