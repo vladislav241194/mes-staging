@@ -231,15 +231,24 @@ Dry-run immediate rollback на `.48` прошёл. Pinned legacy `.18` сохр
 его dry-run ожидаемо остановлен compatibility guard трёх включённых
 Specifications 2 command-owner drop-ins; guard не обходился.
 
-Кандидат `v.1.500.50` физически удаляет из current checkout четыре уже
-недостижимых legacy-файла: Auth render/events, Weekly Production Control
+Release `v.1.500.50-8e8a384` активирован на Pilot и физически удаляет из
+current checkout четыре уже недостижимых legacy-файла: Auth render/events,
+Weekly Production Control
 renderer и Nomenclature renderer — суммарно 3 349 строк legacy source.
 Сохранённые contract-QA теперь проверяют React production models, owners и
 физическое отсутствие retired artifacts. Runtime-поведение, API, RBAC,
 PostgreSQL owners и completion-маркеры не меняются. Операционный rollback
 по-прежнему выполняется переключением на предыдущий immutable release, а не
 возвратом к удалённому renderer внутри нового bundle. Browser/visual QA для
-этого cleanup намеренно не выполняется; strict acceptance остаётся 50%.
+этого cleanup намеренно не выполнялся; strict acceptance остаётся 50%.
+Local/public health `ok`, shared state `ready`, evaluation surfaces пусты;
+source/dist SHA-256 —
+`cec1413eef1b4f2a847cac25d7cc5d30fd250ce5a1a893630abf60edd65dfc65` и
+`b8c436e4aa9561e27a2eef147a314781d5643bdae60276ca167bad4632ffca5b`.
+Immediate rollback dry-run на `.49` прошёл. Первая попытка stage с commit
+`96e1613` была безопасно остановлена immutable-source guard: build обновлял
+tracked icon registry после удаления двух legacy-only иконок. Generated diff
+включён в `8e8a384`; незавершённый кандидат не активировался.
 
 ## Что проверено 2026-07-21
 

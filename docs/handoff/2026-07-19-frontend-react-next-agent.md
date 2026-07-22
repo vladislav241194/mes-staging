@@ -1353,3 +1353,39 @@ not claim browser, visual or authenticated lifecycle acceptance.
   and strict accepted evidence remains `50%`; this release records code and
   runtime consolidation, not final product acceptance. Blueprint UI was not
   introduced.
+
+## Physical retired-renderer cleanup 2026-07-22: release `.50`
+
+This block supersedes `.49` as the live Pilot pointer. It deletes source
+artifacts only after `.49` proved that the current routes no longer reach them.
+
+- Active Pilot is `v.1.500.50-8e8a384` at exact commit
+  `8e8a38431119f7612ca6f8b3733725b848f45605`; immediate previous is
+  `v.1.500.49-df23074` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `cec1413eef1b4f2a847cac25d7cc5d30fd250ce5a1a893630abf60edd65dfc65` and
+  `b8c436e4aa9561e27a2eef147a314781d5643bdae60276ca167bad4632ffca5b`.
+  Git provenance is `fresh-upstream-fetch`; accelerated staging passed strict
+  TypeScript, recursive syntax, cutover/runtime-policy gates, server preflight
+  and two deterministic production builds.
+- Local/public health report `ok`, version `v.1.500.50`, shared state `ready`,
+  policy SHA
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`,
+  and zero active evaluation surfaces. Service and release pointer resolve to
+  `.50`.
+- Deleted from the current source tree: Auth renderer/events (2,096 lines),
+  Nomenclature renderer (553 lines) and Weekly Production Control renderer
+  (700 lines), for 3,349 retired legacy source lines total. Contract tests now
+  target React production models/owners and assert physical artifact removal.
+- The generated icon registry dropped only `camera` and
+  `pin-backspace-apple`, both orphaned by deletion of the Auth renderer. An
+  initial stage of `v.1.500.50-96e1613` was correctly refused because the
+  build changed this tracked generated registry. The generated output was
+  committed, a new immutable release ID was used, and the refused candidate
+  was never activated.
+- Immediate previous `.49` passed rollback dry-run without changing the live
+  pointer. Operational rollback remains immutable-release switching; no
+  same-release legacy renderer was reintroduced.
+- Browser/visual QA was deliberately skipped. Implementation remains `99%`
+  and strict accepted evidence remains `50%`. Blueprint UI was not introduced.
