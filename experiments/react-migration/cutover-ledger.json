@@ -37,7 +37,7 @@
       "specifications2",
       "timesheet"
     ],
-    "runtimePolicySha256": "0ff557038f135df4cb4c75f032ea00da4f03ddc6ac38ca41980577fb4c09a96a",
+    "runtimePolicySha256": "38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c",
     "baseAcceptedRelease": "v.1.500.26-097d66c",
     "requiredEvidence": [
       "current-release-read",

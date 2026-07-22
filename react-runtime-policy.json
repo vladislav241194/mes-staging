@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "surfaceSetVersion": 2,
   "policyId": "mes-react-runtime-v1",
   "surfaces": {
     "nomenclature": "react",

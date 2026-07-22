@@ -30,6 +30,7 @@ const candidateSurfaceIds = candidatePolicy ? [...candidatePolicy.surfaceIds].so
 
 const policy = await loadReactRuntimePolicy({ projectRoot, env: { APP_ENV: "local" } });
 assert.equal(policy.schemaVersion, 1);
+assert.equal(policy.surfaceSetVersion, 2);
 assert.equal(policy.policyId, "mes-react-runtime-v1");
 assert.match(policy.sha256 || "", /^[a-f0-9]{64}$/);
 assert.equal(policy.source, "react-runtime-policy.json");
@@ -146,6 +147,19 @@ const wiredReactPolicy = normalizeReactRuntimePolicy({
 });
 
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 2, policyId: "bad", surfaces: {} }), /schema/);
+const historicalSurfacePolicy = normalizeReactRuntimePolicy({
+  schemaVersion: 1,
+  policyId: "qa-historical-surface-set",
+  surfaces: Object.fromEntries(REACT_RUNTIME_SURFACE_IDS.filter((id) => id !== "dispatch").map((id) => [id, "react"])),
+});
+assert.equal(historicalSurfacePolicy.surfaceSetVersion, 1, "pre-Dispatch immutable policies must remain verifiable");
+assert.equal(historicalSurfacePolicy.surfaces.dispatch, "legacy", "new surfaces must fail closed for historical policies");
+assert.throws(() => normalizeReactRuntimePolicy({
+  schemaVersion: 1,
+  surfaceSetVersion: 2,
+  policyId: "bad-current-surface-set",
+  surfaces: Object.fromEntries(REACT_RUNTIME_SURFACE_IDS.filter((id) => id !== "dispatch").map((id) => [id, "react"])),
+}), /every production surface/);
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad", surfaces: {} }), /every production surface/);
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad-policy", surfaces: { ...policy.surfaces, weeklyProductionControl: "unknown" } }), /Unsupported React runtime mode/);
 assert.throws(() => normalizeReactRuntimePolicy({ schemaVersion: 1, policyId: "bad-policy", surfaces: { ...policy.surfaces, invented: "legacy" } }), /every production surface/);

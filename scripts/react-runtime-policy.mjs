@@ -58,6 +58,10 @@ export const REACT_RUNTIME_SURFACE_IDS = Object.freeze([
   "contourAdmin",
   "dispatch",
 ]);
+const REACT_RUNTIME_SURFACE_IDS_V1 = Object.freeze(
+  REACT_RUNTIME_SURFACE_IDS.filter((id) => id !== "dispatch"),
+);
+export const REACT_RUNTIME_SURFACE_SET_VERSION = 2;
 
 export const REACT_RUNTIME_EVALUATION_ENV = Object.freeze({
   nomenclature: Object.freeze({ feature: "MES_REACT_NOMENCLATURE", permissions: Object.freeze(["MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION", "MES_REACT_NOMENCLATURE_WRITE_EVALUATION"]) }),
@@ -100,6 +104,7 @@ function sha256(value) {
 function implicitLegacyPolicy() {
   return Object.freeze({
     schemaVersion: 1,
+    surfaceSetVersion: REACT_RUNTIME_SURFACE_SET_VERSION,
     policyId: "implicit-legacy",
     surfaces: Object.freeze(Object.fromEntries(REACT_RUNTIME_SURFACE_IDS.map((id) => [id, "legacy"]))),
     sha256: null,
@@ -112,11 +117,24 @@ export function normalizeReactRuntimePolicy(value, { sha256Digest = null, source
   if (value.schemaVersion !== 1) throw new Error("Unsupported React runtime policy schema");
   if (!/^[a-z0-9][a-z0-9._-]{2,63}$/i.test(String(value.policyId || ""))) throw new Error("React runtime policy id is invalid");
   if (!value.surfaces || typeof value.surfaces !== "object" || Array.isArray(value.surfaces)) throw new Error("React runtime policy surfaces are missing");
+  // Releases created before Dispatch became a production surface did not
+  // carry a surface-set version. Keep those immutable rollback targets
+  // verifiable while requiring the complete current set for v2 policies.
+  const inferredSurfaceSetVersion = Object.hasOwn(value.surfaces, "dispatch") ? 2 : 1;
+  const surfaceSetVersion = value.surfaceSetVersion == null
+    ? inferredSurfaceSetVersion
+    : Number(value.surfaceSetVersion);
+  if (![1, REACT_RUNTIME_SURFACE_SET_VERSION].includes(surfaceSetVersion)) {
+    throw new Error("Unsupported React runtime policy surface set");
+  }
+  const declaredSurfaceIds = surfaceSetVersion === 1
+    ? REACT_RUNTIME_SURFACE_IDS_V1
+    : REACT_RUNTIME_SURFACE_IDS;
   const actualIds = Object.keys(value.surfaces).sort();
-  const expectedIds = [...REACT_RUNTIME_SURFACE_IDS].sort();
+  const expectedIds = [...declaredSurfaceIds].sort();
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) throw new Error("React runtime policy must declare every production surface exactly once");
-  const surfaces = {};
-  for (const id of REACT_RUNTIME_SURFACE_IDS) {
+  const surfaces = Object.fromEntries(REACT_RUNTIME_SURFACE_IDS.map((id) => [id, "legacy"]));
+  for (const id of declaredSurfaceIds) {
     const mode = String(value.surfaces[id] || "");
     if (!REACT_RUNTIME_POLICY_MODES.includes(mode)) throw new Error(`Unsupported React runtime mode for ${id}: ${mode || "<empty>"}`);
     if (mode === "react" && !REACT_RUNTIME_PERMANENT_CONSUMERS.includes(id)) {
@@ -126,6 +144,7 @@ export function normalizeReactRuntimePolicy(value, { sha256Digest = null, source
   }
   return Object.freeze({
     schemaVersion: 1,
+    surfaceSetVersion,
     policyId: String(value.policyId),
     surfaces: Object.freeze(surfaces),
     sha256: sha256Digest,
@@ -201,6 +220,7 @@ export const assertSingleReactEvaluationPermission = assertReactRuntimeEnvironme
 export function getPublicReactRuntimePolicy(policy = implicitLegacyPolicy()) {
   return Object.freeze({
     schemaVersion: policy.schemaVersion,
+    surfaceSetVersion: policy.surfaceSetVersion,
     policyId: policy.policyId,
     sha256: policy.sha256,
     source: policy.source,
