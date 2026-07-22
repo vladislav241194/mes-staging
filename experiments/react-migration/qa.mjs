@@ -2214,7 +2214,7 @@ try {
     "scripts/domain-system-domains-consistent-read-qa.mjs",
   ]);
   const systemDomainsCommandClientContractPaths = new Set([
-    "src/modules/domain_api/system_domains_commands.js",
+    "src/modules/domain_api/system_domains_commands.ts",
     "scripts/system-domains-commands-client-qa.mjs",
   ]);
   const systemDomainsDisposableCleanupContractPaths = new Set([

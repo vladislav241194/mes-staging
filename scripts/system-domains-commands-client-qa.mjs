@@ -1,4 +1,6 @@
-import { createSystemDomainsCommands } from "../src/modules/domain_api/system_domains_commands.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+await withBundledTypeScriptClient(new URL("../src/modules/domain_api/system_domains_commands.ts", import.meta.url), async ({ createSystemDomainsCommands }) => {
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
 let request = null;
@@ -27,3 +29,4 @@ assert(!deniedResult.ok && deniedResult.status === 403 && deniedResult.code === 
 const invalid = await commands.replace(null, { expectedRevision: 2, surface: "production-structure" });
 assert(!invalid.ok && /required/.test(invalid.error), "invalid command input must not call the network");
 console.log("System Domains command client QA: OK");
+});

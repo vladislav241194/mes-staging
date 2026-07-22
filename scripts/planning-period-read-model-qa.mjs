@@ -1,9 +1,11 @@
-import { createPlanningPeriodReadModel } from "../src/modules/domain_api/planning_period_read_model.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 import {
   buildWeeklyPlanningPeriodRows,
   buildWeeklyPlanningPeriodRowsFromCompact,
   weeklyPlanningRowsEquivalent,
 } from "../src/modules/weekly_production_control/planning_period_rows.js";
+
+await withBundledTypeScriptClient(new URL("../src/modules/domain_api/planning_period_read_model.ts", import.meta.url), async ({ createPlanningPeriodReadModel }) => {
 
 function assert(value, message) {
   if (!value) throw new Error(message);
@@ -225,3 +227,4 @@ assert(!weeklyPlanningRowsEquivalent(staleServerRows, equivalentLegacyRows), "a 
 const shiftedServerRows = rows.map((row) => ({ ...row, plannedStart: new Date("2026-07-20T05:01:00.000Z") }));
 assert(!weeklyPlanningRowsEquivalent(shiftedServerRows, equivalentLegacyRows), "a shifted server slot must not overwrite a locally changed Weekly row");
 console.log("Planning period read-model QA: OK");
+});

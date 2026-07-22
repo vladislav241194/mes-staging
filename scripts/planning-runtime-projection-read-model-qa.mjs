@@ -1,4 +1,6 @@
-import { canApplyPlanningRuntimeProjection, createPlanningRuntimeProjectionReadModel, hasExactPlanningRuntimeProjection } from "../src/modules/domain_api/planning_runtime_projection_read_model.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+await withBundledTypeScriptClient(new URL("../src/modules/domain_api/planning_runtime_projection_read_model.ts", import.meta.url), async ({ canApplyPlanningRuntimeProjection, createPlanningRuntimeProjectionReadModel, hasExactPlanningRuntimeProjection }) => {
 
 function assert(value, message) { if (!value) throw new Error(message); }
 let calls = 0;
@@ -13,3 +15,4 @@ assert(!hasExactPlanningRuntimeProjection({ routes: [{ id: "r1" }], routeSteps: 
 assert(canApplyPlanningRuntimeProjection({ routes: [], routeSteps: [], slots: [] }, loaded.projection), "an empty first-time runtime must accept the server projection without downloading the legacy planning snapshot");
 assert(!canApplyPlanningRuntimeProjection({ routes: [{ id: "legacy-r1" }], routeSteps: [], slots: [] }, loaded.projection), "a non-empty incompatible compatibility runtime must keep the safe snapshot fallback");
 console.log("Planning runtime projection read model QA: OK");
+});

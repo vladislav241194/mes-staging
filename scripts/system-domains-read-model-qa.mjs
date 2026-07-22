@@ -1,4 +1,6 @@
-import { createSystemDomainsReadModel } from "../src/modules/domain_api/system_domains_read_model.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+await withBundledTypeScriptClient(new URL("../src/modules/domain_api/system_domains_read_model.ts", import.meta.url), async ({ createSystemDomainsReadModel }) => {
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
 let now = 0;
@@ -26,3 +28,4 @@ const unavailable = createSystemDomainsReadModel({ fetchImpl: async () => ({ sta
 const failed = await unavailable.refresh();
 assert(!failed.ok && /503/.test(failed.error), "unavailable server read must be explicit and non-destructive");
 console.log("System Domains server read model QA: OK");
+});

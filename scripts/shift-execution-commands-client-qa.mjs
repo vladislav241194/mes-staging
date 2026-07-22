@@ -1,4 +1,6 @@
-import { createShiftExecutionCommands } from "../src/modules/domain_api/shift_execution_commands.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+await withBundledTypeScriptClient(new URL("../src/modules/domain_api/shift_execution_commands.ts", import.meta.url), async ({ createShiftExecutionCommands }) => {
 
 function assert(value, message) { if (!value) throw new Error(message); }
 
@@ -62,3 +64,4 @@ let missing = "";
 try { await client.createAssignment({}); } catch (error) { missing = error.message; }
 assert(/Idempotency/.test(missing), "client must reject an unsafe write without an idempotency key");
 console.log("Shift execution command client QA: OK");
+});

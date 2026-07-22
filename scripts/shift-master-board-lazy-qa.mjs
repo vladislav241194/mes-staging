@@ -31,13 +31,13 @@ expect(!shiftBoardRoute.includes("renderShiftMasterBoardPage")
 "retired renderer Мастерской не должен быть same-release UI fallback текущего маршрута");
 expect(!source.includes('import { createShiftExecutionReadModel } from "./modules/domain_api/shift_execution_read_model.js";'),
   "server read API Мастерской не должен оставаться статическим импортом стартового app.js");
-expect(!source.includes('import { createShiftExecutionCommands } from "./modules/domain_api/shift_execution_commands.js";'),
+expect(!source.includes('import { createShiftExecutionCommands } from "./modules/domain_api/shift_execution_commands.ts";'),
   "server command API Мастерской не должен оставаться статическим импортом стартового app.js");
 expect(!source.includes('import("./modules/domain_api/shift_execution_read_model.js")'),
   "устаревший общий server read API Мастерской не должен загружаться из app.js");
-expect(source.includes('import("./modules/domain_api/shift_execution_dispatch_read_model.js")'),
+expect(source.includes('import("./modules/domain_api/shift_execution_dispatch_read_model.ts")'),
   "компактный server dispatch API Мастерской должен загружаться лениво");
-expect(source.includes('import("./modules/domain_api/shift_execution_commands.js")'),
+expect(source.includes('import("./modules/domain_api/shift_execution_commands.ts")'),
   "server command API Мастерской должен загружаться лениво");
 expect(source.includes("function ensureShiftExecutionDomainApiModule()"),
   "server bridge Мастерской должен иметь single-flight ленивый загрузчик");

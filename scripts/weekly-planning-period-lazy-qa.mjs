@@ -5,7 +5,7 @@ const app = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
 
-expect(app.includes('import("./modules/domain_api/planning_period_read_model.js")'), "Weekly planning period read model must load lazily");
+expect(app.includes('import("./modules/domain_api/planning_period_read_model.ts")'), "Weekly planning period read model must load lazily");
 expect(app.includes('import("./modules/weekly_production_control/planning_period_rows.js")'), "Weekly period row adapter must load lazily");
 expect(app.includes('createPlanningPeriodReadModel({ view: "weekly" })'), "Weekly Control must request the compact period contract explicitly");
 expect(app.includes("buildWeeklyPlanningPeriodRowsFromCompact"), "Weekly Control must adapt direct compact rows without constructing a planning graph");

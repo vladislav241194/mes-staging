@@ -1,5 +1,7 @@
-import { createShiftExecutionDispatchReadModel } from "../src/modules/domain_api/shift_execution_dispatch_read_model.js";
 import { readFile } from "node:fs/promises";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+await withBundledTypeScriptClient(new URL("../src/modules/domain_api/shift_execution_dispatch_read_model.ts", import.meta.url), async ({ createShiftExecutionDispatchReadModel }) => {
 
 function assert(value, message) { if (!value) throw new Error(message); }
 
@@ -96,7 +98,8 @@ assert(model.getState().available && model.getState().error === "offline", "a re
 mode = "same-etag";
 const sameRevision = await model.refresh({ dateKey: "2026-07-18", sourceRowIds: ["row-a", "row-b"], workCenterIds: ["D3", "D5"], force: true });
 assert(sameRevision.ok && !sameRevision.changed, "a 200 response with the same transport revision must not require a full payload comparison");
-const source = await readFile(new URL("../src/modules/domain_api/shift_execution_dispatch_read_model.js", import.meta.url), "utf8");
+const source = await readFile(new URL("../src/modules/domain_api/shift_execution_dispatch_read_model.ts", import.meta.url), "utf8");
 assert(!source.includes("JSON.stringify"), "compact dispatch change detection must not stringify full response payloads");
 
 console.log("Shift execution dispatch read model QA: OK");
+});

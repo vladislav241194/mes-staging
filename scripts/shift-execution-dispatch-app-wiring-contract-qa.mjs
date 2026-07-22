@@ -156,7 +156,7 @@ assert(mirrorWrites.every((sectionText) => sectionText.includes("isShiftExecutio
 
 // The old whole-system read model is materially larger and reintroduced the
 // global readback bottleneck; it must not remain reachable from app bootstrap.
-assert(/import\(\s*["']\.\/modules\/domain_api\/shift_execution_dispatch_read_model\.js["']\s*\)/.test(source), "app must lazy-load the scoped dispatch read model");
+assert(/import\(\s*["']\.\/modules\/domain_api\/shift_execution_dispatch_read_model\.ts["']\s*\)/.test(source), "app must lazy-load the scoped dispatch read model");
 assert(!/(?:import\(\s*|from\s*)["'][^"']*shift_execution_read_model\.js["']/.test(source), "app must not import the legacy whole-system shift execution read model");
 assert(!/\bshiftExecutionReadModel\b/.test(source), "app must not retain the legacy full read-model handle");
 

@@ -3,7 +3,78 @@ const MAX_SOURCE_ROW_IDS = 200;
 const MAX_WORK_CENTER_IDS = 100;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-function isDateKey(value) {
+type UnknownRecord = Record<string, unknown>;
+type FetchLike = typeof globalThis.fetch;
+
+export interface DispatchScopeInput {
+  dateKey?: unknown;
+  sourceRowIds?: unknown;
+  workCenterIds?: unknown;
+  force?: boolean;
+}
+
+export interface DispatchScope {
+  dateKey: string;
+  sourceRowIds: string[];
+  workCenterIds: string[];
+}
+
+interface ResolvedDispatchScope {
+  key: string;
+  query: string;
+  scope: DispatchScope;
+}
+
+interface DispatchScopeError {
+  error: string;
+}
+
+type DispatchScopeResolution = ResolvedDispatchScope | DispatchScopeError;
+
+interface DispatchResult extends UnknownRecord {
+  ok: boolean;
+  changed: boolean;
+  items: UnknownRecord[];
+  carryovers: UnknownRecord[];
+  coveredSourceRowIds: string[];
+  coverageComplete: boolean;
+  scope: DispatchScope | null;
+  error: string;
+  etag?: string;
+  fetchedAt?: number;
+}
+
+interface DispatchEntry {
+  key: string;
+  query: string;
+  scope: DispatchScope;
+  items: UnknownRecord[];
+  carryovers: UnknownRecord[];
+  coveredSourceRowIds: string[];
+  coverageComplete: boolean;
+  serverScope: DispatchScope;
+  etag: string;
+  fetchedAt: number;
+  hasPayload: boolean;
+  loading: Promise<DispatchResult> | null;
+  error: string;
+}
+
+export interface ShiftExecutionDispatchReadModelOptions {
+  fetchImpl?: FetchLike;
+  baseUrl?: string;
+  now?: () => number;
+}
+
+function record(value: unknown): UnknownRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return String(record(error).message || fallback);
+}
+
+function isDateKey(value: string): boolean {
   if (!DATE_KEY_PATTERN.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -12,7 +83,7 @@ function isDateKey(value) {
     && date.getUTCDate() === day;
 }
 
-function normalizeScopeIds(value, { label, limit }) {
+function normalizeScopeIds(value: unknown, { label, limit }: { label: string; limit: number }): { ids: string[] } | { error: string } {
   if (!Array.isArray(value)) return { error: `Dispatch scope requires ${label}` };
   const normalizedIds = [];
   for (const rawId of value) {
@@ -26,23 +97,30 @@ function normalizeScopeIds(value, { label, limit }) {
   return { ids };
 }
 
-function sameScope(left = {}, right = {}) {
-  return left?.dateKey === right?.dateKey
-    && Array.isArray(left?.sourceRowIds)
-    && Array.isArray(right?.sourceRowIds)
-    && left.sourceRowIds.length === right.sourceRowIds.length
-    && left.sourceRowIds.every((value, index) => value === right.sourceRowIds[index])
-    && Array.isArray(left?.workCenterIds)
-    && Array.isArray(right?.workCenterIds)
-    && left.workCenterIds.length === right.workCenterIds.length
-    && left.workCenterIds.every((value, index) => value === right.workCenterIds[index]);
+function sameScope(left: unknown = {}, right: unknown = {}): boolean {
+  const leftScope = record(left);
+  const rightScope = record(right);
+  const leftRows = leftScope.sourceRowIds;
+  const rightRows = rightScope.sourceRowIds;
+  const leftWorkCenters = leftScope.workCenterIds;
+  const rightWorkCenters = rightScope.workCenterIds;
+  return leftScope.dateKey === rightScope.dateKey
+    && Array.isArray(leftRows)
+    && Array.isArray(rightRows)
+    && leftRows.length === rightRows.length
+    && leftRows.every((value, index) => value === rightRows[index])
+    && Array.isArray(leftWorkCenters)
+    && Array.isArray(rightWorkCenters)
+    && leftWorkCenters.length === rightWorkCenters.length
+    && leftWorkCenters.every((value, index) => value === rightWorkCenters[index]);
 }
 
-function resolveScope({ sourceRowIds, workCenterIds, dateKey } = {}) {
+function resolveScope(input: unknown = {}): DispatchScopeResolution {
+  const { sourceRowIds, workCenterIds, dateKey } = record(input);
   const sourceRows = normalizeScopeIds(sourceRowIds, { label: "source row ids", limit: MAX_SOURCE_ROW_IDS });
-  if (sourceRows.error) return sourceRows;
+  if ("error" in sourceRows) return sourceRows;
   const workCenters = normalizeScopeIds(workCenterIds, { label: "work center ids", limit: MAX_WORK_CENTER_IDS });
-  if (workCenters.error) return workCenters;
+  if ("error" in workCenters) return workCenters;
   const normalizedDateKey = String(dateKey || "").trim();
   if (!isDateKey(normalizedDateKey)) return { error: "Dispatch scope requires a valid YYYY-MM-DD date key" };
 
@@ -57,7 +135,7 @@ function resolveScope({ sourceRowIds, workCenterIds, dateKey } = {}) {
   };
 }
 
-function emptyResult({ error = "", scope = null } = {}) {
+function emptyResult({ error = "", scope = null }: { error?: string; scope?: DispatchScope | null } = {}): DispatchResult {
   return {
     ok: false,
     changed: false,
@@ -77,11 +155,11 @@ export function createShiftExecutionDispatchReadModel({
   fetchImpl = globalThis.fetch,
   baseUrl = "/api/v1/workshop/shift-execution/dispatch",
   now = () => Date.now(),
-} = {}) {
-  const entries = new Map();
+}: ShiftExecutionDispatchReadModelOptions = {}) {
+  const entries = new Map<string, DispatchEntry>();
   let activeScopeKey = "";
 
-  function getEntry(scope) {
+  function getEntry(scope: ResolvedDispatchScope): DispatchEntry {
     const existing = entries.get(scope.key);
     if (existing) return existing;
     const entry = {
@@ -101,7 +179,7 @@ export function createShiftExecutionDispatchReadModel({
     return entry;
   }
 
-  function resultFor(entry, { ok = true, changed = false, error = entry?.error || "" } = {}) {
+  function resultFor(entry: DispatchEntry | null, { ok = true, changed = false, error = entry?.error || "" }: { ok?: boolean; changed?: boolean; error?: string } = {}): DispatchResult {
     if (!entry) return emptyResult({ error });
     return {
       ok,
@@ -117,9 +195,9 @@ export function createShiftExecutionDispatchReadModel({
     };
   }
 
-  async function refresh(input = {}) {
+  async function refresh(input: DispatchScopeInput = {}): Promise<DispatchResult> {
     const scope = resolveScope(input);
-    if (scope.error) return emptyResult({ error: scope.error });
+    if ("error" in scope) return emptyResult({ error: scope.error });
     const entry = getEntry(scope);
     activeScopeKey = scope.key;
     if (!input.force && entry.hasPayload && now() - entry.fetchedAt < MAX_AGE_MS) {
@@ -141,16 +219,16 @@ export function createShiftExecutionDispatchReadModel({
           return resultFor(entry, { changed: false });
         }
         if (!response.ok) throw new Error(`Dispatch read API returned ${response.status}`);
-        const payload = await response.json();
-        if (!payload?.ok
+        const payload = record(await response.json());
+        if (!payload.ok
           || !Array.isArray(payload.items)
           || !Array.isArray(payload.carryovers)
           || !Array.isArray(payload.coveredSourceRowIds)
           || typeof payload.coverageComplete !== "boolean") {
-          throw new Error(payload?.error || "Dispatch read API returned an invalid payload");
+          throw new Error(String(payload.error || "Dispatch read API returned an invalid payload"));
         }
         const serverScope = resolveScope(payload.scope || {});
-        if (serverScope.error || !sameScope(scope.scope, serverScope.scope)) {
+        if ("error" in serverScope || !sameScope(scope.scope, serverScope.scope)) {
           throw new Error("Dispatch read API returned a response for another scope");
         }
         const nextEtag = response.headers?.get?.("ETag") || "";
@@ -158,9 +236,9 @@ export function createShiftExecutionDispatchReadModel({
         // If a proxy still sends 200, compare only the transport revision and
         // never serialize the potentially large board payload on the client.
         const changed = !entry.hasPayload || !nextEtag || nextEtag !== entry.etag;
-        entry.items = payload.items;
-        entry.carryovers = payload.carryovers;
-        entry.coveredSourceRowIds = payload.coveredSourceRowIds;
+        entry.items = payload.items as UnknownRecord[];
+        entry.carryovers = payload.carryovers as UnknownRecord[];
+        entry.coveredSourceRowIds = payload.coveredSourceRowIds as string[];
         entry.coverageComplete = payload.coverageComplete;
         entry.serverScope = serverScope.scope;
         entry.etag = nextEtag || entry.etag;
@@ -168,8 +246,8 @@ export function createShiftExecutionDispatchReadModel({
         entry.hasPayload = true;
         entry.error = "";
         return resultFor(entry, { changed });
-      } catch (error) {
-        entry.error = error?.message || "Dispatch read API is unavailable";
+      } catch (error: unknown) {
+        entry.error = errorMessage(error, "Dispatch read API is unavailable");
         return resultFor(entry, { ok: false, changed: false, error: entry.error });
       } finally {
         entry.loading = null;
@@ -178,13 +256,13 @@ export function createShiftExecutionDispatchReadModel({
     return entry.loading;
   }
 
-  function getActiveEntry() { return activeScopeKey ? entries.get(activeScopeKey) || null : null; }
-  function getItems() { return [...(getActiveEntry()?.items || [])]; }
-  function getBySourceRowId(sourceRowId = "") {
+  function getActiveEntry(): DispatchEntry | null { return activeScopeKey ? entries.get(activeScopeKey) || null : null; }
+  function getItems(): UnknownRecord[] { return [...(getActiveEntry()?.items || [])]; }
+  function getBySourceRowId(sourceRowId: unknown = ""): UnknownRecord | null {
     const id = String(sourceRowId || "").trim();
     return getActiveEntry()?.items.find((item) => item?.sourceRowId === id) || null;
   }
-  function getBySourceSlotId(sourceSlotId = "") {
+  function getBySourceSlotId(sourceSlotId: unknown = ""): UnknownRecord | null {
     const id = String(sourceSlotId || "").trim();
     return getActiveEntry()?.items.find((item) => item?.sourceSlotId === id) || null;
   }

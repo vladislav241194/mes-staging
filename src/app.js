@@ -117,8 +117,8 @@ import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
 import { createRuntimeStateServiceModule } from "./modules/runtime_state/service.js";
-import { createSystemDomainsReadModel } from "./modules/domain_api/system_domains_read_model.js";
-import { createSystemDomainsCommands } from "./modules/domain_api/system_domains_commands.js";
+import { createSystemDomainsReadModel } from "./modules/domain_api/system_domains_read_model.ts";
+import { createSystemDomainsCommands } from "./modules/domain_api/system_domains_commands.ts";
 import { createOperationalRuntimeServiceModule } from "./modules/operational_runtime/service.js";
 import { createAppEventsServiceModule } from "./modules/app_events/service.js";
 import {
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.69";
+const APP_VERSION_FALLBACK = "v.1.500.70";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1475,7 +1475,7 @@ function ensureWeeklyPlanningPeriodModule() {
   if (planningPeriodReadModel && buildWeeklyPlanningPeriodRows && buildWeeklyPlanningPeriodRowsFromCompact) return Promise.resolve(true);
   if (weeklyPlanningPeriodModuleLoad) return weeklyPlanningPeriodModuleLoad;
   weeklyPlanningPeriodModuleLoad = Promise.all([
-    import("./modules/domain_api/planning_period_read_model.js"),
+    import("./modules/domain_api/planning_period_read_model.ts"),
     import("./modules/weekly_production_control/planning_period_rows.js"),
   ]).then(([
     { createPlanningPeriodReadModel },
@@ -7364,7 +7364,7 @@ function ensurePlanningDomainApiModule() {
   if (planningDomainApiModuleLoad) return planningDomainApiModuleLoad;
   planningDomainApiModuleLoad = Promise.all([
     import("./modules/domain_api/work_orders_read_model.ts"),
-    import("./modules/domain_api/planning_runtime_projection_read_model.js"),
+    import("./modules/domain_api/planning_runtime_projection_read_model.ts"),
   ]).then(([
     { createWorkOrdersReadModel },
     { canApplyPlanningRuntimeProjection: canApplyProjection, createPlanningRuntimeProjectionReadModel },
@@ -8012,8 +8012,8 @@ function ensureShiftExecutionDomainApiModule() {
   if (shiftExecutionDispatchReadModel && shiftExecutionCommands && shiftExecutionOutbox) return Promise.resolve(true);
   if (shiftExecutionDomainApiModuleLoad) return shiftExecutionDomainApiModuleLoad;
   shiftExecutionDomainApiModuleLoad = Promise.all([
-    import("./modules/domain_api/shift_execution_dispatch_read_model.js"),
-    import("./modules/domain_api/shift_execution_commands.js"),
+    import("./modules/domain_api/shift_execution_dispatch_read_model.ts"),
+    import("./modules/domain_api/shift_execution_commands.ts"),
     import("./modules/shift_master_board/server_execution_bridge.js"),
     import("./modules/shift_master_board/server_projection_adapter.js"),
     import("./modules/shift_master_board/carryover_reconciliation.js"),
