@@ -6,7 +6,7 @@ import {
   GANTT_UI_VISUAL_INLINE_STYLE_KEYS,
 } from "../src/gantt_ui_contracts.js";
 
-const sourcePaths = ["src/modules/gantt_runtime/render.js"];
+const sourcePaths = ["experiments/react-migration/src/modules/gantt/GanttScenario.tsx"];
 const reportJsonPath = "reports/gantt-inline-style-audit.json";
 const reportMarkdownPath = "docs/gantt-inline-style-classification.md";
 const writeReport = process.argv.includes("--write-report");

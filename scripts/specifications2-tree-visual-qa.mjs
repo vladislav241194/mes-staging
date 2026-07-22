@@ -4,23 +4,27 @@ import { buildTreeTableVisualRows } from "../src/ui/tree_table_visual.js";
 import {
   applySpecifications2EditorAction,
   removeSpecifications2EditorBranch,
+  buildSpecifications2EditorAnalysis,
+  createSpecifications2EditorRows,
+  getSpecifications2ManufacturedItems,
+} from "../src/modules/specifications2/draft_structure_model.js";
+import {
   applySpecifications2RouteDraftAction,
   applySpecifications2LaborNorm,
   applySpecifications2LaborNormRevision,
-  buildSpecifications2EditorAnalysis,
   createSpecifications2RouteDraft,
-  createSpecifications2EditorRows,
   getSpecifications2InstructionDebtCount,
-  getSpecifications2AoiProductionFiles,
-  getSpecifications2ManufacturedItems,
   generateSpecifications2ProductionStages,
   inspectSpecifications2RouteDraft,
   calculateSpecifications2LaborOperation,
   calculateSpecifications2LaborPlan,
   isSpecifications2LaborNormComplete,
   getSpecifications2LaborNormAt,
+} from "../src/modules/specifications2/route_model.js";
+import {
+  getSpecifications2AoiProductionFiles,
   isSpecifications2ProductionFileAccepted,
-} from "../src/modules/specifications2/render.js";
+} from "../src/modules/specifications2/production_file_contract.js";
 
 const row = (id, depth, label = id) => ({ id, level: depth, label });
 

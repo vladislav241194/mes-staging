@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, DragEvent } from "react";
 import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, Panel, StatusToken } from "../../ui/components";
 import { adaptGanttPayload, type GanttDependencyModel, type GanttSlotModel } from "./adapter";
@@ -11,7 +11,7 @@ export type GanttReactNavigation =
   | { type: "set-scale"; scale: GanttScale }
   | { type: "set-zoom"; action: "out" | "reset" | "in" }
   | { type: "jump-today" }
-  | { type: "toggle-expanded-routes" }
+  | { type: "toggle-expanded-routes"; routeIds: string[] }
   | { type: "toggle-quantity" };
 
 const dateTime = (value: string) => value ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—";
@@ -27,8 +27,20 @@ const dragSnapMs = (scale: GanttScale) => scale === "hours" ? 15 * 60_000 : scal
 export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unknown; onCommand?(command: GanttReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onNavigate?(navigation: GanttReactNavigation): Promise<{ ok?: boolean; message?: string } | void> }) {
   const model = useMemo(() => adaptGanttPayload(payload), [payload]);
   const slots = model.rows.flatMap((row) => row.slots);
-  const initialSelectedId = slots.find((slot) => !slot.aggregate)?.id || model.rows[0]?.slots[0]?.id || "";
-  const [selectedId, setSelectedId] = useState(initialSelectedId);
+  const modelActiveRouteId = "activeRouteId" in model ? String(model.activeRouteId || "") : "";
+  const modelSelectedSlotId = "selectedSlotId" in model ? String(model.selectedSlotId || "") : "";
+  const preferredSelectedId = slots.find((slot) => !slot.aggregate && slot.id === modelSelectedSlotId)?.id
+    || slots.find((slot) => !slot.aggregate && slot.routeId === modelActiveRouteId)?.id
+    || slots.find((slot) => !slot.aggregate)?.id
+    || model.rows[0]?.slots[0]?.id
+    || "";
+  const activeRouteRowId = modelActiveRouteId ? `route:${modelActiveRouteId}` : "";
+  const visibleRouteIds = model.rows
+    .filter((row) => row.type === "route" && row.id.startsWith("route:"))
+    .map((row) => row.id.slice("route:".length));
+  const reactScrollRef = useRef<HTMLDivElement>(null);
+  const focusedRouteRowRef = useRef("");
+  const [selectedId, setSelectedId] = useState(preferredSelectedId);
   const selected = slots.find((slot) => slot.id === selectedId) || null;
   const [dependencyMode, setDependencyMode] = useState(false);
   const [selectedDependencyId, setSelectedDependencyId] = useState(model.dependencies[0]?.id || "");
@@ -40,12 +52,26 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
   const selectedDependency = model.dependencies.find((dependency) => dependency.id === selectedDependencyId) || model.dependencies[0] || null;
 
   useEffect(() => {
-    if (!selected && initialSelectedId) setSelectedId(initialSelectedId);
-  }, [initialSelectedId, selected]);
+    setSelectedId((current) => current === preferredSelectedId ? current : preferredSelectedId);
+  }, [modelActiveRouteId, modelSelectedSlotId, preferredSelectedId]);
   useEffect(() => {
     setPlannedStartDraft(dateTimeInput(selected?.plannedStart || ""));
     setCommandError("");
   }, [selected?.id, selected?.plannedStart]);
+  useEffect(() => {
+    const shell = reactScrollRef.current;
+    const focusKey = `${activeRouteRowId}:${model.windowStart}`;
+    if (!shell || !activeRouteRowId || focusedRouteRowRef.current === focusKey) return;
+    const row = [...shell.querySelectorAll<HTMLElement>("[data-row-id]")]
+      .find((candidate) => candidate.dataset.rowId === activeRouteRowId);
+    if (!row) return;
+    if (shell.dataset.ganttFocusedRouteRow !== focusKey) {
+      row.scrollIntoView({ block: "center", inline: "nearest" });
+      shell.scrollLeft = Math.max(0, Number(shell.scrollLeft || 0) - model.leftWidth / 2);
+      shell.dataset.ganttFocusedRouteRow = focusKey;
+    }
+    focusedRouteRowRef.current = focusKey;
+  }, [activeRouteRowId, model.leftWidth, model.rows, model.windowStart]);
 
   const selectDependency = (dependencyId: string) => {
     const dependency = model.dependencies.find((item) => item.id === dependencyId);
@@ -98,12 +124,16 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
   };
 
   return <ModulePage header={<ModuleHeader eyebrow="Планирование" title="Диаграмма Ганта" badge={<><span className="lab-badge" data-react-prototype-marker title="Обычный интерфейс переведён на React + TypeScript; точная геометрия и отложенные команды ещё не приняты">React TS · прототип</span><span className="lab-badge">PostgreSQL · {model.canEditSchedule ? "command" : "read-only"}</span></>} />}>
-    <section aria-busy={navigating} className="gantt-react-toolbar">
+    <section
+      aria-busy={navigating}
+      className="gantt-react-toolbar"
+      data-gantt-planning-projection-source={model.projectionSource}
+    >
       <label className="gantt-react-period" data-gantt-react-period><span>Период</span><input disabled={!onNavigate || navigating} onChange={(event) => void navigate({ type: "set-window-start", value: event.currentTarget.value })} type="date" value={model.windowStartDate} /><small>до {model.windowEndDate}</small></label>
       <div className="gantt-react-scale" data-gantt-react-scale-group role="group" aria-label="Масштаб времени">{model.scaleOptions.map((option) => <button aria-pressed={model.scale === option.id} className={model.scale === option.id ? "is-active" : ""} data-gantt-react-scale={option.id} disabled={!onNavigate || navigating} key={option.id} onClick={() => void navigate({ type: "set-scale", scale: option.id })} type="button">{option.label}</button>)}</div>
       <div className="gantt-react-zoom" data-gantt-react-zoom-group role="group" aria-label="Масштаб Ганта"><button aria-label="Уменьшить масштаб Ганта" data-gantt-react-zoom="out" disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "set-zoom", action: "out" })} type="button">−</button><button aria-label="Сбросить масштаб Ганта" data-gantt-react-zoom="reset" disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "set-zoom", action: "reset" })} type="button">{model.zoomLabel}</button><button aria-label="Увеличить масштаб Ганта" data-gantt-react-zoom="in" disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "set-zoom", action: "in" })} type="button">+</button></div>
       <StatusToken label={model.projectionSource === "server" ? "PostgreSQL projection" : model.projectionSource} tone={model.projectionSource === "server" ? "success" : "warning"} />
-      <div className="gantt-react-scale gantt-react-toolbar-actions" role="group" aria-label="Действия отображения"><button data-gantt-react-refresh disabled={!model.canRefresh || !onNavigate || navigating} onClick={() => void navigate({ type: "refresh" })} title={model.canRefresh ? "Обновить PostgreSQL-проекцию" : "Owner обновления не подключён"} type="button">Обновить</button><button aria-pressed={model.allRoutesExpanded} data-gantt-react-toggle-expanded-routes disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-expanded-routes" })} type="button">{model.allRoutesExpanded ? "Свернуть" : "Развернуть"}</button><button aria-pressed={model.showQuantity} data-gantt-react-toggle-quantity disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-quantity" })} type="button">Кол-во</button><button data-gantt-react-jump-today disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "jump-today" })} type="button">Сегодня</button><ActionButton variant="secondary" onClick={() => setDependencyMode((current) => !current)}>Зависимости ({model.dependencyCount})</ActionButton></div>
+      <div className="gantt-react-scale gantt-react-toolbar-actions" role="group" aria-label="Действия отображения"><button data-gantt-react-refresh disabled={!model.canRefresh || !onNavigate || navigating} onClick={() => void navigate({ type: "refresh" })} title={model.canRefresh ? "Обновить PostgreSQL-проекцию" : "Owner обновления не подключён"} type="button">Обновить</button><button aria-pressed={model.allRoutesExpanded} data-gantt-react-toggle-expanded-routes disabled={!onNavigate || navigating || !visibleRouteIds.length} onClick={() => void navigate({ type: "toggle-expanded-routes", routeIds: visibleRouteIds })} type="button">{model.allRoutesExpanded ? "Свернуть" : "Развернуть"}</button><button aria-pressed={model.showQuantity} data-gantt-react-toggle-quantity disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "toggle-quantity" })} type="button">Кол-во</button><button data-gantt-react-jump-today disabled={!onNavigate || navigating} onClick={() => void navigate({ type: "jump-today" })} type="button">Сегодня</button><ActionButton variant="secondary" onClick={() => setDependencyMode((current) => !current)}>Зависимости ({model.dependencyCount})</ActionButton></div>
     </section>
     {navigationError ? <p className="react-nomenclature-command-error gantt-react-navigation-error" role="alert">{navigationError}</p> : null}
     <section aria-label="Команды без серверного владельца" className="gantt-react-blocked-actions" data-gantt-react-blocked-actions>
@@ -117,10 +147,10 @@ export function GanttScenario({ payload, onCommand, onNavigate }: { payload: unk
     <MetricGrid label="Сводка графика"><MetricCard label="Маршруты" value={model.routeCount} /><MetricCard label="Строки" value={model.rows.length} /><MetricCard label="Слоты" value={model.slotCount} /><MetricCard label="Зависимости" value={model.dependencyCount} /></MetricGrid>
     <section className="gantt-react-grid">
       <Panel heading={<div className="panel-heading"><div><p>Упрощённая геометрия React TS</p><h2>Производственный план</h2></div><StatusToken label={model.canEditSchedule ? "Изменение старта" : "Только просмотр"} tone={model.canEditSchedule ? "success" : "neutral"} /></div>}>
-        <div className="gantt-react-scroll" data-ui-component="GanttRuntime">
+        <div className="gantt-react-scroll" data-ui-component="GanttRuntime" ref={reactScrollRef}>
           <div className="gantt-react-canvas" data-ui-component="GanttCanvas" style={{ "--gantt-left": `${model.leftWidth}px`, "--gantt-width": `${model.timelineWidth}px`, "--gantt-height": `${model.totalHeight}px`, "--gantt-timeline-height": `${model.timelineHeight}px` } as CSSProperties}>
             <div className="gantt-react-timeline" data-ui-component="GanttTimeline"><div className="gantt-react-corner">Маршруты и ресурсы</div><div className="gantt-react-ticks">{model.ticks.map((tick) => <div className={tick.weekend ? "is-weekend" : ""} key={tick.id} style={{ left: tick.left, width: tick.width }}><strong>{tick.label}</strong><small>{tick.sublabel}</small></div>)}</div></div>
-            <div className="gantt-react-rows" data-ui-component="GanttRowsLayer">{model.rows.map((row) => <div className={`gantt-react-row is-${row.type}`} data-row-id={row.id} key={row.id} style={{ top: row.top, height: row.height }}><div className="gantt-react-label"><strong>{row.label}</strong><small>{row.meta}</small></div><div className="gantt-react-lane" data-gantt-react-drop-lane={row.id} onDragOver={(event) => { if (model.canDrag) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={dropSlot}>{row.slots.map((slot) => <button aria-pressed={selected?.id === slot.id} className={slot.aggregate ? "is-aggregate" : ""} data-slot-id={slot.id} data-ui-component="GanttSlot" draggable={model.canDrag && slot.canReschedule && !saving} key={slot.id} onClick={() => setSelectedId(slot.id)} onDragStart={(event) => { const rect = event.currentTarget.getBoundingClientRect(); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData(GANTT_SLOT_DRAG_MIME, JSON.stringify({ slotId: slot.id, grabOffsetPx: event.clientX - rect.left })); event.dataTransfer.setData("text/plain", slot.id); }} style={{ left: slot.x, top: slot.top, width: slot.width, height: slot.height }} title={`${slot.title} · ${dateTime(slot.plannedStart)} — ${dateTime(slot.plannedEnd)}`} type="button">{model.showQuantity ? <span data-gantt-react-slot-quantity>{slot.quantity.toLocaleString("ru-RU")}</span> : null}</button>)}</div></div>)}</div>
+            <div className="gantt-react-rows" data-ui-component="GanttRowsLayer">{model.rows.map((row) => <div className={`gantt-react-row is-${row.type}${row.id === activeRouteRowId ? " is-active-route" : ""}`} data-active-route={row.id === activeRouteRowId ? "true" : undefined} data-row-id={row.id} key={row.id} style={{ top: row.top, height: row.height }}><div className="gantt-react-label"><strong>{row.label}</strong><small>{row.meta}</small></div><div className="gantt-react-lane" data-gantt-react-drop-lane={row.id} onDragOver={(event) => { if (model.canDrag) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={dropSlot}>{row.slots.map((slot) => <button aria-pressed={selected?.id === slot.id} className={slot.aggregate ? "is-aggregate" : ""} data-slot-id={slot.id} data-ui-component="GanttSlot" draggable={model.canDrag && slot.canReschedule && !saving} key={slot.id} onClick={() => setSelectedId(slot.id)} onDragStart={(event) => { const rect = event.currentTarget.getBoundingClientRect(); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData(GANTT_SLOT_DRAG_MIME, JSON.stringify({ slotId: slot.id, grabOffsetPx: event.clientX - rect.left })); event.dataTransfer.setData("text/plain", slot.id); }} style={{ left: slot.x, top: slot.top, width: slot.width, height: slot.height }} title={`${slot.title} · ${dateTime(slot.plannedStart)} — ${dateTime(slot.plannedEnd)}`} type="button">{model.showQuantity ? <span data-gantt-react-slot-quantity>{slot.quantity.toLocaleString("ru-RU")}</span> : null}</button>)}</div></div>)}</div>
           </div>
         </div>
       </Panel>

@@ -44,8 +44,15 @@ try {
 }
 assert.match(staleFingerprint, /changed after its client publication was prepared/, "server must reject a client fingerprint that no longer matches editor content");
 
-const renderSource = await readFile(fileURLToPath(new URL("../src/modules/specifications2/render.js", import.meta.url)), "utf-8");
-assert.match(renderSource, /function writeStore\(store, \{ suppressSharedStatePush = false \} = \{\}\)/, "Specs2 editor storage must support an acknowledgement-only local write");
-assert.match(renderSource, /writeStore\(\{ \.\.\.latestStore, registry, selectedId: normalizedEntryId \}, \{ suppressSharedStatePush: true \}\)/, "server-primary acknowledgement must not enqueue a competing shared-state snapshot write");
+const ownerSource = await readFile(fileURLToPath(new URL("../src/modules/specifications2/production_owner.js", import.meta.url)), "utf-8");
+const canonicalPrepareOffset = ownerSource.indexOf("preparePublication(selected, { now: now() })");
+const publishCallOffset = ownerSource.indexOf("await publicationOwner.publishRevision");
+const compatibilityWriteOffset = ownerSource.indexOf("writeStore(nextStore, { suppressSharedStatePush: true })", publishCallOffset);
+const forceReadBackOffset = ownerSource.indexOf("forcePublishedRevisionRead(entryId, { force: true })", compatibilityWriteOffset);
+assert(canonicalPrepareOffset >= 0 && canonicalPrepareOffset < publishCallOffset, "canonical UI-free publication must prepare exact N+1 content before the server command");
+assert(publishCallOffset >= 0, "Specifications 2.0 production owner must publish through the server command owner");
+assert(compatibilityWriteOffset > publishCallOffset, "compatibility projection may update only after the server publication acknowledgement");
+assert(forceReadBackOffset > compatibilityWriteOffset, "plain success must wait for a forced PostgreSQL read-back after the suppressed ACK write");
+assert.doesNotMatch(ownerSource, /specifications2\/render\.js|getSpecifications2ReactModel\s*\(/, "production publication authority must not depend on the retired renderer");
 
 console.log("Specifications 2.0 publication authority QA: OK");

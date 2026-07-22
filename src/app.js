@@ -110,7 +110,6 @@ import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_co
 import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
 import { createSpecifications2ProductionOwner } from "./modules/specifications2/production_owner.js";
-import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -206,7 +205,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.52";
+const APP_VERSION_FALLBACK = "v.1.500.53";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1198,10 +1197,6 @@ function initializePlanningRoutesServiceModule() {
   formatDateTimeShort,
   formatDuration,
   formatReportNumber,
-  // A cold "Передать в Гант" switches the module before the lazy Gantt chunk
-  // has loaded. Rendering here starts its loading shell; the route selection
-  // is already persisted by the caller and will be rendered after `load()`.
-  focusRoute: (...args) => ganttRuntime?.isReady?.() ? focusRoute(...args) : render(),
   fromDateInput,
   getBatch, getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null, getBomResultNomenclatureItem: (...args) => typeof getBomResultNomenclatureItem === "function" ? getBomResultNomenclatureItem(...args) : null,
   getDefaultOperationCalculationType,
@@ -1278,10 +1273,6 @@ function initializePlanningRoutesServiceModule() {
   slotMatchesPlanningOrder,
   slotMatchesProductionContext,
   snapDate,
-  // Planning can calculate a route anchor before a user has opened Gantt.
-  // The date has already been snapped to the common grid; defer the
-  // work-calendar refinement until the timeline implementation is available.
-  snapToWorkingTime: (...args) => ganttRuntime?.isReady?.() ? snapToWorkingTime(...args) : args[1],
   toDate,
   toDateInput,
   toSlotDateTime,
@@ -1459,7 +1450,6 @@ function initializeRoutesRenderModule(factory) {
     renderWorkOrderPrintPackageModal,
   } = factory({
   MAIN_ROUTE_TASK_ID,
-  distance,
   escapeAttribute,
   escapeHtml,
   formatDateTimeShort,
@@ -2616,22 +2606,7 @@ const defaultUiState = {
 
 
 let addNomenclatureToBom, applyGanttRowToSlot, cancelAuthPrototypePinFeedback, completeAuthPrototypeLogin, createSpekiSpecification, deleteBomImportRow, ensureNomenclatureTypeExists, ensureRouteModuleProjectForSpecification, findSmtLineByNumber, getActiveSpecificationForModule, getAuthPrototypeAttemptsLeft, getAuthPrototypeDepartmentRows, getAuthPrototypeDirectDepartmentPeople, getAuthPrototypePeople, getAuthPrototypePeopleByUnit, getAuthPrototypePinFeedbackTone, getAuthPrototypePinPerson, getAuthPrototypeSelectedDepartment, getAuthPrototypeSelectedPerson, getAuthPrototypeSelectedUnit, getAuthPrototypeUnitRows, getBomImportRowNomenclatureItem, getBomImportRows, getBomLinkedSpecifications, getBomList, getBomResultNomenclatureItem, getDefaultSmtLineConfigurations, getDirectoryRows, getFallbackNomenclatureType, getGanttResourceForSlot, getNomenclatureDeleteUsage, getNomenclatureItem, getResourceBaseCph, getResourceRowId, getResourcesForWorkCenter, getRouteBindingContext, getRouteBindingModeForSelection, getRouteBindingOptions, getRouteBomList, getRouteDocumentKind, getRouteDocumentKindLabel, getRouteDocumentKindShortLabel, getRouteLineageSubjectName, getRouteModuleSelectionName, getRouteModuleSelectionValue, getRouteParentRoute, getRouteRootRoute, getRouteScopeRootTask, getRouteSpecification, getRoutesForModule, getSlotGanttResourceId, getSlotGanttWorkCenterId, getSmtLineConfigurations, getSmtLineIdFromWorkCenterId, getSmtLineNumberFromText, getSpecificationBomEntries, getSpecificationById, getSpecificationDeleteUsage, getSpecificationItemBomId, getSpecificationProductionOrder, getSpekiStructureItemDisplayName, getSpekiStructureItemLabel, getSpekiStructureSectionOptions, getSpekiStructureTableRows, importBomFromXlsxFile, isAuthPrototypePinFeedbackLocked, isSmtLineWorkCenterId, migrateSpecificationBomRowsToNomenclature, normalizeBomImportRow, normalizeLookupText, normalizeNomenclatureType, normalizeRouteBindingValue, normalizeSmtComponentKeyPart, renderModulePreviewEmpty, resetAuthPrototypeAttempts, resolveRouteModuleProjectId, scheduleAuthPrototypePinValidation, scopeRouteTasks, summarizeBomComponentFields, syncNomenclatureTypeRename, syncNomenclatureTypesFromItems, syncSpecificationDerivedFields, updateBomImportCell, upsertBomResultToNomenclature;
-let bindSpecifications2Events = () => {};
-let renderSpecifications2Page = () => renderUiModulePage({
-  ariaLabel: "Спецификации 2.0",
-  className: "specifications2-page",
-  content: renderUiEmptyState({ title: "Загружаем модуль", description: "Спецификация откроется автоматически." }),
-});
-let getSpecifications2ReactModel = () => ({ registry: [], selectedEntry: null, serverStatus: "empty", serverError: "" });
-let updateSpecifications2DraftRow = () => ({ ok: false, message: "Модуль Specifications 2.0 ещё не загружен." });
-let publishSpecifications2EntryById = () => Promise.resolve({ ok: false, error: "Модуль Specifications 2.0 ещё не загружен." });
-let createSpecifications2WorkOrder = () => Promise.resolve({ ok: false, error: "Модуль Specifications 2.0 ещё не загружен." });
-let specifications2ModuleLoad = null;
-let specifications2ModuleReady = false;
-let specifications2ModuleError = "";
 let specifications2RevisionsReadModel = null;
-let specifications2PublishCommands = null;
-let specifications2AttachmentCommands = null;
 let specifications2ProductionModuleLoad = null;
 let specifications2ProductionModuleReady = false;
 let specifications2ProductionModuleError = "";
@@ -2646,13 +2621,15 @@ function readSpecifications2ProductionStore() {
     return {};
   }
 }
-function writeSpecifications2ProductionStore(store = {}) {
+function writeSpecifications2ProductionStore(store = {}, { suppressSharedStatePush = false } = {}) {
   try {
     localStorage.setItem(SPECIFICATIONS2_STORAGE_KEY, JSON.stringify(store));
-    if (typeof window.__MES_SCHEDULE_SHARED_STATE_PUSH__ === "function") {
-      window.__MES_SCHEDULE_SHARED_STATE_PUSH__("specifications2");
-    } else {
-      window.dispatchEvent(new CustomEvent("mes:shared-state-change", { detail: { reason: "specifications2" } }));
+    if (!suppressSharedStatePush) {
+      if (typeof window.__MES_SCHEDULE_SHARED_STATE_PUSH__ === "function") {
+        window.__MES_SCHEDULE_SHARED_STATE_PUSH__("specifications2");
+      } else {
+        window.dispatchEvent(new CustomEvent("mes:shared-state-change", { detail: { reason: "specifications2" } }));
+      }
     }
     return true;
   } catch (_error) {
@@ -2665,9 +2642,7 @@ function getSpecifications2PublishedRevision(sourceEntryId) {
 async function refreshSpecifications2PublishedRevision(sourceEntryId, { force = false } = {}) {
   const normalizedSourceEntryId = String(sourceEntryId || "").trim();
   if (!normalizedSourceEntryId) return { ok: false, changed: false };
-  await (getReactRuntimeMode("specifications2") === "react"
-    ? ensureSpecifications2ProductionModule()
-    : ensureSpecifications2Module());
+  await ensureSpecifications2ProductionModule();
   const beforeRefresh = getSpecifications2PublishedRevision(normalizedSourceEntryId);
     const completionChangesEligibility = Boolean(beforeRefresh?.loading)
       || (!beforeRefresh?.fetchedAt && !beforeRefresh?.item && !beforeRefresh?.error);
@@ -2675,7 +2650,7 @@ async function refreshSpecifications2PublishedRevision(sourceEntryId, { force = 
   // An expired cache may already contain the exact immutable revision while
   // its revalidation is in flight. React intentionally waits for that
   // request, so completion must repaint even when the server returns the
-  // same payload (`changed: false`) or an error that legacy must expose.
+  // same payload (`changed: false`) or an error that the React shell must expose.
   if ((result.changed || completionChangesEligibility) && ui.activeModule === "specifications2") render();
   return result;
 }
@@ -2706,7 +2681,7 @@ function ensureSpecifications2ProductionModule() {
     import("./modules/domain_api/specifications2_work_order_commands.js"),
   ])
     .then(([
-      { buildSpecifications2ReleaseFingerprint },
+      { buildSpecifications2ReleaseFingerprint, publishSpecifications2Entry: prepareSpecifications2PublicationEntry },
       { createSpecifications2RevisionsReadModel },
       { createSpecifications2WorkOrderCommands },
     ]) => {
@@ -2726,6 +2701,12 @@ function ensureSpecifications2ProductionModule() {
             return String(entry?.publication?.fingerprint || "");
           }
         },
+        preparePublication: (entry, { now } = {}) => prepareSpecifications2PublicationEntry(entry, {
+          directoryState,
+          planningState,
+          now,
+        }),
+        forcePublishedRevisionRead: (entryId) => refreshSpecifications2PublishedRevision(entryId, { force: true }),
         getWorkOrderCapability: () => specifications2ProductionWorkOrderCommands?.getCapability?.() || { enabled: false, primaryPostgres: false },
         createWorkOrder: (input) => specifications2ProductionWorkOrderCommands.createWorkOrder(input),
       });
@@ -2750,143 +2731,6 @@ function ensureSpecifications2ProductionModule() {
 }
 normalizeLookupText = (value) => String(value || "").trim().toLowerCase();
 function bindSpekiEvents(...args) { return appEventsService.bindSpekiEvents(...args); }
-function initializeSpecifications2Module(factory, buildSpecifications2Publication) {
-  const prepareSpecifications2Publication = (entry) => {
-    const result = buildSpecifications2Publication(entry, { directoryState, planningState });
-    const publication = result.publication;
-    return {
-      publication,
-      // The server export derives its immutable source timestamp from the
-      // editor entry.  Keep it aligned with the prepared publication without
-      // committing any compatibility state before the server acknowledges it.
-      entry: { ...entry, publication, updatedAt: publication.releasedAt || new Date().toISOString() },
-    };
-  };
-  const commitSpecifications2Publication = (entry, acknowledgedPublication = null) => {
-    if (isLegacyDirectoryWriteBlocked()) {
-      throw new Error("Публикация недоступна: серверная команда совместимого состава изделия ещё не подключена.");
-    }
-    const result = buildSpecifications2Publication(entry, {
-      directoryState,
-      planningState,
-      acknowledgedPublication,
-    });
-    directoryState = normalizeDirectoryState(result.directoryState);
-    planningState = normalizePlanningState(result.planningState);
-    invalidateWeeklyPlanningPeriod();
-    if (persistDirectoryState() === false) {
-      throw new Error("Публикация не сохранена: серверная команда совместимого состава изделия ещё не подключена.");
-    }
-    persistState();
-    return result.publication;
-  };
-  ({
-    bindSpecifications2Events,
-    createSpecifications2WorkOrder,
-    getSpecifications2ReactModel,
-    publishSpecifications2EntryById,
-    renderSpecifications2Page,
-    updateSpecifications2DraftRow,
-  } = factory({
-    escapeAttribute,
-    escapeHtml,
-    getRouteOperationPresets: () => ({
-      departments: getRouteInstructionWorkCenters().map((center) => ({
-        id: center.id,
-        name: center.name,
-        parentWorkCenterId: center.parentWorkCenterId || "",
-      })),
-      operations: getOperationMapRows({ includeInactive: false })
-        .filter((operation) => !operation.legacyAliasOf && operation.coverage !== "blocked")
-        .map((operation) => ({
-          id: operation.id,
-          name: operation.name,
-          workCenterId: getOperationRouteWorkCenterId(operation),
-        })),
-    }),
-    prepareSpecifications2Publication,
-    commitSpecifications2Publication,
-    publishSpecifications2Entry: (entry) => commitSpecifications2Publication(entry),
-    // Nomenclature/Directory primary ownership blocks only the legacy local
-    // compatibility commit above. A server-first publication has its own
-    // authenticated PostgreSQL command and exact shared-state authority bridge,
-    // so the three owners are safe to run together during permanent cutover.
-    publishServerRevision: (entry, { expectedPreviousRevision } = {}) => specifications2PublishCommands?.publishRevision?.({ entry, expectedPreviousRevision })
-      || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
-    getServerPublicationCapability: (options) => specifications2PublishCommands?.refreshCapability?.(options) || Promise.resolve({
-      ok: false,
-      enabled: false,
-      serverPrimary: MES_RUNTIME_CONFIG.MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY === true,
-      policyPrimary: MES_RUNTIME_CONFIG.MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY === true,
-      error: "Specifications 2.0 server client is unavailable",
-    }),
-    serverPublicationPrimaryPolicy: MES_RUNTIME_CONFIG.MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY === true,
-    uploadServerAttachment: (input) => specifications2AttachmentCommands?.upload?.(input) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
-    downloadServerAttachment: (input) => specifications2AttachmentCommands?.download?.(input) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
-    getPublishedRevision: getSpecifications2PublishedRevision,
-    hydratePublishedRevision: hydrateSpecifications2PublishedRevision,
-    icon,
-    notifySaveSuccess,
-    runLongTask,
-    render,
-    renderUiActionButton,
-    renderUiEmptyState,
-    renderUiInfoGrid,
-    renderUiModuleHeader,
-    renderUiModulePage,
-    renderUiModuleSidebar,
-    renderUiPanel,
-    renderUiPanelBody,
-    renderUiSidebarItem,
-    renderUiStatusToken,
-    renderUiTableWrap,
-  }));
-  specifications2ModuleReady = true;
-}
-
-function ensureSpecifications2Module() {
-  if (specifications2ModuleLoad) return specifications2ModuleLoad;
-  hydrateSharedStateForModule("specifications2", [DIRECTORY_STORAGE_KEY]);
-  void runtimeStateService?.hydrateSharedStateValues?.([SPECIFICATIONS2_STORAGE_KEY]).then((hydrated) => {
-    if (hydrated && ui.activeModule === "specifications2") render();
-  });
-  specifications2ModuleLoad = Promise.all([
-    import("./modules/specifications2/render.js"),
-    import("./modules/specifications2/publication.js"),
-    import("./modules/domain_api/specifications2_revisions_read_model.js"),
-    import("./modules/domain_api/specifications2_publish_commands.js"),
-    import("./modules/domain_api/specifications2_attachment_commands.js"),
-  ])
-    .then(([
-      { createSpecifications2Module },
-      { publishSpecifications2Entry },
-      { createSpecifications2RevisionsReadModel },
-      { createSpecifications2PublishCommands },
-      { createSpecifications2AttachmentCommands },
-    ]) => {
-      specifications2ModuleError = "";
-      specifications2RevisionsReadModel = createSpecifications2RevisionsReadModel();
-      specifications2PublishCommands = createSpecifications2PublishCommands();
-      specifications2AttachmentCommands = createSpecifications2AttachmentCommands();
-      initializeSpecifications2Module(createSpecifications2Module, publishSpecifications2Entry);
-      void specifications2PublishCommands.refreshCapability().then(() => {
-        if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
-      });
-      if (ui.activeModule === "specifications2") render();
-    })
-    .catch((error) => {
-      specifications2ModuleReady = false;
-      specifications2ModuleError = error?.message || "model-unavailable";
-      console.error("Не удалось загрузить модуль Спецификации 2.0", error);
-      renderSpecifications2Page = () => renderUiModulePage({
-        ariaLabel: "Спецификации 2.0",
-        className: "specifications2-page",
-        content: renderUiEmptyState({ title: "Модуль недоступен", description: "Обновите страницу и повторите попытку." }),
-      });
-      if (ui.activeModule === "specifications2") render();
-    });
-  return specifications2ModuleLoad;
-}
 function getNomenclatureReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -5830,45 +5674,13 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
     };
   },
 });
-function getSpecifications2ReactLocalQaOverrides() {
-  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
-  return {
-    featureFlagEnabled: params.get("react-specifications2") === "1",
-    readOnlyEvaluation: params.get("react-specifications2-readonly") === "1",
-    writeEvaluation: params.get("react-specifications2-write") === "1",
-  };
-}
-function isSpecifications2ReactEvaluationRequested() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("react-specifications2-evaluation") !== "1") return false;
-  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
-}
 function getSpecifications2ReactActivation() {
-  const localQa = getSpecifications2ReactLocalQaOverrides();
-  const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION === true;
-  const runtimeActivation = resolveReactRuntimeActivation({
-    surfaceId: "specifications2",
-    evaluationFeatureEnabled: MES_RUNTIME_CONFIG.MES_REACT_SPECIFICATIONS2 === true && serverEvaluationAllowed,
-    evaluationRequested: isSpecifications2ReactEvaluationRequested(),
-    localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
-  });
-  const permanentReact = runtimeActivation.runtimeMode === "react";
-  const model = !permanentReact && specifications2ModuleReady ? getSpecifications2ReactModel() : null;
+  const runtimeActivation = resolveReactRuntimeActivation({ surfaceId: "specifications2" });
   return {
     ...runtimeActivation,
-    accessMode: runtimeActivation.runtimeMode === "react"
-      ? "react"
-      : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
-        ? "write-evaluation"
-        : runtimeActivation.accessMode,
-    moduleReady: permanentReact ? specifications2ProductionModuleReady : specifications2ModuleReady,
-    serverReadReady: permanentReact ? specifications2ProductionModuleReady : model?.serverStatus === "ready",
-    serverReadFailure: permanentReact
-      ? specifications2ProductionModuleError ? "model-unavailable" : ""
-      : specifications2ModuleError ? "model-unavailable" : "",
+    moduleReady: specifications2ProductionModuleReady,
+    serverReadReady: specifications2ProductionModuleReady,
+    serverReadFailure: specifications2ProductionModuleError ? "model-unavailable" : "",
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
@@ -5878,123 +5690,41 @@ function canEditSpecifications2WithSignedRole() {
 const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
   getActivation: getSpecifications2ReactActivation,
   getPayload: () => {
-    const localQa = getSpecifications2ReactLocalQaOverrides();
-    const activation = getSpecifications2ReactActivation();
-    if (activation.accessMode === "react") {
-      const productionPayload = getSpecifications2ProductionPayload();
-      const canWrite = canEditSpecifications2WithSignedRole();
-      return {
-        ...productionPayload,
-        capabilities: {
-          ...productionPayload.capabilities,
-          draftEdit: canWrite && productionPayload.capabilities?.draftEdit === true,
-          publication: canWrite && productionPayload.capabilities?.publication === true,
-          rowStructure: canWrite && productionPayload.capabilities?.rowStructure === true,
-          routeEdit: canWrite && productionPayload.capabilities?.routeEdit === true,
-          attachmentBinding: canWrite && productionPayload.capabilities?.attachmentBinding === true,
-          workOrder: canWrite && productionPayload.capabilities?.workOrder === true,
-        },
-      };
-    }
-    const model = getSpecifications2ReactModel();
-    const permanentWrite = activation.accessMode === "react" && canEditSpecifications2WithSignedRole();
-    const publicationCapability = specifications2PublishCommands?.getCapability?.() || {};
+    const productionPayload = getSpecifications2ProductionPayload();
+    const canWrite = canEditSpecifications2WithSignedRole();
     return {
-      model,
+      ...productionPayload,
       capabilities: {
-        draftEdit: localQa.writeEvaluation || permanentWrite,
-        publication: localQa.writeEvaluation || (permanentWrite && publicationCapability.enabled === true),
-        workOrder: (localQa.writeEvaluation || permanentWrite) && model.workOrderReady === true,
+        ...productionPayload.capabilities,
+        draftEdit: canWrite && productionPayload.capabilities?.draftEdit === true,
+        publication: canWrite && productionPayload.capabilities?.publication === true,
+        rowStructure: canWrite && productionPayload.capabilities?.rowStructure === true,
+        routeEdit: canWrite && productionPayload.capabilities?.routeEdit === true,
+        attachmentBinding: canWrite && productionPayload.capabilities?.attachmentBinding === true,
+        workOrder: canWrite && productionPayload.capabilities?.workOrder === true,
       },
     };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
     const activation = getSpecifications2ReactActivation();
-    const payload = command.payload || {};
-    if (activation.accessMode === "react") {
-      if (!specifications2ProductionOwner) return { ok: false, message: "React production model Specifications 2.0 ещё загружается." };
-      if (command.type !== "select-entry" && !canEditSpecifications2WithSignedRole()) {
-        return { ok: false, message: "Нет права изменять спецификацию." };
-      }
-      const result = await specifications2ProductionOwner.execute(command);
-      if (result?.ok && command.type === "select-entry" && result.changed) {
-        render({ skipRememberScroll: true });
-      }
-      if (result?.ok && command.type === "create-work-order") {
-        notifySaveSuccess(result.created
-          ? "Серверный заказ-наряд создан и передан в планирование"
-          : "Существующий серверный заказ-наряд открыт без дублирования");
-      }
-      return result;
+    if (activation.accessMode !== "react") {
+      return { ok: false, message: "Specifications 2.0 недоступны вне permanent React runtime." };
     }
-    const localQa = getSpecifications2ReactLocalQaOverrides();
-    if (command.type === "select-entry") {
-      const entryId = String(payload.entryId || "").trim();
-      const model = getSpecifications2ReactModel();
-      if (!entryId || !(model.registry || []).some((entry) => entry.id === entryId)) return { ok: false, message: "Спецификация больше не входит в реестр." };
-      try {
-        const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
-        localStorage.setItem("mes-specifications-2-registry-v1", JSON.stringify({ ...store, selectedId: entryId }));
-      } catch (_error) {
-        return { ok: false, message: "Локальное состояние выбора повреждено. Обновите страницу." };
-      }
-      if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
-      return { ok: true, id: entryId };
+    if (!specifications2ProductionOwner) return { ok: false, message: "React production model Specifications 2.0 ещё загружается." };
+    if (command.type !== "select-entry" && !canEditSpecifications2WithSignedRole()) {
+      return { ok: false, message: "Нет права изменять спецификацию." };
     }
-    const permanentWrite = getSpecifications2ReactActivation().accessMode === "react" && canEditSpecifications2WithSignedRole();
-    if ((!localQa.writeEvaluation && !permanentWrite) || !["save-draft-row", "publish-draft", "create-work-order"].includes(command.type)) {
-      return { ok: false, message: "Изменение Specifications 2.0 недоступно." };
+    const result = await specifications2ProductionOwner.execute(command);
+    if (result?.ok && command.type === "select-entry" && result.changed) {
+      render({ skipRememberScroll: true });
     }
-    if (command.type === "create-work-order") {
-      const entryId = String(payload.entryId || "").trim();
-      const revisionId = String(payload.revisionId || "").trim();
-      const routeSourceDraftId = String(payload.routeSourceDraftId || "").trim();
-      const quantity = Number(payload.quantity);
-      const confirmRevisionId = String(payload.confirmRevisionId || "").trim();
-      const model = getSpecifications2ReactModel();
-      const selected = model?.selectedEntry;
-      if (!selected || selected.id !== entryId || selected.serverRevision?.id !== revisionId || confirmRevisionId !== revisionId) return { ok: false, message: "Подтверждение относится к другой опубликованной ревизии." };
-      if (!(selected.serverRevision.routes || []).some((route) => String(route.sourceDraftId || "") === routeSourceDraftId)) return { ok: false, message: "Маршрут больше не входит в опубликованную ревизию." };
-      if (!Number.isInteger(quantity) || quantity < 1) return { ok: false, message: "Количество должно быть целым положительным числом." };
-      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `specifications2-work-order:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-      const result = await createSpecifications2WorkOrder({ entryId, revisionId, routeSourceDraftId, quantity, idempotencyKey });
-      if (!result?.ok) return { ok: false, message: result?.error || "PostgreSQL не подтвердил заказ-наряд." };
-      notifySaveSuccess(result.created ? "Серверный заказ-наряд создан и передан в планирование" : "Существующий серверный заказ-наряд открыт без дублирования");
-      return { ok: true, id: String(result.item?.id || result.workOrder?.id || ""), created: result.created === true };
+    if (result?.ok && command.type === "create-work-order") {
+      notifySaveSuccess(result.created
+        ? "Серверный заказ-наряд создан и передан в планирование"
+        : "Существующий серверный заказ-наряд открыт без дублирования");
     }
-    if (command.type === "publish-draft") {
-      const entryId = String(payload.entryId || "").trim();
-      const confirmEntryId = String(payload.confirmEntryId || "").trim();
-      const expectedPreviousRevision = Number(payload.expectedPreviousRevision);
-      const model = getSpecifications2ReactModel();
-      const selected = model?.selectedEntry;
-      if (!entryId || confirmEntryId !== entryId) return { ok: false, message: "Подтверждение относится к другой спецификации." };
-      if (!selected || selected.id !== entryId) return { ok: false, message: "Выбранная спецификация изменилась." };
-      if (!Number.isInteger(expectedPreviousRevision) || expectedPreviousRevision !== Number(selected.publicationRevision || 0)) return { ok: false, message: "Ревизия черновика изменилась. Обновите экран." };
-      if (selected.publicationState !== "changed") return { ok: false, message: "Для публикации нет подтверждённых изменений черновика." };
-      const result = await publishSpecifications2EntryById(entryId, { notify: false, render: false });
-      if (!result?.ok) return { ok: false, conflict: result?.conflict === true, message: result?.conflict ? "Спецификация изменилась в другом сеансе. Обновите данные и повторите публикацию." : result?.error || "Сервер не принял публикацию." };
-      const revision = Number(result.publication?.revision || 0);
-      if (!Number.isInteger(revision) || revision !== expectedPreviousRevision + 1) return { ok: false, message: "Сервер не подтвердил следующую ревизию спецификации." };
-      // A successful publication invalidates the short-lived read cache. The
-      // next React paint must come from the new immutable PostgreSQL revision,
-      // not from the previously confirmed revision still inside its TTL.
-      await refreshSpecifications2PublishedRevision(entryId, { force: true });
-      const authoritative = getSpecifications2ReactModel()?.selectedEntry;
-      if (!authoritative || authoritative.id !== entryId || Number(authoritative.publicationRevision || 0) !== revision || Number(authoritative.serverRevision?.revisionNo || 0) !== revision) return { ok: false, message: "PostgreSQL read-model не подтвердил опубликованную ревизию." };
-      notifySaveSuccess(`Опубликована серверная ревизия ${revision}`);
-      if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
-      return { ok: true, id: entryId, revision };
-    }
-    const result = updateSpecifications2DraftRow(payload.entryId, payload.rowId, payload.value, { renderOnChange: false });
-    if (!result?.ok) return result;
-    notifySaveSuccess("Элемент спецификации изменён");
-    if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
     return result;
-  },
-  requestLegacyRender: () => {
-    if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
   },
 });
 let ganttReactModel = null;
@@ -6043,12 +5773,12 @@ function getGanttReactActivation() {
   }
   return {
     ...runtimeActivation,
-    runtimeReady: Boolean(ganttReactModel) && (runtimeActivation.runtimeMode === "react" || Boolean(ganttRuntime?.isReady?.())),
+    runtimeReady: Boolean(ganttReactModel),
     serverReadReady: planningRuntimeProjectionState.status === "server",
     serverReadFailure: runtimeActivation.runtimeMode === "react" && planningRuntimeProjectionState.status === "fallback"
       ? "read-unavailable"
       : "",
-    runtimeFailure: runtimeActivation.runtimeMode === "react" ? ganttReactRuntimeError : "",
+    runtimeFailure: ganttReactRuntimeError,
     postgresProjectionReady: planningRuntimeProjectionState.status === "server",
     authenticatedAccess: Boolean(authenticatedPerson),
     signedServerSessionReady,
@@ -6086,16 +5816,15 @@ function getGanttReactProductionInput() {
       ganttZoom: ui.ganttZoom,
       expandedRouteIds: Array.from(ui.expandedProjects || []),
       ganttShowQuantity: ui.ganttShowQuantity,
+      activeRouteId: ui.activeRouteId,
+      selectedSlotId: ui.selectedSlotId,
     },
   };
 }
 const ganttReactIslandHost = createGanttReactIslandHost({
   getActivation: getGanttReactActivation,
-  getPayload: () => getReactRuntimeMode("gantt") === "react"
-    ? { productionModel: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule(), refresh: true, slotDrag: canGanttReactReschedule(), slotResize: false } }
-    : { model: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule(), refresh: true, slotDrag: canGanttReactReschedule(), slotResize: false } },
+  getPayload: () => ({ productionModel: ganttReactModel, capabilities: { scheduleEdit: canGanttReactReschedule(), refresh: true, slotDrag: canGanttReactReschedule(), slotResize: false } }),
   getTargetRoot: () => app,
-  requestLegacyRender: () => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); },
   navigate: async (navigation = {}) => {
     if (navigation.type === "refresh") {
       const applied = await hydratePlanningRuntimeProjection({ force: true, renderOnChange: true });
@@ -6128,7 +5857,24 @@ const ganttReactIslandHost = createGanttReactIslandHost({
       return { ok: true };
     }
     if (navigation.type === "jump-today") return { ok: true, ...jumpGanttToToday() };
-    if (navigation.type === "toggle-expanded-routes") return { ok: true, ...toggleAllVisibleGanttRoutes() };
+    if (navigation.type === "toggle-expanded-routes") {
+      const routeIds = [...new Set((Array.isArray(navigation.routeIds) ? navigation.routeIds : [])
+        .map((routeId) => String(routeId || "").trim())
+        .filter(Boolean))];
+      const projection = planningRuntimeProjectionReadModel?.getProjection?.() || null;
+      const projectedRouteIds = new Set((Array.isArray(projection?.routes) ? projection.routes : [])
+        .map((route) => String(route?.id || "").trim())
+        .filter(Boolean));
+      if (!routeIds.length || routeIds.some((routeId) => !projectedRouteIds.has(routeId))) {
+        return { ok: false, message: "Список маршрутов графика изменился. Обновите данные." };
+      }
+      if (!(ui.expandedProjects instanceof Set)) ui.expandedProjects = new Set(ui.expandedProjects || []);
+      const shouldExpand = routeIds.some((routeId) => !ui.expandedProjects.has(routeId));
+      routeIds.forEach((routeId) => shouldExpand ? ui.expandedProjects.add(routeId) : ui.expandedProjects.delete(routeId));
+      persistUiState({ skipRememberScroll: true });
+      render({ skipRememberScroll: true });
+      return { ok: true, expanded: shouldExpand, routeIds };
+    }
     if (navigation.type === "toggle-quantity") return { ok: true, ...toggleGanttQuantityVisibility() };
     return { ok: false, message: "Команда панели Ганта не поддерживается." };
   },
@@ -6140,13 +5886,27 @@ const ganttReactIslandHost = createGanttReactIslandHost({
     const slotId = String(command.slotId || "").trim(); const routeId = String(command.routeId || "").trim(); const operationId = String(command.operationId || "").trim();
     const projection = planningRuntimeProjectionReadModel?.getProjection?.() || null;
     const projectedSlot = (projection?.slots || []).find((slot) => String(slot?.id || "") === slotId);
-    const stateSlot = (planningState?.slots || []).find((slot) => String(slot.id || "") === slotId);
-    if (!projectedSlot || !stateSlot || String(projectedSlot.routeId || projectedSlot.planningOrderId || "") !== routeId || String(projectedSlot.routeStepId || projectedSlot.operationId || "") !== operationId || String(stateSlot.routeStepId || stateSlot.operationId || "") !== operationId) return { ok: false, message: "Слот больше не соответствует выбранной операции." };
-    if (stateSlot.locked || stateSlot.isLocked || isGanttSlotCompleted(stateSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
+    if (!projectedSlot || String(projectedSlot.routeId || projectedSlot.planningOrderId || "") !== routeId || String(projectedSlot.routeStepId || projectedSlot.operationId || "") !== operationId) return { ok: false, message: "Слот больше не соответствует выбранной операции." };
+    if (projectedSlot.locked || projectedSlot.isLocked || isGanttSlotCompleted(projectedSlot)) return { ok: false, message: "Завершённый или заблокированный слот нельзя переносить." };
     const plannedStart = new Date(String(command.plannedStart || ""));
     if (Number.isNaN(plannedStart.getTime()) || plannedStart.getFullYear() < 2000 || plannedStart.getFullYear() > 2100) return { ok: false, message: "Дата начала операции некорректна." };
-    const result = await changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { renderOnConflict: false, requireServerCommand: true });
-    if (result?.committed && result?.rollbackReady === false) return { ok: false, committed: true, code: "compatibility-pending", message: "Слот сохранён в PostgreSQL, но rollback-копия ещё синхронизируется. Не повторяйте перенос; обновите график позже." };
+    const detailResult = await workOrdersReadModel.refreshDetail(routeId, { force: true });
+    const serverItem = detailResult?.ok === true && String(detailResult.item?.id || "") === routeId ? detailResult.item : null;
+    const expectedRevision = Number(serverItem?.concurrencyRevision);
+    if (!Number.isInteger(expectedRevision) || expectedRevision < 1) return { ok: false, message: "Не удалось подтвердить серверную ревизию заказ-наряда." };
+    const result = await changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { expectedRevision, renderOnChange: false, renderOnConflict: false, requireDetailReadback: false, requireServerCommand: true });
+    if (result?.committed && result?.applied !== true) {
+      queueMicrotask(() => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); });
+      return {
+        ok: false,
+        committed: true,
+        noRetry: true,
+        code: result.kind || "readback-pending",
+        message: result.kind === "compatibility-pending"
+          ? "Слот сохранён в PostgreSQL, но rollback-копия ещё синхронизируется. Не повторяйте перенос; обновите график позже."
+          : "Слот сохранён в PostgreSQL, но подтверждённая проекция ещё не загружена. Не повторяйте перенос; обновите график позже.",
+      };
+    }
     if (!result?.applied) return { ok: false, message: result?.kind === "conflict" ? "График изменился в другом сеансе. Экран обновлён — проверьте слот и повторите." : "Начало операции не сохранено владельцем Planning." };
     queueMicrotask(() => { if (ui.activeModule === "gantt") render({ skipRememberScroll: true }); });
     return { ok: true, id: slotId, plannedStart: result.slot?.plannedStart || plannedStart.toISOString() };
@@ -8357,10 +8117,8 @@ async function ensureGanttPlanningSnapshotFallback() {
 }
 function ensureGanttPlanningRuntimeProjection() {
   // A non-initial navigation to Gantt happens after the generic shared-state
-  // handshake. Start the full PostgreSQL projection once, before the lazy
-  // Gantt renderer reaches the legacy collections.  Rendering is gated below
-  // until this promise has either applied PostgreSQL data or completed the
-  // explicit compatibility fallback.
+  // handshake. Start the full PostgreSQL projection once before the React
+  // island builds its typed production model.
   if (hasGanttPlanningProjectionReady()) return Promise.resolve(true);
   if (ganttPlanningProjectionGateLoad) return ganttPlanningProjectionGateLoad;
   ganttPlanningProjectionGateLoad = (async () => {
@@ -8388,8 +8146,8 @@ function ensureGanttPlanningRuntimeProjection() {
 async function hydratePlanningRuntimeProjection({ force = false, renderOnChange = true } = {}) {
   // Both the initial shared-state handshake and the first Gantt render can
   // request this projection in the same browser tick. They must share one
-  // network request; otherwise a slow link spuriously activates the legacy
-  // snapshot fallback while PostgreSQL is already returning the graph.
+  // network request; otherwise a slow link can race the compatibility
+  // snapshot while PostgreSQL is already returning the graph.
   if (force) planningRuntimeProjectionForceRefreshRequested = true;
   if (planningRuntimeProjectionLoad) return planningRuntimeProjectionLoad;
   planningRuntimeProjectionLoad = (async () => {
@@ -9206,17 +8964,20 @@ async function changePlanningRouteStartDate(routeId, planningStartDate, options 
   return { applied: false, kind: result.kind || "unavailable" };
 }
 async function changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart, options = {}) {
-  if (isPlanningLegacyWritesQuiesced()) return { applied: false, kind: "evaluation-quiesced" };
   const requireServerCommand = options.requireServerCommand === true;
-  if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
-  const route = (planningState?.routes || []).find((item) => item.id === routeId);
+  if (!requireServerCommand) return { applied: false, kind: isPlanningLegacyWritesQuiesced() ? "evaluation-quiesced" : "server-required" };
+  if (!await ensurePlanningDomainApiModule()) return { applied: false, kind: "server-required" };
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
+  const serverDetail = workOrdersReadModel.getDetail(routeId);
+  const serverItem = serverDetail && String(serverDetail.id || "") === String(routeId)
+    ? serverDetail
+    : projected;
   const requestedRevision = Number(options.expectedRevision);
   const expectedRevision = Number.isInteger(requestedRevision) && requestedRevision >= 1
     ? requestedRevision
-    : Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
+    : Number(serverItem?.concurrencyRevision);
   const exactSlotId = String(slotId || "").trim();
-  if (!route || !String(operationId || "") || !exactSlotId || !Number.isInteger(expectedRevision)) return { applied: false, kind: requireServerCommand ? "server-required" : "local" };
+  if (!serverItem || !String(operationId || "") || !exactSlotId || !Number.isInteger(expectedRevision)) return { applied: false, kind: "server-required" };
   const result = await workOrdersReadModel.changeSlotSchedule(routeId, operationId, exactSlotId, plannedStart, expectedRevision);
   if (result.ok) {
     const [detailResult, serverProjectionApplied] = await Promise.all([
@@ -9225,20 +8986,32 @@ async function changePlanningSlotSchedule(routeId, operationId, slotId, plannedS
     ]);
     const authoritativeSlot = result.slot;
     if (!authoritativeSlot?.id || String(authoritativeSlot.id) !== exactSlotId) return { applied: false, kind: "unavailable" };
+    const detailItem = detailResult?.ok === true && String(detailResult.item?.id || "") === String(routeId)
+      ? detailResult.item
+      : null;
+    const detailOperation = (Array.isArray(detailItem?.operations) ? detailItem.operations : [])
+      .find((item) => String(item?.id || item?.routeStepId || item?.operationId || "") === String(operationId));
+    const detailSlot = detailOperation?.slot && typeof detailOperation.slot === "object" ? detailOperation.slot : null;
+    const refreshedProjection = planningRuntimeProjectionReadModel?.getProjection?.() || null;
+    const projectedSlot = (Array.isArray(refreshedProjection?.slots) ? refreshedProjection.slots : [])
+      .find((item) => String(item?.id || "") === exactSlotId);
+    const authoritativeStart = new Date(String(authoritativeSlot.plannedStart || "")).getTime();
+    const detailStart = new Date(String(detailSlot?.plannedStart || "")).getTime();
+    const projectionStart = new Date(String(projectedSlot?.plannedStart || "")).getTime();
+    const detailReady = Boolean(detailSlot)
+      && String(detailSlot.id || "") === exactSlotId
+      && Number.isFinite(authoritativeStart)
+      && detailStart === authoritativeStart;
+    const projectionReady = serverProjectionApplied === true
+      && String(projectedSlot?.routeId || projectedSlot?.planningOrderId || "") === String(routeId)
+      && String(projectedSlot?.routeStepId || projectedSlot?.operationId || "") === String(operationId)
+      && Number.isFinite(authoritativeStart)
+      && projectionStart === authoritativeStart;
     const rollbackReady = result.compatibilityReady === true;
-    if (serverProjectionApplied) return rollbackReady
-      ? { applied: true, committed: true, rollbackReady: true, slot: authoritativeSlot }
-      : { applied: false, committed: true, rollbackReady: false, kind: "compatibility-pending", slot: authoritativeSlot };
-    planningState.routes = planningState.routes.map((item) => item.id === routeId
-      ? { ...item, domainConcurrencyRevision: result.item.concurrencyRevision, updatedAt: result.item.updatedAt || item.updatedAt }
-      : item);
-    planningState.slots = planningState.slots.map((slot) => String(slot.id) === String(authoritativeSlot.id)
-      ? { ...slot, plannedStart: authoritativeSlot.plannedStart, plannedEnd: authoritativeSlot.plannedEnd, updatedAt: result.item.updatedAt || slot.updatedAt }
-      : slot);
-    invalidateWeeklyPlanningPeriod();
-    return rollbackReady
-      ? { applied: true, committed: true, rollbackReady: true, slot: authoritativeSlot }
-      : { applied: false, committed: true, rollbackReady: false, kind: "compatibility-pending", slot: authoritativeSlot };
+    if (options.requireDetailReadback !== false && !detailReady) return { applied: false, committed: true, noRetry: true, rollbackReady, projectionReady, kind: "readback-pending", slot: authoritativeSlot };
+    if (!projectionReady) return { applied: false, committed: true, noRetry: true, rollbackReady, projectionReady: false, kind: "projection-pending", slot: authoritativeSlot };
+    if (!rollbackReady) return { applied: false, committed: true, noRetry: true, rollbackReady: false, projectionReady: true, kind: "compatibility-pending", slot: authoritativeSlot };
+    return { applied: true, committed: true, rollbackReady: true, projectionReady: true, slot: authoritativeSlot };
   }
   if (result.kind === "conflict") {
     await Promise.all([
@@ -9246,7 +9019,6 @@ async function changePlanningSlotSchedule(routeId, operationId, slotId, plannedS
       workOrdersReadModel.refreshDetail(routeId, { force: true }),
       hydratePlanningRuntimeProjection({ force: true, renderOnChange: options.renderOnConflict !== false }),
     ]);
-    notifySaveSuccess("Срок уже изменён в другом сеансе. Экран обновлён.");
     if (options.renderOnConflict !== false) render();
   }
   return { applied: false, kind: requireServerCommand && result.kind === "unavailable" ? "server-required" : result.kind || "unavailable" };
@@ -10819,7 +10591,6 @@ function initializePlanningCoreServiceModule() {
     authPrototypePinDraft = "";
     authPrototypeKeypadDigits = [];
   },
-  routeMatchesGanttFilters: (...args) => ganttRuntime?.isReady?.() ? routeMatchesGanttFilters(...args) : true,
   saveFeedbackTimer,
   saveUxRefreshTimer,
   scaleConfig,
@@ -10883,18 +10654,11 @@ function initializeModuleRuntime() {
     },
     specifications2: {
       render: () => {
-        const permanentReact = getReactRuntimeMode("specifications2") === "react";
-        if (permanentReact) ensureSpecifications2ProductionModule();
-        else ensureSpecifications2Module();
-        const reactDecision = specifications2ReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return specifications2ReactIslandHost.renderTarget();
-        if (permanentReact) return specifications2ReactIslandHost.renderTarget();
-        return renderSpecifications2Page();
+        ensureSpecifications2ProductionModule();
+        specifications2ReactIslandHost.prepareRender();
+        return specifications2ReactIslandHost.renderTarget();
       },
-      bind: () => {
-        if (getReactRuntimeMode("specifications2") === "react" || specifications2ReactIslandHost.isReactEligible()) return;
-        bindSpecifications2Events();
-      },
+      bind: () => {},
       afterRender: () => { void specifications2ReactIslandHost.mount(); },
     },
     authPrototype: {
@@ -11166,76 +10930,6 @@ function applyUiDomainFieldContract() {
 }
 
 const LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE = "На время проверки даты старта изменения данных в legacy-разделах приостановлены. Доступны просмотр и навигация; единственная запись — дата старта в React-блоке.";
-const GANTT_LEGACY_MUTATION_CONTROL_SELECTOR = [
-  "#dependencyEditButton",
-  "#refreshButton",
-  "#optimizePlanButton",
-  "#ganttOptimizationForm",
-  "#slotForm",
-  "[data-slot-quantity]",
-  "[data-resize-slot]",
-  "[data-dependency-edit-route]",
-  "[data-edit-slot]",
-  "[data-cycle-status]",
-  "[data-delete-slot]",
-  "[data-find-window-slot]",
-  "[data-cascade-slot]",
-  "[data-toggle-lock-slot]",
-  "[data-fix-warning]",
-  "[data-fix-all-warnings]",
-  "[data-confirm-approve]",
-].join(",");
-const GANTT_LEGACY_MUTATION_SELECTOR = `${GANTT_LEGACY_MUTATION_CONTROL_SELECTOR},.operation-slot`;
-
-function getPlanningLegacyMutationSelector() {
-  if (ui?.activeModule === "gantt") return GANTT_LEGACY_MUTATION_SELECTOR;
-  return "";
-}
-
-function isPlanningLegacyMutationEvent(event) {
-  if (!isPlanningLegacyWritesQuiesced()) return false;
-  const selector = getPlanningLegacyMutationSelector();
-  const target = event?.target;
-  if (!selector || !target?.closest?.(selector)) return false;
-  // A single click on a slot is a read/focus interaction. Keep it available;
-  // only drag/resize (pointerdown), double-click editing and explicit slot
-  // controls are domain mutations during the bounded read-only window.
-  if (ui?.activeModule === "gantt"
-    && event.type === "click"
-    && target.closest(".operation-slot")
-    && !target.closest(GANTT_LEGACY_MUTATION_CONTROL_SELECTOR)) return false;
-  return true;
-}
-
-function blockPlanningLegacyMutationEvent(event) {
-  if (!isPlanningLegacyMutationEvent(event)) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  if (["click", "dblclick", "submit"].includes(event.type)
-    || (event.type === "keydown" && ["Enter", " "].includes(event.key))) {
-    notifySaveSuccess(LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
-  }
-}
-
-function bindPlanningLegacyWriteQuiesceGuard() {
-  if (app.dataset.planningLegacyWriteGuardBound === "1") return;
-  app.dataset.planningLegacyWriteGuardBound = "1";
-  ["click", "dblclick", "submit", "change", "input", "keydown", "pointerdown"].forEach((eventName) => {
-    app.addEventListener(eventName, blockPlanningLegacyMutationEvent, true);
-  });
-}
-
-function disablePlanningLegacyMutationTarget(element) {
-  const targets = element.matches?.("form")
-    ? [element, ...element.querySelectorAll("button, input, select, textarea")]
-    : [element];
-  targets.forEach((target) => {
-    target.classList?.add("is-planning-write-quiesced");
-    target.setAttribute?.("aria-disabled", "true");
-    target.setAttribute?.("title", LEGACY_DOMAIN_WRITE_PAUSE_MESSAGE);
-    if ("disabled" in target) target.disabled = true;
-  });
-}
 
 function applyPlanningLegacyWriteQuiesceContract() {
   const active = isLegacyDomainWritesQuiesced();
@@ -11244,12 +10938,6 @@ function applyPlanningLegacyWriteQuiesceContract() {
   // across an atomic release where the older public flag may still exist.
   app.dataset.planningLegacyWritesQuiesced = active ? "true" : "false";
   if (!active) return;
-
-  if (["planning", "gantt"].includes(String(ui?.activeModule || ""))) {
-    bindPlanningLegacyWriteQuiesceGuard();
-    const selector = getPlanningLegacyMutationSelector();
-    if (selector) app.querySelectorAll(selector).forEach(disablePlanningLegacyMutationTarget);
-  }
 
   if (app.querySelector("[data-legacy-domain-write-pause]")) return;
   const shell = app.querySelector("main.app-shell[data-layout='app-shell']");
@@ -11331,133 +11019,21 @@ function renderCurrentModule(options = {}) {
     }
 
     void ensureGanttPlanningRuntimeProjection();
-    const ganttPermanentReact = getReactRuntimeMode("gantt") === "react";
-    const renderGanttReactShell = () => {
-      const decision = ganttReactIslandHost.prepareRender();
-      if (!decision.activateReact) return false;
-      app.innerHTML = renderUiAppShell({
-        pageId: "gantt",
-        className: "planning-app-shell planning-gantt-shell",
-        blueprint: getMesModuleBlueprintDefinition("gantt"),
-        body: ganttReactIslandHost.renderTarget(),
-      });
-      bindGlobalNavigation();
-      void ganttReactIslandHost.mount();
-      return true;
-    };
-
-    if (!hasGanttPlanningProjectionReady()) {
-      if (ganttPermanentReact) {
-        ganttReactModel = null;
-        renderGanttReactShell();
-        return;
-      }
-      const fallbackUnavailable = planningRuntimeProjectionState.status === "fallback"
-        && sharedStateStatus.enabled
-        && ganttPlanningFallbackAttempted;
-      app.innerHTML = renderUiAppShell({
-        pageId: "gantt",
-        className: "planning-app-shell planning-gantt-shell",
-        blueprint: getMesModuleBlueprintDefinition("gantt"),
-        body: renderUiEmptyState({
-          title: fallbackUnavailable ? "Не удалось подготовить график" : "Загружаем график",
-          description: fallbackUnavailable
-            ? "Серверный план и резервная копия сейчас недоступны. Обновите страницу и повторите попытку."
-            : "Получаем актуальный производственный план.",
-        }),
-      });
-      bindGlobalNavigation();
-      return;
-    }
-
-    if (ganttPermanentReact) {
-      ganttReactModel = getGanttReactProductionInput();
-      ganttReactRuntimeError = ganttReactModel ? "" : "model-unavailable";
-      renderGanttReactShell();
-      return;
-    }
-
-    if (!ganttRuntime.isReady()) {
-      if (!ganttReactRuntimeError) void ganttRuntime.load()
-        .then(() => {
-          ganttReactRuntimeError = "";
-          render({ skipRememberScroll: true });
-        })
-        .catch((error) => {
-          console.error("[MES] Gantt runtime failed to load", error);
-          app.innerHTML = renderUiAppShell({
-            pageId: "gantt",
-            className: "planning-app-shell planning-gantt-shell",
-            blueprint: getMesModuleBlueprintDefinition("gantt"),
-            body: renderUiEmptyState({
-              title: "Не удалось загрузить график",
-              description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
-            }),
-          });
-          bindGlobalNavigation();
-        });
-      app.innerHTML = renderUiAppShell({
-        pageId: "gantt",
-        className: "planning-app-shell planning-gantt-shell",
-        blueprint: getMesModuleBlueprintDefinition("gantt"),
-        body: renderUiEmptyState({
-          title: "Загружаем график",
-          description: "Подготавливаем производственный план.",
-        }),
-      });
-      bindGlobalNavigation();
-      return;
-    }
-
-    const ganttDataStartedAt = renderStartedAt ? performance.now() : 0;
-    recoverPlanningStateFromStorageIfRuntimeEmpty("gantt-render");
-    const scaleStart = fromDateInput(ui.windowStart);
-    const scaleInfo = buildGanttScaleInfo(ui.scale, scaleStart, getTimelineCount(ui.scale, scaleStart));
-    const rows = buildRows(scaleInfo);
-    const rowLayout = buildRowLayout(rows);
-    const slotPlacementMap = buildSlotPlacementMap(rows, scaleInfo);
-    const sharedNonWorkingIntervals = buildVisibleSharedNonWorkingIntervals(rows, scaleInfo);
-    const warningsContext = getSlotWarnings(planningState);
-    recordRenderPhase("gantt data model", ganttDataStartedAt);
     const ganttDomStartedAt = renderStartedAt ? performance.now() : 0;
-    const ganttPlanningProjectionSource = planningRuntimeProjectionState.status === "fallback"
-      ? "snapshot-fallback"
-      : planningRuntimeProjectionState.status;
-    ganttReactModel = getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, ganttPlanningProjectionSource);
-    if (renderGanttReactShell()) {
-      recordRenderPhase("gantt React island", ganttDomStartedAt);
-      return;
-    }
+    const projectionReady = hasGanttPlanningProjectionReady();
+    ganttReactModel = projectionReady ? getGanttReactProductionInput() : null;
+    ganttReactRuntimeError = projectionReady && !ganttReactModel ? "model-unavailable" : "";
+    ganttReactIslandHost.prepareRender();
     app.innerHTML = renderUiAppShell({
       pageId: "gantt",
       className: "planning-app-shell planning-gantt-shell",
       blueprint: getMesModuleBlueprintDefinition("gantt"),
-      body: `
-        <section class="planner-workspace planner-workspace-gantt-only" data-layout="planning-page" aria-label="Рабочая область планирования">
-          ${renderToolbar()}
-          <section class="planner-frame" aria-label="Производственный план">
-            <div class="gantt-shell ${ui.ganttDependencyEditMode ? "is-dependency-editing" : ""}" data-layout="gantt" data-gantt-shell data-ui-component="GanttRuntime" data-ui-runtime="gantt-v1" data-gantt-planning-projection-source="${escapeAttribute(ganttPlanningProjectionSource)}">
-              <div class="gantt-canvas" data-ui-component="GanttCanvas" style="--left-width:${LEFT_WIDTH}px; --timeline-width:${scaleInfo.width}px; --total-height:${rowLayout.totalHeight}px;">
-                ${renderTimeline(scaleInfo)}
-                <div class="rows-layer" data-ui-component="GanttRowsLayer" style="top:${TIMELINE_HEIGHT}px;">
-                  ${rows.map((row) => renderRow(row, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap, sharedNonWorkingIntervals)).join("")}
-                </div>
-                ${renderDependencies(rows, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap)}
-                ${renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap)}
-              </div>
-            </div>
-          </section>
-        </section>
-        ${renderSlotDrawer(warningsContext.slotWarningMap)}
-      `,
-      modals: `${renderGanttOptimizationModal()}${renderEditorModal()}${renderSplitModal()}${renderConfirmModal()}`,
+      body: ganttReactIslandHost.renderTarget(),
     });
-
     bindGlobalNavigation();
-    bindEvents(scaleInfo, rows, rowLayout);
-    bindConfirmEvents();
-    restoreScroll();
-    recordRenderPhase("gantt DOM and bindings", ganttDomStartedAt);
+    void ganttReactIslandHost.mount();
+    recordRenderPhase("gantt React island", ganttDomStartedAt);
+    return;
   } finally {
     const contractsStartedAt = renderStartedAt ? performance.now() : 0;
     applyUiRuntimeContracts();
@@ -11484,6 +11060,7 @@ function getModuleScrollSnapshot() {
     ".modal",
     ".planning-detail-body",
     "[data-layout='table']",
+    ".gantt-react-scroll",
   ];
   const seen = new Set();
   const elements = selectors
@@ -12009,12 +11586,9 @@ function deleteDirectoryStateRow(...args) { return appEventsService.deleteDirect
 // for drawing the first module, so keep that boundary deliberately no-op-safe.
 function rememberScroll(...args) { return appEventsService?.rememberScroll?.(...args); }
 function restoreScroll(...args) { return appEventsService?.restoreScroll?.(...args); }
-function updateDependencyClip(...args) { return appEventsService.updateDependencyClip(...args); }
 
-// Modal dismissal is used by every module, including lazy modules that open
-// before the Gantt implementation has loaded.  Keep this small shared reset
-// independent of the Gantt facade.  The Gantt runtime retains its own
-// closeModals implementation for Gantt-local bindings after that chunk loads.
+// Modal dismissal is shared by every module and stays independent from the
+// permanently mounted React Gantt runtime.
 function closeAppModals() {
   ui.selectedSlotId = null;
   ui.editor = null;
@@ -12249,440 +11823,6 @@ function updateClockOnly() {
   const clock = app.querySelector("[data-clock]");
   if (clock) clock.textContent = formatDateTime(ui.now);
 }
-
-let ganttRuntime;
-const {
-  renderToolbar,
-  renderGanttOptimizationModal,
-  renderPlanningDirectorCommand,
-  renderDirectorFlowStep,
-  renderTimeline,
-  renderGanttTimelineWeekGroup,
-  renderGanttTimelineDayCell,
-  getGanttWeekBoundaries,
-  renderGanttWeekBoundaryLayer,
-  renderRow,
-  parseShiftMinutes,
-  getWorkCenterCalendar,
-  isScheduleWorkDay,
-  getCalendarWorkCenterId,
-  getCalendarWorkCenter,
-  getGanttRowCalendar,
-  getGanttRowCalendarWorkCenterId,
-  getWorkingIntervalsForCalendar,
-  getWorkingIntervalsForDay,
-  getWorkingIntervalsBetween,
-  snapToWorkingTime,
-  addWorkingDuration,
-  getWorkingDurationBetween,
-  minuteToDate,
-  addCalendarDays,
-  addNonWorkingSegment,
-  buildVisibleSharedNonWorkingIntervals,
-  removeSharedNonWorkingIntervals,
-  buildNonWorkingSegments,
-  renderNonWorkingLayer,
-  renderRowLabel,
-  getGanttLinkedRecordEntries,
-  getGanttFactRecordEntries,
-  isGanttFactRecordReported,
-  sumGanttFactRecords,
-  getGanttSlotFactQuantity,
-  getShiftMasterAssignmentQuantity,
-  getShiftMasterAssignmentsForGanttSlot,
-  getShiftMasterBoardAssignmentEntriesForGanttSlot,
-  getShiftMasterBoardFactEntriesForGanttSlot,
-  getAuthSessionFactEntriesForGanttSlot,
-  getGanttSlotOperationalState,
-  getGanttSlotOperationalSegmentState,
-  formatGanttRowMetricQuantity,
-  getGanttRowMetrics,
-  renderGanttRowMetricCells,
-  renderRouteTaskMini,
-  renderProjectRouteMini,
-  renderTodayMarker,
-  getSlotTransferBatchVisual,
-  renderSlotTransferBatchVisual,
-  normalizeGanttOperationalQuantity,
-  formatGanttOperationalQuantity,
-  toGanttOperationalPercent,
-  makeGanttOperationalSegment,
-  getGanttAssignmentSegments,
-  getGanttCompositeOperationalSegments,
-  formatGanttOperationalDelta,
-  formatGanttOperationalSignedDelta,
-  getGanttSlotHoverSummaryText,
-  getGanttOperationalMetaText,
-  renderGanttOperationalSegments,
-  renderGanttSlotOperationalLayer,
-  getGanttSlotGeometryRadius,
-  getSlotSegmentEdgeClass,
-  renderSlot,
-  renderGanttSlotLine,
-  getGanttQuantityLabelMode,
-  getSlotRouteMeta,
-  getSlotVisualRect,
-  distributeQuantityAcrossWorkingSegments,
-  getSlotWorkingVisualSegments,
-  getSlotNonWorkingVisualSegments,
-  isTransferBatchDependencyPair,
-  renderTransferGateMarkers,
-  renderDependencies,
-  getGanttDependencyRouteKey,
-  getActiveGanttDependencyRouteStore,
-  applyGanttDependencyRouteOffsets,
-  renderGanttDependencyEditControls,
-  buildDependencySlotMaskRects,
-  renderGanttSnapOverlay,
-  getDependencyConnectionRect,
-  clipDependencyRectToTimeline,
-  getDependencyTimelineAnchorRect,
-  shouldRenderDependencyBetweenTimelineAnchors,
-  buildDependencyPathAroundSlots,
-  buildGanttFinishStartDependencyPoints,
-  compactDependencyPointObjects,
-  dependencyRouteBacktracksOverStart,
-  getDependencyStartDetourPoint,
-  getDependencyObstacleRects,
-  routeDependencyPointsAroundSlots,
-  buildDependencyOuterCorridorCandidates,
-  getDependencyObstacleExtents,
-  getDependencyPathObstacleRects,
-  getShortestDependencyPath,
-  getBestConstrainedDependencyPath,
-  compareDependencyPathScore,
-  compareDependencyPathLength,
-  getDependencyPathLength,
-  getDependencyPathBendCount,
-  dependencyPathBacktracksOverStart,
-  findDependencyPathObstacle,
-  dependencyPathIntersectsObstacles,
-  countDependencyPathObstacleHits,
-  findDependencySegmentObstacle,
-  dependencySegmentIntersectsRect,
-  compactDependencyPoints,
-  getDependencyPathPointsBeforeArrow,
-  buildDependencyOrthogonalPath,
-  buildDependencyPathWithLineJumps,
-  getDependencyRoundedCornerData,
-  groupDependencyJumpsBySegment,
-  appendDependencySegmentWithLineJumps,
-  getRenderableDependencyJumps,
-  getDependencyJumpPoint,
-  toDependencyPoint,
-  getDependencyPointDistance,
-  getDependencyCrossingJumpsByRoute,
-  getDependencyRenderRoutesWithSeparatedHorizontals,
-  dependencyHorizontalSegmentsOverlap,
-  getDependencyHorizontalTrackY,
-  applyDependencyHorizontalTrackDetours,
-  getDependencyRouteCrossings,
-  getDependencyCrossingJumpTarget,
-  getDependencyCrossingGapRadius,
-  getDependencyRouteSegments,
-  getDependencySegmentCrossing,
-  getDependencyOrthogonalSegmentCrossing,
-  buildDependencyPath,
-  roundedOrthogonalPath,
-  normalize,
-  distance,
-  isSameDirection,
-  round,
-  renderIssueDock,
-  renderPlanningAssistantDock,
-  formatWarningType,
-  renderSlotDrawer,
-  renderDrawerRouteSequence,
-  renderEditorModal,
-  renderSplitModal,
-  bindEvents,
-  bindSlotForm,
-  bindSplitForm,
-  toggleGanttDependencyEditMode,
-  beginGanttDependencyRouteDrag,
-  updateGanttDependencyRouteDraft,
-  setGanttDependencyDraftOffset,
-  beginDrag,
-  suppressNextGanttSlotClick,
-  shouldSuppressGanttSlotClick,
-  rowFromPointer,
-  placeSlotInNearestWindow,
-  moveSlotToNearestWindow,
-  toggleSlotLock,
-  autoFixAllWarnings,
-  applyWarningFixInPlace,
-  autoFixWarning,
-  savePlanSnapshot,
-  updateSlotQuantity,
-  cycleSlotStatus,
-  deleteSlotConfirmed,
-  focusSlot,
-  focusRoute,
-  focusProject,
-  closeModals,
-  buildRows,
-  getRouteGanttResourceRows,
-  buildRowLayout,
-  buildSlotPlacementMap,
-  getGanttReactModel,
-  getScaledRowHeight,
-  calculateSlotPlacements,
-  getWeekSlotHeight,
-  getSlotTop,
-  getSlotHeight,
-  getProjectCenters,
-  getRouteCenters,
-  getSlotsForProjectCenter,
-  getRouteStepIds,
-  getSlotRoute,
-  getRouteSlots,
-  slotMatchesRouteWorkCenterId,
-  getSlotsForRouteCenter,
-  getSlotsForRouteStep,
-  getSlotsForRouteResource,
-  getGanttCenterRouteWorkCenterId,
-  ganttCenterMatchesFilter,
-  ganttRouteStepMatchesFilter,
-  ganttSlotMatchesFilter,
-  getProjectSummarySlots,
-  getRouteSummarySlots,
-  projectMatchesFilters,
-  routeMatchesGanttFilters,
-  getRowSlots,
-  getVisibleSlotRowId,
-} = (ganttRuntime = createLazyGanttRuntimeModule({
-  active: false,
-  addMs,
-  AGGREGATE_SLOT_HEIGHT,
-  AGGREGATE_SLOT_TOP,
-  app,
-  applyRecalculatedSlotTiming,
-  applyGanttRowToSlot,
-  areAllVisibleProjectsExpanded,
-  attributes: {},
-  best: null,
-  bomListId: "",
-  buildBacklogItems,
-  buildWorkloadRows,
-  button: null,
-  byId,
-  calculatePlannedEndByQuantity,
-  calculateProjectProgress,
-  calculateQuantityByDuration,
-  changePlanningSlotSchedule,
-  calculationType: "",
-  candidate: null,
-  capacity: 0,
-  cascadeIfEnabled,
-  cleanDateTime,
-  cleanOptionalDateTime,
-  cloneGanttDependencyRouteStore,
-  code: "",
-  compactVisibleGanttChains,
-  currentWorkCenterId: "",
-  dateToX,
-  DAY_MS,
-  days: [],
-  DEPENDENCY_CROSSING_GAP_RADIUS,
-  DEPENDENCY_HORIZONTAL_TRACK_GAP,
-  deviationComment: "",
-  deviationNotes: [],
-  draft: null,
-  escapeHtml,
-  extendTimelineIfNeeded,
-  field: "",
-  findFreeWindow,
-  focus,
-  formatDate,
-  formatDateTime,
-  formatDuration,
-  formatShortDate,
-  formatWorkShift,
-  fulfillmentMode: "",
-  GANTT_DEPENDENCY_ARROW_BASE_REF_X,
-  GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE,
-  GANTT_DEPENDENCY_ROUTE_VERSION,
-  GANTT_SLOT_STATUS_LABELS,
-  GANTT_SLOT_STATUS_VALUES,
-  ganttScrollRestoreInProgress,
-  getBatch,
-  getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null,
-  getDefaultOperationCalculationType,
-  getDefaultWorkMode,
-  getDependencyPairs,
-  getEarliestRouteStart,
-  getGanttDependencyArrowLength,
-  getGanttDependencyEntryWidth,
-  getGanttOptimizationWorkOrders,
-  getGanttResourceForSlot,
-  getGanttSlotStatusClass,
-  getGanttSlotStatusView,
-  getGanttSnapMs,
-  getGanttSnapWidth,
-  getGanttZoomPercent,
-  getWeekNumber,
-  getMainRouteDependencyReadiness,
-  getOperationMapItem,
-  getPlanningResourceForRouteStep,
-  getPlanningRouteOrderState,
-  getPlanningWorkCenters,
-  getProductionContexts,
-  getProject,
-  getProjectDeadlineState,
-  getProjectDisplayName,
-  getProjectRouteForModule,
-  getProjectRouteSteps,
-  getPlanningRouteQuantity,
-  getRouteBomList,
-  getRouteBufferMs,
-  getRouteFlowLaunchSettings,
-  getRouteForStep,
-  getRouteInstructionWorkCenterId,
-  getRouteNeighbor,
-  getRoutePlanningBatches,
-  getRoutePlanningContext,
-  getRoutePlanningOrderWipBranchDetails,
-  getRouteProductionId,
-  getRouteSpecification,
-  getRouteStepFlowModel,
-  getRouteStepPlanningAssignmentForSlot,
-  getRouteStepSelectedPlanningWorkCenterId,
-  getRouteStepsForModule,
-  getRouteStepTaskId,
-  getRuntimePlanningState,
-  getResourceRowId,
-  getSlotCalendarDurationMs,
-  getSlotDurationHours,
-  getSlotEffectiveOperationContext,
-  getSlotOperationFlow,
-  getSlotPlanningOrderId,
-  getSlotProductionContextId,
-  getSlotRequiredDurationMs,
-  getSlotRouteId,
-  getSlotRouteTaskId,
-  getSlotWarnings,
-  getSlotWorkingDurationMs,
-  getSpecificationByProjectId,
-  getVisibleGanttRoutes,
-  getWorkCalendarLabel,
-  getWorkCenter,
-  getSmtLineIdFromWorkCenterId,
-  group: null,
-  groups: [],
-  icon,
-  input: null,
-  isGanttRouteExpanded,
-  isGanttSlotActive,
-  isGanttSlotCompleted,
-  isManufacturingOutputReceiptRouteStep,
-  isManufacturingOutputReceiptSlot,
-  isoLocal,
-  jumpGanttToToday,
-  isPlanningUnit: (center) => center?.isPlanningUnit !== false,
-  isPlanningWorkCenter,
-  isSmtLineWorkCenterId,
-  isWarehouseWorkCenterId,
-  isWorkOrderPlanningCanceled,
-  item: null,
-  laborMinutes: 0,
-  LEFT_WIDTH,
-  MAIN_ROUTE_TASK_ID,
-  makeId,
-  mapLegacyWorkCenterId,
-  MES_SMT_WORK_CENTER_IDS,
-  name: "",
-  normalizeBoardsPerPanel,
-  normalizeDispatchExecutorCount,
-  normalizeDispatchLaborMinutes,
-  normalizeGanttDependencyRouteStore,
-  normalizeGanttSlotContent,
-  normalizeGanttZoom,
-  normalizePlainRecord,
-  normalizePlanningLaborPositiveNumber,
-  normalizeQuantity,
-  normalizeShiftMasterAssignment,
-  normalizeShiftMasterBoardQuantity,
-  normalizeShiftMasterExecutorQuantity,
-  normalizeShiftMasterFactQuantity,
-  normalizeWorkMode,
-  normalizeWorkSchedule,
-  notifySaveSuccess,
-  offsets: {},
-  openConfirmDialog,
-  openPlanningForProject,
-  order: 0,
-  overrides: {},
-  persistState,
-  persistUiState,
-  prependTimelineIfNeeded,
-  PRODUCT_COMPOSITION_TERM,
-  PROJECT_ROW_HEIGHT,
-  readonly: false,
-  readyAt: null,
-  record: null,
-  render,
-  renderOperationFlowMap,
-  renderUiDrawerShell,
-  renderUiModalShell,
-  required: false,
-  rescheduleAllGanttSlotsByCurrentCalendars,
-  resourceParticipatesInCalculation,
-  resourceParticipatesInPlanning,
-  routeIndex: 0,
-  routeStepIds: [],
-  routeStepRequiresManualPlanningLine,
-  routeWorkCenterId: "",
-  rowLayout: null,
-  scaleConfig,
-  scaleInfo: null,
-  scrollTop: 0,
-  secondsPerPanel: 0,
-  selected,
-  setGanttZoom,
-  setupMin: 0,
-  sharedNonWorkingIntervals: [],
-  slotEnd: null,
-  slotMatchesPlanningOrder,
-  slotMatchesProductionContext,
-  slotPlacementMap: null,
-  slotStart: null,
-  snapDate,
-  source: null,
-  specificationId: "",
-  specifications: [],
-  STANDARD_SLOT_HEIGHT,
-  STANDARD_SLOT_TOP,
-  startOfDay,
-  startOfWeek,
-  stats: null,
-  stepId: "",
-  style: "",
-  suffix: "",
-  suppressedGanttSlotClick,
-  taskId: "",
-  text: "",
-  TIMELINE_HEIGHT,
-  toDate,
-  toDateInput,
-  toSlotDateTime,
-  toggleAllVisibleGanttRoutes,
-  toggleGanttQuantityVisibility,
-  total: 0,
-  type: "",
-  updateDependencyClip,
-  value: "",
-  version: "",
-  warningsContext: null,
-  WEEK_SLOT_GAP,
-  WEEK_SLOT_HEIGHT,
-  WEEK_SLOT_TOP,
-  WORK_ROW_HEIGHT,
-  workMode: "",
-  workSchedule: null,
-  getUi: () => ui,
-  getPlanningState: () => planningState,
-  getDirectoryState: () => directoryState,
-}));
 
 initializeModuleRuntime();
 rememberSharedUiSignature();

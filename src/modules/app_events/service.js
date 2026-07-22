@@ -1923,34 +1923,26 @@ function deleteDirectoryStateRow(sectionId, row) {
 }
 
 function rememberScroll() {
-  const shell = app.querySelector("[data-gantt-shell]");
+  const shell = app.querySelector(".gantt-react-scroll");
   if (!shell) return;
   ui.scrollLeft = shell.scrollLeft;
   ui.scrollTop = shell.scrollTop;
 }
 
 function restoreScroll() {
-  const shell = app.querySelector("[data-gantt-shell]");
+  const shell = app.querySelector(".gantt-react-scroll");
   if (!shell) return;
   ganttScrollRestoreInProgress = true;
   const maxScrollLeft = Math.max(0, shell.scrollWidth - shell.clientWidth);
   const maxScrollTop = Math.max(0, shell.scrollHeight - shell.clientHeight);
   shell.scrollLeft = Math.min(Math.max(0, Number(ui.scrollLeft || 0)), maxScrollLeft);
   shell.scrollTop = Math.min(Math.max(0, Number(ui.scrollTop || 0)), maxScrollTop);
-  updateDependencyClip(shell);
   window.requestAnimationFrame(() => {
     ganttScrollRestoreInProgress = false;
   });
   window.setTimeout(() => {
     ganttScrollRestoreInProgress = false;
   }, 80);
-}
-
-function updateDependencyClip(shell) {
-  if (!shell) return;
-  app.querySelectorAll(".dependencies-layer, .gantt-snap-overlay").forEach((layer) => {
-    layer.style.setProperty("--dependency-clip-left", `${shell.scrollLeft}px`);
-  });
 }
 
   const api = {
@@ -2024,7 +2016,6 @@ function updateDependencyClip(shell) {
     deleteDirectoryStateRow,
     rememberScroll,
     restoreScroll,
-    updateDependencyClip,
   };
 
   return Object.fromEntries(Object.entries(api).map(([name, fn]) => [name, function appEventsServiceEntry(...args) {

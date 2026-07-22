@@ -1,70 +1,91 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
 
-const app = await readFile("src/app.js", "utf8");
-const runtime = await readFile("src/modules/gantt_runtime/render.js", "utf8");
-const host = await readFile("src/modules/gantt_runtime/react_island_host.js", "utf8");
-const planningCore = await readFile("src/modules/planning_core/service.js", "utf8");
-const scenario = await readFile("experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "utf8");
-const adapter = await readFile("experiments/react-migration/src/modules/gantt/adapter.ts", "utf8");
-const productionModel = await readFile("experiments/react-migration/src/modules/gantt/production-model.ts", "utf8");
+const [app, host, planningCore, appEvents, scenario, adapter, productionModel, completionRegistry] = await Promise.all([
+  readFile("src/app.js", "utf8"),
+  readFile("src/modules/gantt_runtime/react_island_host.js", "utf8"),
+  readFile("src/modules/planning_core/service.js", "utf8"),
+  readFile("src/modules/app_events/service.js", "utf8"),
+  readFile("experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "utf8"),
+  readFile("experiments/react-migration/src/modules/gantt/adapter.ts", "utf8"),
+  readFile("experiments/react-migration/src/modules/gantt/production-model.ts", "utf8"),
+  readFile("src/react_completion_registry.js", "utf8"),
+]);
 const ledger = JSON.parse(await readFile("experiments/react-migration/cutover-ledger.json", "utf8"));
 const policy = JSON.parse(await readFile("react-runtime-policy.json", "utf8"));
 const { scaleConfig } = await import("../src/time.js");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
-const legacyToolbar = runtime.match(/function renderToolbar\(\)[\s\S]*?\n}\n\nfunction renderGanttOptimizationModal/)?.[0] || "";
-const adapterScaleIds = JSON.parse(adapter.match(/const GANTT_SCALES = (\[[^\]]+\]) as const/)?.[1] || "[]");
 const ganttLedger = ledger.islands.find((island) => island.id === "gantt");
+const adapterScaleIds = JSON.parse(adapter.match(/const GANTT_SCALES = (\[[^\]]+\]) as const/)?.[1] || "[]");
+
+for (const path of ["src/modules/gantt_runtime/render.js", "src/modules/gantt_runtime/lazy_facade.js"]) {
+  try {
+    await access(path, constants.F_OK);
+    failures.push(`Retired same-release Gantt runtime still exists: ${path}`);
+  } catch (error) {
+    if (error?.code !== "ENOENT") failures.push(error?.message || String(error));
+  }
+}
 
 expect(policy.surfaces?.gantt === "react", "Gantt normal route must be selected by the signed permanent React policy");
 expect(app.includes('surfaceId: "gantt"') && app.includes("resolveReactRuntimeActivation"), "Gantt activation must consume the signed runtime policy");
-expect(app.includes('planningRuntimeProjectionState.status === "server"'), "Gantt React activation must require the PostgreSQL runtime projection");
-expect(app.includes('react-gantt-evaluation'), "the isolated evaluation rollback route must remain available outside permanent mode");
-expect(host.includes('activation.accessMode === "react"') && host.includes('canFallbackToLegacy: (activation) => activation.accessMode !== "react"'), "permanent Gantt must be eligible and fail closed instead of selecting legacy");
-expect(host.includes("activation.serverReadFailure") && host.includes("activation.runtimeFailure") && host.includes("server-read-pending"), "permanent Gantt must own explicit loading, read-error and model-error shells");
-expect(app.includes('signedSlotScheduleCapabilityReady') && app.includes('planningCapability.capabilities?.slotScheduleEnabled === true'), "permanent slot reschedule must require the signed Planning owner capability");
-expect(app.includes('["planning", "gantt"].includes(ui?.activeModule)'), "signed Planning capability completion must refresh the permanent Gantt command surface");
-expect(app.includes('command.type !== "reschedule-slot"'), "Gantt React host must expose only the typed reschedule command");
-expect(app.includes("await changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { renderOnConflict: false, requireServerCommand: true })"), "Gantt React must send the exact physical slot to the existing Planning schedule owner and forbid local write fallback");
-expect(app.includes('result?.committed && result?.rollbackReady === false') && app.includes('code: "compatibility-pending"'), "Gantt React must surface committed-but-mirror-pending without plain success");
-expect(runtime.includes("serverSchedule.committed && serverSchedule.rollbackReady === false") && runtime.includes("Не повторяйте перенос"), "legacy rollback editor must not duplicate a PostgreSQL commit while its mirror receipt is pending");
-expect(app.includes('authorizeSystemDomainAction("planning", "edit")'), "Gantt React schedule command must recheck Planning edit authorization");
-expect(runtime.includes("function getGanttReactModel"), "legacy/evaluation rollback must retain its established Gantt geometry read model");
-expect(legacyToolbar.includes('id="periodStart"') && legacyToolbar.includes("data-scale=") && legacyToolbar.includes("data-gantt-zoom=") && legacyToolbar.includes("data-toggle-all-projects") && legacyToolbar.includes("data-toggle-gantt-quantity") && legacyToolbar.includes('id="todayButton"') && legacyToolbar.includes('id="refreshButton"'), "legacy toolbar evidence must identify each bounded local control and the separate refresh action");
-expect(!/(workCenterFilter|rowMode|hideSharedNonWorkingZones|type="search"|data-status|data-resource)/.test(legacyToolbar), "the bounded legacy control block must not hide resource, status or search filters");
-expect(runtime.includes("calculateSlotPlacements([slot], scaleInfo, isAggregate)"), "legacy/evaluation rollback must retain its exact placement calculation");
-expect(runtime.includes("getDependencyPairs(planningState).flatMap"), "legacy/evaluation rollback must retain its dependency read model");
-expect(productionModel.includes("buildGanttProductionModel") && productionModel.includes('contract: "postgres-gantt-read-v1"'), "permanent Gantt must own a strict TypeScript production model over the PostgreSQL projection");
-expect(productionModel.includes("GANTT_DEFERRED_READ_FIELDS") && productionModel.includes("working-calendar gaps"), "accelerated typed geometry must document its deferred exact-parity scope");
-expect(!/gantt_runtime\/render\.js|getGanttReactModel|buildRows\(/.test(`${adapter}\n${productionModel}`), "permanent typed adapter/model must not import or call the legacy Gantt model");
-expect(scenario.includes("data-gantt-dependency-detail"), "React Gantt must expose the bounded dependency inspector");
-expect(scenario.includes('type: "reschedule-slot"') && scenario.includes("data-gantt-react-schedule-form"), "React Gantt must present the typed schedule form");
-expect(["refresh", "set-window-start", "set-scale", "set-zoom", "jump-today", "toggle-expanded-routes", "toggle-quantity"].every((type) => scenario.includes(`type: "${type}"`)), "React Gantt toolbar must expose projection refresh and each safe local action as typed navigation");
-expect(JSON.stringify(adapterScaleIds) === JSON.stringify(Object.keys(scaleConfig)), `typed Gantt scale list must exactly match scaleConfig (${Object.keys(scaleConfig).join(", ")})`);
-expect(scenario.includes("data-gantt-react-period") && scenario.includes("data-gantt-react-scale") && scenario.includes("data-gantt-react-zoom") && scenario.includes("data-gantt-react-toggle-expanded-routes") && scenario.includes("data-gantt-react-toggle-quantity") && scenario.includes("data-gantt-react-jump-today"), "React Gantt must render each safe local production-shell control");
-expect(scenario.includes('type: "refresh"') && scenario.includes("data-gantt-react-refresh"), "React Gantt must expose a read-only PostgreSQL projection refresh distinct from calendar recalculation");
-expect(!scenario.includes("onRequestLegacy"), "React Gantt must not expose a normal user-action legacy fallback");
-expect(["refresh", "edit-dependency", "resize", "optimize"].every((action) => scenario.includes(`data-gantt-react-blocked-action=\"${action}\"`)), "ownerless Gantt mutations must be explicitly blocked in React");
-expect(scenario.includes("data-gantt-react-schedule-blocked"), "ownerless start-date sessions must remain visibly blocked in React instead of opening legacy editing");
-expect(scenario.includes("data-react-prototype-marker") && scenario.includes("React TS · прототип"), "accelerated Gantt cutover must expose a visible React TS prototype marker without claiming functional completion");
-expect(host.includes("onNavigate: navigate ? (navigation) => navigate(navigation) : undefined"), "Gantt React host must wire typed toolbar navigation");
-expect(/navigation\.type === "refresh"[\s\S]*hydratePlanningRuntimeProjection\(\{ force: true, renderOnChange: true \}\)/.test(app), "Gantt projection refresh must use the bounded PostgreSQL read owner");
-expect(/navigate: async \(navigation = \{\}\)[\s\S]*navigation\.type === "set-window-start"[\s\S]*persistUiState\(\{ skipRememberScroll: true \}\)[\s\S]*navigation\.type === "set-scale"[\s\S]*navigation\.type === "set-zoom"[\s\S]*setGanttZoom\(navigation\.action\)/.test(app), "Gantt toolbar navigation must reuse the existing UI-state owner and zoom owner");
-expect(/navigation\.type === "jump-today"[\s\S]*jumpGanttToToday\(\)[\s\S]*navigation\.type === "toggle-expanded-routes"[\s\S]*toggleAllVisibleGanttRoutes\(\)[\s\S]*navigation\.type === "toggle-quantity"[\s\S]*toggleGanttQuantityVisibility\(\)/.test(app), "safe React display actions must route to the shared Planning UI-state owner");
-expect(/function jumpGanttToToday\(\)[\s\S]*ui\.windowStart = toDateInput\(startOfDay\(ui\.now\)\)[\s\S]*persistUiState\(\{ skipRememberScroll: true \}\)[\s\S]*function toggleAllVisibleGanttRoutes\(\)[\s\S]*ui\.expandedProjects[\s\S]*function toggleGanttQuantityVisibility\(\)[\s\S]*ui\.ganttShowQuantity = !ui\.ganttShowQuantity/.test(planningCore), "shared Planning UI-state owner must preserve exact legacy today, expansion and quantity semantics");
-expect(/querySelector\("#todayButton"\)[\s\S]*jumpGanttToToday\(\)[\s\S]*querySelector\("\[data-toggle-all-projects\]"\)[\s\S]*toggleAllVisibleGanttRoutes\(\)[\s\S]*querySelector\("\[data-toggle-gantt-quantity\]"\)[\s\S]*toggleGanttQuantityVisibility\(\)/.test(runtime), "legacy and React toolbars must share the same local action owner");
-expect(/querySelector\("#refreshButton"\)[\s\S]*rescheduleAllGanttSlotsByCurrentCalendars\(\)[\s\S]*persistState\(\)/.test(runtime), "refresh must remain classified as a schedule mutation, not a local toolbar action");
-expect(planningCore.includes('scale: scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale'), "all exposed Gantt scales, including weeks, must survive owner-state reload");
-expect(ganttLedger?.normalActionFallback === false, "Gantt normal actions must not switch back to the live legacy renderer");
-expect(["set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today", "refresh-projection", "drag"].every((command) => ganttLedger?.commands?.implemented?.includes(command)), "Gantt ledger must include the typed local controls, projection refresh and owner-backed drag");
-expect(["refresh", "edit-dependency", "resize", "optimize"].every((command) => ganttLedger?.commands?.missing?.includes(command)), "Gantt ledger must keep every ownerless mutation explicit");
-expect(["refresh", "edit-dependency", "resize", "optimize"].every((command) => ganttLedger?.commands?.blocked?.includes(command)), "Gantt ledger must distinguish blocked ownerless actions from legacy fallbacks");
-expect(!scenario.includes("getDependencyPairs") && !scenario.includes("planningState"), "React Gantt must not duplicate dependency or planning ownership");
-expect(app.includes('getReactRuntimeMode("gantt") === "react"') && app.includes("if (ganttPermanentReact)"), "normal Gantt rendering and read fallback gates must branch on permanent React policy");
-expect(app.includes("ganttReactModel = getGanttReactProductionInput();") && app.includes("productionModel: ganttReactModel"), "permanent Gantt must pass the raw PostgreSQL projection to the typed production adapter");
-const permanentCutoverIndex = app.indexOf("ganttReactModel = getGanttReactProductionInput();");
-const legacyLoadIndex = app.indexOf("if (!ganttRuntime.isReady())", permanentCutoverIndex);
-expect(permanentCutoverIndex >= 0 && legacyLoadIndex > permanentCutoverIndex && /renderGanttReactShell\(\);\s*return;/.test(app.slice(permanentCutoverIndex, legacyLoadIndex)), "permanent Gantt must return from React before the legacy runtime load gate");
-expect(!app.includes("MES_REACT_GANTT_WRITE"), "Gantt React must not add a Pilot write flag");
-if (failures.length) { console.error(failures.map((failure) => `FAIL: ${failure}`).join("\n")); process.exit(1); }
+expect(host.includes("canFallbackToLegacy: () => false"), "React Gantt must fail closed without a same-release legacy renderer");
+expect(host.includes('activation.accessMode !== "react"') && host.includes('reason: "react-runtime-required"'), "Non-React activation must remain inside an explicit React error shell");
+expect(!host.includes("requestLegacyRender"), "Gantt host must not expose a legacy callback");
+expect(!app.includes("createLazyGanttRuntimeModule") && !app.includes("ganttRuntime"), "The application graph must not assemble the retired Gantt runtime");
+expect(!app.includes("data-gantt-shell") && !app.includes("GANTT_LEGACY_MUTATION"), "Deleted Gantt DOM and mutation guards must not remain");
+expect(/if \(ui\.activeModule !== "gantt"\)[\s\S]*ensureGanttPlanningRuntimeProjection\(\)[\s\S]*ganttReactIslandHost\.prepareRender\(\)[\s\S]*ganttReactIslandHost\.renderTarget\(\)[\s\S]*ganttReactIslandHost\.mount\(\)/.test(app), "The special Gantt route must mount only the React host");
+expect(app.includes("getGanttReactProductionInput()") && app.includes("productionModel: ganttReactModel"), "React Gantt must receive the PostgreSQL production input");
+expect(app.includes('planningRuntimeProjectionState.status === "server"'), "React Gantt must require the PostgreSQL projection");
+expect(app.includes("signedSlotScheduleCapabilityReady") && app.includes("slotScheduleEnabled === true"), "Slot reschedule must require the signed Planning owner capability");
+expect(app.includes('command.type !== "reschedule-slot"'), "The host must expose only the typed reschedule command");
+expect(app.includes('authorizeSystemDomainAction("planning", "edit")'), "The command owner must retain Planning RBAC");
+const ganttHostStart = app.indexOf("const ganttReactIslandHost = createGanttReactIslandHost({");
+const ganttHostEnd = app.indexOf("function getRolesReactLocalQaOverrides()", ganttHostStart);
+const ganttHostSource = ganttHostStart >= 0 && ganttHostEnd > ganttHostStart ? app.slice(ganttHostStart, ganttHostEnd) : "";
+expect(Boolean(ganttHostSource), "Gantt host source must be available");
+expect(ganttHostSource.includes("workOrdersReadModel.refreshDetail(routeId, { force: true })") && ganttHostSource.includes("expectedRevision"), "React Gantt must obtain the exact server work-order revision before mutation");
+expect(ganttHostSource.includes("changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { expectedRevision, renderOnChange: false, renderOnConflict: false, requireDetailReadback: false, requireServerCommand: true })"), "React Gantt must send the exact physical slot and server revision only to the Planning owner");
+expect(!ganttHostSource.includes("stateSlot") && !ganttHostSource.includes("planningState?.slots"), "React Gantt command validation must not require the compatibility snapshot");
+expect(ganttHostSource.includes("projectedSlot.locked") && ganttHostSource.includes("isGanttSlotCompleted(projectedSlot)"), "React Gantt must validate lock/completion from the PostgreSQL projection");
+expect(ganttHostSource.includes("committed: true") && ganttHostSource.includes("noRetry: true") && ganttHostSource.includes('result.kind || "readback-pending"'), "Every committed pending state must explicitly forbid a blind retry");
+expect(productionModel.includes("buildGanttProductionModel") && productionModel.includes('contract: "postgres-gantt-read-v1"'), "Gantt must own a strict TypeScript production model");
+expect(!/gantt_runtime\/render\.js|getGanttReactModel|buildRows\(/.test(`${adapter}\n${productionModel}`), "Typed Gantt must not call the retired renderer model");
+expect(JSON.stringify(adapterScaleIds) === JSON.stringify(Object.keys(scaleConfig)), "Typed Gantt scales must match the shared time contract");
+expect(scenario.includes('type: "reschedule-slot"') && scenario.includes("data-gantt-react-schedule-form"), "React Gantt must expose the typed schedule form");
+expect(scenario.includes("data-gantt-planning-projection-source={model.projectionSource}"), "React Gantt must expose the exact Planning projection source to boot QA");
+expect(scenario.includes("GANTT_SLOT_DRAG_MIME") && scenario.includes('void commitSchedule(slot, plannedStart, "drag")'), "React Gantt must use the typed drag command");
+expect(scenario.includes('type: "toggle-expanded-routes"; routeIds: string[]') && scenario.includes('navigate({ type: "toggle-expanded-routes", routeIds: visibleRouteIds })'), "React Gantt must send the exact visible route ids when toggling rows");
+expect(["refresh", "set-window-start", "set-scale", "set-zoom", "jump-today", "toggle-expanded-routes", "toggle-quantity"].every((type) => scenario.includes(`type: "${type}"`)), "React Gantt must expose each safe typed navigation command");
+expect(["refresh", "edit-dependency", "resize", "optimize"].every((action) => scenario.includes(`data-gantt-react-blocked-action="${action}"`)), "Ownerless Gantt mutations must remain visibly blocked");
+expect(scenario.includes("data-react-prototype-marker") && scenario.includes("React TS · прототип"), "Gantt must retain an honest accelerated-prototype marker");
+expect(planningCore.includes("function jumpGanttToToday") && planningCore.includes("function toggleGanttQuantityVisibility"), "Date and quantity navigation must remain in the shared Planning owner");
+expect(/navigation\.type === "toggle-expanded-routes"[\s\S]*navigation\.routeIds[\s\S]*projectedRouteIds[\s\S]*ui\.expandedProjects[\s\S]*persistUiState\(\{ skipRememberScroll: true \}\)/.test(ganttHostSource), "Route expansion must update only route ids supplied by the React projection");
+expect(!ganttHostSource.includes("toggleAllVisibleGanttRoutes()"), "React route expansion must not read legacy Planning routes");
+const slotOwnerStart = app.indexOf("async function changePlanningSlotSchedule");
+const slotOwnerEnd = app.indexOf("let planningCoreService", slotOwnerStart);
+const slotOwnerSource = slotOwnerStart >= 0 && slotOwnerEnd > slotOwnerStart ? app.slice(slotOwnerStart, slotOwnerEnd) : "";
+expect(/if \(!requireServerCommand\) return \{ applied: false, kind: isPlanningLegacyWritesQuiesced\(\) \? "evaluation-quiesced" : "server-required" \}/.test(slotOwnerSource), "Slot scheduling must allow the authenticated server owner during legacy-write quiesce and reject local fallback");
+expect(slotOwnerSource.includes("workOrdersReadModel.getDetail(routeId)") && slotOwnerSource.includes("serverItem?.concurrencyRevision"), "Slot scheduling must source fallback concurrency only from the server work-order cache");
+expect(slotOwnerSource.includes("workOrdersReadModel.refreshDetail(routeId, { force: true })") && slotOwnerSource.includes("hydratePlanningRuntimeProjection({ force: true"), "Committed scheduling must force both detail and PostgreSQL projection readback");
+expect(["readback-pending", "projection-pending", "compatibility-pending"].every((kind) => slotOwnerSource.includes(`kind: "${kind}"`)), "Committed pending states must distinguish detail, projection and rollback readiness");
+expect(slotOwnerSource.includes("options.requireDetailReadback !== false && !detailReady"), "Gantt must be able to accept exact physical-slot projection readback when Workbench detail collapses split slots");
+expect(!slotOwnerSource.includes('notifySaveSuccess("Срок уже изменён'), "A scheduling conflict must not emit a false success toast");
+expect(!slotOwnerSource.includes("planningState.routes =") && !slotOwnerSource.includes("planningState.slots =") && !slotOwnerSource.includes("domainConcurrencyRevision"), "Server scheduling must never mutate the legacy fallback model");
+expect(appEvents.includes('app.querySelector(".gantt-react-scroll")'), "Gantt scroll persistence must target the React scroll surface");
+expect(!appEvents.includes("[data-gantt-shell]") && !appEvents.includes("updateDependencyClip") && !appEvents.includes(".dependencies-layer"), "App events must not retain deleted legacy Gantt scroll or dependency-clip hooks");
+expect(planningCore.includes('app.querySelector(".gantt-react-scroll")') && !planningCore.includes("[data-gantt-shell]"), "Planning UI persistence must read the React Gantt scroll surface only");
+expect(/function getModuleScrollSnapshot\(\)[\s\S]*?const selectors = \[[\s\S]*?"\.gantt-react-scroll"/.test(app), "Generic rerender scroll restoration must include the React Gantt scroll surface");
+expect(ganttLedger?.normalActionFallback === false, "Normal Gantt actions must never switch to the deleted renderer");
+expect(["set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today", "refresh-projection", "drag"].every((command) => ganttLedger?.commands?.implemented?.includes(command)), "Ledger must retain the implemented typed command list");
+expect(["refresh", "edit-dependency", "resize", "optimize"].every((command) => ganttLedger?.commands?.blocked?.includes(command)), "Ledger must retain explicit deferred owners");
+expect(completionRegistry.includes('defineCompletionEntry({ id: "gantt", status: PARTIAL'), "Gantt stays PARTIAL until exact geometry and deferred owners are completed");
+expect(!scenario.includes("@blueprintjs") && !host.includes("@blueprintjs"), "Blueprint UI must not enter the React Gantt runtime");
+expect(!app.includes("MES_REACT_GANTT_WRITE"), "Gantt React must not add a new Pilot write flag");
+
+if (failures.length) {
+  console.error(failures.map((failure) => `FAIL: ${failure}`).join("\n"));
+  process.exit(1);
+}
 console.log("Gantt React runtime policy QA: OK");

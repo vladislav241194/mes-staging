@@ -35,7 +35,7 @@ const paths = {
   uiHtml: path.join(rootDir, "src", "ui", "html.js"),
   uiComponents: path.join(rootDir, "src", "ui", "components.js"),
   accessRolesModule: path.join(rootDir, "src", "modules", "access_roles", "render.js"),
-  ganttRuntimeModule: path.join(rootDir, "src", "modules", "gantt_runtime", "render.js"),
+  ganttRuntimeModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "gantt", "GanttScenario.tsx"),
   uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.js"),
   uiHardeningPlanContracts: path.join(rootDir, "src", "ui", "contracts", "hardening-plan-contracts.js"),
   uiRuntimeCoverageQa: path.join(rootDir, "scripts", "ui-runtime-coverage-qa.mjs"),
@@ -418,32 +418,27 @@ checkIncludes("module-smoke не проверяет выпадение special-r
 checkIncludes("module-smoke не запрещает hard-v1 marker вне runtime coverage списка", browserQaSources.join("\n"), "page renders hard-v1 runtime but module is not listed in HARD/PARTIAL UI runtime coverage");
 checkIncludes("module-smoke не запрещает special runtime marker вне special-runtime списка", browserQaSources.join("\n"), "page renders special runtime but module is not listed in SPECIAL_UI_RUNTIME_MODULE_IDS");
 checkIncludes("module-smoke не применяет hard-runtime проверки к alias-страницам", browserQaSources.join("\n"), "await runModuleSpecificSmokeChecks(client, alias.target);");
-checkIncludes("module-smoke не проверяет специализированный GanttRuntime", browserQaSources.join("\n"), "expected data-ui-runtime=gantt-v1");
+checkIncludes("module-smoke не проверяет постоянный React GanttRuntime", browserQaSources.join("\n"), "permanent React island is missing");
 checkIncludes("Живой Гант не маркирует GanttRuntime", ganttRuntimeSource, "data-ui-component=\"GanttRuntime\"");
 checkIncludes("Живой Гант не маркирует GanttCanvas", ganttRuntimeSource, "data-ui-component=\"GanttCanvas\"");
 checkIncludes("Живой Гант не маркирует GanttTimeline", ganttRuntimeSource, "data-ui-component=\"GanttTimeline\"");
 checkIncludes("Живой Гант не маркирует GanttSlot", ganttRuntimeSource, "data-ui-component=\"GanttSlot\"");
-checkIncludes("Живой Гант не маркирует GanttOperationalLayer", ganttRuntimeSource, "data-ui-component=\"GanttOperationalLayer\"");
-checkIncludes("Живой Гант не маркирует GanttDependencyLayer", ganttRuntimeSource, "data-ui-component=\"GanttDependencyLayer\"");
-checkIncludes("Живой Гант не маркирует GanttDependencySlotMask", ganttRuntimeSource, "data-ui-component=\"GanttDependencySlotMask\"");
-checkIncludes("Живой Гант не маркирует GanttDependencySlotMaskRect", ganttRuntimeSource, "data-ui-component=\"GanttDependencySlotMaskRect\"");
-checkIncludes("Живой Гант не маркирует GanttNonWorkingLayer", ganttRuntimeSource, "data-ui-component=\"GanttNonWorkingLayer\"");
-checkIncludes("Живой Гант не маркирует GanttNonWorkingZone", ganttRuntimeSource, "data-ui-component=\"GanttNonWorkingZone\"");
-checkIncludes("Живой Гант не маркирует GanttSnapOverlay", ganttRuntimeSource, "data-ui-component=\"GanttSnapOverlay\"");
-checkIncludes("Живой Гант не маркирует GanttDragGhost", ganttRuntimeSource, "data-ui-component=\"GanttDragGhost\"");
-checkIncludes("Живой Гант не маркирует GanttResizeHandle", ganttRuntimeSource, "data-ui-component=\"GanttResizeHandle\"");
-checkIncludes("module-smoke не проверяет GanttSlot marker drift", browserQaSources.join("\n"), "GanttSlot marker drift");
-checkIncludes("module-smoke не проверяет GanttOperationalLayer", browserQaSources.join("\n"), "operational slots rendered without GanttOperationalLayer");
-checkIncludes("module-smoke не проверяет GanttDependencyLayer", browserQaSources.join("\n"), "GanttDependencyLayer contract is missing");
-checkIncludes("module-smoke не проверяет GanttDependencySlotMask", browserQaSources.join("\n"), "GanttDependencySlotMask contract is missing");
-checkIncludes("module-smoke не проверяет dependency path mask", browserQaSources.join("\n"), "dependency paths without slot readability mask");
-checkIncludes("module-smoke не проверяет opened-state edit surface Ганта", browserQaSources.join("\n"), "selected slot edit surface contract is missing after opening slot");
-checkIncludes("module-smoke не проверяет GanttNonWorkingLayer", browserQaSources.join("\n"), "GanttNonWorkingLayer contract is missing");
-checkIncludes("module-smoke не проверяет GanttNonWorkingZone geometry", browserQaSources.join("\n"), "non-working zones with zero geometry");
-checkIncludes("module-smoke не проверяет drag overlay Ганта", browserQaSources.join("\n"), "drag overlay contract is missing");
-checkIncludes("module-smoke не проверяет drag ghost geometry Ганта", browserQaSources.join("\n"), "drag ghost geometry looks broken");
-checkIncludes("module-smoke не проверяет resize overlay Ганта", browserQaSources.join("\n"), "resize overlay contract is missing");
-checkIncludes("module-smoke не проверяет resize snap guide mode Ганта", browserQaSources.join("\n"), "resize snap guide mode is wrong");
+checkIncludes("Живой React Гант не маркирует GanttRowsLayer", ganttRuntimeSource, "data-ui-component=\"GanttRowsLayer\"");
+checkIncludes("Живой React Гант не публикует источник Planning projection", ganttRuntimeSource, "data-gantt-planning-projection-source={model.projectionSource}");
+checkIncludes("Живой React Гант не содержит drop-lane", ganttRuntimeSource, "data-gantt-react-drop-lane");
+checkIncludes("Живой React Гант не содержит форму серверного переноса", ganttRuntimeSource, "data-gantt-react-schedule-form");
+checkIncludes("Живой React Гант не маркирует отложенные команды", ganttRuntimeSource, "data-gantt-react-blocked-action");
+checkIncludes("module-smoke не запрещает возврат legacy shell Ганта", browserQaSources.join("\n"), "retired legacy shell returned");
+checkIncludes("module-smoke не проверяет React GanttRuntime", browserQaSources.join("\n"), "React GanttRuntime is missing");
+checkIncludes("module-smoke не проверяет React GanttCanvas", browserQaSources.join("\n"), "React GanttCanvas contract is missing");
+checkIncludes("module-smoke не проверяет React GanttTimeline", browserQaSources.join("\n"), "React GanttTimeline contract is missing");
+checkIncludes("module-smoke не проверяет React GanttRowsLayer", browserQaSources.join("\n"), "React GanttRowsLayer contract is missing");
+checkIncludes("module-smoke не проверяет явную маркировку отложенных owner-команд", browserQaSources.join("\n"), "deferred owner actions are not explicitly marked");
+checkIncludes("module-smoke не проверяет fail-closed поверхность команды расписания", browserQaSources.join("\n"), "schedule command must be present or explicitly fail closed");
+checkIncludes("module-smoke не проверяет идентичность React row/lane", browserQaSources.join("\n"), "React row/lane identity drift");
+checkIncludes("module-smoke не проверяет уникальность физических slot ids", browserQaSources.join("\n"), "physical slot ids are missing or duplicated");
+checkIncludes("module-smoke не проверяет геометрию React slot", browserQaSources.join("\n"), "React slot has empty geometry");
+checkIncludes("module-smoke не проверяет выбор точного физического React slot", browserQaSources.join("\n"), "React slot selection did not stay on the exact physical slot");
 checkIncludes("module-smoke должен использовать эталонный MacBook Air 15 viewport", browserQaSources.join("\n"), "macbook-air-15");
 const publicRegistryModuleIds = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: true })
   .map((moduleItem) => moduleItem.id);
@@ -620,9 +615,10 @@ if (!sharedStateQaScript.includes("node scripts/shared-state-functional-qa.mjs")
   fail("scripts.qa:shared-state должен запускать shared-state-functional-qa.mjs");
 }
 if (packageJson.scripts?.["qa:module-smoke:inner"] !== "node scripts/module-smoke-qa.mjs"
-  || !packageJson.scripts?.["qa:module-smoke"]?.includes("scripts/run-with-local-server.mjs")
+  || !packageJson.scripts?.["qa:module-smoke"]?.startsWith("npm run build &&")
+  || !packageJson.scripts?.["qa:module-smoke"]?.includes("scripts/run-with-dist-preview.mjs")
   || !packageJson.scripts?.["qa:module-smoke"]?.includes("npm run qa:module-smoke:inner")) {
-  fail("scripts.qa:module-smoke должен запускаться через local-server wrapper, а inner-команда должна запускать module-smoke-qa.mjs");
+  fail("scripts.qa:module-smoke должен проверять свежий dist через dist-preview wrapper, а inner-команда должна запускать module-smoke-qa.mjs");
 }
 const recursiveSyntaxQa = packageJson.scripts?.["qa:syntax"]?.includes("scripts/syntax-qa.mjs");
 if (!recursiveSyntaxQa && (!packageJson.scripts?.["qa:syntax"]?.includes("src/validation.js")
@@ -643,8 +639,9 @@ if (!functionalScript.includes("npm run qa:shared-state")
   || !functionalScript.includes("npm run qa:roles")) {
   fail("scripts.qa:functional не запускает shared-state, module-smoke, shift-flow, auth и roles gates");
 }
-if (!packageJson.scripts?.["qa:functional"]?.includes("scripts/run-with-local-server.mjs")) {
-  fail("scripts.qa:functional должен запускаться через локальный server wrapper");
+if (!packageJson.scripts?.["qa:functional"]?.startsWith("npm run build &&")
+  || !packageJson.scripts?.["qa:functional"]?.includes("scripts/run-with-dist-preview.mjs")) {
+  fail("scripts.qa:functional должен проверять свежий release dist через dist-preview wrapper");
 }
 if (!localServerWrapperSource.includes("/bootstrap-snapshot.json")) {
   fail("run-with-local-server.mjs должен проверять свежесть bootstrap-snapshot.json, чтобы browser QA не смотрел старый snapshot");
@@ -668,8 +665,9 @@ browserQaScriptFiles.forEach((file, index) => {
   ["qa:roles", "qa:roles:inner"],
   ["qa:boot", "qa:boot:inner"],
 ].forEach(([outerName, innerName]) => {
-  if (!packageJson.scripts?.[innerName] || !packageJson.scripts?.[outerName]?.includes("scripts/run-with-local-server.mjs") || !packageJson.scripts?.[outerName]?.includes(`npm run ${innerName}`)) {
-    fail(`scripts.${outerName} должен запускаться через local-server wrapper и ${innerName}`);
+  const expectedWrapper = outerName === "qa:boot" ? "scripts/run-with-dist-preview.mjs" : "scripts/run-with-local-server.mjs";
+  if (!packageJson.scripts?.[innerName] || !packageJson.scripts?.[outerName]?.includes(expectedWrapper) || !packageJson.scripts?.[outerName]?.includes(`npm run ${innerName}`)) {
+    fail(`scripts.${outerName} должен запускаться через ${expectedWrapper} и ${innerName}`);
   }
 });
 if (/"qa:shift-master"\s*:|"qa:shift-master-v2"\s*:|shift-master-functional-qa|shift-master-v2-functional-qa/.test(JSON.stringify(packageJson.scripts || {}))) {

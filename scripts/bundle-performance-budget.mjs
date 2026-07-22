@@ -52,7 +52,7 @@ const result = {
   planningWorkbenchLegacyChunk,
   planningWorkbenchLegacyRetired: !planningWorkbenchLegacyChunk,
   ganttRuntimeChunk,
-  ganttRuntimeIsDynamic: Boolean(ganttRuntimeChunk) && appSource.includes(ganttRuntimeChunk),
+  ganttRuntimeLegacyRetired: !ganttRuntimeChunk,
 };
 await writeFile(reportPath, `${JSON.stringify(result, null, 2)}\n`);
 if (app.brotliBytes > appBudget) throw new Error(`Startup app bundle is ${app.brotliBytes} B Brotli; budget is ${appBudget} B`);
@@ -60,5 +60,5 @@ if (bootstrap.brotliBytes > bootstrapBudget) throw new Error(`Compact production
 if (!result.dynamicChunksPresent) throw new Error("No dynamic chunks were emitted; lazy module loading was lost");
 if (!result.fullMatrixIsDynamic) throw new Error("Full production structure matrix is no longer a separate lazy chunk");
 if (!result.planningWorkbenchLegacyRetired) throw new Error("Retired Planning Workbench legacy renderer is still emitted");
-if (!result.ganttRuntimeIsDynamic) throw new Error("Gantt runtime is no longer a separate lazy chunk");
+if (!result.ganttRuntimeLegacyRetired) throw new Error("Retired Gantt legacy renderer is still emitted");
 console.log(`Bundle performance budget: OK (app ${app.brotliBytes} B, bootstrap ${bootstrap.brotliBytes} B Brotli)`);

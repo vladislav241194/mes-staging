@@ -39,7 +39,7 @@ try {
     productionModel: {
       projection,
       workCenters: [{ id: "D5", code: "MNT", name: "Монтаж" }, { id: "D6", code: "QA", name: "ОТК" }],
-      ui: { scale: "hours", windowStart: "2026-07-22", ganttZoom: 1, expandedRouteIds: ["route-1"], ganttShowQuantity: true },
+      ui: { scale: "hours", windowStart: "2026-07-22", ganttZoom: 1, expandedRouteIds: ["route-1"], ganttShowQuantity: true, activeRouteId: "route-1", selectedSlotId: "slot-1" },
     },
     capabilities: { scheduleEdit: true },
   });
@@ -47,6 +47,8 @@ try {
   assert.equal(model.scale, "hours");
   assert.equal(model.zoomLabel, "100%");
   assert.equal(model.routeCount, 1);
+  assert.equal(model.activeRouteId, "route-1", "typed model must preserve the active Planning route");
+  assert.equal(model.selectedSlotId, "slot-1", "typed model must preserve the selected physical slot");
   assert.equal(model.rows.length, 3, "expanded route must contain one route row and two resource rows");
   assert.equal(model.rows[0]?.type, "route");
   assert.equal(model.rows[1]?.label, "Монтаж");
@@ -78,7 +80,7 @@ try {
       totalHeight: 68,
     },
   });
-  assert.equal(fixture.rows[0]?.id, "fixture-row", "legacy/evaluation fixture adapter must remain available for rollback");
+  assert.equal(fixture.rows[0]?.id, "fixture-row", "isolated typed fixture adapter must remain available for unit QA");
 
   const [adapterSource, productionSource, scenarioSource, appSource] = await Promise.all([
     readFile(adapterPath, "utf8"),
@@ -90,15 +92,15 @@ try {
   assert.match(scenarioSource, /data-react-prototype-marker[^>]*>[\s\S]*?React TS · прототип/, "Gantt cutover must expose the visible React TS prototype marker without claiming full command parity");
   assert.match(appSource, /productionModel: ganttReactModel/, "permanent Gantt payload must select the typed production adapter");
   assert.match(appSource, /planningRuntimeProjectionReadModel\?\.getProjection\?\.\(\)/, "permanent Gantt must read the PostgreSQL projection directly");
-  const permanentCutover = appSource.indexOf("ganttReactModel = getGanttReactProductionInput();");
-  const legacyRuntimeLoad = appSource.indexOf("if (!ganttRuntime.isReady())", permanentCutover);
-  assert(permanentCutover >= 0 && legacyRuntimeLoad > permanentCutover, "permanent Gantt early return must precede the legacy runtime load gate");
-  assert.match(appSource.slice(permanentCutover, legacyRuntimeLoad), /renderGanttReactShell\(\);\s*return;/, "permanent Gantt must return immediately after mounting its React production payload");
+  assert.match(appSource, /const projectionReady = hasGanttPlanningProjectionReady\(\);[\s\S]*ganttReactModel = projectionReady \? getGanttReactProductionInput\(\) : null;[\s\S]*ganttReactIslandHost\.prepareRender\(\);[\s\S]*ganttReactIslandHost\.mount\(\);[\s\S]*return;/,
+    "the Gantt route must mount the typed React payload and return without a legacy branch");
+  assert.doesNotMatch(appSource, /ganttRuntime|createLazyGanttRuntimeModule|data-gantt-shell/,
+    "the normal application graph must not retain the deleted Gantt runtime");
 
   console.log("Gantt React production model QA: OK");
   console.log("- PostgreSQL projection -> typed route/resource rows, simplified geometry and dependencies: pass");
-  console.log("- permanent early return before legacy Gantt runtime load: pass");
-  console.log("- legacy/evaluation fixture compatibility and explicit deferred parity: pass");
+  console.log("- permanent React-only route with no same-release legacy runtime: pass");
+  console.log("- isolated fixture compatibility and explicit deferred parity: pass");
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

@@ -34,7 +34,7 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/marking/api_client.ts",
   "src/modules/shift_work_orders/production_model.ts",
 ], "active src TypeScript must grow only through explicitly audited production boundaries");
-assert(activeJavaScriptLines > 80_000, "active JavaScript inventory unexpectedly fell below the audited mixed-runtime floor");
+assert(activeJavaScriptLines < 80_000, "active JavaScript inventory regrew above the audited post-retirement ceiling");
 assert(requestLegacyRenderDefinitions > 0, "legacy-render callbacks must remain explicitly inventoried until final cutover");
 
 for (const module of ledger.modules) {

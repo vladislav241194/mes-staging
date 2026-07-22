@@ -61,14 +61,23 @@ try {
   };
 
   let store = { selectedId: entry.id, registry: [entry, secondEntry] };
+  let currentFingerprint = "fingerprint-v6";
+  let publishedRevisionState = { item: revision, loading: null, error: "" };
+  const revision8Digest = `sha256:${"8".repeat(64)}`;
   const writes = [];
+  const writeOptions = [];
   const workOrderRequests = [];
   const publicationRequests = [];
   const owner = createSpecifications2ProductionOwner({
     getStore: () => store,
-    writeStore: (next) => { store = next; writes.push(next); return true; },
-    getPublishedRevisionState: (entryId) => entryId === entry.id ? { item: revision, loading: null, error: "" } : { item: null, loading: null, error: "" },
-    getCurrentFingerprint: (current) => current.id === entry.id ? "fingerprint-v6" : "",
+    writeStore: (next, options) => { store = next; writes.push(next); writeOptions.push(options); return true; },
+    getPublishedRevisionState: (entryId) => entryId === entry.id ? publishedRevisionState : { item: null, loading: null, error: "" },
+    getCurrentFingerprint: (current) => current.id === entry.id ? currentFingerprint : "",
+    preparePublication: (current) => ({ publication: { ...current.publication, revision: 8, fingerprint: "fingerprint-v8", releasedAt: "2026-07-22T08:00:00.000Z", status: "released" } }),
+    forcePublishedRevisionRead: async () => {
+      publishedRevisionState = { item: { ...revision, id: "revision-controller-8", revisionNo: 8, fingerprint: revision8Digest }, loading: null, error: "" };
+      return { ok: true, changed: true };
+    },
     getWorkOrderCapability: () => ({ enabled: true, primaryPostgres: true }),
     createIdempotencyKey: () => "specifications2-work-order:qa",
     createWorkOrder: async (request) => { workOrderRequests.push(request); return { ok: true, created: true, item: { id: "work-order-1" } }; },
@@ -78,7 +87,7 @@ try {
       refreshCapability: async () => ({ enabled: true, serverPrimary: true }),
       publishRevision: async (request) => {
         publicationRequests.push(request);
-        return { ok: true, created: true, item: { id: "revision-controller-8", revisionNo: 8 }, publication: { revision: 8, releasedAt: "2026-07-22T08:00:00.000Z", fingerprint: "fingerprint-v8", status: "released" }, snapshotSync: { applied: 1 } };
+        return { ok: true, created: true, item: { id: "revision-controller-8", sourceEntryId: entry.id, revisionNo: 8, fingerprint: revision8Digest }, publication: { revision: 8, releasedAt: "2026-07-22T08:00:00.000Z", fingerprint: "fingerprint-v8", status: "released" }, snapshotSync: { total: 1, applied: 1, conflicts: 0, failed: 0 } };
       },
     },
     now: () => "2026-07-22T07:20:00.000Z",
@@ -126,6 +135,7 @@ try {
     assert.equal(result.ok, false);
     assert.equal(result.deferred, true, `${command} must stay fail-closed until a PostgreSQL mutation owner exists`);
   }
+  currentFingerprint = "fingerprint-v8";
   assert.equal((await owner.execute({ type: "publish-draft", payload: { entryId: entry.id, confirmEntryId: entry.id, expectedPreviousRevision: 7 } })).ok, true);
   assert.equal(store.registry[0].publication.revision, 8);
   assert.equal(publicationRequests[0].expectedPreviousRevision, 7);
@@ -135,6 +145,10 @@ try {
   assert.deepEqual(owner.selectEntry(secondEntry.id), { ok: true, id: secondEntry.id, changed: true });
   assert.equal(store.selectedId, secondEntry.id);
   assert.equal(writes.length, 2, "only PostgreSQL publication acknowledgement and UI selection may touch the compatibility snapshot");
+  assert.deepEqual(writeOptions, [
+    { suppressSharedStatePush: true },
+    { suppressSharedStatePush: true },
+  ], "publication ACK and UI-only selection must not push the full browser registry into shared-state");
   assert.equal(owner.selectEntry("missing").ok, false);
 
   let blockedPublishCalls = 0;
@@ -195,7 +209,8 @@ try {
     /getSpecifications2ReactModel\s*\(|from\s+["'][^"']*specifications2\/render|import\s*\(["'][^"']*specifications2\/render/,
     "production read/command foundation must not import or call the legacy renderer",
   );
-  const productionPayloadGate = appSource.match(/if \(activation\.accessMode === "react"\) \{\s+const productionPayload = getSpecifications2ProductionPayload\(\);[\s\S]*?\n\s+\}/)?.[0] || "";
+  assert.doesNotMatch(appSource, /getSpecifications2ReactModel\s*\(|specifications2\/render\.js|ensureSpecifications2Module\s*\(/);
+  const productionPayloadGate = appSource.match(/getPayload: \(\) => \{\s+const productionPayload = getSpecifications2ProductionPayload\(\);[\s\S]*?\n\s+\},\n\s+getTargetRoot/)?.[0] || "";
   assert.match(productionPayloadGate, /const canWrite = canEditSpecifications2WithSignedRole\(\)/);
   for (const capability of ["draftEdit", "publication", "rowStructure", "routeEdit", "attachmentBinding", "workOrder"]) {
     assert.match(productionPayloadGate, new RegExp(`${capability}: canWrite && productionPayload\\.capabilities\\?\\.${capability} === true`));

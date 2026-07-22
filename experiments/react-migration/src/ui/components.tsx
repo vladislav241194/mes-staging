@@ -52,7 +52,10 @@ export function SidebarItem({ active, count, label, meta, onClick }: { active: b
 }
 
 export function Panel({ heading, children }: { heading: ReactNode; children: ReactNode }) {
-  return <div className="panel" data-ui-component="Panel">{heading}{children}</div>;
+  return <div className="panel ui-panel" data-ui-component="Panel">
+    {heading}
+    <div className="ui-panel-body" data-ui-component="PanelBody">{children}</div>
+  </div>;
 }
 
 export function TableWrap({ children }: { children: ReactNode }) {

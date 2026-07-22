@@ -3,7 +3,6 @@ import { createDirectoryPresentationModule } from "./directory_presentation.js";
 export function createRoutesRenderModule(dependencies = {}) {
   const {
     MAIN_ROUTE_TASK_ID,
-    distance,
     escapeHtml,
     escapeAttribute = escapeHtml,
     formatDateTimeShort,

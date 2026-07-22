@@ -2,7 +2,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 
 const SPECIFICATIONS2_REACT_TARGET = "[data-react-specifications2-island]";
 const SPECIFICATIONS2_REACT_BUNDLE_VERSION = "__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__";
-const SPECIFICATIONS2_FAILURE_REASONS = new Set(["model-unavailable", "mount-error", "render-error"]);
+const SPECIFICATIONS2_FAILURE_REASONS = new Set(["model-unavailable", "mount-error", "render-error", "runtime-inactive"]);
 
 function normalizeFailureReason(value) {
   const reason = String(value || "");
@@ -10,11 +10,7 @@ function normalizeFailureReason(value) {
 }
 
 function renderSpecifications2Target({ activation = {}, failureReason = "", shellState = null } = {}) {
-  const runtimeMode = activation.runtimeMode === "react"
-    ? "react"
-    : activation.runtimeMode === "evaluation"
-      ? "evaluation"
-      : "legacy";
+  const runtimeMode = activation.runtimeMode === "react" ? "react" : "inactive";
   const state = failureReason || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
   const content = state === "error"
@@ -27,7 +23,6 @@ export function createSpecifications2ReactIslandHost({
   getActivation,
   getPayload,
   getTargetRoot,
-  requestLegacyRender,
   executeCommand,
   reportError = (error) => console.error("[MES] Specifications 2.0 React island failed", error),
 } = {}) {
@@ -35,11 +30,10 @@ export function createSpecifications2ReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
     reportError,
-    canFallbackToLegacy: (activation) => activation.accessMode !== "react",
+    canFallbackToLegacy: () => false,
     getShellState: (activation) => {
-      if (activation.accessMode !== "react") return null;
+      if (activation.accessMode !== "react") return { state: "error", stage: "policy", reason: "runtime-inactive" };
       if (activation.serverReadFailure) return { state: "error", stage: "read", reason: normalizeFailureReason(activation.serverReadFailure) };
       if (!activation.moduleReady) return { state: "loading", stage: "model", reason: "model-pending" };
       return null;
@@ -47,14 +41,7 @@ export function createSpecifications2ReactIslandHost({
     getTelemetryContext: (activation) => ({ surfaceId: "specifications2", runtimeMode: activation.runtimeMode, policyId: activation.policyId }),
     targetSelector: SPECIFICATIONS2_REACT_TARGET,
     renderTarget: renderSpecifications2Target,
-    getIneligibilityReason: (activation) => {
-      if (!activation.featureFlagEnabled) return "disabled";
-      if (activation.accessMode === "react") return "";
-      if (!activation.moduleReady) return "module-not-ready";
-      if (!activation.serverReadReady) return "postgres-revision-not-confirmed";
-      if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") return "write-parity-incomplete";
-      return "";
-    },
+    getIneligibilityReason: (activation) => activation.accessMode === "react" ? "" : "runtime-inactive",
     loadIsland: async () => {
       const islandUrl = new URL("./react-islands/specifications2.js", import.meta.url);
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");

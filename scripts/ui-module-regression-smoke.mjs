@@ -21,11 +21,15 @@ import {
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
 const overflowThreshold = 16;
-const GANTT_GENERIC_REQUIRED_SELECTORS = GANTT_UI_REQUIRED_SELECTORS.filter((selector) => (
-  !selector.includes("GanttResizeHandle")
-  && !selector.includes("GanttDependencyPath")
-  && !selector.includes("GanttDependencyArrow")
-));
+const GANTT_CONDITIONAL_SELECTORS = new Set([
+  ".gantt-react-row[data-row-id]",
+  ".gantt-react-label",
+  ".gantt-react-lane[data-gantt-react-drop-lane]",
+  "[data-ui-component='GanttSlot'][data-slot-id]",
+  "[data-gantt-react-schedule-form]",
+]);
+const GANTT_GENERIC_REQUIRED_SELECTORS = GANTT_UI_REQUIRED_SELECTORS
+  .filter((selector) => !GANTT_CONDITIONAL_SELECTORS.has(selector));
 
 const smokeModules = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: true })
   .map((moduleItem) => moduleItem.id);
@@ -252,11 +256,19 @@ async function waitForSmokeReady(client, moduleId) {
         ready: Boolean(shell) && shell.dataset.layoutPage,
         layoutPage: shell?.dataset.layoutPage || "",
         textLength: bodyText.length,
+        ganttReady: Boolean(
+          document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")
+          && document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")
+        ),
         runtimeErrors: /Ошибка запуска интерфейса|Cannot initialize|ReferenceError|TypeError|SyntaxError/.test(bodyText),
       };
     });
     lastReport = report;
-    if (report.ready && report.layoutPage === moduleId && report.textLength > 40 && !report.runtimeErrors) return;
+    if (report.ready
+      && report.layoutPage === moduleId
+      && report.textLength > 40
+      && !report.runtimeErrors
+      && (moduleId !== "gantt" || report.ganttReady)) return;
     await delay(140);
   }
   throw new Error(`${moduleId}: page did not become smoke-ready. Last report: ${JSON.stringify(lastReport)}`);
@@ -294,7 +306,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
     };
     const shell = document.querySelector("main.app-shell");
     const header = moduleId === "gantt"
-      ? document.querySelector('[data-ui-component="GanttToolbar"], .topbar')
+      ? document.querySelector(".gantt-react-toolbar, .topbar")
       : document.querySelector('[data-layout="header"], .app-topbar, .topbar, [data-visual-qa-target="auth-prototype-header"]');
     const main = document.querySelector('[data-layout="main-content"], [data-layout="planning-page"]');
     const bodyText = (document.body?.innerText || "").trim().replace(/\s+/g, " ");
@@ -319,7 +331,9 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
       "Drawer",
       "Dropdown",
       "GanttRuntime",
-      "GanttDependencyLayer",
+      "GanttCanvas",
+      "GanttTimeline",
+      "GanttRowsLayer",
       "VisualSystemRuntime",
     ].forEach((component) => {
       components[component] = document.querySelectorAll(`[data-ui-component="${component}"]`).length;
@@ -338,7 +352,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
           overflowRight,
           scrollDelta,
           visible: isVisible(element),
-          isAllowedContainer: Boolean(element.closest(".gantt-shell, .planner-workspace, .ui-table-wrap, [data-layout='table'], .timesheet-table-wrap, .production-structure-table-wrap")),
+          isAllowedContainer: Boolean(element.closest(".gantt-react-scroll, .gantt-react-grid, .planner-workspace, .ui-table-wrap, [data-layout='table'], .timesheet-table-wrap, .production-structure-table-wrap")),
         };
       })
       .filter((item) => item.visible && (item.overflowRight > overflowThreshold || item.scrollDelta > overflowThreshold))
@@ -401,15 +415,21 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
     });
 
     const gantt = moduleId === "gantt" ? {
-      shell: Boolean(document.querySelector(".gantt-shell[data-gantt-shell]")),
-      timeline: document.querySelectorAll(".timeline-row, .timeline-cell").length,
-      rows: document.querySelectorAll(".gantt-row, .resource-row, .production-row").length,
-      rowLabels: document.querySelectorAll(".row-label").length,
-      slots: document.querySelectorAll(".operation-slot[data-slot-id], .operation-slot").length,
-      dependencyLayer: Boolean(document.querySelector(".dependencies-layer[data-ui-component='GanttDependencyLayer']")),
-      dependencyPaths: document.querySelectorAll(".dependency-path").length,
-      slotIds: document.querySelectorAll(".operation-slot[data-slot-id]").length,
-      slotBounds: [...document.querySelectorAll(".operation-slot")].slice(0, 8).map((slot) => {
+      island: Boolean(document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")),
+      runtime: Boolean(document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")),
+      canvas: Boolean(document.querySelector(".gantt-react-canvas[data-ui-component='GanttCanvas']")),
+      timeline: document.querySelectorAll(".gantt-react-timeline[data-ui-component='GanttTimeline']").length,
+      rowsLayer: Boolean(document.querySelector(".gantt-react-rows[data-ui-component='GanttRowsLayer']")),
+      rows: document.querySelectorAll(".gantt-react-row[data-row-id]").length,
+      rowLabels: document.querySelectorAll(".gantt-react-label").length,
+      lanes: document.querySelectorAll(".gantt-react-lane[data-gantt-react-drop-lane]").length,
+      slots: document.querySelectorAll("[data-ui-component='GanttSlot'][data-slot-id]").length,
+      toolbar: Boolean(document.querySelector(".gantt-react-toolbar")),
+      blockedActions: document.querySelectorAll("[data-gantt-react-blocked-action]").length,
+      scheduleSurface: Boolean(document.querySelector("[data-gantt-react-schedule-form], [data-gantt-react-schedule-blocked]")),
+      legacyShells: document.querySelectorAll("[data-gantt-shell]").length,
+      slotIds: document.querySelectorAll("[data-ui-component='GanttSlot'][data-slot-id]").length,
+      slotBounds: [...document.querySelectorAll("[data-ui-component='GanttSlot'][data-slot-id]")].slice(0, 8).map((slot) => {
         const rect = slot.getBoundingClientRect();
         return { width: Math.round(rect.width), height: Math.round(rect.height) };
       }),
@@ -425,7 +445,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
     const operationalEmpty = moduleId === "planning"
       ? Boolean(document.querySelector(".planning-empty-page"))
       : moduleId === "gantt"
-        ? Boolean(document.querySelector(".gantt-shell[data-gantt-shell]")) && !document.querySelector(".gantt-row")
+        ? Boolean(document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")) && !document.querySelector("[data-ui-component='GanttSlot'][data-slot-id]")
         : false;
 
     return {
@@ -481,11 +501,12 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
     .filter((item) => item.count === 0)
     .filter((item) => !pageReport.operationalEmpty || ![
       ".planning-order-page",
-      ".operation-slot",
-      ".gantt-row[data-row-id]",
-      ".row-label",
-      ".lane[data-lane-row-id]",
-      ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+      ".gantt-react-row[data-row-id]",
+      ".gantt-react-label",
+      ".gantt-react-lane[data-gantt-react-drop-lane]",
+      "[data-ui-component='GanttSlot']",
+      "[data-ui-component='GanttSlot'][data-slot-id]",
+      "[data-gantt-react-schedule-form]",
     ].includes(item.selector))
     .forEach((item) => failures.push(`missing required selector ${item.selector}`));
 
@@ -517,11 +538,18 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
   });
 
   if (pageReport.gantt) {
-    if (!pageReport.gantt.shell) failures.push("Gantt shell missing");
+    if (!pageReport.gantt.island) failures.push("React Gantt island is not ready");
+    if (!pageReport.gantt.runtime) failures.push("React Gantt runtime missing");
+    if (!pageReport.gantt.canvas) failures.push("React Gantt canvas missing");
     if (!pageReport.gantt.timeline) failures.push("Gantt timeline missing");
+    if (!pageReport.gantt.rowsLayer) failures.push("React Gantt rows layer missing");
     if (!pageReport.gantt.rows && !pageReport.operationalEmpty) failures.push("Gantt rows missing");
     if (!pageReport.gantt.slots && !pageReport.operationalEmpty) failures.push("Gantt operation slots missing");
-    if (!pageReport.gantt.dependencyLayer) failures.push("Gantt dependency layer missing");
+    if (pageReport.gantt.rowLabels !== pageReport.gantt.rows || pageReport.gantt.lanes !== pageReport.gantt.rows) failures.push("Gantt row/label/lane contract drift");
+    if (!pageReport.gantt.toolbar) failures.push("React Gantt toolbar missing");
+    if (pageReport.gantt.blockedActions < 4) failures.push("Deferred Gantt owner markers missing");
+    if (!pageReport.gantt.scheduleSurface) failures.push("Gantt schedule command is neither available nor explicitly blocked");
+    if (pageReport.gantt.legacyShells) failures.push("Retired legacy Gantt shell returned");
     if (!pageReport.gantt.slotIds && !pageReport.operationalEmpty) failures.push("Gantt slot ids missing");
     if (pageReport.gantt.slotBounds.some((slot) => slot.width <= 0 || slot.height <= 0)) failures.push("Gantt slot has empty bounds");
   }
@@ -696,16 +724,16 @@ function buildGanttMarkdown(result) {
     String(item.gantt?.timeline || 0),
     String(item.gantt?.rows || 0),
     String(item.gantt?.slots || 0),
-    String(item.gantt?.dependencyPaths || 0),
+    String(item.gantt?.blockedActions || 0),
     [...item.failures, ...item.warnings].join("; "),
   ]);
   return `# Gantt UI Regression Report
 
 Generated: ${result.generatedAt}
 
-Protected selectors: \`.gantt-shell[data-gantt-shell]\`, \`.timeline-row\`, \`.rows-layer\`, \`.operation-slot[data-slot-id]\`, \`.dependencies-layer[data-ui-component="GanttDependencyLayer"]\`.
+Protected selectors: \`[data-react-gantt-island][data-react-island-state="ready"]\`, \`.gantt-react-scroll[data-ui-component="GanttRuntime"]\`, \`.gantt-react-timeline[data-ui-component="GanttTimeline"]\`, \`.gantt-react-row[data-row-id]\`, \`[data-ui-component="GanttSlot"][data-slot-id]\`.
 
-${buildMarkdownTable(["viewport", "status", "timeline", "rows", "slots", "dependency paths", "notes"], rows)}
+${buildMarkdownTable(["viewport", "status", "timeline", "rows", "slots", "blocked owners", "notes"], rows)}
 `;
 }
 

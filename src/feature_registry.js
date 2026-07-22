@@ -38,9 +38,15 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   specifications2: {
     css: ["styles/layers/20-technology-specifications.css"],
-    files: ["src/modules/specifications2/render.js", "src/modules/specifications2/publication.js"],
-    storage: ["mes-specifications-2-registry-v1", "mes-specifications-2-tab-v1"],
-    qa: ["scripts/specifications2-publication-qa.mjs", "scripts/ui-table-contract-audit.mjs", "scripts/module-smoke-qa.mjs"],
+    files: [
+      "src/modules/specifications2/react_island_host.js",
+      "src/modules/specifications2/production_owner.js",
+      "src/modules/specifications2/publication.js",
+      "experiments/react-migration/src/modules/specifications2/Specifications2Scenario.tsx",
+      "experiments/react-migration/src/modules/specifications2/production-model.ts",
+    ],
+    storage: ["mes-specifications-2-registry-v1"],
+    qa: ["scripts/specifications2-react-runtime-policy-qa.mjs", "scripts/specifications2-react-production-model-qa.mjs", "scripts/specifications2-publication-qa.mjs"],
     domains: ["xlsx-import-sandbox", "technology-preview", "explicit-production-release"],
     removalContract: "Drafts stay isolated. Production data may change only through an explicit append-only release; never mutate historical specifications, routes, work orders, slots or facts in place.",
   },

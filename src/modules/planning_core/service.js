@@ -1,3 +1,6 @@
+import { routeMatchesPlanningGanttFilters } from "./gantt_route_filter.js";
+import { createPlanningWorkingCalendarOwner } from "./working_calendar_owner.js";
+
 export function createPlanningCoreServiceModule(dependencies = {}) {
   const {
     APP_VERSION,
@@ -54,7 +57,6 @@ export function createPlanningCoreServiceModule(dependencies = {}) {
     getAccessRoleById,
     getBatch,
     getBomList = () => null,
-    getCalendarWorkCenterId = (workCenterId = "") => String(workCenterId || ""),
     getDefaultSecondsPerPanel,
     getDefaultStatusRegistryKind, getDefaultSmtLineConfigurations = () => [],
     getGanttSlotStatusView,
@@ -136,7 +138,6 @@ export function createPlanningCoreServiceModule(dependencies = {}) {
     pruneRouteStepsOutsideCurrentRouteTasks,
     render,
     resetAuthPrototypePinEntry = () => {},
-    routeMatchesGanttFilters = () => true,
     saveFeedbackTimer: initialSaveFeedbackTimer = null,
     saveUxRefreshTimer: initialSaveUxRefreshTimer = null,
     scaleConfig,
@@ -145,13 +146,10 @@ export function createPlanningCoreServiceModule(dependencies = {}) {
     sharedStateApplyingRemote,
     sharedStateStatus,
     snapDate,
-    snapToWorkingTime = (_workCenterId, date) => date,
     startOfDay,
     startOfWeek,
     toDate,
     toDateInput,
-    addWorkingDuration = (_workCenterId, start, durationMs) => addMs(start, durationMs),
-    getWorkingDurationBetween = (_workCenterId, start, end) => Math.max(0, toDate(end).getTime() - toDate(start).getTime()),
   } = dependencies;
 
   let ui = dependencies.getUi?.() || {};
@@ -160,6 +158,19 @@ export function createPlanningCoreServiceModule(dependencies = {}) {
   let pendingSaveFeedback = initialPendingSaveFeedback;
   let saveFeedbackTimer = initialSaveFeedbackTimer;
   let saveUxRefreshTimer = initialSaveUxRefreshTimer;
+  const workingCalendarOwner = createPlanningWorkingCalendarOwner({
+    getPlanningState: () => planningState,
+    getRuntimePlanningState: () => getRuntimePlanningState(),
+    mapLegacyWorkCenterId: (workCenterId) => mapLegacyWorkCenterId(workCenterId),
+    isWarehouseWorkCenterId: (workCenterId) => isWarehouseWorkCenterId(workCenterId),
+    smtWorkCenterIds: MES_SMT_WORK_CENTER_IDS,
+  });
+  const {
+    addWorkingDuration,
+    getCalendarWorkCenterId,
+    getWorkingDurationBetween,
+    snapToWorkingTime,
+  } = workingCalendarOwner;
 
   function syncRuntimeState() {
     ui = dependencies.getUi?.() || ui || {};
@@ -1878,7 +1889,7 @@ function loadUiState() {
 }
 
 function persistUiState(options = {}) {
-  const shell = app.querySelector("[data-gantt-shell]");
+  const shell = app.querySelector(".gantt-react-scroll");
   if (shell && !options.skipRememberScroll) {
     ui.scrollLeft = shell.scrollLeft;
     ui.scrollTop = shell.scrollTop;
@@ -4089,7 +4100,16 @@ function getVisiblePlanningProjects() {
 
 function getVisibleGanttRoutes() {
   const filteredRoutes = (planningState.routes || [])
-    .filter((route) => routeMatchesGanttFilters(route))
+    .filter((route) => routeMatchesPlanningGanttFilters(route, {
+      workCenterFilter: ui.workCenterFilter,
+      getRoutePlanningContext,
+      isWorkOrderPlanningCanceled,
+      getRouteSlots,
+      getRouteStepsForModule,
+      mapLegacyWorkCenterId,
+      getWorkCenter,
+      isPlanningWorkCenter,
+    }))
     .sort((left, right) => {
       const leftSpecification = getRouteSpecification(left);
       const rightSpecification = getRouteSpecification(right);
@@ -4450,6 +4470,10 @@ function resetRemovedGanttFilters() {
     calculateRequiredDurationMs,
     calculatePlannedEndByQuantity,
     calculateQuantityByDuration,
+    addWorkingDuration,
+    getCalendarWorkCenterId,
+    getWorkingDurationBetween,
+    snapToWorkingTime,
     getSlotEffectiveOperationContext,
     getSlotRequiredDurationMs,
     recalculateSlotEndByQuantity,

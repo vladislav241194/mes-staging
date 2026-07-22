@@ -22,6 +22,8 @@ export interface GanttProductionModel {
   windowEnd: string;
   windowStartDate: string;
   windowEndDate: string;
+  activeRouteId: string;
+  selectedSlotId: string;
   allRoutesExpanded: boolean;
   showQuantity: boolean;
   leftWidth: number;
@@ -328,6 +330,14 @@ export function buildGanttProductionModel(input: unknown, capabilityInput: unkno
   const steps = asArray(projection.routeSteps).map(asRecord).filter((step) => asText(step.id));
   const stepsById = new Map(steps.map((step) => [asText(step.id), step] as const));
   const slots = normalizeSlots(projection, stepsById);
+  const requestedActiveRouteId = asText(ui.activeRouteId ?? source.activeRouteId);
+  const requestedSelectedSlotId = asText(ui.selectedSlotId ?? source.selectedSlotId);
+  const activeRouteId = routes.some((route) => asText(route.id) === requestedActiveRouteId)
+    ? requestedActiveRouteId
+    : "";
+  const selectedSlotId = slots.some((slot) => slot.id === requestedSelectedSlotId)
+    ? requestedSelectedSlotId
+    : "";
   const slotsByRouteId = new Map<string, NormalizedSlot[]>();
   slots.forEach((slot) => slotsByRouteId.set(slot.routeId, [...(slotsByRouteId.get(slot.routeId) || []), slot]));
   const workCentersById = workCentersFrom(source);
@@ -430,6 +440,8 @@ export function buildGanttProductionModel(input: unknown, capabilityInput: unkno
     windowEnd: end.toISOString(),
     windowStartDate: dateInput(requestedStart),
     windowEndDate: dateInput(end),
+    activeRouteId,
+    selectedSlotId,
     allRoutesExpanded: visibleRoutes.length > 0 && visibleRoutes.every((route) => expanded.has(asText(route.id))),
     showQuantity: ui.showQuantity !== false && ui.ganttShowQuantity !== false,
     leftWidth: LEFT_WIDTH,

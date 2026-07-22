@@ -372,11 +372,15 @@ async function waitForModule(client, moduleId) {
 	        authSummary: rectFor("[data-visual-qa-target='app-auth-session-summary']"),
 	        mainTextLength: (shell?.innerText || "").trim().length,
 	        hasStartupError: /Ошибка запуска интерфейса|Cannot initialize|TypeError|ReferenceError/.test(document.body?.innerText || ""),
+	        ganttReady: Boolean(
+	          document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")
+	          && document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")
+	        ),
 	        startupText: (document.body?.innerText || "").slice(0, 500),
 	      };
 	    }, expectedLayout);
     lastReport = report;
-    if (report.hasShell && report.layoutPage === expectedLayout) {
+    if (report.hasShell && report.layoutPage === expectedLayout && (moduleId !== "gantt" || report.ganttReady)) {
       if (!isChromelessModule) {
         assert(report.title === expectedLabel, `${moduleId}: topbar title is out of sync with MES_MODULE_FLOW_CONTRACTS.label. Expected "${expectedLabel}", got "${report.title}".`);
 		        assert(report.refreshAction?.width > 0, `${moduleId}: topbar refresh action is missing`);
@@ -423,7 +427,7 @@ async function runInteractionStabilityChecks(client, moduleId) {
       ".icon-button",
       ".table-icon-button",
       ".dense-inline-select > summary",
-      ".operation-slot",
+      "[data-ui-component='GanttSlot'][data-slot-id]",
     ];
     const seen = new Set();
     return selectors
@@ -673,12 +677,16 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       component: page?.dataset.uiComponent || "",
       className: page?.className || "",
       runtimeRoots,
+      reactGantt: {
+        island: Boolean(document.querySelector("[data-react-gantt-island]")),
+        runtime: Boolean(document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")),
+      },
     };
   });
   const hardRuntimeRoots = pageRuntimeStatus.runtimeRoots.filter((root) => root.runtime === "hard-v1");
   const specialRuntimeRoots = pageRuntimeStatus.runtimeRoots.filter((root) => root.runtime && root.runtime !== "hard-v1");
   assert(
-    HARD_LIKE_UI_RUNTIME_MODULES.has(moduleId) || hardRuntimeRoots.length === 0,
+    HARD_LIKE_UI_RUNTIME_MODULES.has(moduleId) || moduleId === "gantt" || hardRuntimeRoots.length === 0,
     `${moduleId}: page renders hard-v1 runtime but module is not listed in HARD/PARTIAL UI runtime coverage`
   );
   assert(
@@ -688,13 +696,20 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   if (SPECIAL_UI_RUNTIME_MODULES.has(moduleId)) {
     const expectedSpecialRuntime = SPECIAL_UI_RUNTIME_CONTRACTS[moduleId];
     assert(expectedSpecialRuntime, `${moduleId}: missing SPECIAL_UI_RUNTIME_CONTRACTS entry`);
-    assert(
-      specialRuntimeRoots.some((root) => (
-        root.runtime === expectedSpecialRuntime.runtime
-        && root.component === expectedSpecialRuntime.component
-      )),
-      `${moduleId}: expected special runtime ${JSON.stringify(expectedSpecialRuntime)}, got ${JSON.stringify(specialRuntimeRoots)}`
-    );
+    if (moduleId === "gantt") {
+      assert(
+        pageRuntimeStatus.reactGantt.island && pageRuntimeStatus.reactGantt.runtime,
+        `gantt: expected permanent React GanttRuntime, got ${JSON.stringify(pageRuntimeStatus.reactGantt)}`
+      );
+    } else {
+      assert(
+        specialRuntimeRoots.some((root) => (
+          root.runtime === expectedSpecialRuntime.runtime
+          && root.component === expectedSpecialRuntime.component
+        )),
+        `${moduleId}: expected special runtime ${JSON.stringify(expectedSpecialRuntime)}, got ${JSON.stringify(specialRuntimeRoots)}`
+      );
+    }
   }
 
   if (HARD_LIKE_UI_RUNTIME_MODULES.has(moduleId)) {
@@ -1884,446 +1899,109 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     );
   }
   if (moduleId === "gantt") {
-    await evaluate(client, () => {
-      const toggleAll = document.querySelector("[data-toggle-all-projects]");
-      if (toggleAll && toggleAll.getAttribute("aria-pressed") !== "true") {
-        toggleAll.click();
-      }
-    });
-    await delay(250);
+    const startedAt = Date.now();
+    let readiness = null;
+    while (Date.now() - startedAt < 20000) {
+      readiness = await evaluate(client, () => {
+        const island = document.querySelector("[data-react-gantt-island]");
+        return {
+          present: Boolean(island),
+          state: island?.getAttribute("data-react-island-state") || "",
+          mode: island?.getAttribute("data-react-island-runtime-mode") || "",
+          text: (island?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 280),
+        };
+      });
+      if (readiness.state === "ready" || readiness.state === "error") break;
+      await delay(120);
+    }
+    assert(readiness?.present, "gantt: permanent React island is missing");
+    assert(readiness.state === "ready", "gantt: React island did not become ready: " + JSON.stringify(readiness));
+    assert(readiness.mode === "react", "gantt: permanent runtime mode is not React: " + JSON.stringify(readiness));
+
     const ganttReport = await evaluate(client, () => {
-      const runtime = document.querySelector("[data-gantt-shell]");
-      const canvas = runtime?.querySelector(".gantt-canvas");
-      const timeline = runtime?.querySelector("[data-ui-component='GanttTimeline']");
-      const rowsLayer = runtime?.querySelector(".rows-layer");
-      const dependencyLayer = runtime?.querySelector("[data-ui-component='GanttDependencyLayer']");
-      const dependencyPaths = [...(runtime?.querySelectorAll("[data-ui-component='GanttDependencyPath']") || [])];
-      const dependencyArrows = [...(runtime?.querySelectorAll("[data-ui-component='GanttDependencyArrow']") || [])];
-      const dependencyMasks = [...(runtime?.querySelectorAll("[data-ui-component='GanttDependencySlotMask']") || [])];
-      const dependencyMaskRects = [...(runtime?.querySelectorAll("[data-ui-component='GanttDependencySlotMaskRect']") || [])];
-      const nonWorkingLayers = [...(runtime?.querySelectorAll("[data-ui-component='GanttNonWorkingLayer']") || [])];
-      const nonWorkingZones = [...(runtime?.querySelectorAll("[data-ui-component='GanttNonWorkingZone']") || [])];
-      const slots = [...(runtime?.querySelectorAll(".operation-slot") || [])];
-      const slotComponents = [...(runtime?.querySelectorAll("[data-ui-component='GanttSlot']") || [])];
-      const resizeHandles = [...(runtime?.querySelectorAll("[data-ui-component='GanttResizeHandle']") || [])];
-      const workingSegments = [...(runtime?.querySelectorAll("[data-ui-component='GanttWorkingSegment']") || [])];
-      const nonWorkingSegments = [...(runtime?.querySelectorAll("[data-ui-component='GanttNonWorkingSegment']") || [])];
-      const operationalSlots = slots.filter((slot) => slot.classList.contains("is-master-validated") || slot.classList.contains("has-master-fact"));
-      const operationalLayers = [...(runtime?.querySelectorAll("[data-ui-component='GanttOperationalLayer']") || [])];
-      const operationalSegments = [...(runtime?.querySelectorAll("[data-ui-component='GanttOperationalSegment']") || [])];
-      const transferBatches = [...(runtime?.querySelectorAll("[data-ui-component='GanttTransferBatch']") || [])];
+      const island = document.querySelector("[data-react-gantt-island]");
+      const runtime = island?.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']");
+      const canvas = runtime?.querySelector(".gantt-react-canvas[data-ui-component='GanttCanvas']");
+      const timeline = runtime?.querySelector(".gantt-react-timeline[data-ui-component='GanttTimeline']");
+      const rowsLayer = runtime?.querySelector(".gantt-react-rows[data-ui-component='GanttRowsLayer']");
+      const rows = [...(rowsLayer?.querySelectorAll(".gantt-react-row[data-row-id]") || [])];
+      const lanes = [...(rowsLayer?.querySelectorAll(".gantt-react-lane[data-gantt-react-drop-lane]") || [])];
+      const slots = [...(rowsLayer?.querySelectorAll("[data-ui-component='GanttSlot'][data-slot-id]") || [])];
       const runtimeRect = runtime?.getBoundingClientRect();
       const canvasRect = canvas?.getBoundingClientRect();
-      const rowTypeCounts = ["route", "workCenter", "resource", "operation", "department"]
-        .reduce((acc, type) => {
-          acc[type] = runtime?.querySelectorAll(`.gantt-row.${type}-row`).length || 0;
-          return acc;
-        }, {});
-      const badSlotComponents = slots
-        .filter((slot) => slot.dataset.uiComponent !== "GanttSlot")
-        .map((slot) => slot.dataset.slotId || slot.className)
-        .slice(0, 8);
-      const firstSlotRect = slots[0]?.getBoundingClientRect();
       return {
+        islandState: island?.getAttribute("data-react-island-state") || "",
+        runtimeMode: island?.getAttribute("data-react-island-runtime-mode") || "",
+        hasLegacyShell: Boolean(document.querySelector("[data-gantt-shell]")),
         hasRuntime: Boolean(runtime),
-        runtime: runtime?.dataset.uiRuntime || "",
-        component: runtime?.dataset.uiComponent || "",
         hasCanvas: Boolean(canvas),
-        canvasComponent: canvas?.dataset.uiComponent || "",
         hasTimeline: Boolean(timeline),
-        timelineComponent: timeline?.dataset.uiComponent || "",
         hasRowsLayer: Boolean(rowsLayer),
-        rowsLayerComponent: rowsLayer?.dataset.uiComponent || "",
-        hasDependencyLayer: Boolean(dependencyLayer),
-        dependencyLayerComponent: dependencyLayer?.dataset.uiComponent || "",
-        dependencyPathCount: dependencyPaths.length,
-        dependencyArrowCount: dependencyArrows.length,
-        dependencyMaskCount: dependencyMasks.length,
-        dependencyMaskRectCount: dependencyMaskRects.length,
-        dependencyPathWithoutD: dependencyPaths.filter((path) => !path.getAttribute("d")).length,
-        dependencyPathWithoutMarker: dependencyPaths.filter((path) => !path.getAttribute("marker-end")).length,
-        dependencyPathWithoutMask: dependencyMaskRects.length
-          ? dependencyPaths.filter((path) => !path.getAttribute("mask")).length
-          : 0,
-        nonWorkingLayerCount: nonWorkingLayers.length,
-        nonWorkingZoneCount: nonWorkingZones.length,
-        nonWorkingZeroGeometry: nonWorkingZones
-          .filter((zone) => {
-            const rect = zone.getBoundingClientRect();
-            return rect.width <= 0 || rect.height <= 0;
-          })
-          .slice(0, 8)
-          .map((zone) => zone.className || zone.title || "zone"),
+        hasToolbar: Boolean(island?.querySelector(".gantt-react-toolbar")),
+        hasPeriod: Boolean(island?.querySelector("[data-gantt-react-period] input[type='date']")),
+        scaleCount: island?.querySelectorAll("[data-gantt-react-scale]").length || 0,
+        zoomCount: island?.querySelectorAll("[data-gantt-react-zoom]").length || 0,
+        blockedActionCount: island?.querySelectorAll("[data-gantt-react-blocked-action]").length || 0,
+        hasScheduleSurface: Boolean(island?.querySelector("[data-gantt-react-schedule-form], [data-gantt-react-schedule-blocked]")),
+        rowCount: rows.length,
+        labelCount: rowsLayer?.querySelectorAll(".gantt-react-label").length || 0,
+        laneCount: lanes.length,
+        laneIdentityProblems: rows
+          .filter((row) => row.querySelector(".gantt-react-lane")?.getAttribute("data-gantt-react-drop-lane") !== row.getAttribute("data-row-id"))
+          .map((row) => row.getAttribute("data-row-id") || "")
+          .slice(0, 8),
         slotCount: slots.length,
-        slotComponentCount: slotComponents.length,
-        resizeHandleCount: resizeHandles.length,
-        badSlotComponents,
-        workingSegmentCount: workingSegments.length,
-        nonWorkingSegmentCount: nonWorkingSegments.length,
-        operationalSlotCount: operationalSlots.length,
-        operationalLayerCount: operationalLayers.length,
-        operationalSegmentCount: operationalSegments.length,
-        transferBatchCount: transferBatches.length,
-        rowTypeCounts,
+        slotIds: slots.map((slot) => slot.getAttribute("data-slot-id") || ""),
+        slotBounds: slots.slice(0, 8).map((slot) => {
+          const rect = slot.getBoundingClientRect();
+          return { width: Math.round(rect.width), height: Math.round(rect.height) };
+        }),
         runtimeWidth: Math.round(runtimeRect?.width || 0),
         runtimeHeight: Math.round(runtimeRect?.height || 0),
         canvasWidth: Math.round(canvasRect?.width || 0),
         canvasHeight: Math.round(canvasRect?.height || 0),
-        firstSlotWidth: Math.round(firstSlotRect?.width || 0),
-        firstSlotHeight: Math.round(firstSlotRect?.height || 0),
         pageOverflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
       };
     });
-    assert(ganttReport.hasRuntime, "gantt: GanttRuntime shell is missing");
-    assert(ganttReport.runtime === "gantt-v1", `gantt: expected data-ui-runtime=gantt-v1, got "${ganttReport.runtime}"`);
-    assert(ganttReport.component === "GanttRuntime", `gantt: expected GanttRuntime component, got "${ganttReport.component}"`);
-    assert(ganttReport.hasCanvas && ganttReport.canvasComponent === "GanttCanvas", "gantt: GanttCanvas contract is missing");
-    assert(ganttReport.hasTimeline && ganttReport.timelineComponent === "GanttTimeline", "gantt: GanttTimeline contract is missing");
-    assert(ganttReport.hasRowsLayer && ganttReport.rowsLayerComponent === "GanttRowsLayer", "gantt: GanttRowsLayer contract is missing");
-    assert(ganttReport.hasDependencyLayer && ganttReport.dependencyLayerComponent === "GanttDependencyLayer", "gantt: GanttDependencyLayer contract is missing");
-    assert(ganttReport.dependencyArrowCount >= 6, `gantt: dependency arrow marker contract is missing (${ganttReport.dependencyArrowCount})`);
-    // A freshly cleaned pilot may legitimately have no scheduled slots. The
-    // shell smoke test must validate that empty Gantt state rather than fail
-    // on contracts which only exist when slots are rendered. Slot interaction
-    // and dependency geometry are covered by the seeded Gantt QA separately.
-    if (ganttReport.slotCount === 0) {
-      assert(ganttReport.dependencyMaskCount === 0, `gantt: empty state rendered an unexpected slot mask: ${JSON.stringify(ganttReport)}`);
-      assert(ganttReport.dependencyPathCount === 0, `gantt: empty state rendered unexpected dependency paths: ${JSON.stringify(ganttReport)}`);
-      assert(ganttReport.pageOverflowX <= 2, `gantt: empty state page horizontal overflow ${ganttReport.pageOverflowX}px`);
-      return;
-    }
-    assert(ganttReport.dependencyMaskCount > 0, `gantt: GanttDependencySlotMask contract is missing: ${JSON.stringify(ganttReport)}`);
-    assert(ganttReport.dependencyMaskRectCount >= ganttReport.slotCount, `gantt: dependency slot mask rects look incomplete ${ganttReport.dependencyMaskRectCount}/${ganttReport.slotCount}`);
-    assert(ganttReport.dependencyPathWithoutD === 0, `gantt: dependency paths without d attribute: ${ganttReport.dependencyPathWithoutD}`);
-    assert(ganttReport.dependencyPathWithoutMarker === 0, `gantt: dependency paths without marker-end: ${ganttReport.dependencyPathWithoutMarker}`);
-    assert(ganttReport.dependencyPathWithoutMask === 0, `gantt: dependency paths without slot readability mask: ${ganttReport.dependencyPathWithoutMask}`);
-    const hasDetailedGanttRows = (ganttReport.rowTypeCounts.workCenter || 0)
-      + (ganttReport.rowTypeCounts.resource || 0)
-      + (ganttReport.rowTypeCounts.operation || 0) > 0;
-    const hasNonWorkingCoverage = ganttReport.nonWorkingZoneCount > 0 || ganttReport.nonWorkingSegmentCount > 0;
-    assert(hasNonWorkingCoverage, `gantt: non-working time contract is missing: ${JSON.stringify(ganttReport)}`);
-    if (hasDetailedGanttRows) {
-      assert(ganttReport.nonWorkingLayerCount > 0, `gantt: GanttNonWorkingLayer contract is missing: ${JSON.stringify(ganttReport)}`);
-      assert(ganttReport.nonWorkingZoneCount > 0, `gantt: GanttNonWorkingZone contract is missing: ${JSON.stringify(ganttReport)}`);
-    }
-    assert(ganttReport.nonWorkingZeroGeometry.length === 0, `gantt: non-working zones with zero geometry: ${JSON.stringify(ganttReport.nonWorkingZeroGeometry)}`);
-    assert(ganttReport.slotCount > 0, "gantt: no operation slots rendered");
-    assert(ganttReport.slotComponentCount === ganttReport.slotCount, `gantt: GanttSlot marker drift ${ganttReport.slotComponentCount}/${ganttReport.slotCount}`);
-    if (hasDetailedGanttRows) {
-      assert(ganttReport.resizeHandleCount > 0, "gantt: GanttResizeHandle contract is missing");
-    }
-    assert(ganttReport.badSlotComponents.length === 0, `gantt: operation slots without GanttSlot component: ${JSON.stringify(ganttReport.badSlotComponents)}`);
-    if (ganttReport.operationalSlotCount > 0) {
-      assert(ganttReport.operationalLayerCount > 0, `gantt: operational slots rendered without GanttOperationalLayer (${ganttReport.operationalSlotCount})`);
-      assert(ganttReport.operationalSegmentCount > 0, `gantt: operational slots rendered without GanttOperationalSegment (${ganttReport.operationalSlotCount})`);
-    }
-    assert(ganttReport.firstSlotWidth > 0 && ganttReport.firstSlotHeight > 0, `gantt: first slot geometry looks broken ${ganttReport.firstSlotWidth}x${ganttReport.firstSlotHeight}`);
-    assert(ganttReport.runtimeWidth > 320 && ganttReport.runtimeHeight > 240, `gantt: runtime dimensions look broken ${ganttReport.runtimeWidth}x${ganttReport.runtimeHeight}`);
-    assert(ganttReport.canvasWidth >= ganttReport.runtimeWidth, `gantt: canvas width ${ganttReport.canvasWidth}px is smaller than runtime ${ganttReport.runtimeWidth}px`);
-    assert(ganttReport.pageOverflowX <= 2, `gantt: page horizontal overflow ${ganttReport.pageOverflowX}px`);
 
-    const dragReport = await evaluate(client, () => new Promise((resolve) => {
-      const slot = [...document.querySelectorAll("[data-ui-component='GanttSlot']")]
-        .find((item) => (
-          !item.classList.contains("aggregate-slot")
-          && !item.classList.contains("week-slot")
-          && !item.classList.contains("is-locked")
-        ))
-        || document.querySelector("[data-ui-component='GanttSlot']");
-      if (!slot || typeof PointerEvent !== "function") {
-        resolve({ hasSlot: Boolean(slot), pointerEventSupported: typeof PointerEvent === "function" });
-        return;
-      }
-      slot.scrollIntoView({ block: "center", inline: "center" });
-      const rect = slot.getBoundingClientRect();
-      const startX = rect.left + Math.min(Math.max(12, rect.width / 2), Math.max(12, rect.width - 8));
-      const startY = rect.top + Math.min(Math.max(8, rect.height / 2), Math.max(8, rect.height - 4));
-      slot.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        buttons: 1,
-        clientX: startX,
-        clientY: startY,
-      }));
-      document.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        buttons: 1,
-        clientX: startX + 80,
-        clientY: startY + 2,
-      }));
-      setTimeout(() => {
-        const overlay = document.querySelector("[data-ui-component='GanttSnapOverlay']");
-        const ghost = document.querySelector("[data-ui-component='GanttDragGhost']");
-        const guide = document.querySelector("[data-ui-component='GanttSnapGuide']");
-        const ghostRect = ghost?.getBoundingClientRect();
-        const overlayRect = overlay?.getBoundingClientRect();
-        const report = {
-          hasSlot: true,
-          pointerEventSupported: true,
-          hasOverlay: Boolean(overlay),
-          hasGhost: Boolean(ghost),
-          hasGuide: Boolean(guide),
-          overlayWidth: Math.round(overlayRect?.width || 0),
-          overlayHeight: Math.round(overlayRect?.height || 0),
-          ghostWidth: Math.round(ghostRect?.width || 0),
-          ghostHeight: Math.round(ghostRect?.height || 0),
-        };
-        document.dispatchEvent(new PointerEvent("pointerup", {
-          bubbles: true,
-          cancelable: true,
-          button: 0,
-          buttons: 0,
-          clientX: startX + 80,
-          clientY: startY + 2,
-        }));
-        resolve(report);
-      }, 80);
-    }));
-    assert(dragReport.hasSlot, "gantt: cannot test drag overlay because no GanttSlot was found");
-    assert(dragReport.pointerEventSupported, "gantt: PointerEvent is not supported in smoke browser");
-    if (hasDetailedGanttRows) {
-      assert(dragReport.hasOverlay && dragReport.hasGhost && dragReport.hasGuide, `gantt: drag overlay contract is missing ${JSON.stringify(dragReport)}`);
-      assert(dragReport.overlayWidth > 320 && dragReport.overlayHeight > 120, `gantt: drag overlay geometry looks broken ${JSON.stringify(dragReport)}`);
-      assert(dragReport.ghostWidth > 0 && dragReport.ghostHeight > 0, `gantt: drag ghost geometry looks broken ${JSON.stringify(dragReport)}`);
+    assert(!ganttReport.hasLegacyShell, "gantt: retired legacy shell returned");
+    assert(ganttReport.hasRuntime, "gantt: React GanttRuntime is missing");
+    assert(ganttReport.hasCanvas, "gantt: React GanttCanvas contract is missing");
+    assert(ganttReport.hasTimeline, "gantt: React GanttTimeline contract is missing");
+    assert(ganttReport.hasRowsLayer, "gantt: React GanttRowsLayer contract is missing");
+    assert(ganttReport.hasToolbar && ganttReport.hasPeriod, "gantt: React toolbar or period control is missing");
+    assert(ganttReport.scaleCount >= 3 && ganttReport.zoomCount === 3, "gantt: typed scale/zoom controls are incomplete: " + JSON.stringify(ganttReport));
+    assert(ganttReport.blockedActionCount >= 4, "gantt: deferred owner actions are not explicitly marked: " + JSON.stringify(ganttReport));
+    assert(ganttReport.hasScheduleSurface, "gantt: schedule command must be present or explicitly fail closed");
+    assert(ganttReport.labelCount === ganttReport.rowCount, "gantt: React row label count drift: " + JSON.stringify(ganttReport));
+    assert(ganttReport.laneCount === ganttReport.rowCount, "gantt: React row lane count drift: " + JSON.stringify(ganttReport));
+    assert(ganttReport.laneIdentityProblems.length === 0, "gantt: React row/lane identity drift: " + JSON.stringify(ganttReport.laneIdentityProblems));
+    assert(ganttReport.slotIds.every(Boolean) && new Set(ganttReport.slotIds).size === ganttReport.slotIds.length, "gantt: physical slot ids are missing or duplicated");
+    assert(ganttReport.slotBounds.every((slot) => slot.width > 0 && slot.height > 0), "gantt: React slot has empty geometry: " + JSON.stringify(ganttReport.slotBounds));
+    if (ganttReport.rowCount > 0) {
+      assert(ganttReport.runtimeWidth > 320 && ganttReport.runtimeHeight > 240, "gantt: React runtime dimensions look broken: " + JSON.stringify(ganttReport));
+      assert(ganttReport.canvasWidth >= ganttReport.runtimeWidth && ganttReport.canvasHeight > 0, "gantt: React canvas dimensions look broken: " + JSON.stringify(ganttReport));
+    } else {
+      assert(ganttReport.slotCount === 0, "gantt: empty PostgreSQL projection rendered orphan physical slots: " + JSON.stringify(ganttReport));
+      assert(ganttReport.runtimeWidth > 320 && ganttReport.runtimeHeight >= 48 && ganttReport.canvasHeight >= 32, "gantt: empty React runtime shell looks broken: " + JSON.stringify(ganttReport));
     }
+    assert(ganttReport.pageOverflowX <= 2, "gantt: page horizontal overflow " + ganttReport.pageOverflowX + "px");
 
-    const cancelledDragReport = await evaluate(client, () => new Promise((resolve) => {
-      const slot = [...document.querySelectorAll("[data-ui-component='GanttSlot']")]
-        .find((item) => (
-          !item.classList.contains("aggregate-slot")
-          && !item.classList.contains("week-slot")
-          && !item.classList.contains("is-locked")
-        ))
-        || document.querySelector("[data-ui-component='GanttSlot']");
-      if (!slot || typeof PointerEvent !== "function") {
-        resolve({ hasSlot: Boolean(slot), pointerEventSupported: typeof PointerEvent === "function" });
-        return;
-      }
-      const pointerId = 4711;
-      const slotId = slot.dataset.slotId || "";
-      const getSlotStyle = () => [...document.querySelectorAll("[data-ui-component='GanttSlot']")]
-        .find((item) => item.dataset.slotId === slotId)?.getAttribute("style") || "";
-      slot.scrollIntoView({ block: "center", inline: "center" });
-      const rect = slot.getBoundingClientRect();
-      const startX = rect.left + Math.min(Math.max(12, rect.width / 2), Math.max(12, rect.width - 8));
-      const startY = rect.top + Math.min(Math.max(8, rect.height / 2), Math.max(8, rect.height - 4));
-      const originalStyle = getSlotStyle();
-      slot.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        buttons: 1,
-        pointerId,
-        clientX: startX,
-        clientY: startY,
-      }));
-      document.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        buttons: 1,
-        pointerId: pointerId + 1,
-        clientX: startX + 80,
-        clientY: startY + 2,
-      }));
-      setTimeout(() => {
-        const styleAfterForeignPointer = getSlotStyle();
-        document.dispatchEvent(new PointerEvent("pointermove", {
-          bubbles: true,
-          cancelable: true,
-          button: 0,
-          buttons: 1,
-          pointerId,
-          clientX: startX + 80,
-          clientY: startY + 2,
-        }));
-        setTimeout(() => {
-          const movedStyle = getSlotStyle();
-          document.querySelector("#app")?.dispatchEvent(new PointerEvent("lostpointercapture", {
-            pointerId,
-          }));
-          requestAnimationFrame(() => requestAnimationFrame(() => {
-            resolve({
-              hasSlot: true,
-              pointerEventSupported: true,
-              originalStyle,
-              styleAfterForeignPointer,
-              movedStyle,
-              restoredStyle: getSlotStyle(),
-              hasOverlay: Boolean(document.querySelector("[data-ui-component='GanttSnapOverlay']")),
-              manipulating: document.body.classList.contains("is-manipulating"),
-            });
-          }));
-        }, 80);
-      }, 40);
-    }));
-    assert(cancelledDragReport.hasSlot, "gantt: cannot test cancelled drag because no GanttSlot was found");
-    assert(cancelledDragReport.pointerEventSupported, "gantt: PointerEvent is not supported in smoke browser for cancelled drag");
-    if (hasDetailedGanttRows) {
-      assert(
-        cancelledDragReport.styleAfterForeignPointer === cancelledDragReport.originalStyle,
-        `gantt: a foreign pointer moved the active drag ${JSON.stringify(cancelledDragReport)}`,
-      );
-      assert(
-        cancelledDragReport.movedStyle !== cancelledDragReport.originalStyle,
-        `gantt: the active pointer did not move the drag ${JSON.stringify(cancelledDragReport)}`,
-      );
-      assert(
-        cancelledDragReport.restoredStyle === cancelledDragReport.originalStyle,
-        `gantt: lost pointer capture did not restore the original slot ${JSON.stringify(cancelledDragReport)}`,
-      );
-      assert(
-        !cancelledDragReport.hasOverlay && !cancelledDragReport.manipulating,
-        `gantt: cancelled drag left interaction UI behind ${JSON.stringify(cancelledDragReport)}`,
-      );
-    }
-
-    const resizeReport = await evaluate(client, () => new Promise((resolve) => {
-      const handle = document.querySelector("[data-ui-component='GanttResizeHandle']");
-      if (!handle || typeof PointerEvent !== "function") {
-        resolve({ hasHandle: Boolean(handle), pointerEventSupported: typeof PointerEvent === "function" });
-        return;
-      }
-      handle.scrollIntoView({ block: "center", inline: "center" });
-      const rect = handle.getBoundingClientRect();
-      const startX = rect.left + rect.width / 2;
-      const startY = rect.top + rect.height / 2;
-      handle.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        buttons: 1,
-        clientX: startX,
-        clientY: startY,
-      }));
-      document.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        buttons: 1,
-        clientX: startX + 80,
-        clientY: startY,
-      }));
-      setTimeout(() => {
-        const overlay = document.querySelector("[data-ui-component='GanttSnapOverlay']");
-        const ghost = document.querySelector("[data-ui-component='GanttDragGhost']");
-        const guide = document.querySelector("[data-ui-component='GanttSnapGuide']");
-        const ghostRect = ghost?.getBoundingClientRect();
-        const report = {
-          hasHandle: true,
-          pointerEventSupported: true,
-          hasOverlay: Boolean(overlay),
-          hasGhost: Boolean(ghost),
-          hasGuide: Boolean(guide),
-          guideMode: guide?.classList.contains("is-resize") ? "resize" : guide?.className || "",
-          ghostWidth: Math.round(ghostRect?.width || 0),
-          ghostHeight: Math.round(ghostRect?.height || 0),
-        };
-        document.dispatchEvent(new PointerEvent("pointerup", {
-          bubbles: true,
-          cancelable: true,
-          button: 0,
-          buttons: 0,
-          clientX: startX + 80,
-          clientY: startY,
-        }));
-        resolve(report);
-      }, 80);
-    }));
-    if (hasDetailedGanttRows) {
-      assert(resizeReport.hasHandle, "gantt: cannot test resize overlay because no GanttResizeHandle was found");
-      assert(resizeReport.pointerEventSupported, "gantt: PointerEvent is not supported in smoke browser for resize");
-      assert(resizeReport.hasOverlay && resizeReport.hasGhost && resizeReport.hasGuide, `gantt: resize overlay contract is missing ${JSON.stringify(resizeReport)}`);
-      assert(resizeReport.guideMode === "resize", `gantt: resize snap guide mode is wrong ${JSON.stringify(resizeReport)}`);
-      assert(resizeReport.ghostWidth > 0 && resizeReport.ghostHeight > 0, `gantt: resize ghost geometry looks broken ${JSON.stringify(resizeReport)}`);
-    }
-
-    if (hasDetailedGanttRows) {
-      await delay(560);
-      const openedSlotId = await evaluate(client, () => {
-        const slot = document.querySelector("[data-ui-component='GanttSlot']");
-        slot?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
-        return slot?.dataset.slotId || "";
-      });
-      assert(openedSlotId, "gantt: cannot open selected slot state because no GanttSlot was found");
-      await delay(120);
-      const editSurfaceReport = await evaluate(client, () => {
-        const drawer = document.querySelector(".slot-drawer[data-ui-component='Drawer'], .detail-drawer[data-ui-component='Drawer']");
-        const modal = document.querySelector(".slot-form-modal[data-ui-component='Modal'], .modal[data-ui-component='Modal'], [role='dialog'][data-ui-component='Modal']");
-        const drawerRect = drawer?.getBoundingClientRect();
-        const modalRect = modal?.getBoundingClientRect();
-        const surface = drawer || modal;
-        const surfaceRect = surface?.getBoundingClientRect();
+    if (ganttReport.slotCount > 0) {
+      const selectionReport = await evaluate(client, async () => {
+        const slot = document.querySelector("[data-ui-component='GanttSlot'][data-slot-id]");
+        const slotId = slot?.getAttribute("data-slot-id") || "";
+        slot?.click();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const selected = document.querySelector("[data-ui-component='GanttSlot'][aria-pressed='true']");
         return {
-          hasDrawer: Boolean(drawer),
-          drawerComponent: drawer?.dataset.uiComponent || "",
-          drawerWidth: Math.round(drawerRect?.width || 0),
-          drawerHeight: Math.round(drawerRect?.height || 0),
-          hasModal: Boolean(modal),
-          modalComponent: modal?.dataset.uiComponent || "",
-          modalWidth: Math.round(modalRect?.width || 0),
-          modalHeight: Math.round(modalRect?.height || 0),
-          surfaceComponent: surface?.dataset.uiComponent || "",
-          surfaceWidth: Math.round(surfaceRect?.width || 0),
-          surfaceHeight: Math.round(surfaceRect?.height || 0),
+          slotId,
+          selectedId: selected?.getAttribute("data-slot-id") || "",
+          detailText: (document.querySelector(".gantt-react-detail")?.textContent || "").replace(/\s+/g, " ").trim(),
         };
       });
-      assert(
-        (editSurfaceReport.hasDrawer && editSurfaceReport.drawerComponent === "Drawer")
-          || (editSurfaceReport.hasModal && editSurfaceReport.modalComponent === "Modal"),
-        "gantt: selected slot edit surface contract is missing after opening slot",
-      );
-      assert(editSurfaceReport.surfaceWidth > 240 && editSurfaceReport.surfaceHeight > 240, `gantt: selected slot edit surface geometry looks broken ${editSurfaceReport.surfaceWidth}x${editSurfaceReport.surfaceHeight}`);
-
-      const slotEditorQaReport = await evaluate(client, () => {
-        const context = document.querySelector('[data-visual-qa-target="gantt-slot-editor-context"]');
-        const requiredTargets = [
-          "gantt-slot-editor-summary",
-          "gantt-slot-editor-working-duration",
-          "gantt-slot-editor-calendar-duration",
-          "gantt-slot-editor-resource-code",
-          "gantt-slot-editor-signal-count",
-          "gantt-slot-editor-detail-product",
-          "gantt-slot-editor-detail-route-step",
-          "gantt-slot-editor-detail-labor",
-          "gantt-slot-editor-flow-input",
-          "gantt-slot-editor-flow-output",
-          "gantt-slot-editor-route-sequence-step",
-          "gantt-slot-editor-actions",
-        ];
-        const presentTargets = [...(context?.querySelectorAll("[data-visual-qa-target]") || [])]
-          .map((element) => element.dataset.visualQaTarget || "")
-          .filter(Boolean);
-        const missingTargets = requiredTargets.filter((target) => !presentTargets.includes(target));
-        const hitTestProblems = requiredTargets
-          .map((target) => {
-            const element = context?.querySelector(`[data-visual-qa-target="${CSS.escape(target)}"]`);
-            if (!element) return null;
-            element.scrollIntoView({ block: "center", inline: "nearest" });
-            const rect = element.getBoundingClientRect();
-            if (rect.width <= 0 || rect.height <= 0) return { target, reason: "zero-geometry" };
-            const point = document.elementFromPoint(
-              Math.min(window.innerWidth - 1, Math.max(1, rect.left + rect.width / 2)),
-              Math.min(window.innerHeight - 1, Math.max(1, rect.top + rect.height / 2)),
-            );
-            const selected = point?.closest?.("[data-visual-qa-target]")?.dataset?.visualQaTarget || "";
-            return selected === target ? null : { target, selected, reason: "parent-or-neighbor-selected" };
-          })
-          .filter(Boolean);
-        return {
-          hasContext: Boolean(context),
-          contextTarget: context?.dataset.visualQaTarget || "",
-          presentTargets,
-          missingTargets,
-          hitTestProblems,
-        };
-      });
-      assert(slotEditorQaReport.hasContext, "gantt: slot editor context inspection root is missing");
-      assert(slotEditorQaReport.missingTargets.length === 0, `gantt: slot editor context lacks nested inspection targets: ${JSON.stringify(slotEditorQaReport)}`);
-      assert(slotEditorQaReport.hitTestProblems.length === 0, `gantt: slot editor nested QA hit-test falls back to parent block: ${JSON.stringify(slotEditorQaReport.hitTestProblems)}`);
+      assert(selectionReport.selectedId === selectionReport.slotId, "gantt: React slot selection did not stay on the exact physical slot: " + JSON.stringify(selectionReport));
+      assert(selectionReport.detailText.length > 20, "gantt: selected slot detail did not render");
     }
   }
   if (moduleId === "authSessionPrototype") {

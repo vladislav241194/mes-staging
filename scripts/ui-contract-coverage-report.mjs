@@ -296,7 +296,7 @@ async function waitForModuleCoverage(client, moduleId) {
   const startedAt = Date.now();
   let lastReport = null;
   while (Date.now() - startedAt < 25000) {
-    const report = await evaluate(client, ({ trackedComponents, expectedLayout }) => {
+    const report = await evaluate(client, ({ trackedComponents, expectedLayout, moduleId }) => {
       const componentCounts = {};
       trackedComponents.forEach((component) => {
         componentCounts[component] = document.querySelectorAll(`[data-ui-component="${component}"]`).length;
@@ -311,19 +311,24 @@ async function waitForModuleCoverage(client, moduleId) {
       const appShell = Boolean(document.querySelector('main.app-shell[data-layout="app-shell"]'));
       const documentedException = Boolean(document.querySelector("[data-ui-contract-exception]"));
       const headerlessModuleContract = Boolean(document.querySelector('[data-ui-contract~="headerless-module"]'));
+      const ganttReady = Boolean(
+        document.querySelector("[data-react-gantt-island][data-react-island-state='ready']")
+        && document.querySelector(".gantt-react-scroll[data-ui-component='GanttRuntime']")
+      );
       return {
-        ready: Boolean(shell) && layoutPage === expectedLayout,
+        ready: Boolean(shell) && layoutPage === expectedLayout && (moduleId !== "gantt" || ganttReady),
         layoutPage,
         appShell,
         components,
         componentCounts,
         documentedException,
         headerlessModuleContract,
+        ganttReady,
         runtimeErrors,
         title: (document.querySelector(".app-topbar-title h1")?.textContent || "").trim(),
         mainTextLength: bodyText.length,
       };
-    }, { trackedComponents, expectedLayout });
+    }, { trackedComponents, expectedLayout, moduleId });
     lastReport = report;
     if (report.ready && report.mainTextLength > 40 && !report.runtimeErrors) {
       return {

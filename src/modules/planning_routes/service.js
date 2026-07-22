@@ -1,5 +1,11 @@
 import { formatPlanningOperationCount } from "../../ui/formatters.js";
 import { calculateOperationPlannedQuantity } from "../../domain/planning_quantity.js";
+import { createPlanningWorkingCalendarOwner } from "../planning_core/working_calendar_owner.js";
+import { focusPlanningRoute } from "./gantt_navigation_owner.js";
+
+export function isPlanningRoutePersistenceConfirmed(result) {
+  return result?.blocked !== true && result?.changed === true;
+}
 
 export function createPlanningRoutesServiceModule(dependencies = {}) {
   const {
@@ -24,7 +30,6 @@ export function createPlanningRoutesServiceModule(dependencies = {}) {
     formatDateTimeShort,
     formatDuration,
     formatReportNumber,
-    focusRoute = () => {},
     fromDateInput,
     getBatch, getBomList = () => null, getBomResultNomenclatureItem = () => null,
     getDefaultOperationCalculationType,
@@ -111,7 +116,6 @@ export function createPlanningRoutesServiceModule(dependencies = {}) {
     slotMatchesPlanningOrder,
     slotMatchesProductionContext,
     snapDate,
-    snapToWorkingTime = (_workCenterId, value) => value,
     toDate,
     toDateInput,
     toSlotDateTime,
@@ -121,6 +125,13 @@ export function createPlanningRoutesServiceModule(dependencies = {}) {
   let ui = dependencies.getUi?.() || {};
   let planningState = dependencies.getPlanningState?.() || {};
   let directoryState = dependencies.getDirectoryState?.() || {};
+  const workingCalendarOwner = createPlanningWorkingCalendarOwner({
+    getPlanningState: () => planningState,
+    getRuntimePlanningState,
+    mapLegacyWorkCenterId,
+    isWarehouseWorkCenterId,
+    smtWorkCenterIds: MES_SMT_WORK_CENTER_IDS,
+  });
 
   function syncRuntimeState() {
     ui = dependencies.getUi?.() || ui || {};
@@ -1918,6 +1929,15 @@ function getPlanningRouteSlots(route) {
   ));
 }
 
+function getPlanningRouteFocusSlots(route) {
+  if (!route?.id) return [];
+  const stepIds = new Set(getRouteStepsForModule(route.id).map((step) => step.id));
+  return (planningState.slots || []).filter((slot) => (
+    getSlotRouteId(slot, planningState) === route.id
+    || stepIds.has(slot.routeStepId)
+  ));
+}
+
 function getPlanningRouteOrderState(route, summary = null) {
   if (!route) return { id: "empty", label: "Не выбран", tone: "neutral" };
   const transferSummary = summary || getPlanningRouteTransferSummary(route);
@@ -2192,7 +2212,7 @@ function getPlanningRouteAnchorStart(route, routeSteps = null) {
     : "";
   const snappedDate = snapDate(date, getGanttSnapMs());
   return firstWorkCenterId
-    ? snapToWorkingTime(firstWorkCenterId, snappedDate, planningState)
+    ? workingCalendarOwner.snapToWorkingTime(firstWorkCenterId, snappedDate, planningState)
     : snappedDate;
 }
 
@@ -2724,7 +2744,14 @@ function schedulePlanningRouteToGantt(routeId) {
   // return; otherwise an unsuccessful handoff would leave invisible, in-place
   // changes that neither persistence nor the Weekly projection could observe.
   if (specification && ensureRouteTaskSeedSteps(route.id, specification)) {
-    persistState();
+    const seedPersistResult = persistState();
+    if (!isPlanningRoutePersistenceConfirmed(seedPersistResult)) {
+      syncRuntimeState();
+      alert(seedPersistResult?.blocked
+        ? "Передача в Гант заблокирована: серверный владелец планирования не подтвердил подготовку операций."
+        : "Передача в Гант остановлена: подготовка операций не была подтверждена хранилищем.");
+      return false;
+    }
   }
   const planningQuantity = getPlanningRouteQuantity(route);
   const invalidSteps = getInvalidRouteOperationSteps(route.id);
@@ -2818,23 +2845,39 @@ function schedulePlanningRouteToGantt(routeId) {
       : item
   ));
   planningState = normalizePlanningState(planningState);
+  const persistResult = persistState();
+  if (!isPlanningRoutePersistenceConfirmed(persistResult)) {
+    syncRuntimeState();
+    alert(persistResult?.blocked
+      ? "Передача в Гант заблокирована: серверный владелец планирования не подтвердил запись."
+      : "Передача в Гант остановлена: хранилище не подтвердило изменения графика.");
+    return false;
+  }
   ui.activeModule = "gantt";
   ui.activeProjectId = project.id;
   ui.activeRouteId = route.id;
   ui.expandedProjects.add(route.id);
   if (createdIds.length) ui.selectedSlotId = createdIds[0];
   else if (alignedIds.length) ui.selectedSlotId = alignedIds[0];
-  persistState();
   persistUiState();
   notifySaveSuccess(createdIds.length
     ? "Заказ-наряд передан в Гант"
     : alignedIds.length
       ? "Зависимости заказ-наряда обновлены"
       : "Заказ-наряд уже был в Ганте");
-  focusRoute(route.id);
+  focusPlanningRoute({
+    route,
+    routeSlots: getPlanningRouteFocusSlots(route),
+    ui,
+    getRouteProductionId,
+    getRoutePlanningContext,
+    persistUiState,
+    render,
+  });
   if (!createdIds.length && !alignedIds.length) {
     alert("Все операции этого заказ-наряда уже находятся в Ганте.");
   }
+  return true;
 }
 
 function cancelPlanningRoute(routeId) {

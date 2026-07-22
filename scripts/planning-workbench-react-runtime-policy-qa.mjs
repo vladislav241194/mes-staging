@@ -60,7 +60,7 @@ const [app, host, routes, events, appInteractions, gantt, scenario, runtimeState
   readFile(new URL("../src/modules/planning_routes/service.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/app_events/service.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/app_interactions/render.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/gantt_runtime/render.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/gantt_runtime/react_island_host.js", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/planning-workbench/PlanningWorkbenchScenario.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/runtime_state/service.js", import.meta.url), "utf8"),
   readFile(new URL("../styles/visual-overrides.live.css", import.meta.url), "utf8"),
@@ -184,10 +184,14 @@ const slotOwnerCommand = app.slice(
 );
 assert.match(slotOwnerCommand, /requireServerCommand = options\.requireServerCommand === true[\s\S]*requestedRevision = Number\(options\.expectedRevision\)[\s\S]*exactSlotId[\s\S]*workOrdersReadModel\.changeSlotSchedule\(routeId, operationId, exactSlotId, plannedStart, expectedRevision\)[\s\S]*String\(authoritativeSlot\.id\) !== exactSlotId/,
   "the slot owner must accept the displayed revision and fail closed when the server client is unavailable");
-assert.match(slotOwnerCommand, /rollbackReady = result\.compatibilityReady === true[\s\S]*applied: false, committed: true, rollbackReady: false, kind: "compatibility-pending"/,
-  "slot owner must distinguish a committed PostgreSQL mutation from rollback readiness");
+assert.match(slotOwnerCommand, /rollbackReady = result\.compatibilityReady === true[\s\S]*kind: "readback-pending"[\s\S]*kind: "projection-pending"[\s\S]*kind: "compatibility-pending"/,
+  "slot owner must distinguish committed detail, projection and rollback readiness");
 assert.match(slotOwnerCommand, /hydratePlanningRuntimeProjection\(\{ force: true, renderOnChange: options\.renderOnChange !== false \}\)/,
   "slot read-back must update the PostgreSQL projection without forcing the mounted React Scenario to unmount");
+assert.doesNotMatch(slotOwnerCommand, /planningState\.(?:routes|slots)\s*=/,
+  "server slot scheduling must never mutate the compatibility snapshot as a normal path");
+assert.match(slotOwnerCommand, /if \(!requireServerCommand\)[\s\S]*server-required/,
+  "slot scheduling must reject every local fallback while allowing the signed server owner during quiesce");
 const planningRuntimeAdapter = app.slice(
   app.indexOf("    planning: {\n      render: () => {"),
   app.indexOf("    shiftMasterBoard:", app.indexOf("    planning: {\n      render: () => {")),
@@ -220,7 +224,8 @@ assert.match(events, /isPlanningStartDateServerCommandsPrimary\(\)/,
 assert.doesNotMatch(app, /PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR/);
 assert.doesNotMatch(host, /PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR|data-planning-start-date|data-planning-route-quantity-form/,
   "React-only Planning must not retain legacy mutation selectors");
-assert.match(app, /GANTT_LEGACY_MUTATION_SELECTOR/);
+assert.doesNotMatch(app, /GANTT_LEGACY_MUTATION_SELECTOR|GANTT_LEGACY_MUTATION_CONTROL_SELECTOR/,
+  "retired Gantt mutation selectors must leave the normal application graph");
 assert.match(app, /dataset\.legacyDomainWritesQuiesced/);
 assert.match(app, /dataset\.planningLegacyWritesQuiesced/);
 assert.match(app, /Изменения legacy-данных приостановлены/);
@@ -230,9 +235,8 @@ assert.match(app, /topbar\.after\(banner\)/,
   "the global safety banner must be a shell sibling outside React-owned island roots");
 assert.doesNotMatch(app, /surface\.prepend\(banner\)/,
   "the runtime must never insert an unmanaged banner inside a React root");
-assert.match(app, /#slotForm/);
-assert.match(app, /event\.type === "click"[\s\S]*target\.closest\("\.operation-slot"\)[\s\S]*!target\.closest\(GANTT_LEGACY_MUTATION_CONTROL_SELECTOR\)/,
-  "single-click slot focus/read must remain available while pointer/double-click mutations are blocked");
+assert.doesNotMatch(app, /#slotForm|target\.closest\("\.operation-slot"\)/,
+  "the React-only Gantt route must not retain guards for deleted legacy controls");
 assert.match(runtimeState, /response\.legacyDomainWritesQuiesced === true/);
 assert.match(runtimeState, /applySharedStateSnapshot\(response\.current/);
 assert.match(runtimeState, /isPlanningLegacyWritesQuiesced\(\) && !sharedStateApplyingRemote/);

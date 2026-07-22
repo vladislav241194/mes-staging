@@ -71,12 +71,26 @@ function revisionMatchesSelection(selected, revision) {
     && (serverFingerprint === publicationFingerprint || /^sha256:[a-f0-9]{64}$/i.test(serverFingerprint));
 }
 
+function publicationRecoveryResult({ created = false, entryId = "", message = "", revision = 0 } = {}) {
+  return {
+    ok: false,
+    published: true,
+    id: entryId,
+    revision,
+    created: created === true,
+    recoveryPending: true,
+    message: message || "Ревизия опубликована, но её подтверждение ещё не восстановлено.",
+  };
+}
+
 export function createSpecifications2ProductionOwner({
   getStore = () => ({ registry: [], selectedId: "" }),
   writeStore = () => false,
   getPublishedRevisionState = () => ({ item: null, loading: null, error: "" }),
   hydratePublishedRevision = () => {},
   getCurrentFingerprint = () => "",
+  preparePublication = null,
+  forcePublishedRevisionRead = null,
   getWorkOrderCapability = () => ({ enabled: false, primaryPostgres: false }),
   createWorkOrder = async () => ({ ok: false, error: "Specifications 2.0 work-order owner is unavailable" }),
   createIdempotencyKey = () => globalThis.crypto?.randomUUID?.() || `specifications2-work-order:${Date.now()}`,
@@ -128,7 +142,10 @@ export function createSpecifications2ProductionOwner({
       return { ok: false, message: "Спецификация больше не входит в реестр." };
     }
     if (id === store.selectedId) return { ok: true, id, changed: false };
-    const written = writeStore({ ...store, selectedId: id });
+    // Selection belongs to the local React UI. It must never publish the
+    // complete browser registry back into shared-state: that snapshot may be
+    // older than the PostgreSQL-backed registry observed by another session.
+    const written = writeStore({ ...store, selectedId: id }, { suppressSharedStatePush: true });
     if (written === false) return { ok: false, message: "Не удалось сохранить выбор спецификации." };
     return { ok: true, id, changed: true };
   };
@@ -142,9 +159,47 @@ export function createSpecifications2ProductionOwner({
     if (!Number.isInteger(expectedPreviousRevision) || expectedPreviousRevision < 0 || Number(selected.publication?.revision || 0) !== expectedPreviousRevision) {
       return { ok: false, message: "Ревизия черновика изменилась. Обновите экран." };
     }
+    let currentFingerprint = "";
+    try {
+      currentFingerprint = text(getCurrentFingerprint(selected));
+    } catch (_error) {
+      return { ok: false, message: "Не удалось проверить текущий fingerprint черновика." };
+    }
+    const publishedFingerprint = text(selected.publication?.fingerprint);
+    if (publishedFingerprint && currentFingerprint && currentFingerprint === publishedFingerprint) {
+      return { ok: false, unchanged: true, message: "Черновик не изменился после последней опубликованной ревизии." };
+    }
+    if (typeof preparePublication !== "function") {
+      return { ok: false, message: "Каноническая подготовка публикации недоступна." };
+    }
+    let prepared;
+    try {
+      prepared = await Promise.resolve(preparePublication(selected, { now: now() }));
+    } catch (error) {
+      return { ok: false, message: error?.message || "Не удалось подготовить каноническую публикацию." };
+    }
+    const expectedNextRevision = expectedPreviousRevision + 1;
+    const preparedPublication = record(prepared?.publication);
+    const preparedRevision = Number(preparedPublication.revision || 0);
+    const preparedFingerprint = text(preparedPublication.fingerprint);
+    if (!Number.isInteger(preparedRevision) || preparedRevision !== expectedNextRevision || !preparedFingerprint) {
+      return { ok: false, message: "Каноническая публикация вернула неверную следующую ревизию или fingerprint." };
+    }
+    if (publishedFingerprint && preparedFingerprint === publishedFingerprint) {
+      return { ok: false, unchanged: true, message: "Черновик не изменился после последней опубликованной ревизии." };
+    }
+    const requestEntry = {
+      ...selected,
+      publication: {
+        ...record(selected.publication),
+        ...preparedPublication,
+        revision: expectedNextRevision,
+        fingerprint: preparedFingerprint,
+      },
+    };
     let result;
     try {
-      result = await publicationOwner.publishRevision({ entry: selected, expectedPreviousRevision, idempotencyKey: createPublicationIdempotencyKey() });
+      result = await publicationOwner.publishRevision({ entry: requestEntry, expectedPreviousRevision, idempotencyKey: createPublicationIdempotencyKey() });
     } catch (error) {
       return { ok: false, message: error?.message || "Серверная публикация временно недоступна." };
     }
@@ -152,16 +207,71 @@ export function createSpecifications2ProductionOwner({
       return { ok: false, conflict: result?.conflict === true, message: result?.error || "PostgreSQL не подтвердил публикацию." };
     }
     const revision = Number(result.publication?.revision || result.item.revisionNo || 0);
-    if (!Number.isInteger(revision) || revision !== expectedPreviousRevision + 1) return { ok: false, message: "Сервер вернул неожиданный номер ревизии." };
+    if (!Number.isInteger(revision) || revision !== expectedNextRevision) {
+      return publicationRecoveryResult({
+        created: result.created,
+        entryId,
+        revision: Number.isInteger(revision) ? revision : 0,
+        message: "PostgreSQL подтвердил неожиданный номер ревизии; требуется восстановление read-back.",
+      });
+    }
+    const acknowledgedPublicationFingerprint = text(result.publication?.fingerprint);
+    if (acknowledgedPublicationFingerprint !== preparedFingerprint) {
+      return publicationRecoveryResult({
+        created: result.created,
+        entryId,
+        revision,
+        message: "PostgreSQL подтвердил публикацию с другим каноническим fingerprint; требуется восстановление read-back.",
+      });
+    }
     const latestStore = normalizeStore(getStore());
     const latest = latestStore.registry.find((entry) => text(entry.id) === entryId);
-    if (!latest) return { ok: true, id: entryId, revision, recoveryPending: true };
-    const publication = { ...record(result.publication), revision };
-    const updated = { ...latest, publication, updatedAt: text(publication.releasedAt || publication.publishedAt || now()) };
-    const written = writeStore({ ...latestStore, selectedId: entryId, registry: latestStore.registry.map((entry) => text(entry.id) === entryId ? updated : entry) });
-    if (written === false) return { ok: true, id: entryId, revision, recoveryPending: true };
-    hydratePublishedRevision(updated);
-    return { ok: true, id: entryId, revision, created: result.created === true, recoveryPending: Number(result.snapshotSync?.applied || 0) < 1 };
+    if (!latest) return publicationRecoveryResult({ created: result.created, entryId, revision, message: "Опубликованная спецификация исчезла из локального реестра; требуется восстановление." });
+    const publication = {
+      ...record(latest.publication),
+      ...preparedPublication,
+      ...record(result.publication),
+      revision,
+      fingerprint: preparedFingerprint,
+    };
+    const updated = { ...latest, publication };
+    const nextStore = {
+      ...latestStore,
+      registry: latestStore.registry.map((entry) => text(entry.id) === entryId ? updated : entry),
+    };
+    let written = false;
+    try {
+      written = writeStore(nextStore, { suppressSharedStatePush: true });
+    } catch (_error) {
+      written = false;
+    }
+    if (written === false) return publicationRecoveryResult({ created: result.created, entryId, revision, message: "Ревизия опубликована, но локальный ACK не сохранён; требуется восстановление." });
+    if (typeof forcePublishedRevisionRead !== "function") {
+      return publicationRecoveryResult({ created: result.created, entryId, revision, message: "Ревизия опубликована, но принудительный PostgreSQL read-back недоступен." });
+    }
+    try {
+      await Promise.resolve(forcePublishedRevisionRead(entryId, { force: true }));
+    } catch (_error) {
+      return publicationRecoveryResult({ created: result.created, entryId, revision, message: "Ревизия опубликована, но принудительный PostgreSQL read-back завершился ошибкой." });
+    }
+    const readBackState = record(getPublishedRevisionState(entryId));
+    const readBackRevision = record(readBackState.item);
+    const expectedReadBackId = text(result.item?.id);
+    const expectedReadBackSourceEntryId = text(result.item?.sourceEntryId) || entryId;
+    const expectedReadBackFingerprint = text(result.item?.fingerprint);
+    if (!expectedReadBackId
+      || !expectedReadBackFingerprint
+      || text(readBackRevision.id) !== expectedReadBackId
+      || text(readBackRevision.sourceEntryId) !== expectedReadBackSourceEntryId
+      || Number(readBackRevision.revisionNo || 0) !== revision
+      || text(readBackRevision.fingerprint) !== expectedReadBackFingerprint) {
+      return publicationRecoveryResult({ created: result.created, entryId, revision, message: "Ревизия опубликована, но PostgreSQL read-back не подтвердил её точные id, source, revision и digest fingerprint." });
+    }
+    const snapshotSync = record(result.snapshotSync);
+    if (Number(snapshotSync.failed || 0) > 0 || Number(snapshotSync.conflicts || 0) > 0) {
+      return publicationRecoveryResult({ created: result.created, entryId, revision, message: snapshotSync.error || "Ревизия опубликована, но compatibility delivery ожидает восстановления." });
+    }
+    return { ok: true, id: entryId, revision, created: result.created === true, recoveryPending: false };
   };
 
   const execute = async (command = {}) => {

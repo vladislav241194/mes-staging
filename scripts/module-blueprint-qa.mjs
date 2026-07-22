@@ -322,7 +322,8 @@ try {
 }
 
 const checkedSourceFiles = sorted(new Set(MES_MODULE_BLUEPRINT_REGISTRY.flatMap((blueprint) => blueprint.sourceFiles)));
-for (const file of checkedSourceFiles) {
+const nodeCheckSourceFiles = checkedSourceFiles.filter((file) => /\.(?:c|m)?js$/u.test(file));
+for (const file of nodeCheckSourceFiles) {
   const result = spawnSync(process.execPath, ["--check", join(projectRoot, file)], { encoding: "utf8" });
   assert(result.status === 0, `${file}: syntax check failed: ${(result.stderr || result.stdout || "").trim()}`);
 }

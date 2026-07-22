@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { analyzeSpecifications2Workbook } from "../src/modules/specifications2/render.js";
+import { analyzeSpecifications2Workbook } from "../src/modules/specifications2/workbook_analysis.js";
 
 const headers = [
   "№",

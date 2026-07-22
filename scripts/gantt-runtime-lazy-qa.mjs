@@ -1,90 +1,47 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import { resolve } from "node:path";
 
-const appSource = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
-const facadeSource = await readFile(resolve(process.cwd(), "src/modules/gantt_runtime/lazy_facade.js"), "utf8");
+const root = process.cwd();
+const app = await readFile(resolve(root, "src/app.js"), "utf8");
+const host = await readFile(resolve(root, "src/modules/gantt_runtime/react_island_host.js"), "utf8");
+const planningCore = await readFile(resolve(root, "src/modules/planning_core/service.js"), "utf8");
+const planningRoutes = await readFile(resolve(root, "src/modules/planning_routes/service.js"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
+const expectMissing = async (path, message) => {
+  try {
+    await access(resolve(root, path), constants.F_OK);
+    failures.push(message);
+  } catch (error) {
+    if (error?.code !== "ENOENT") failures.push(`${message}: ${error?.message || error}`);
+  }
+};
 
-expect(!appSource.includes('import { createGanttRuntimeModule } from "./modules/gantt_runtime/render.js";'), "Gantt runtime must not remain a static app import");
-expect(appSource.includes('createLazyGanttRuntimeModule'), "App must use the Gantt lazy facade");
-expect(appSource.includes('title: "Загружаем график"'), "Gantt needs a visible loading state");
-expect(appSource.includes('ganttRuntime.load()'), "Gantt must request its runtime when the module opens");
-expect(appSource.includes('function ensureGanttPlanningRuntimeProjection()'), "Gantt must start its server runtime projection before the lazy renderer reads the legacy graph");
-expect(/if \(\["gantt"[^\]]*\]\.includes\(ui\?\.activeModule\)\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(appSource), "A cold Gantt boot must prefer the PostgreSQL runtime projection");
-expect(appSource.includes('if (planningRuntimeProjectionLoad) return planningRuntimeProjectionLoad;'), "The shared-state handshake and Gantt shell must coalesce one projection request");
-expect(appSource.includes('function hasGanttPlanningProjectionReady()'), "Gantt must have an explicit projection-ready gate");
-expect(appSource.includes('if (!hasGanttPlanningProjectionReady())'), "Gantt must show its loading shell before the runtime reads route, step, or slot collections");
-expect(appSource.indexOf('if (!hasGanttPlanningProjectionReady())') < appSource.indexOf('if (!ganttRuntime.isReady())'), "The projection gate must run before Gantt runtime loading and row construction");
-expect(appSource.includes('async function ensureGanttPlanningSnapshotFallback()'), "A Gantt server-read failure must promote the compatibility snapshot explicitly");
-expect(appSource.includes('if (planningRuntimeProjectionState.status === "fallback")'), "Gantt must stay on its fallback path instead of starting a second projection read during recovery");
-expect(appSource.includes('if (metadataOnly === false)'), "A cold-boot Gantt fallback must wait for runtime-state apply completion, not transport-mode changes");
-expect(appSource.includes('ganttPlanningFallbackAwaitingInitialSharedSnapshot'), "A synchronous shared-state apply render must not start a second Gantt fallback while the required cold-boot snapshot is still completing");
-expect(appSource.includes('ui?.activeModule === "planning" || ui?.activeModule === "gantt"'), "A deferred Gantt navigation must retry its fallback after shared-state metadata synchronizes");
-expect(appSource.includes('while (planningRuntimeProjectionForceRefreshRequested);'), "A forced command refresh must run again after joining an in-flight non-forced projection");
-expect(facadeSource.includes('import("./render.js")'), "Lazy facade must dynamically import the Gantt implementation");
-expect(facadeSource.includes('Gantt runtime method ${key} was called before it loaded'), "Lazy facade must fail explicitly if a premature Gantt call escapes the loading guard");
-expect(facadeSource.includes('key === "then" || key === "catch" || key === "finally"'), "Gantt lazy facade must not become an accidental thenable");
+await expectMissing("src/modules/gantt_runtime/render.js", "Retired Gantt legacy renderer must be physically absent");
+await expectMissing("src/modules/gantt_runtime/lazy_facade.js", "Retired Gantt lazy facade must be physically absent");
 
-const weeklyCompactPresentationStart = appSource.indexOf("function resolveWeeklyCompactSlotPresentation");
-const weeklyCompactPresentationEnd = appSource.indexOf("function clearWeeklyPlanningPeriodRefreshTimer", weeklyCompactPresentationStart);
-const weeklyCompactPresentation = weeklyCompactPresentationStart >= 0 && weeklyCompactPresentationEnd > weeklyCompactPresentationStart
-  ? appSource.slice(weeklyCompactPresentationStart, weeklyCompactPresentationEnd)
-  : "";
-expect(Boolean(weeklyCompactPresentation), "Weekly compact presentation resolver must exist");
-expect(!weeklyCompactPresentation.includes("getSlotGanttWorkCenterId"), "Weekly compact presentation must not call the lazy Gantt runtime");
-expect(!weeklyCompactPresentation.includes("getGanttResourceForSlot"), "Weekly compact presentation must not call the lazy Gantt runtime");
-
-const shiftBoardInitializationStart = appSource.indexOf("function initializeShiftMasterBoardModule");
-const shiftBoardInitializationEnd = appSource.indexOf("function ensureShiftMasterBoardModule", shiftBoardInitializationStart);
-const shiftBoardInitialization = shiftBoardInitializationStart >= 0 && shiftBoardInitializationEnd > shiftBoardInitializationStart
-  ? appSource.slice(shiftBoardInitializationStart, shiftBoardInitializationEnd)
-  : "";
-expect(Boolean(shiftBoardInitialization), "Shift-board initialization must exist");
-expect(shiftBoardInitialization.includes("getSlotRoute: (slot) => getPlanningSlotRoute(slot)"), "Shift board must use the lightweight planning route resolver before Gantt loads");
-expect(shiftBoardInitialization.includes("getSlotGanttWorkCenterId: (slot) => getPlanningSlotWorkCenterId(slot)"), "Shift board must use the lightweight planning work-center resolver before Gantt loads");
-
-const operationalRuntimeInitializationStart = appSource.indexOf("operationalRuntimeService = createOperationalRuntimeServiceModule({");
-const operationalRuntimeInitializationEnd = appSource.indexOf("appEventsService = createAppEventsServiceModule({", operationalRuntimeInitializationStart);
-const operationalRuntimeInitialization = operationalRuntimeInitializationStart >= 0 && operationalRuntimeInitializationEnd > operationalRuntimeInitializationStart
-  ? appSource.slice(operationalRuntimeInitializationStart, operationalRuntimeInitializationEnd)
-  : "";
-expect(Boolean(operationalRuntimeInitialization), "Operational-runtime initialization must exist");
-expect(operationalRuntimeInitialization.includes("getSlotRoute: (slot) => getPlanningSlotRoute(slot)"), "Operational runtime must use the lightweight planning route resolver before Gantt loads");
-expect(!operationalRuntimeInitialization.includes("getSlotRoute: (...args) => getSlotRoute(...args)"), "Operational runtime must not forward getSlotRoute through the lazy Gantt facade");
-
-const planningRoutesInitializationStart = appSource.indexOf("planningRoutesService = createPlanningRoutesServiceModule({");
-const planningRoutesInitializationEnd = appSource.indexOf("function updateModuleUrlParam", planningRoutesInitializationStart);
-const planningRoutesInitialization = planningRoutesInitializationStart >= 0 && planningRoutesInitializationEnd > planningRoutesInitializationStart
-  ? appSource.slice(planningRoutesInitializationStart, planningRoutesInitializationEnd)
-  : "";
-expect(Boolean(planningRoutesInitialization), "Planning-routes initialization must exist");
-expect(planningRoutesInitialization.includes("focusRoute: (...args) => ganttRuntime?.isReady?.() ? focusRoute(...args) : render(),"), "Cold route-to-Gantt flow must render the loading shell instead of calling the lazy focus facade");
-expect(planningRoutesInitialization.includes("snapToWorkingTime: (...args) => ganttRuntime?.isReady?.() ? snapToWorkingTime(...args) : args[1],"), "Cold route scheduling must not call the lazy calendar snap facade");
-expect(appSource.includes("getWarningProductionId,\n} from \"./validation.js\";"), "App must import the startup-safe warning production resolver");
-expect(planningRoutesInitialization.includes("getWarningProductionId,"), "Planning warnings must use the startup-safe production resolver before Gantt loads");
-expect(!planningRoutesInitialization.includes("getWarningProductionId: (...args) => typeof getWarningProductionId"), "Planning warnings must not forward through the lazy Gantt facade");
-
-const planningCoreInitializationStart = appSource.indexOf("planningCoreService = createPlanningCoreServiceModule({");
-const planningCoreInitializationEnd = appSource.indexOf("function renderUiAppShell", planningCoreInitializationStart);
-const planningCoreInitialization = planningCoreInitializationStart >= 0 && planningCoreInitializationEnd > planningCoreInitializationStart
-  ? appSource.slice(planningCoreInitializationStart, planningCoreInitializationEnd)
-  : "";
-expect(Boolean(planningCoreInitialization), "Planning-core initialization must exist");
-expect(planningCoreInitialization.includes("routeMatchesGanttFilters: (...args) => ganttRuntime?.isReady?.() ? routeMatchesGanttFilters(...args) : true,"), "Planning-core must not call Gantt filters before the lazy runtime loads");
-
-const appEventsInitializationStart = appSource.indexOf("appEventsService = createAppEventsServiceModule({");
-const appEventsInitializationEnd = appSource.indexOf("function updateClockOnly", appEventsInitializationStart);
-const appEventsInitialization = appEventsInitializationStart >= 0 && appEventsInitializationEnd > appEventsInitializationStart
-  ? appSource.slice(appEventsInitializationStart, appEventsInitializationEnd)
-  : "";
-expect(Boolean(appEventsInitialization), "App-events service initialization must exist");
-expect(appEventsInitialization.includes("closeModals: () => closeAppModals(),"), "Generic app-events modal close must use the non-Gantt closer before the Gantt chunk loads");
-expect(!appEventsInitialization.includes("closeModals: (...args) => closeModals(...args),"), "App-events must not receive the lazy Gantt closeModals facade");
-expect(appSource.includes("function closeAppModals()"), "App must provide a shared non-Gantt modal closer");
+expect(!app.includes("createLazyGanttRuntimeModule"), "App must not assemble the retired Gantt facade");
+expect(!app.includes("ganttRuntime"), "App must not retain the same-release legacy Gantt runtime");
+expect(!app.includes("data-gantt-shell"), "App must not render the retired legacy Gantt shell");
+expect(!app.includes("GANTT_LEGACY_MUTATION"), "App must not retain guards for deleted legacy Gantt controls");
+expect(app.includes("function ensureGanttPlanningRuntimeProjection()"), "React Gantt must retain the PostgreSQL projection owner");
+expect(app.includes("function hasGanttPlanningProjectionReady()"), "React Gantt must retain an explicit projection readiness gate");
+expect(app.includes("async function ensureGanttPlanningSnapshotFallback()"), "Immutable-release rollback projection compatibility must remain available");
+expect(app.includes("while (planningRuntimeProjectionForceRefreshRequested);"), "Forced projection refresh must remain coalesced");
+expect(app.includes("getGanttReactProductionInput()"), "Gantt must build the typed React production payload");
+expect(app.includes("ganttReactIslandHost.prepareRender();"), "Gantt route must prepare the React host");
+expect(app.includes("void ganttReactIslandHost.mount();"), "Gantt route must mount the React island");
+expect(host.includes("canFallbackToLegacy: () => false"), "React Gantt must fail closed without a same-release legacy fallback");
+expect(!host.includes("requestLegacyRender"), "React host must not expose a deleted legacy callback");
+expect(planningCore.includes("createPlanningWorkingCalendarOwner"), "Planning core must use the shared calendar owner");
+expect(planningCore.includes("routeMatchesPlanningGanttFilters"), "Planning core must own Gantt route filtering without the retired renderer");
+expect(!planningCore.includes("ganttRuntime"), "Planning core must not depend on a Gantt UI runtime");
+expect(planningRoutes.includes("focusPlanningRoute"), "Planning routes must own route-to-Gantt navigation");
+expect(!planningRoutes.includes("ganttRuntime"), "Planning routes must not depend on a Gantt UI runtime");
 
 if (failures.length) {
   console.error(failures.map((message) => `FAIL: ${message}`).join("\n"));
   process.exit(1);
 }
-console.log("Gantt runtime lazy-load QA passed");
+console.log("Gantt legacy runtime retirement QA passed");

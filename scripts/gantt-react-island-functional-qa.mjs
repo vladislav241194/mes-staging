@@ -112,15 +112,32 @@ try {
 
   await evaluate(client, () => document.querySelector("[data-gantt-react-toggle-quantity]")?.click());
   await waitForCondition(client, () => document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed") === "false" && !document.querySelector("[data-gantt-react-slot-quantity]") && !document.querySelector("[data-gantt-shell]"), { message: "React Gantt quantity toggle returned to legacy or left quantity visible", timeoutMs: 15_000 });
+  // The previous toolbar check deliberately moved the window beyond the QA
+  // slots. Return to a visible window before testing route collapse; a route
+  // that is outside the projection window is correctly not toggleable.
+  await evaluate(client, () => document.querySelector("[data-gantt-react-jump-today]")?.click());
+  await waitForCondition(client, (value) => document.querySelector("[data-gantt-react-period] input")?.value === value && document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "true" && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "React Gantt jump-to-today did not restore the visible expanded route", timeoutMs: 15_000 });
   await evaluate(client, () => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.click());
   await waitForCondition(client, (expandedRowCount) => document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "false" && document.querySelectorAll("[data-row-id]").length < expandedRowCount && !document.querySelector("[data-gantt-shell]"), { arg: react.rows, message: "React Gantt collapse-all returned to legacy or kept all resource rows", timeoutMs: 15_000 });
-  await evaluate(client, () => document.querySelector("[data-gantt-react-jump-today]")?.click());
-  await waitForCondition(client, (value) => document.querySelector("[data-gantt-react-period] input")?.value === value && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "React Gantt jump-to-today did not stay in React", timeoutMs: 15_000 });
+  const collapsedUi = await evaluate(client, () => JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"));
+  assert(Array.isArray(collapsedUi.expandedProjects) && !collapsedUi.expandedProjects.includes("qa-react-gantt-route"), `React Gantt collapse was not persisted: ${JSON.stringify(collapsedUi.expandedProjects)}`);
   assert(await evaluate(client, () => Boolean(document.querySelector("[data-gantt-react-refresh]"))), "read-only PostgreSQL projection refresh must appear separately from calendar recalculation");
   assert(planningWrites === 0, "safe React Gantt display actions must not call planning writes");
 
   await client.send("Page.navigate", { url: `${origin}/?module=gantt&qa-auth-bypass=1&qa-reload=gantt-safe-toolbar-deep-link` });
-  await waitForCondition(client, (value) => Boolean(document.querySelector('[data-react-gantt-island][data-react-island-state="ready"]')) && document.querySelector("[data-gantt-react-period] input")?.value === value && document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "false" && document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed") === "false" && !document.querySelector("[data-gantt-react-slot-quantity]") && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "safe React Gantt display state did not survive reload/deep-link", timeoutMs: 20_000 });
+  try {
+    await waitForCondition(client, (value) => Boolean(document.querySelector('[data-react-gantt-island][data-react-island-state="ready"]')) && document.querySelector("[data-gantt-react-period] input")?.value === value && document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed") === "false" && document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed") === "false" && !document.querySelector("[data-gantt-react-slot-quantity]") && !document.querySelector("[data-gantt-shell]"), { arg: now.toISOString().slice(0, 10), message: "safe React Gantt display state did not survive reload/deep-link", timeoutMs: 20_000 });
+  } catch (error) {
+    const diagnostic = await evaluate(client, () => ({
+      ready: document.querySelector('[data-react-gantt-island]')?.getAttribute("data-react-island-state"),
+      period: document.querySelector("[data-gantt-react-period] input")?.value,
+      expanded: document.querySelector("[data-gantt-react-toggle-expanded-routes]")?.getAttribute("aria-pressed"),
+      quantity: document.querySelector("[data-gantt-react-toggle-quantity]")?.getAttribute("aria-pressed"),
+      quantitySlots: document.querySelectorAll("[data-gantt-react-slot-quantity]").length,
+      state: localStorage.getItem("mes-planning-prototype-ui-v1"),
+    }));
+    throw new Error(`${error.message}: ${JSON.stringify(diagnostic)}`);
+  }
   const safeToolbarState = await evaluate(client, () => { const state = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}"); return { expandedProjects: state.expandedProjects, showQuantity: state.ganttShowQuantity, windowStart: state.windowStart, href: location.href }; });
   assert(Array.isArray(safeToolbarState.expandedProjects) && !safeToolbarState.expandedProjects.includes("qa-react-gantt-route") && safeToolbarState.showQuantity === false && safeToolbarState.windowStart === now.toISOString().slice(0, 10) && safeToolbarState.href.includes("qa-reload=gantt-safe-toolbar-deep-link"), `safe Gantt toolbar owner-state persistence failed: ${JSON.stringify(safeToolbarState)}`);
 
@@ -167,7 +184,7 @@ try {
   assert(expectedMountErrors.some((entry) => entry.includes("Gantt React island failed")), `Gantt mount failure must be reported once: ${JSON.stringify(expectedMountErrors)}`);
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Gantt React production-shell functional QA: OK");
-  console.log(`- ${react.rows} rows, ${react.slots} slots, exact legacy geometry; first commit ${react.commitMs.toFixed(2)} ms`);
+  console.log(`- ${react.rows} rows, ${react.slots} slots, React projection geometry; first commit ${react.commitMs.toFixed(2)} ms`);
   console.log("- period/scale/zoom, expand/quantity/today persistence, dependency inspection, ownerless command blocking and fail-closed mount: pass");
 } catch (error) {
   if (previewOutput.trim()) console.error(previewOutput.trim());

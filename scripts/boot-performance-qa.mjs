@@ -14,6 +14,7 @@ const sharedSyncStorageKey = "mes-shared-state-sync-last";
 const bootErrorStorageKey = "mes-boot-performance-error";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
 const systemDomainsStorageKey = "mes-planning-prototype-system-domains-v1";
+const systemDomainsPrimaryTombstoneKey = "mes-planning-prototype-system-domains-primary-tombstone-v1";
 const startupTotalBudgetMs = 15000;
 const loadStateBudgetMs = 5000;
 const firstRenderBudgetMs = 6000;
@@ -40,7 +41,10 @@ const navigationRouteContracts = {
     endpoint: "/api/v1/planning/period",
   },
   gantt: {
-    selectors: ["[data-gantt-shell][data-ui-runtime='gantt-v1']"],
+    selectors: [
+      "[data-react-gantt-island][data-react-island-state='ready']",
+      ".gantt-react-scroll[data-ui-component='GanttRuntime']",
+    ],
     endpoint: "/api/v1/planning/work-orders/projection",
     projection: {
       selector: "[data-gantt-planning-projection-source]",
@@ -332,19 +336,32 @@ async function waitForFontIndependentVisibleApp(client) {
 async function waitForDeferredSystemDomains(client) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 10000) {
-    const summary = await evaluate(client, (storageKey) => {
+    const summary = await evaluate(client, ({ storageKey, primaryTombstoneKey, sharedDisabledKey }) => {
       try {
-        const domains = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const raw = localStorage.getItem(storageKey) || "";
+        const domains = JSON.parse(raw || "{}");
         const registries = domains?.registries || {};
+        const primaryTombstone = sessionStorage.getItem(primaryTombstoneKey) === "1";
+        const sharedHandshakeDeferred = !raw && Number(sessionStorage.getItem(sharedDisabledKey) || 0) > Date.now();
         return {
+          authority: primaryTombstone
+            ? "postgres-primary-tombstone"
+            : sharedHandshakeDeferred
+              ? "compatibility-discovery-deferred"
+              : "compatibility-migration",
           employees: Array.isArray(registries.employees) ? registries.employees.length : 0,
           workCenters: Array.isArray(registries.workCenters) ? registries.workCenters.length : 0,
         };
       } catch {
         return null;
       }
-    }, systemDomainsStorageKey);
-    if (summary?.employees > 0 && summary?.workCenters > 0) return summary;
+    }, {
+      storageKey: systemDomainsStorageKey,
+      primaryTombstoneKey: systemDomainsPrimaryTombstoneKey,
+      sharedDisabledKey,
+    });
+    if (["postgres-primary-tombstone", "compatibility-discovery-deferred"].includes(summary?.authority)
+      || (summary?.employees > 0 && summary?.workCenters > 0)) return summary;
     await delay(120);
   }
   throw new Error("Deferred System Domains migration did not finish for a blank browser profile.");
@@ -998,7 +1015,11 @@ async function main() {
     console.log(`- entries: ${(report.entries || []).length}`);
     console.log(`- resources: ${resourceSummary.count}, ${resourceSummary.transferBytes} B transferred`);
     if (deferredSystemDomains) {
-      console.log(`- deferred System Domains: ${deferredSystemDomains.workCenters} work centers, ${deferredSystemDomains.employees} employees`);
+      console.log(deferredSystemDomains.authority === "postgres-primary-tombstone"
+        ? "- deferred System Domains: PostgreSQL-primary tombstone preserved; compatibility snapshot not recreated"
+        : deferredSystemDomains.authority === "compatibility-discovery-deferred"
+          ? "- deferred System Domains: shared handshake intentionally disabled; compatibility snapshot not guessed or recreated"
+          : `- deferred System Domains: ${deferredSystemDomains.workCenters} work centers, ${deferredSystemDomains.employees} employees`);
     }
     if (warmBoot) {
       console.log(`- warm reload: ${warmBoot.totalMs} ms; one-time migrations skipped`);

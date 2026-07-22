@@ -1,41 +1,36 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
 
-const source = await readFile(resolve(process.cwd(), "src/modules/gantt_runtime/render.js"), "utf8");
-const beginDragStart = source.indexOf("function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {");
-const beginDragEnd = source.indexOf("function suppressNextGanttSlotClick", beginDragStart);
-const beginDragSource = beginDragStart >= 0 && beginDragEnd > beginDragStart
-  ? source.slice(beginDragStart, beginDragEnd)
-  : "";
+const [app, scenario, model] = await Promise.all([
+  readFile("src/app.js", "utf8"),
+  readFile("experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "utf8"),
+  readFile("experiments/react-migration/src/modules/gantt/production-model.ts", "utf8"),
+]);
 const failures = [];
-const expect = (condition, message) => {
-  if (!condition) failures.push(message);
-};
+const expect = (condition, message) => { if (!condition) failures.push(message); };
 
-expect(Boolean(beginDragSource), "Gantt beginDrag implementation was not found");
-expect(beginDragSource.includes("if (ui.drag) return;"), "Gantt must reject a concurrent drag before mutating a slot");
-expect(beginDragSource.includes("pointerId: event.pointerId,"), "Gantt drag must retain the pointer identity");
-expect(beginDragSource.includes("originalSlot: { ...slot },"), "Gantt drag must snapshot the original slot before preview mutation");
-expect(beginDragSource.includes("originalSlotRef: slot,"), "Gantt drag must retain the original slot reference for safe rollback");
-expect(beginDragSource.includes("const restoreCancelledDrag = (drag) => {"), "Gantt must define a cancelled-drag rollback");
-expect(beginDragSource.includes("targetSlot !== drag.originalSlotRef"), "Gantt rollback must not overwrite a slot replaced by another action");
-expect(beginDragSource.includes("Object.assign(targetSlot, drag.originalSlot);"), "Gantt rollback must restore the original slot values");
-expect(beginDragSource.includes('document.addEventListener("pointercancel", onCancel);'), "Gantt must listen for pointercancel");
-expect(beginDragSource.includes('window.addEventListener("blur", onWindowBlur);'), "Gantt must cancel drag when the window loses focus");
-expect(beginDragSource.includes('pointerCaptureTarget?.addEventListener("lostpointercapture", onLostPointerCapture);'), "Gantt must listen for lost pointer capture");
-expect(beginDragSource.includes("pointerCaptureTarget.setPointerCapture(event.pointerId);"), "Gantt must capture the active pointer");
-expect(beginDragSource.includes("pointerCaptureTarget.releasePointerCapture(drag.pointerId);"), "Gantt must release pointer capture when drag ends");
-expect(/const onCancel = \(cancelEvent\) => \{\s*if \(cancelEvent\.pointerId !== ui\.drag\?\.pointerId\) return;\s*finishDrag\(\);/s.test(beginDragSource), "pointercancel must roll back only the active drag");
-expect(/const onLostPointerCapture = \(captureEvent\) => \{\s*if \(captureEvent\.pointerId !== ui\.drag\?\.pointerId\) return;\s*finishDrag\(\);/s.test(beginDragSource), "lost pointer capture must roll back only the active drag");
-expect(/const onWindowBlur = \(\) => finishDrag\(\);/.test(beginDragSource), "window blur must roll back the active drag");
-expect(/if \(persist && drag\.moved\) \{[\s\S]*?persistState\(\);[\s\S]*?return;\s*\}\s*if \(restoreCancelledDrag\(drag\)\) render\(\);/.test(beginDragSource), "Only pointer-up persistence may write a drag; cancellation must restore locally");
+try {
+  await access("src/modules/gantt_runtime/render.js", constants.F_OK);
+  failures.push("Retired pointer-mutation Gantt renderer must be absent");
+} catch (error) {
+  if (error?.code !== "ENOENT") failures.push(error?.message || String(error));
+}
 
-const persistCalls = [...beginDragSource.matchAll(/persistState\(\)/g)].length;
-expect(persistCalls === 1, `Gantt beginDrag must contain one persistence path, found ${persistCalls}`);
+expect(scenario.includes('const GANTT_SLOT_DRAG_MIME = "application/x-mes-gantt-slot"'), "React drag must use a private typed transfer payload");
+expect(scenario.includes("event.dataTransfer.setData(GANTT_SLOT_DRAG_MIME"), "React drag must serialize the exact slot identity");
+expect(scenario.includes("slot.rowId !== event.currentTarget.dataset.ganttReactDropLane"), "A slot must stay on its authoritative resource lane");
+expect(scenario.includes('void commitSchedule(slot, plannedStart, "drag")'), "Drop must use the typed reschedule command");
+expect(scenario.includes('source: "form" | "drag"'), "The command contract must identify form and drag sources");
+expect(model.includes("const canDrag = canEditSchedule && capabilities.slotDrag !== false"), "Drag capability must fail closed with the schedule owner");
+expect(app.includes('command.type !== "reschedule-slot"'), "The host must reject every unknown Gantt mutation");
+expect(app.includes("authorizeSystemDomainAction(\"planning\", \"edit\")"), "The reschedule owner must retain RBAC");
+expect(app.includes("changePlanningSlotSchedule(routeId, operationId, slotId, plannedStart.toISOString(), { expectedRevision, renderOnChange: false, renderOnConflict: false, requireDetailReadback: false, requireServerCommand: true })"), "React drag must call only the Planning server owner with exact concurrency and physical-slot projection readback");
+expect(app.includes("projectedSlot.locked || projectedSlot.isLocked || isGanttSlotCompleted(projectedSlot)"), "Locked and completed projected slots must remain immutable");
+expect(!app.includes("beginDrag("), "Deleted legacy pointer drag must not remain in the app graph");
+expect(!app.includes("persistState();\n    return;\n  }\n  if (restoreCancelledDrag"), "Deleted local drag persistence must not remain in the app graph");
 
 if (failures.length) {
   console.error(failures.map((message) => `FAIL: ${message}`).join("\n"));
   process.exit(1);
 }
-
-console.log("Gantt drag cancellation QA passed");
+console.log("React Gantt drag owner QA passed");
