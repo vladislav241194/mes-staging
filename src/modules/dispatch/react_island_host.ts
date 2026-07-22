@@ -1,15 +1,53 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+} from "../react_island_host.ts";
 
 const DISPATCH_REACT_TARGET = "[data-react-dispatch-island]";
 const DISPATCH_REACT_BUNDLE_VERSION = "__MES_DISPATCH_REACT_BUNDLE_VERSION__";
 const DISPATCH_FAILURE_REASONS = new Set(["model-unavailable", "read-unavailable", "mount-error", "render-error"]);
 
-function normalizeFailureReason(value) {
+interface DispatchActivation {
+  runtimeMode?: string;
+  serverReadFailure?: unknown;
+  serverReadReady?: boolean;
+}
+
+interface DispatchHostOptions {
+  getActivation?: () => DispatchActivation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  reportError?: (error: Error) => void;
+}
+
+interface DispatchShellState {
+  reason?: unknown;
+  state?: unknown;
+}
+
+interface DispatchRenderContext {
+  failureReason?: string;
+  shellState?: DispatchShellState | null;
+}
+
+interface DispatchLoadedModule {
+  mountDispatchReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onError: (error: unknown) => void;
+      onReady: (event: { revision: unknown }) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+function normalizeFailureReason(value: unknown) {
   const reason = String(value || "");
   return DISPATCH_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderDispatchTarget({ failureReason = "", shellState = null } = {}) {
+function renderDispatchTarget({ failureReason = "", shellState = null }: DispatchRenderContext = {}) {
   const state = failureReason || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
   const content = state === "error"
@@ -22,9 +60,9 @@ export function createDispatchReactIslandHost({
   getActivation = () => ({ runtimeMode: "react", serverReadReady: false }),
   getPayload = () => ({}),
   getTargetRoot,
-  reportError = (error) => console.error("[MES] Dispatch React island failed", error),
-} = {}) {
-  return createReactIslandHost({
+  reportError = (error: Error) => console.error("[MES] Dispatch React island failed", error),
+}: DispatchHostOptions = {}) {
+  return createReactIslandHost<DispatchActivation, unknown, DispatchLoadedModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -44,8 +82,8 @@ export function createDispatchReactIslandHost({
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
       const bundleVersion = DISPATCH_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : DISPATCH_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<DispatchLoadedModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountDispatchReactIsland(target, payload, { onError, onReady }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<DispatchLoadedModule, unknown>) => loadedIsland!.mountDispatchReactIsland(target, payload, { onError, onReady }),
   });
 }

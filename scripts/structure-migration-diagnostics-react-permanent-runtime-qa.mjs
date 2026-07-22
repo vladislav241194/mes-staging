@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
-import { createStructureMigrationDiagnosticsReactIslandHost } from "../src/modules/production_structure_matrix/react_island_host.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { createStructureMigrationDiagnosticsReactIslandHost } = await withBundledTypeScriptClient(
+  new URL("../src/modules/production_structure_matrix/react_island_host.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-structure-migration-diagnostics-host-qa-" },
+);
 
 class FakeElement {
   constructor() {

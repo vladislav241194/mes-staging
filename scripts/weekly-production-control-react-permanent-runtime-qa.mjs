@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 
-import { createReactIslandHost } from "../src/modules/react_island_host.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [createReactIslandHost, createWeeklyProductionControlReactIslandHost] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/modules/react_island_host.ts", import.meta.url),
+    ({ createReactIslandHost: factory }) => factory,
+    { prefix: "mes-weekly-base-host-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/modules/weekly_production_control/react_island_host.js", import.meta.url),
+    ({ createWeeklyProductionControlReactIslandHost: factory }) => factory,
+    { prefix: "mes-weekly-leaf-host-qa-" },
+  ),
+]);
+
+assert.equal(typeof createWeeklyProductionControlReactIslandHost, "function", "Weekly leaf host must bundle for the Node 20 QA runtime");
 
 class FakeElement {
   constructor() {

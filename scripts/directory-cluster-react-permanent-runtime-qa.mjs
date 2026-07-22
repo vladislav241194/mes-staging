@@ -6,14 +6,19 @@ import { join } from "node:path";
 import { getPublicRuntimeConfig } from "./shared-state-storage.mjs";
 import { getPublicReactRuntimePolicy, loadReactRuntimePolicy } from "./react-runtime-policy.mjs";
 import { loadReactRuntimePolicyBrowserModule } from "./react-runtime-policy-browser-loader.mjs";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
 const { resolveReactRuntimeActivation } = await loadReactRuntimePolicyBrowserModule();
-import {
+const {
   createDirectoryComponentTypesReactIslandHost,
   createDirectoryNomenclatureTypesReactIslandHost,
   createDirectoryOperationsReactIslandHost,
   createDirectoryStatusesReactIslandHost,
-} from "../src/modules/directories/react_island_host.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/modules/directories/react_island_host.js", import.meta.url),
+  (factories) => factories,
+  { prefix: "mes-directory-cluster-leaf-host-qa-" },
+);
 
 const projectRoot = join(import.meta.dirname, "..");
 const surfaceIds = ["componentTypes", "operations", "nomenclatureTypes", "statuses"];

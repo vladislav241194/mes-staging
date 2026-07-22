@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const COMPONENT_TYPES_VERSION = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
 const OPERATIONS_VERSION = "__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__";

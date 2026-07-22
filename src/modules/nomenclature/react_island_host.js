@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const NOMENCLATURE_REACT_TARGET = "[data-react-nomenclature-island]";
 const NOMENCLATURE_REACT_BUNDLE_VERSION = "__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__";

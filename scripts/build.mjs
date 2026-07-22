@@ -470,7 +470,7 @@ await writeFile(weeklyProductionControlReactIslandHostPath, weeklyProductionCont
 const timesheetReactIslandOutput = join(stagingDistDir, "src", "react-islands", "timesheet.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "timesheet-island.tsx"), timesheetReactIslandOutput);
 const timesheetReactIslandVersion = await fileHash(timesheetReactIslandOutput);
-const timesheetReactIslandHostPath = join(stagingDistDir, "src", "modules", "timesheet", "react_island_host.js");
+const timesheetReactIslandHostPath = join(stagingDistDir, "src", "modules", "timesheet", "react_island_host.ts");
 const timesheetReactIslandHostSource = await readFile(timesheetReactIslandHostPath, "utf8");
 const timesheetReactIslandVersionMarker = "__MES_TIMESHEET_REACT_BUNDLE_VERSION__";
 if (!timesheetReactIslandHostSource.includes(timesheetReactIslandVersionMarker)) throw new Error("Cannot find Timesheet React island bundle version marker");
@@ -521,7 +521,7 @@ await writeFile(shiftMasterBoardReactIslandHostPath, shiftMasterBoardReactIsland
 const employeeDesktopReactIslandOutput = join(stagingDistDir, "src", "react-islands", "employee-desktop.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "employee-desktop-island.tsx"), employeeDesktopReactIslandOutput);
 const employeeDesktopReactIslandVersion = await fileHash(employeeDesktopReactIslandOutput);
-const employeeDesktopReactIslandHostPath = join(stagingDistDir, "src", "modules", "auth_render", "employee_desktop_react_island_host.js");
+const employeeDesktopReactIslandHostPath = join(stagingDistDir, "src", "modules", "auth_render", "employee_desktop_react_island_host.ts");
 const employeeDesktopReactIslandHostSource = await readFile(employeeDesktopReactIslandHostPath, "utf8");
 const employeeDesktopReactIslandVersionMarker = "__MES_EMPLOYEE_DESKTOP_REACT_BUNDLE_VERSION__";
 if (!employeeDesktopReactIslandHostSource.includes(employeeDesktopReactIslandVersionMarker)) throw new Error("Cannot find Employee Desktop React island bundle version marker");
@@ -530,7 +530,7 @@ await writeFile(employeeDesktopReactIslandHostPath, employeeDesktopReactIslandHo
 const markingReactIslandOutput = join(stagingDistDir, "src", "react-islands", "marking.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "marking-island.tsx"), markingReactIslandOutput);
 const markingReactIslandVersion = await fileHash(markingReactIslandOutput);
-const markingReactIslandHostPath = join(stagingDistDir, "src", "modules", "marking", "react_island_host.js");
+const markingReactIslandHostPath = join(stagingDistDir, "src", "modules", "marking", "react_island_host.ts");
 const markingReactIslandHostSource = await readFile(markingReactIslandHostPath, "utf8");
 const markingReactIslandVersionMarker = "__MES_MARKING_REACT_BUNDLE_VERSION__";
 if (!markingReactIslandHostSource.includes(markingReactIslandVersionMarker)) throw new Error("Cannot find Marking React island bundle version marker");
@@ -539,7 +539,7 @@ await writeFile(markingReactIslandHostPath, markingReactIslandHostSource.replace
 const dispatchReactIslandOutput = join(stagingDistDir, "src", "react-islands", "dispatch.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "dispatch-island.tsx"), dispatchReactIslandOutput);
 const dispatchReactIslandVersion = await fileHash(dispatchReactIslandOutput);
-const dispatchReactIslandHostPath = join(stagingDistDir, "src", "modules", "dispatch", "react_island_host.js");
+const dispatchReactIslandHostPath = join(stagingDistDir, "src", "modules", "dispatch", "react_island_host.ts");
 const dispatchReactIslandHostSource = await readFile(dispatchReactIslandHostPath, "utf8");
 const dispatchReactIslandVersionMarker = "__MES_DISPATCH_REACT_BUNDLE_VERSION__";
 if (!dispatchReactIslandHostSource.includes(dispatchReactIslandVersionMarker)) throw new Error("Cannot find Dispatch React island bundle version marker");
@@ -566,7 +566,7 @@ await writeFile(contourAdminReactIslandHostPath, contourAdminReactIslandHostSour
 const specifications2ReactIslandOutput = join(stagingDistDir, "src", "react-islands", "specifications2.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "specifications2-island.tsx"), specifications2ReactIslandOutput);
 const specifications2ReactIslandVersion = await fileHash(specifications2ReactIslandOutput);
-const specifications2ReactIslandHostPath = join(stagingDistDir, "src", "modules", "specifications2", "react_island_host.js");
+const specifications2ReactIslandHostPath = join(stagingDistDir, "src", "modules", "specifications2", "react_island_host.ts");
 const specifications2ReactIslandHostSource = await readFile(specifications2ReactIslandHostPath, "utf8");
 const specifications2ReactIslandVersionMarker = "__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__";
 if (!specifications2ReactIslandHostSource.includes(specifications2ReactIslandVersionMarker)) throw new Error("Cannot find Specifications 2.0 React island bundle version marker");

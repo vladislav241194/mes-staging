@@ -3,10 +3,22 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createReactIslandHost } from "../src/modules/react_island_host.js";
-import { createNomenclatureReactIslandHost } from "../src/modules/nomenclature/react_island_host.js";
 import { loadReactRuntimePolicyBrowserModule } from "./react-runtime-policy-browser-loader.mjs";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [createReactIslandHost, createNomenclatureReactIslandHost] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/modules/react_island_host.ts", import.meta.url),
+    ({ createReactIslandHost: factory }) => factory,
+    { prefix: "mes-nomenclature-base-host-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/modules/nomenclature/react_island_host.js", import.meta.url),
+    ({ createNomenclatureReactIslandHost: factory }) => factory,
+    { prefix: "mes-nomenclature-leaf-host-qa-" },
+  ),
+]);
 
 const { resolveReactRuntimeActivation } = await loadReactRuntimePolicyBrowserModule();
 

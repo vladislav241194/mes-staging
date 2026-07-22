@@ -7,11 +7,20 @@ import { dirname, extname, join } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { build } from "esbuild";
+import { withBundledTypeScriptClient } from "../../scripts/typescript-client-qa-loader.mjs";
 
 const execFileAsync = promisify(execFile);
 const labRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(labRoot, "..", "..");
 const sourceRoot = join(labRoot, "src");
+
+async function loadProductionHost(relativePath) {
+  return withBundledTypeScriptClient(
+    pathToFileURL(join(repositoryRoot, relativePath)),
+    (hostModule) => hostModule,
+    { prefix: "mes-react-production-host-qa-" },
+  );
+}
 const acceptedPostgresBaseline = "fc71e01de31f573a4e1c0a5510e328630932aee9";
 const frozenBackendPrefixes = [
   "db/",
@@ -1084,7 +1093,7 @@ try {
   assert.match(mainSource, /write-parity-incomplete/);
   assert.match(mainSource, /access.*editor/);
 
-  const productionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/react_island_host.js")).href}?qa=${Date.now()}`);
+  const productionHostModule = await loadProductionHost("src/modules/nomenclature/react_island_host.js");
   const makeProductionHost = (activation) => productionHostModule.createNomenclatureReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1117,7 +1126,7 @@ try {
   assert.deepEqual(permanentProductionHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Nomenclature must own the route before shared-state readiness");
   assert.match(permanentProductionHost.renderTarget(), /data-react-island-state="loading"/, "permanent Nomenclature must show its bounded loading shell");
 
-  const boardsProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js")).href}?qa=${Date.now()}`);
+  const boardsProductionHostModule = await loadProductionHost("src/modules/nomenclature/boards_react_island_host.js");
   const makeBoardsProductionHost = (activation) => boardsProductionHostModule.createBoardsReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1143,7 +1152,7 @@ try {
   assert.match(eligibleBoardsProductionHost.renderTarget(), /data-react-boards-island/);
   assert.deepEqual(makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Boards must accept only its explicit create/edit evaluation mode in addition to read-only evaluation");
 
-  const structureProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js")).href}?qa=${Date.now()}`);
+  const structureProductionHostModule = await loadProductionHost("src/modules/production_structure_matrix/react_island_host.js");
   const makeStructureProductionHost = (activation) => structureProductionHostModule.createStructureEmployeesReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1200,7 +1209,7 @@ try {
   assert.deepEqual(makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
   const eligibleStructureMigrationDiagnosticsHost = makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" }); assert.deepEqual(eligibleStructureMigrationDiagnosticsHost.prepareRender(), { activateReact: true, reason: "eligible" }); assert.match(eligibleStructureMigrationDiagnosticsHost.renderTarget(), /data-react-structure-migration-diagnostics-island/);
 
-  const weeklyProductionControlHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js")).href}?qa=${Date.now()}`);
+  const weeklyProductionControlHostModule = await loadProductionHost("src/modules/weekly_production_control/react_island_host.js");
   const makeWeeklyProductionControlHost = (activation) => weeklyProductionControlHostModule.createWeeklyProductionControlReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
   assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: false, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
   assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "server-read-pending" });
@@ -1218,12 +1227,12 @@ try {
   assert.deepEqual(permanentWeeklyReadyHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(permanentWeeklyReadyHost.renderTarget(), /data-react-island-state="loading"/, "ready permanent Weekly must retain its React loading target until the bundle commits");
 
-  const timesheetProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/timesheet/react_island_host.js")).href}?qa=${Date.now()}`);
+  const timesheetProductionHostModule = await loadProductionHost("src/modules/timesheet/react_island_host.ts");
   const makeTimesheetProductionHost = (activation) => timesheetProductionHostModule.createTimesheetReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
   assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "react-required" });
   assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" });
 
-  const specifications2ProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/specifications2/react_island_host.js")).href}?qa=${Date.now()}`);
+  const specifications2ProductionHostModule = await loadProductionHost("src/modules/specifications2/react_island_host.ts");
   const makeSpecifications2ProductionHost = (activation) => specifications2ProductionHostModule.createSpecifications2ReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
   assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: false, moduleReady: true, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "runtime-inactive" });
   assert.deepEqual(makeSpecifications2ProductionHost({ featureFlagEnabled: true, moduleReady: false, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "runtime-inactive" });
@@ -1236,7 +1245,7 @@ try {
   assert.deepEqual(permanentSpecifications2LoadingHost.prepareRender(), { activateReact: true, reason: "eligible" }, "permanent Specifications 2.0 must own the route before its model loads");
   assert.match(permanentSpecifications2LoadingHost.renderTarget(), /data-react-island-runtime-mode="react"[\s\S]*data-react-island-state="loading"/);
 
-  const rolesProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_roles/react_island_host.js")).href}?qa=${Date.now()}`);
+  const rolesProductionHostModule = await loadProductionHost("src/modules/access_roles/react_island_host.js");
   const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1262,7 +1271,7 @@ try {
   assert.match(eligibleRolesProductionHost.renderTarget(), /data-react-roles-island/);
   assert.deepEqual(makeRolesProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Roles metadata write evaluation must use the same bounded host");
 
-  const directoryComponentTypesHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/directories/react_island_host.js")).href}?qa=${Date.now()}`);
+  const directoryComponentTypesHostModule = await loadProductionHost("src/modules/directories/react_island_host.js");
   const makeDirectoryComponentTypesHost = (activation) => directoryComponentTypesHostModule.createDirectoryComponentTypesReactIslandHost({
     getActivation: () => activation,
     getPayload: () => ({}),
@@ -1529,7 +1538,7 @@ try {
   assert.match(productionAppSource, /canEditCustomStatusDirectorySection\(\)/);
   assert.match(productionAppSource, /saveDirectoryRow\("statuses"/);
   assert.match(productionAppSource, /directoryStatusesReactIslandHost\.mount\(\)/);
-  const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.js"), "utf8");
+  const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.ts"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
   assert.match(productionHostSource, /requestLegacyRender\?\.\(fallbackReason, String\(scope \|\| ""\)\)/);
@@ -1591,7 +1600,7 @@ try {
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
   assert.doesNotMatch(rolesProductionHostSource, /requestLegacyRender|onRequestLegacy/);
   assert.match(rolesProductionHostSource, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/);
-  const specifications2ProductionHostSource = await readFile(join(repositoryRoot, "src/modules/specifications2/react_island_host.js"), "utf8");
+  const specifications2ProductionHostSource = await readFile(join(repositoryRoot, "src/modules/specifications2/react_island_host.ts"), "utf8");
   assert.match(specifications2ProductionHostSource, /createReactIslandHost/);
   assert.match(specifications2ProductionHostSource, /__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__/);
   const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");

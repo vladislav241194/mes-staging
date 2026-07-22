@@ -1,4 +1,4 @@
-import { createDispatchReactIslandHost } from "./react_island_host.js";
+import { createDispatchReactIslandHost } from "./react_island_host.ts";
 
 export function createModuleRuntimeAdapter(context = {}) {
   const reactHost = createDispatchReactIslandHost({

@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
-import { createTimesheetReactIslandHost } from "../src/modules/timesheet/react_island_host.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { createTimesheetReactIslandHost } = await withBundledTypeScriptClient(
+  new URL("../src/modules/timesheet/react_island_host.ts", import.meta.url),
+  (hostModule) => hostModule,
+  { prefix: "mes-timesheet-react-host-qa-" },
+);
 
 const [policy, ledger, appSource, hostSource, islandSource, scenarioSource, completionSource] = await Promise.all([
   readFile(new URL("../react-runtime-policy.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../experiments/react-migration/cutover-ledger.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/timesheet/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/timesheet/react_island_host.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/timesheet-island.tsx", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/timesheet/TimesheetScenario.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/react_completion_registry.js", import.meta.url), "utf8"),

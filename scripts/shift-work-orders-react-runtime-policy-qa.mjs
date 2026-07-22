@@ -5,7 +5,17 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
-import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "../src/modules/shift_work_orders/react_island_host.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const {
+  createShiftWorkOrdersReactIslandHost,
+  isShiftWorkOrdersWorkshopTargetSelected,
+  resolveShiftWorkOrdersWorkshopNavigation,
+} = await withBundledTypeScriptClient(
+  new URL("../src/modules/shift_work_orders/react_island_host.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-shift-work-orders-host-qa-" },
+);
 
 async function loadTypedShiftWorkOrderJournalOwner() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-shift-work-orders-journal-owner-"));

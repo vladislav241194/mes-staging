@@ -4,8 +4,14 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { renderDispatchModulePage } from "../src/modules/dispatch/render.js";
-import { createStructureEmployeesReactIslandHost } from "../src/modules/production_structure_matrix/react_island_host.js";
 import { getMesModuleBlueprintDefinition } from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { createStructureEmployeesReactIslandHost } = await withBundledTypeScriptClient(
+  new URL("../src/modules/production_structure_matrix/react_island_host.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-extracted-structure-host-qa-" },
+);
 
 const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-extracted-render-ui-"));
 let typedUi;

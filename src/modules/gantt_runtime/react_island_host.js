@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const GANTT_REACT_TARGET = "[data-react-gantt-island]";
 const GANTT_REACT_BUNDLE_VERSION = "__MES_GANTT_REACT_BUNDLE_VERSION__";

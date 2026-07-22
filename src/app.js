@@ -94,7 +94,7 @@ import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatu
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.ts";
-import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
+import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.ts";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.ts";
@@ -103,15 +103,15 @@ import {
   createShiftMasterBoardCommandOwner,
   normalizeShiftMasterBoardQuantity,
 } from "./modules/shift_master_board/command_owner.js";
-import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
-import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
+import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.ts";
+import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.ts";
 import { createMarkingApiClient } from "./modules/marking/api_client.ts";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson } from "./modules/auth_render/access_role_resolver.ts";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.ts";
 import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.ts";
-import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
+import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.ts";
 import { createSpecifications2ProductionOwner } from "./modules/specifications2/production_owner.ts";
 import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.71";
+const APP_VERSION_FALLBACK = "v.1.500.72";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

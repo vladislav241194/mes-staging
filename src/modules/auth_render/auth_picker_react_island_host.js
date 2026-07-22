@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const AUTH_PICKER_TARGET = "[data-react-auth-picker-island]";
 const AUTH_PICKER_BUNDLE_VERSION = "__MES_AUTH_PICKER_REACT_BUNDLE_VERSION__";

@@ -2,8 +2,14 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createBoardsReactIslandHost } from "../src/modules/nomenclature/boards_react_island_host.js";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const createBoardsReactIslandHost = await withBundledTypeScriptClient(
+  new URL("../src/modules/nomenclature/boards_react_island_host.js", import.meta.url),
+  ({ createBoardsReactIslandHost: factory }) => factory,
+  { prefix: "mes-boards-leaf-host-qa-" },
+);
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");

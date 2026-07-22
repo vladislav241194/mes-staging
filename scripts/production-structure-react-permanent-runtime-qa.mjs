@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 
-import {
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const {
   createStructureEmployeesReactIslandHost,
   createStructureEquipmentReactIslandHost,
   createStructureMigrationDiagnosticsReactIslandHost,
@@ -8,7 +10,11 @@ import {
   createStructurePositionsReactIslandHost,
   createStructureResponsibilityPoliciesReactIslandHost,
   createStructureWorkCentersReactIslandHost,
-} from "../src/modules/production_structure_matrix/react_island_host.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/modules/production_structure_matrix/react_island_host.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-production-structure-host-qa-" },
+);
 
 class FakeElement {
   constructor() { this.children = []; this.dataset = {}; this.isConnected = true; }

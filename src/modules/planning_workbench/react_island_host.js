@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const PLANNING_WORKBENCH_REACT_TARGET = "[data-react-planning-workbench-island]";
 const PLANNING_WORKBENCH_REACT_BUNDLE_VERSION = "__MES_PLANNING_WORKBENCH_REACT_BUNDLE_VERSION__";

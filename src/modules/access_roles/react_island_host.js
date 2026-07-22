@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const ROLES_REACT_TARGET = "[data-react-roles-island]";
 const ROLES_REACT_BUNDLE_VERSION = "__MES_ROLES_REACT_BUNDLE_VERSION__";

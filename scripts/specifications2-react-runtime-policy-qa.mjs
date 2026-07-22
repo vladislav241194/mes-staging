@@ -16,7 +16,7 @@ assert.doesNotMatch(script, /must-not-leak|ADMIN_PASSWORD/);
 
 const [appSource, hostSource, ownerSource, productionModelSource, scenarioSource, policy, ledger] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/modules/specifications2/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/modules/specifications2/react_island_host.ts", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/specifications2/production_owner.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/specifications2/production-model.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/specifications2/Specifications2Scenario.tsx", import.meta.url), "utf8"),

@@ -11,7 +11,7 @@ const [scenario, model, apiAdapter, transport, host, app, registry, contracts, f
   read("experiments/react-migration/src/modules/marking/model.ts"),
   read("experiments/react-migration/src/modules/marking/api.ts"),
   read("src/modules/marking/api_client.ts"),
-  read("src/modules/marking/react_island_host.js"),
+  read("src/modules/marking/react_island_host.ts"),
   read("src/app.js"),
   read("src/module_registry.js"),
   read("src/mes_contracts.js"),

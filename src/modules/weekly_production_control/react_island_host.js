@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const WEEKLY_PRODUCTION_CONTROL_REACT_TARGET = "[data-react-weekly-production-control-island]";
 const WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION = "__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__";

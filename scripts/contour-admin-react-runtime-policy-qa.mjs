@@ -12,8 +12,14 @@ import {
   handleContourAdminActionRequest,
   inspectContourAdminMutationRequest,
 } from "./contour-admin-endpoint.mjs";
-import { createContourAdminReactIslandHost } from "../src/modules/contour_admin/react_island_host.js";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { createContourAdminReactIslandHost } = await withBundledTypeScriptClient(
+  new URL("../src/modules/contour_admin/react_island_host.js", import.meta.url),
+  (hostModule) => hostModule,
+  { prefix: "mes-contour-admin-react-host-qa-" },
+);
 
 async function loadTypedContourAdminModules() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-contour-admin-typed-"));

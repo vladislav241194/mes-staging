@@ -1,12 +1,115 @@
-function normalizeError(error) {
+declare global {
+  interface Window {
+    __MES_DEPLOY_VERSION__?: unknown;
+  }
+}
+
+export interface ReactIslandHandle<TPayload> {
+  unmount?: () => void;
+  update?: (payload: TPayload | undefined) => void;
+}
+
+export interface ReactIslandShellState {
+  state: unknown;
+  stage?: unknown;
+  reason?: unknown;
+}
+
+export interface ReactIslandTelemetryContext {
+  surfaceId?: unknown;
+  runtimeMode?: unknown;
+  policyId?: unknown;
+  releaseVersion?: unknown;
+}
+
+export interface ReactIslandTelemetryEvent {
+  readonly surfaceId: string;
+  readonly runtimeMode: string;
+  readonly policyId: string;
+  readonly releaseVersion: string;
+  readonly state: string;
+  readonly stage: string;
+  readonly reason: string;
+  readonly scope: string;
+  readonly revision: number | null;
+  readonly durationMs: number | null;
+}
+
+export interface ReactIslandRenderContext<TActivation extends object> {
+  activation: TActivation;
+  failureReason: string;
+  shellState: ReactIslandShellState | null;
+}
+
+export interface ReactIslandMountContext<TLoaded, TPayload> {
+  loadedIsland: Awaited<TLoaded> | undefined;
+  target: HTMLElement;
+  payload: TPayload | undefined;
+  onError: (error: unknown) => void;
+  onReady: (result: { revision: unknown }) => void;
+  onRequestLegacy: (scope: unknown) => void;
+}
+
+export interface ReactIslandTargetRoot {
+  querySelector?(selector: string): unknown;
+}
+
+export interface ReactIslandHostOptions<
+  TActivation extends object = Record<string, unknown>,
+  TPayload = unknown,
+  TLoaded = unknown,
+> {
+  getActivation?: () => TActivation;
+  getPayload?: () => TPayload;
+  getTargetRoot?: () => ReactIslandTargetRoot | null | undefined;
+  getIneligibilityReason?: (activation: TActivation) => unknown;
+  targetSelector?: string;
+  renderTarget?: string | ((context: ReactIslandRenderContext<TActivation>) => unknown);
+  loadIsland?: () => TLoaded | Promise<TLoaded>;
+  mountIsland?: (context: ReactIslandMountContext<TLoaded, TPayload>) => ReactIslandHandle<TPayload> | null | undefined;
+  requestLegacyRender?: (reason: string, scope: string) => void;
+  canFallbackToLegacy?: (activation: TActivation) => boolean;
+  getShellState?: (activation: TActivation) => ReactIslandShellState | null | undefined;
+  getTelemetryContext?: (activation: TActivation) => ReactIslandTelemetryContext | null | undefined;
+  reportTelemetry?: ((event: Readonly<ReactIslandTelemetryEvent>) => void) | null;
+  reportError?: (error: Error) => void;
+}
+
+export interface ReactIslandHost {
+  prepareRender(): ReactIslandDecision;
+  renderTarget(): string;
+  isReactEligible(): boolean;
+  mount(): Promise<boolean>;
+  update(): boolean;
+  dispose(): void;
+  getFallbackReason(): string;
+  getFailureReason(): string;
+}
+
+export interface ReactIslandDecision {
+  activateReact: boolean;
+  reason: string;
+}
+
+interface ReactIslandTelemetryInput<TActivation extends object> {
+  activation?: TActivation;
+  durationMs?: unknown;
+  reason?: unknown;
+  revision?: unknown;
+  scope?: unknown;
+  stage?: unknown;
+  state: unknown;
+}
+
+function normalizeError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function normalizeTelemetryText(value, maximumLength = 96) {
+function normalizeTelemetryText(value: unknown, maximumLength = 96): string {
   return String(value || "").slice(0, maximumLength);
 }
 
-function renderReactRuntimeError(target, reason) {
+function renderReactRuntimeError(target: unknown, reason: unknown): void {
   if (!(target instanceof HTMLElement)) return;
   const section = document.createElement("section");
   section.className = "mes-react-runtime-error";
@@ -22,11 +125,18 @@ function renderReactRuntimeError(target, reason) {
   target.setAttribute("aria-busy", "false");
 }
 
-function resolveRenderTarget(renderTarget, context) {
+function resolveRenderTarget<TActivation extends object>(
+  renderTarget: ReactIslandHostOptions<TActivation>["renderTarget"],
+  context: ReactIslandRenderContext<TActivation>,
+): string {
   return String(typeof renderTarget === "function" ? renderTarget(context) : renderTarget || "");
 }
 
-export function createReactIslandHost({
+export function createReactIslandHost<
+  TActivation extends object = Record<string, unknown>,
+  TPayload = unknown,
+  TLoaded = unknown,
+>({
   getActivation,
   getPayload,
   getTargetRoot,
@@ -41,18 +151,18 @@ export function createReactIslandHost({
   getTelemetryContext = () => ({}),
   reportTelemetry = null,
   reportError = (error) => console.error("[MES] React island failed", error),
-} = {}) {
-  let island = null;
+}: ReactIslandHostOptions<TActivation, TPayload, TLoaded> = {}): Readonly<ReactIslandHost> {
+  let island: ReactIslandHandle<TPayload> | null | undefined = null;
   let loadRevision = 0;
   let fallbackReason = "";
   let failureReason = "";
   let lastShellTelemetryKey = "";
 
-  const emitTelemetry = ({ activation = {}, durationMs = null, reason = "", revision = null, scope = "", stage = "runtime", state }) => {
-    const context = getTelemetryContext?.(activation) || {};
-    const event = Object.freeze({
+  const emitTelemetry = ({ activation = {} as TActivation, durationMs = null, reason = "", revision = null, scope = "", stage = "runtime", state }: ReactIslandTelemetryInput<TActivation>): void => {
+    const context: ReactIslandTelemetryContext = getTelemetryContext?.(activation) || {};
+    const event: Readonly<ReactIslandTelemetryEvent> = Object.freeze({
       surfaceId: normalizeTelemetryText(context.surfaceId),
-      runtimeMode: normalizeTelemetryText(context.runtimeMode || activation.runtimeMode),
+      runtimeMode: normalizeTelemetryText(context.runtimeMode || (activation as { runtimeMode?: unknown }).runtimeMode),
       policyId: normalizeTelemetryText(context.policyId),
       releaseVersion: normalizeTelemetryText(context.releaseVersion || globalThis.window?.__MES_DEPLOY_VERSION__ || "dev"),
       state: normalizeTelemetryText(state, 24),
@@ -75,17 +185,17 @@ export function createReactIslandHost({
     }
   };
 
-  const dispose = () => {
+  const dispose = (): void => {
     loadRevision += 1;
     const mountedIsland = island;
     island = null;
     mountedIsland?.unmount?.();
   };
 
-  const requestFallback = (reason, error = null, scope = "", target = null) => {
+  const requestFallback = (reason: unknown, error: unknown = null, scope: unknown = "", target: unknown = null): void => {
     if (fallbackReason || failureReason) return;
     const normalizedReason = String(reason || "render-error");
-    const activation = getActivation?.() || {};
+    const activation = (getActivation?.() || {}) as TActivation;
     if (error) reportError(normalizeError(error));
     if (!canFallbackToLegacy(activation)) {
       failureReason = normalizedReason;
@@ -100,10 +210,10 @@ export function createReactIslandHost({
     queueMicrotask(() => requestLegacyRender?.(fallbackReason, String(scope || "")));
   };
 
-  const getDecision = () => {
+  const getDecision = (): ReactIslandDecision => {
     if (fallbackReason) return { activateReact: false, reason: fallbackReason };
     if (failureReason) return { activateReact: true, reason: failureReason };
-    const reason = String(getIneligibilityReason?.(getActivation?.() || {}) || "");
+    const reason = String(getIneligibilityReason?.((getActivation?.() || {}) as TActivation) || "");
     return reason
       ? { activateReact: false, reason }
       : { activateReact: true, reason: "eligible" };
@@ -115,8 +225,8 @@ export function createReactIslandHost({
       return getDecision();
     },
     renderTarget() {
-      const activation = getActivation?.() || {};
-      const shellState = failureReason
+      const activation = (getActivation?.() || {}) as TActivation;
+      const shellState: ReactIslandShellState | null = failureReason
         ? { state: "error", stage: "runtime", reason: failureReason }
         : getShellState?.(activation) || null;
       if (shellState) {
@@ -135,10 +245,10 @@ export function createReactIslandHost({
       const decision = getDecision();
       if (!decision.activateReact) return false;
       if (failureReason) return false;
-      const activation = getActivation?.() || {};
+      const activation = (getActivation?.() || {}) as TActivation;
       if (getShellState?.(activation)) return false;
       const root = getTargetRoot?.();
-      const target = root?.querySelector?.(targetSelector);
+      const target = root?.querySelector?.(targetSelector as string);
       if (!(target instanceof HTMLElement)) return false;
       const revision = ++loadRevision;
       const mountStartedAt = globalThis.performance?.now?.() ?? Date.now();
@@ -169,10 +279,10 @@ export function createReactIslandHost({
       }
     },
     update() {
-      const activation = getActivation?.() || {};
+      const activation = (getActivation?.() || {}) as TActivation;
       if (!island || !getDecision().activateReact || getShellState?.(activation)) return false;
       const root = getTargetRoot?.();
-      const target = root?.querySelector?.(targetSelector);
+      const target = root?.querySelector?.(targetSelector as string);
       if (!(target instanceof HTMLElement) || !target.isConnected) return false;
       try {
         island.update?.(getPayload?.());

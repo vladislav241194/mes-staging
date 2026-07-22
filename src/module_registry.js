@@ -175,7 +175,7 @@ const CORE_MODULE_BLUEPRINTS = [
     regression: { type: "contract", hasTable: false, hasActions: false, hasOverlayProbe: false },
     overlayProbeException: "Auth session fact overlay is covered by auth and shift-flow functional suites.",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, master: OPERATIONAL_ACCESS, executor: ["view", "edit"] },
-    capabilities: { overlays: ["fact-entry"] }, sourceFiles: ["src/modules/auth_render/employee_desktop_react_island_host.js"],
+    capabilities: { overlays: ["fact-entry"] }, sourceFiles: ["src/modules/auth_render/employee_desktop_react_island_host.ts"],
   }),
   coreBlueprint({
     id: "marking", label: "Маркировка", icon: "unit-marking", groupId: "operations", navigationOrder: 35, flowOrder: 175,
@@ -187,8 +187,8 @@ const CORE_MODULE_BLUEPRINTS = [
     mobileLimitedReason: "Таблица кодов остаётся плотной; на узком экране используется внутренний горизонтальный scroll.",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, master: OPERATIONAL_ACCESS, executor: ["view", "edit", "print"] },
     capabilities: { table: true, actions: true, overlays: ["code-search"] },
-    sourceFiles: ["src/modules/marking/react_island_host.js"],
-    ownership: { files: ["src/modules/marking/react_island_host.js", "experiments/react-migration/src/modules/marking/MarkingScenario.tsx"], css: ["styles/react-marking-island.css"], qa: ["scripts/marking-module-qa.mjs", "scripts/marking-module-functional-qa.mjs"] },
+    sourceFiles: ["src/modules/marking/react_island_host.ts"],
+    ownership: { files: ["src/modules/marking/react_island_host.ts", "experiments/react-migration/src/modules/marking/MarkingScenario.tsx"], css: ["styles/react-marking-island.css"], qa: ["scripts/marking-module-qa.mjs", "scripts/marking-module-functional-qa.mjs"] },
   }),
   coreBlueprint({
     id: "shiftWorkOrders", label: "Журнал СЗН", icon: "document", groupId: "operations", navigationOrder: 40, flowOrder: 90,
@@ -220,7 +220,7 @@ const CORE_MODULE_BLUEPRINTS = [
     defaultRoleActions: { productionHead: READ_ONLY_ACCESS, technologist: TECHNOLOGY_ACCESS },
     capabilities: { table: true, tree: true, actions: true },
     sourceFiles: [
-      "src/modules/specifications2/react_island_host.js",
+      "src/modules/specifications2/react_island_host.ts",
       "src/modules/specifications2/production_owner.ts",
       "src/modules/domain_api/specifications2_publish_commands.ts",
       "src/modules/domain_api/specifications2_revisions_read_model.ts",
@@ -269,7 +269,7 @@ const CORE_MODULE_BLUEPRINTS = [
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, planner: READ_ONLY_ACCESS, master: ["view", "edit"], dispatcher: READ_ONLY_ACCESS },
     capabilities: { table: true, actions: true, overlays: ["cell-editor"] },
     sourceFiles: [
-      "src/modules/timesheet/react_island_host.js",
+      "src/modules/timesheet/react_island_host.ts",
       "experiments/react-migration/src/timesheet-island.tsx",
       "experiments/react-migration/src/modules/timesheet/adapter.ts",
       "experiments/react-migration/src/modules/timesheet/production-model.ts",

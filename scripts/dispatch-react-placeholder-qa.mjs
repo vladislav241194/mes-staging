@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
-import { createDispatchReactIslandHost } from "../src/modules/dispatch/react_island_host.js";
+const { createDispatchReactIslandHost } = await withBundledTypeScriptClient(
+  new URL("../src/modules/dispatch/react_island_host.ts", import.meta.url),
+  (hostModule) => hostModule,
+  { prefix: "mes-dispatch-react-host-qa-" },
+);
 
 const host = createDispatchReactIslandHost({ getTargetRoot: () => null });
 assert.deepEqual(host.prepareRender(), { activateReact: true, reason: "eligible" }, "Dispatch must always select its permanent React host");

@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 
 const BOARDS_REACT_TARGET = "[data-react-boards-island]";
 const BOARDS_REACT_BUNDLE_VERSION = "__MES_BOARDS_REACT_BUNDLE_VERSION__";

@@ -39,7 +39,7 @@ const MODULE_FEATURE_OVERRIDES = {
   specifications2: {
     css: ["styles/layers/20-technology-specifications.css"],
     files: [
-      "src/modules/specifications2/react_island_host.js",
+      "src/modules/specifications2/react_island_host.ts",
       "src/modules/specifications2/production_owner.ts",
       "src/modules/specifications2/publication.js",
       "src/modules/domain_api/specifications2_publish_commands.ts",
@@ -146,7 +146,7 @@ const MODULE_FEATURE_OVERRIDES = {
     css: ["styles/layers/60-operational-modules.css"],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
     files: [
-      "src/modules/timesheet/react_island_host.js",
+      "src/modules/timesheet/react_island_host.ts",
       "experiments/react-migration/src/timesheet-island.tsx",
       "experiments/react-migration/src/modules/timesheet/adapter.ts",
       "experiments/react-migration/src/modules/timesheet/production-model.ts",
@@ -213,7 +213,7 @@ const MODULE_FEATURE_OVERRIDES = {
   authSessionPrototype: {
     css: ["styles/layers/60-operational-modules.css"],
     files: [
-      "src/modules/auth_render/employee_desktop_react_island_host.js",
+      "src/modules/auth_render/employee_desktop_react_island_host.ts",
       "experiments/react-migration/src/modules/employee-desktop/EmployeeDesktopScenario.tsx",
     ],
     storage: ["mes-planning-prototype-auth-session-v1", ...CORE_STATE_STORAGE_KEYS],
@@ -223,7 +223,7 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   marking: {
     css: ["styles/react-marking-island.css"],
-    files: ["src/modules/marking/react_island_host.js", "experiments/react-migration/src/modules/marking/MarkingScenario.tsx"],
+    files: ["src/modules/marking/react_island_host.ts", "experiments/react-migration/src/modules/marking/MarkingScenario.tsx"],
     storage: ["PostgreSQL: marking_phase1_*"],
     api: ["/api/v1/marking"],
     qa: ["scripts/marking-module-qa.mjs", "scripts/marking-module-functional-qa.mjs", "scripts/module-smoke-qa.mjs"],

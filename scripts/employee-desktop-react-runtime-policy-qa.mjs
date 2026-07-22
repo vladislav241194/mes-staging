@@ -3,7 +3,13 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 import { createEmployeeDesktopCommandOwner } from "../src/modules/employee_desktop/command_owner.js";
-import { createEmployeeDesktopReactIslandHost } from "../src/modules/auth_render/employee_desktop_react_island_host.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { createEmployeeDesktopReactIslandHost } = await withBundledTypeScriptClient(
+  new URL("../src/modules/auth_render/employee_desktop_react_island_host.ts", import.meta.url),
+  (hostModule) => hostModule,
+  { prefix: "mes-employee-desktop-react-host-qa-" },
+);
 const disabled = getPublicRuntimeConfig({});
 assert.equal(disabled.MES_REACT_EMPLOYEE_DESKTOP, false);
 assert.equal(disabled.MES_REACT_EMPLOYEE_DESKTOP_READ_ONLY_EVALUATION, false);
@@ -23,7 +29,7 @@ const pendingPermanentHost = createEmployeeDesktopReactIslandHost({ getActivatio
 assert.deepEqual(pendingPermanentHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop permanent route must retain a React loading/error shell instead of legacy");
 const [scenarioSource, hostSource] = await Promise.all([
   readFile(join(import.meta.dirname, "..", "experiments", "react-migration", "src", "modules", "employee-desktop", "EmployeeDesktopScenario.tsx"), "utf8"),
-  readFile(join(import.meta.dirname, "..", "src", "modules", "auth_render", "employee_desktop_react_island_host.js"), "utf8"),
+  readFile(join(import.meta.dirname, "..", "src", "modules", "auth_render", "employee_desktop_react_island_host.ts"), "utf8"),
 ]);
 assert.doesNotMatch(scenarioSource, /onRequestLegacy/, "Employee Desktop actions must not navigate to legacy UI");
 assert.doesNotMatch(hostSource, /requestLegacyRender|onRequestLegacy/, "Employee Desktop host must not retain a same-release legacy handoff");

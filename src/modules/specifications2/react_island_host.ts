@@ -1,15 +1,53 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import {
+  createReactIslandHost,
+  type ReactIslandHandle,
+  type ReactIslandMountContext,
+} from "../react_island_host.ts";
 
 const SPECIFICATIONS2_REACT_TARGET = "[data-react-specifications2-island]";
 const SPECIFICATIONS2_REACT_BUNDLE_VERSION = "__MES_SPECIFICATIONS2_REACT_BUNDLE_VERSION__";
 const SPECIFICATIONS2_FAILURE_REASONS = new Set(["model-unavailable", "mount-error", "render-error", "runtime-inactive"]);
 
-function normalizeFailureReason(value) {
+interface Specifications2Activation {
+  accessMode?: string;
+  moduleReady?: boolean;
+  policyId?: unknown;
+  runtimeMode?: string;
+  serverReadFailure?: unknown;
+}
+
+interface Specifications2RenderContext {
+  activation?: Specifications2Activation;
+  failureReason?: string;
+  shellState?: { reason?: unknown; state?: unknown } | null;
+}
+
+interface Specifications2IslandModule {
+  mountSpecifications2ReactIsland(
+    target: HTMLElement,
+    payload: unknown,
+    options: {
+      onCommand: (command: unknown) => unknown;
+      onError: (error: unknown) => void;
+      onReady: (result: { revision: unknown }) => void;
+    },
+  ): ReactIslandHandle<unknown>;
+}
+
+interface Specifications2HostOptions {
+  executeCommand?: (command: unknown) => unknown;
+  getActivation?: () => Specifications2Activation;
+  getPayload?: () => unknown;
+  getTargetRoot?: () => ParentNode | null | undefined;
+  reportError?: (error: Error) => void;
+}
+
+function normalizeFailureReason(value: unknown) {
   const reason = String(value || "");
   return SPECIFICATIONS2_FAILURE_REASONS.has(reason) ? reason : "runtime-error";
 }
 
-function renderSpecifications2Target({ activation = {}, failureReason = "", shellState = null } = {}) {
+function renderSpecifications2Target({ activation = {}, failureReason = "", shellState = null }: Specifications2RenderContext = {}) {
   const runtimeMode = activation.runtimeMode === "react" ? "react" : "inactive";
   const state = failureReason || shellState?.state === "error" ? "error" : "loading";
   const reason = normalizeFailureReason(failureReason || shellState?.reason || "");
@@ -25,8 +63,8 @@ export function createSpecifications2ReactIslandHost({
   getTargetRoot,
   executeCommand,
   reportError = (error) => console.error("[MES] Specifications 2.0 React island failed", error),
-} = {}) {
-  return createReactIslandHost({
+}: Specifications2HostOptions = {}) {
+  return createReactIslandHost<Specifications2Activation, unknown, Specifications2IslandModule>({
     getActivation,
     getPayload,
     getTargetRoot,
@@ -47,9 +85,9 @@ export function createSpecifications2ReactIslandHost({
       const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
       const bundleVersion = SPECIFICATIONS2_REACT_BUNDLE_VERSION.startsWith("__MES_") ? deployVersion : SPECIFICATIONS2_REACT_BUNDLE_VERSION;
       islandUrl.searchParams.set("v", bundleVersion);
-      return import(islandUrl.href);
+      return import(islandUrl.href) as Promise<Specifications2IslandModule>;
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountSpecifications2ReactIsland(target, payload, {
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }: ReactIslandMountContext<Specifications2IslandModule, unknown>) => loadedIsland!.mountSpecifications2ReactIsland(target, payload, {
       onError,
       onReady,
       onCommand: (command) => executeCommand?.(command),

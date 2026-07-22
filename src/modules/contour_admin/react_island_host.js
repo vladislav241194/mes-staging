@@ -1,4 +1,4 @@
-import { createReactIslandHost } from "../react_island_host.js";
+import { createReactIslandHost } from "../react_island_host.ts";
 const CONTOUR_ADMIN_REACT_TARGET = "[data-react-contour-admin-island]";
 const CONTOUR_ADMIN_REACT_BUNDLE_VERSION = "__MES_CONTOUR_ADMIN_REACT_BUNDLE_VERSION__";
 const CONTOUR_ADMIN_FAILURE_REASONS = new Set(["admin-host-required", "model-unavailable", "mount-error", "react-required", "render-error"]);
