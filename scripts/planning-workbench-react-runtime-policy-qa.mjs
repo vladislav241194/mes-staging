@@ -193,30 +193,33 @@ const planningRuntimeAdapter = app.slice(
   app.indexOf("    shiftMasterBoard:", app.indexOf("    planning: {\n      render: () => {")),
 );
 assert.ok(planningRuntimeAdapter.indexOf("planningWorkbenchReactIslandHost.prepareRender()") >= 0);
-assert.ok(
-  planningRuntimeAdapter.indexOf("ensurePlanningWorkbenchModule()")
-    > planningRuntimeAdapter.indexOf("planningWorkbenchReactIslandHost.prepareRender()"),
-  "the legacy Planning module may load only after the React host rejects the route",
-);
-assert.match(planningRuntimeAdapter, /getReactRuntimeMode\("planningWorkbench"\) === "react"[\s\S]*return planningWorkbenchReactIslandHost\.renderTarget\(\)[\s\S]*ensurePlanningWorkbenchModule\(\)/,
-  "permanent Planning must fail closed in React before the legacy import boundary");
+assert.match(planningRuntimeAdapter, /planningWorkbenchReactIslandHost\.prepareRender\(\);[\s\S]*return planningWorkbenchReactIslandHost\.renderTarget\(\);[\s\S]*bind: \(\) => \{\}/,
+  "Planning must always render and bind through the React host");
+assert.doesNotMatch(planningRuntimeAdapter, /ensurePlanningWorkbenchModule|renderPlanningWorkbenchPage|bindPlanningEvents|getReactRuntimeMode/,
+  "Planning must not retain a same-release legacy UI branch");
+assert.doesNotMatch(app, /planning_workbench\/(?:render|work_items)\.js|ensurePlanningWorkbenchModule|renderPlanningWorkbenchPage/,
+  "the normal application graph must not contain the retired Planning rollback renderer");
 
 assert.match(host, /\["read-only-evaluation", "write-evaluation"\]/);
-assert.match(host, /canFallbackToLegacy:\s*\(activation\)\s*=>\s*activation\.accessMode !== "react"/,
-  "permanent Planning failures must stay inside the React fail-closed shell");
+assert.match(host, /canFallbackToLegacy:\s*\(\)\s*=>\s*false/,
+  "every Planning runtime mode must stay inside the React fail-closed shell");
+assert.doesNotMatch(host, /requestLegacyRender|onRequestLegacy/,
+  "Planning host must not expose a same-release legacy callback");
 assert.match(host, /if \(activation\.accessMode === "react"\) return ""/,
   "the signed runtime policy must activate Planning without an evaluation URL");
 assert.match(host, /getShellState:[\s\S]*serverReadFailure[\s\S]*server-read-pending/,
   "permanent Planning must show loading/error React shells instead of legacy");
+assert.match(host, /runtime-policy-disabled[\s\S]*evaluation-disabled/,
+  "an inactive runtime must render an explicit disabled React shell rather than legacy");
 assert.match(routes, /isPlanningStartDateServerCommandsPrimary\(\) && options\.persist !== false/);
 const quantityFunction = routes.slice(routes.indexOf("function syncPlanningRouteQuantity"), routes.indexOf("function syncPlanningRouteStartDate"));
 assert.match(quantityFunction, /isPlanningLegacyWritesQuiesced\(\).*options\.persist !== false/,
   "the temporary monolith guard must block legacy quantity persistence but still allow trusted projection");
 assert.match(events, /isPlanningStartDateServerCommandsPrimary\(\)/,
   "legacy start-date input must stand down while the narrow owner is active");
-assert.match(app, /PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR/);
-assert.match(host, /export const PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR[\s\S]*data-planning-start-date[\s\S]*data-planning-route-quantity-form/,
-  "Planning-specific legacy mutation controls must remain inside the extracted Planning boundary");
+assert.doesNotMatch(app, /PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR/);
+assert.doesNotMatch(host, /PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR|data-planning-start-date|data-planning-route-quantity-form/,
+  "React-only Planning must not retain legacy mutation selectors");
 assert.match(app, /GANTT_LEGACY_MUTATION_SELECTOR/);
 assert.match(app, /dataset\.legacyDomainWritesQuiesced/);
 assert.match(app, /dataset\.planningLegacyWritesQuiesced/);

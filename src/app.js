@@ -89,15 +89,13 @@ import {
   projectSystemDomainsServerCommandState,
 } from "./modules/production_structure_matrix/server_capabilities.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
+import { prepareAdditionalRoleAssignment } from "./modules/access_roles/multiple_assignment_owner.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { buildWeeklyProductionControlReadInput } from "./modules/weekly_production_control/production_read_input.js";
 import { getReactRuntimeMode, resolveReactRuntimeActivation } from "./modules/react_runtime_policy.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
-import {
-  createPlanningWorkbenchReactIslandHost,
-  PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR,
-} from "./modules/planning_workbench/react_island_host.js";
+import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost, isShiftWorkOrdersWorkshopTargetSelected, resolveShiftWorkOrdersWorkshopNavigation } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftWorkOrderJournalOwner, formatShiftWorkOrderPersonName } from "./modules/shift_work_orders/journal_owner.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
@@ -208,7 +206,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.51";
+const APP_VERSION_FALLBACK = "v.1.500.52";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1586,7 +1584,6 @@ function ensureRoutesRenderModule() {
 }
 
 let getShiftWorkOrderRows, getShiftMasterBoardSlotRows, groupShiftRowsByWorkCenter, groupShiftRowsByOrder, getDispatchWindow, getShiftWorkbenchWindow, getShiftWindowDayCount, renderShiftWindowRuler, normalizeDateInput, setShiftWorkbenchDate, moveShiftWorkbenchDate, setShiftWorkbenchToday, renderShiftCalendarControl, isSlotInsideDispatchWindow, getDispatchSlotTone, getDispatchSlotWindowStyle, buildDispatchWorkCenterRows, buildDispatchRouteRows, buildDispatchSignals, getDispatchCheckpointReferenceTime, buildDispatchCheckpoints, buildDispatchBoardData, normalizeShiftMasterBoardQuantity, getShiftMasterBoardAssignment, getShiftMasterBoardFact, getShiftMasterBoardAssignmentQuantity, getShiftMasterBoardRowById, getShiftMasterBoardNextRouteStep, getShiftMasterBoardTransferTarget, getShiftMasterBoardCarryoverForSource, buildShiftMasterBoardTransferContract, buildShiftMasterBoardSheetContract, getShiftMasterBoardLaborMinutesPerUnit, getShiftMasterBoardTimesheetCapacity, getShiftMasterBoardLaneId, getShiftMasterBoardRow, getShiftMasterBoardGroupKey, groupShiftMasterBoardRows, getShiftMasterBoardWeek, getShiftMasterBoardCarryoverRows, getShiftMasterBoardFallbackRows, getShiftMasterBoardModel, getShiftMasterBoardExecutorLoadMap, renderShiftMasterBoardPage, renderShiftMasterBoardTopControls, renderShiftMasterBoardKpi, renderShiftMasterBoardLanes, renderShiftMasterBoardLane, renderShiftMasterBoardCard, renderShiftMasterBoardDetail, renderShiftMasterBoardTaskContext, renderShiftMasterBoardInlineSummary, renderShiftMasterBoardSummaryCell, getShiftMasterBoardRouteChain, renderShiftMasterBoardRouteChain, renderShiftMasterBoardCoverage, renderShiftMasterBoardEmployeeOptions, renderShiftMasterBoardAvailableEmployeeLoadbar, renderShiftMasterBoardAssignment, renderShiftMasterBoardDocument, renderShiftMasterBoardSheetModal, renderShiftMasterBoardActionModal, getShiftMasterDemoLanes, getShiftMasterRowOrderLabel, getShiftMasterRowRouteLabel, getShiftMasterRowRoutePartLabel, readShiftMasterBoardAssignmentPanel, readShiftMasterBoardCurrentAssignmentPatch, mergeShiftMasterBoardIssueAssignment, persistShiftMasterBoardAssignmentInput, updateShiftMasterBoardAvailableQuantityPreview, updateShiftMasterBoardLane, canMoveShiftMasterBoardCardToLane, moveShiftMasterBoardCardToLane, saveShiftMasterBoardAssignment, markShiftMasterBoardSheetPrinted, saveShiftMasterBoardFact, removeShiftMasterBoardCarryoverForSource, createShiftMasterBoardCarryover, bindShiftMasterBoardEvents;
-let getPlanningWorkItemId, parsePlanningWorkItemId, getPlanningWorkItemSet, getDefaultPlanningWorkItem, getPlanningActiveWorkItem;
 function initializeShiftMasterBoardModule(factory) {
   ({
     getShiftWorkOrderRows,
@@ -4438,24 +4435,15 @@ function canPlanningWorkbenchReactSlotWrite(activation = getPlanningWorkbenchRea
     && state.serverProjectionReady === true
     && Boolean(state.runtimeProjection);
 }
+const PLANNING_DEFERRED_OWNER_MESSAGES = Object.freeze({
+  "change-labor": "Трудозатраты пока доступны только для чтения: PostgreSQL owner не подключён.",
+  "transfer-to-gantt": "Передача в график пока недоступна: PostgreSQL owner размещения не подключён.",
+  cancel: "Отмена заказ-наряда пока недоступна: PostgreSQL owner отмены не подключён.",
+});
 const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost({
   getActivation: getPlanningWorkbenchReactActivation,
   getPayload: getPlanningWorkbenchProductionPayload,
   getTargetRoot: () => app,
-  requestLegacyRender: (_reason, scope = "") => {
-    const [action, ...parts] = String(scope || "").split(":");
-    const value = parts.join(":");
-    if (action === "route" && value) {
-      const reconciliation = readPlanningStartDateReconciliation();
-      if (reconciliation && reconciliation.routeId !== value) {
-        notifySaveSuccess("Сначала проверьте незавершённую команду даты старта.");
-        return;
-      }
-      ui.activeRouteId = value; ui.planningWorkItem = ""; persistUiState(); hydratePlanningWorkOrderReadModel();
-    }
-    if (action === "item" && value) { ui.planningWorkItem = value; persistUiState(); }
-    if (ui.activeModule === "planning") render({ skipRememberScroll: true });
-  },
   navigate: async (navigation = {}) => {
     const type = String(navigation.type || ""); const id = String(navigation.id || "").trim(); const state = getPlanningWorkbenchProductionReadState();
     if (!id || !["select-route", "select-item"].includes(type)) return { ok: false, message: "Неизвестный переход Planning." };
@@ -4482,6 +4470,8 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
   executeCommand: async (command = {}) => {
     const localQa = getPlanningWorkbenchReactLocalQaOverrides();
     if (command.type === "request-elevation") return beginPlanningEmployeeElevation();
+    const deferredOwnerMessage = PLANNING_DEFERRED_OWNER_MESSAGES[command.type];
+    if (deferredOwnerMessage) return { ok: false, code: "owner-unavailable", message: deferredOwnerMessage };
     if (!localQa.writeEvaluation) {
       await reconcileEmployeeServerSession({ force: true });
       if (employeeServerSessionState.authenticated === true) {
@@ -5556,9 +5546,6 @@ const markingReactIslandHost = createMarkingReactIslandHost({
     api: markingApiClient,
   }),
   getTargetRoot: () => app,
-  requestLegacyRender: () => {
-    if (ui.activeModule === "marking") render({ skipRememberScroll: true });
-  },
 });
 function getAuthPickerReactAttemptsLeft() {
   const value = Number(ui.authPrototypeAttemptsLeft);
@@ -6232,8 +6219,8 @@ const rolesReactIslandHost = createRolesReactIslandHost({
         defaultScopeEdit: commandReady,
         lifecycleEdit: commandReady,
         assignmentEdit: assignmentReady,
+        multipleAssignmentsEdit: assignmentReady,
         blockedOperations: [
-          "multiple-assignment-owner",
           "effective-window-persistence",
           "subject-responsibility-scope-persistence",
           "assignment-responsibility-scope-persistence",
@@ -6249,9 +6236,44 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
     const permanentReact = getRolesReactActivation().accessMode === "react";
-    if ((!permanentReact && !localQa.writeEvaluation) || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role", "set-assignment"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
+    if ((!permanentReact && !localQa.writeEvaluation) || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role", "set-assignment", "add-assignment"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("access-control")) return { ok: false, message: "PostgreSQL-команда ролей недоступна." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "add-assignment") {
+      const employeeId = String(input.employeeId || "").trim();
+      const roleId = String(input.roleId || "").trim();
+      const employee = (getSystemDomainsRegistries().employees || []).find((item) => String(item.id || "") === employeeId);
+      const role = (getSystemDomainsRegistries().accessRoles || []).find((item) => String(item.id || "") === roleId && item.isActive !== false);
+      if (!employee || !role) return { ok: false, message: "Сотрудник или активная роль больше не существуют." };
+      if (!authorizeSystemDomainAction("roles", "assign", getAccessControlEmployeeContext(employeeId))) return { ok: false, message: "Нет права назначать роль этому сотруднику." };
+      if (String(getAuthenticatedAccessPerson()?.id || "") === employeeId) return { ok: false, message: "Нельзя менять собственные явные назначения в текущей сессии." };
+      if (String(input.validFrom || "").trim() || String(input.validTo || "").trim()) return { ok: false, message: "Период действия остаётся заблокирован до отдельного durable owner." };
+      const responsibilityScope = input.responsibilityScope && typeof input.responsibilityScope === "object" ? input.responsibilityScope : {};
+      if (String(responsibilityScope.type || "factory") !== "factory" || String(responsibilityScope.targetId || "").trim()) return { ok: false, message: "Scope назначения остаётся заблокирован до отдельного durable owner." };
+      const preparation = prepareAdditionalRoleAssignment({
+        assignments: getSystemDomainsRegistries().roleAssignments || [],
+        confirmEmployeeId: input.confirmEmployeeId,
+        employeeId,
+        expectedAssignmentIds: input.expectedAssignmentIds,
+        roleId,
+      });
+      if (preparation.ok !== true) return { ok: false, code: preparation.code, message: preparation.message };
+      try {
+        const updated = await updateSystemDomainRegistry("roleAssignments", (rows) => [...rows, preparation.assignment], {
+          source: "access-control:assignment-add",
+          mutationKeys: [preparation.assignment.id],
+          serverCommand: true,
+          surface: "access-control",
+        });
+        if (updated !== true) return { ok: false, message: "Добавление назначения отклонено проверкой access-control." };
+        const authoritative = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.employeeId || assignment.subjectId || "") === employeeId);
+        if (!authoritative.some((assignment) => String(assignment.id || "") === preparation.assignment.id && String(assignment.roleId || "") === roleId)) return { ok: false, message: "Access-control не подтвердил дополнительное назначение." };
+        queueMicrotask(() => { if (ui.activeModule === "roles") render({ skipRememberScroll: true }); });
+        return { ok: true, id: preparation.assignment.id, employeeId, roleId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Назначения изменились в другом сеансе. Проверьте данные и повторите." : error?.message || "Сервер не принял дополнительное назначение." };
+      }
+    }
     if (command.type === "set-assignment") {
       const employeeId = String(input.employeeId || "").trim(); const confirmEmployeeId = String(input.confirmEmployeeId || "").trim(); const expectedPreviousRoleId = String(input.expectedPreviousRoleId || "").trim(); const nextRoleId = String(input.roleId || "").trim();
       const employee = (getSystemDomainsRegistries().employees || []).find((item) => String(item.id || "") === employeeId);
@@ -6260,7 +6282,7 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       if (String(getAuthenticatedAccessPerson()?.id || "") === employeeId) return { ok: false, message: "Нельзя менять собственное явное назначение в текущей сессии." };
       const assignments = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.employeeId || assignment.subjectId || "") === employeeId);
       const currentRoleId = assignments.length === 1 ? String(assignments[0].roleId || "") : "";
-      if (assignments.length > 1) return { ok: false, message: "Операция заблокирована: для нескольких назначений ещё нет серверного owner-контракта." };
+      if (assignments.length > 1) return { ok: false, message: "Замена заблокирована для нескольких назначений; используйте точное добавление дополнительной роли." };
       if (assignments.some((assignment) => [assignment.validFrom, assignment.validTo, assignment.effectiveFrom, assignment.effectiveTo].some((value) => String(value || "").trim()))) return { ok: false, message: "Операция заблокирована: сервер ещё не поддерживает сохранение периода действия назначения." };
       if (currentRoleId !== expectedPreviousRoleId) return { ok: false, message: "Назначение сотрудника изменилось в другом сеансе." };
       if (nextRoleId && !(getSystemDomainsRegistries().accessRoles || []).some((item) => item.id === nextRoleId && item.isActive !== false)) return { ok: false, message: "Новая роль недоступна или деактивирована." };
@@ -7269,8 +7291,6 @@ const BOARD_SPEC_TERM = "Плата";
 const BOARD_SPEC_TERM_LOWER = "плата";
 const BOARD_SPEC_LIST_TERM = "Платы";
 const BOARD_BOM_TERM = "BOM платы";
-const WORK_ORDERS_MODULE_LABEL = "Заказ-наряды";
-
 const BOM_IMPORT_COLUMN_COUNT = 9;
 const MAIN_ROUTE_TASK_ID = "__main__";
 const STRUCTURE_FULFILLMENT_MODES = ["not_selected", "produce", "from_stock", "purchase", "external"];
@@ -7290,138 +7310,7 @@ const STRUCTURE_FULFILLMENT_META = {
 };
 const STRUCTURE_SCHEDULABLE_FULFILLMENT_MODES = new Set(["produce", "from_stock"]);
 
-function renderPlanningWorkbenchShellState({ title, description }) {
-  return renderMesModulePatternPage({
-    moduleId: "planning",
-    sidebar: renderUiModuleSidebar({
-      eyebrow: "Планирование",
-      title: WORK_ORDERS_MODULE_LABEL,
-      variant: "queue",
-      className: "planning-order-queue",
-      body: `<div class="ui-sidebar-list planning-order-route-list"><div class="ui-sidebar-label">${escapeHtml(description)}</div></div>`,
-    }),
-    header: renderUiModuleHeader({
-      eyebrow: "Планирование",
-      title: WORK_ORDERS_MODULE_LABEL,
-      description,
-      className: "planning-order-module-header is-compact",
-    }),
-    content: renderUiEmptyState({ title, description }),
-  });
-}
-
-let renderPlanningWorkbenchPage = () => renderPlanningWorkbenchShellState({
-  title: "Загружаем заказ-наряды",
-  description: "Рабочее пространство откроется автоматически.",
-});
-let getPlanningWorkbenchModel = () => ({ routes: [], queue: [], overview: null });
-let syncPlanningManualLaborToStepSlots = () => false;
-let planningWorkbenchModuleLoad = null;
-let planningWorkbenchModuleError = null;
-function initializePlanningWorkItemHelpers(factory) {
-  ({ getPlanningWorkItemId, parsePlanningWorkItemId, getPlanningWorkItemSet, getDefaultPlanningWorkItem, getPlanningActiveWorkItem } = factory({
-    getUi: () => ui,
-    getPlanningState: () => planningState,
-    routeStepRequiresManualPlanningLine,
-    isSmtOperationWorkCenter,
-    getRouteStepSelectedPlanningWorkCenterId,
-  }));
-}
-function initializePlanningWorkbenchModule(factory) {
-  ({
-    getPlanningWorkbenchModel,
-    renderPlanningWorkbenchPage,
-    syncPlanningManualLaborToStepSlots,
-  } = factory({
-  STRUCTURE_FULFILLMENT_LABELS,
-  STRUCTURE_FULFILLMENT_MODES,
-  HUMAN_LABOR_RESOURCE_TYPES,
-  MACHINE_LABOR_RESOURCE_TYPES,
-  WORK_ORDERS_MODULE_LABEL,
-  buildPlanningProductionChain,
-  escapeAttribute,
-  escapeHtml,
-  formatDateTimeShort,
-  formatDuration,
-  formatWarehouseQuantity,
-  fromDateInput,
-  getActiveRouteForModule,
-  getDefaultOperationCalculationType,
-  getDomainWorkOrderProjections,
-  getDomainWorkOrderDetail,
-  getFulfillmentMeta,
-  getMesFlowTransitionView,
-  getPlanningActiveWorkItem,
-  getPlanningActiveRouteId: () => ui.activeRouteId,
-  getPlanningFlowReadinessSummary,
-  getPlanningOrderLaborKey,
-  getPlanningResourceForRouteStep,
-  getPlanningRouteLaborReadiness,
-  getPlanningRouteQuantity,
-  getPlanningRouteStartDate,
-  getPlanningRouteTransferSummary,
-  getPlanningShiftOrdersForRoute,
-  getPlanningState: () => planningState,
-  getPlanningStepLineLabel,
-  getPlanningStepTone,
-  getPlanningSupplyRows,
-  getPlanningSupplySummary,
-  getPlanningTaskBomLabel,
-  getPlanningTaskOperationStats,
-  getPlanningTaskReadiness,
-  getPlanningTasksForRoute,
-  getPersonnelCalendarModel,
-  getPlanningWorkItemId,
-  getOperationMapItem,
-  getProductionResource,
-  getRouteDocumentKindLabel,
-  getRouteDocumentKindShortLabel,
-  getRouteModuleStats,
-  getRouteStepLaborSnapshot,
-  getRouteStepPlanningTask,
-  getRouteStepQuantityForBatch,
-  getRouteStepSelectedPlanningWorkCenterId,
-  getRouteStepsForModule,
-  getRouteTaskTypeLabel,
-  getRoutesForModule,
-  getResourcesForWorkCenter,
-  getWarehouseBalanceForNomenclature,
-  getWorkOrderViewModel,
-  getWorkCenter,
-  icon,
-  isManufacturingOutputReceiptRouteStep,
-  isSmtOperationWorkCenter,
-  mapLegacyWorkCenterId,
-  normalizeBoardsPerPanel,
-  normalizeLookupText,
-  normalizePlanningOrderLaborByStepId,
-  normalizeQuantity,
-  parsePlanningWorkItemId,
-  renderModulePreviewEmpty,
-  renderRouteTreeCell: (...args) => renderRouteTreeCell(...args),
-  renderRouteTaskOutputHint,
-  renderUiActionButton,
-  renderUiModuleHeader,
-  renderUiModulePage,
-  renderUiPanel, renderUiPanelBody, renderUiStatusToken, renderUiModuleSidebar, renderUiSidebarItem, renderUiTableControlAttributes, renderUiTableWrap,
-  resolveProductionResourceType,
-  routeStepRequiresManualPlanningLine, toDate, toDateInput,
-  }));
-}
-function ensurePlanningWorkbenchModule() {
-  if (planningWorkbenchModuleLoad || planningWorkbenchModuleError) return planningWorkbenchModuleLoad;
-  planningWorkbenchModuleLoad = Promise.all([
-    import("./modules/planning_workbench/render.js"),
-    import("./modules/planning_workbench/work_items.js"),
-  ])
-    .then(([{ createPlanningWorkbenchModule }, { createPlanningWorkItemHelpers }]) => {
-      initializePlanningWorkItemHelpers(createPlanningWorkItemHelpers);
-      initializePlanningWorkbenchModule(createPlanningWorkbenchModule);
-      if (ui.activeModule === "planning") render({ skipRememberScroll: true });
-    })
-    .catch((error) => { planningWorkbenchModuleError = error; });
-  return planningWorkbenchModuleLoad;
-}
+const syncPlanningManualLaborToStepSlots = () => false;
 
 function normalizeStatusApplicationArea(value = "") {
   const source = String(value || "").trim();
@@ -11045,13 +10934,8 @@ function initializeModuleRuntime() {
     },
     marking: {
       render: () => {
-        const reactDecision = markingReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return markingReactIslandHost.renderTarget();
-        return renderMesModulePatternPage({
-          moduleId: "marking",
-          header: { eyebrow: "Оперативное управление", title: "Маркировка" },
-          content: renderUiEmptyState({ title: "Модуль маркировки временно недоступен", description: "Обновите страницу; при повторной ошибке вернитесь к предыдущему релизу." }),
-        });
+        markingReactIslandHost.prepareRender();
+        return markingReactIslandHost.renderTarget();
       },
       bind: () => {},
       afterRender: () => { void markingReactIslandHost.mount(); },
@@ -11149,22 +11033,10 @@ function initializeModuleRuntime() {
     planning: {
       render: () => {
         hydratePlanningWorkOrderReadModel();
-        const reactDecision = planningWorkbenchReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return planningWorkbenchReactIslandHost.renderTarget();
-        if (getReactRuntimeMode("planningWorkbench") === "react") return planningWorkbenchReactIslandHost.renderTarget();
-        // The legacy renderer is a rollback/evaluation fallback only. The
-        // permanent Planning route above consumes the typed PostgreSQL payload
-        // without importing src/modules/planning_workbench/render.js.
-        ensurePlanningWorkbenchModule();
-        if (planningWorkbenchModuleError) {
-          return renderPlanningWorkbenchShellState({
-            title: "Не удалось загрузить заказ-наряды",
-            description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
-          });
-        }
-        return renderPlanningWorkbenchPage();
+        planningWorkbenchReactIslandHost.prepareRender();
+        return planningWorkbenchReactIslandHost.renderTarget();
       },
-      bind: () => { if (!planningWorkbenchReactIslandHost.isReactEligible()) bindPlanningEvents(); },
+      bind: () => {},
       afterRender: () => { schedulePlanningRouteStructureSidebarSync(); void planningWorkbenchReactIslandHost.mount(); },
     },
     shiftMasterBoard: {
@@ -11316,7 +11188,6 @@ const GANTT_LEGACY_MUTATION_CONTROL_SELECTOR = [
 const GANTT_LEGACY_MUTATION_SELECTOR = `${GANTT_LEGACY_MUTATION_CONTROL_SELECTOR},.operation-slot`;
 
 function getPlanningLegacyMutationSelector() {
-  if (ui?.activeModule === "planning") return PLANNING_WORKBENCH_LEGACY_MUTATION_SELECTOR;
   if (ui?.activeModule === "gantt") return GANTT_LEGACY_MUTATION_SELECTOR;
   return "";
 }
@@ -11669,34 +11540,14 @@ function renderPreservingModuleScroll(options = {}) {
 }
 
 function refreshPlanningWorkbench() {
-  // Route selection has changed without a full module render. Let the one
-  // compact bootstrap load its corresponding detail; do not race it with the
-  // legacy direct-detail reader.
   hydratePlanningWorkOrderReadModel();
-  const currentPage = app.querySelector('.planning-order-page[data-ui-component="ModulePage"]');
-  const currentWorkspace = currentPage?.querySelector(':scope > [data-ui-component="ModuleWorkspace"]');
-  if (!currentPage || !currentWorkspace || ui.activeModule !== "planning") {
-    renderPreservingModuleScroll();
-    return false;
+  if (ui.activeModule !== "planning") return false;
+  if (planningWorkbenchReactIslandHost.update()) {
+    schedulePlanningRouteStructureSidebarSync();
+    return true;
   }
-
-  const template = document.createElement("template");
-  template.innerHTML = String(renderPlanningWorkbenchPage() || "").trim();
-  const nextPage = template.content.firstElementChild;
-  const nextWorkspace = nextPage?.querySelector?.(':scope > [data-ui-component="ModuleWorkspace"]');
-  if (!nextPage?.matches?.('.planning-order-page[data-ui-component="ModulePage"]') || !nextWorkspace) {
-    renderPreservingModuleScroll();
-    return false;
-  }
-
-  const snapshot = getModuleScrollSnapshot();
-  currentPage.dataset.planningActiveRouteId = nextPage.dataset.planningActiveRouteId || "";
-  currentWorkspace.replaceWith(nextWorkspace);
-  bindPlanningEvents(nextWorkspace);
-  applyUiRuntimeContracts();
-  restoreModuleScrollSnapshot(snapshot);
-  schedulePlanningRouteStructureSidebarSync();
-  return true;
+  renderPreservingModuleScroll();
+  return false;
 }
 
 function getOperationMapRows(...args) { return operationalRuntimeService.getOperationMapRows(...args); }

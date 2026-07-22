@@ -74,7 +74,6 @@ assert.deepEqual(
 assert.deepEqual(
   rolesLedger.commands.missing,
   [
-    "multiple-assignment-owner",
     "effective-window-persistence",
     "subject-responsibility-scope-persistence",
     "assignment-responsibility-scope-persistence",
@@ -82,7 +81,7 @@ assert.deepEqual(
   ],
   "Roles missing scope must name only real owner or durable-persistence gaps",
 );
-assert.deepEqual(rolesLedger.commands.blockedBy["multiple-assignment-owner"], ["owner-contract"]);
+assert(rolesLedger.commands.implemented.includes("add-immediate-assignment"), "Exact immediate second-role assignment must be classified as implemented");
 for (const gap of [
   "effective-window-persistence",
   "subject-responsibility-scope-persistence",
@@ -278,5 +277,5 @@ console.log("Roles cutover classification QA: OK");
 console.log("- role-default self scope: implemented and enforced");
 console.log("- assigned/current-role deactivation: guarded before write");
 console.log("- access-control reset: compatibility-only and guarded before mutation on protected contours");
-console.log("- multiple assignment management: domain-readable, owner-missing");
+console.log("- exact immediate second-role assignment: owner-backed with assignment-set guards");
 console.log("- effective-window, responsibility-scope and readOnly PostgreSQL parity: not claimed");

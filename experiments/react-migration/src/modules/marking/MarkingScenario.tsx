@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ActionButton, MetricCard, MetricGrid, ModuleHeader, ModulePage, Panel, StatusToken, SystemState, TableWrap } from "../../ui/components";
 import { ModalOverlay } from "../../ui/ModalOverlay";
 import { adaptMarkingHostContract, createMarkingProductionClient, type MarkingClient, type MarkingTaskActionInput } from "./api";
-import { createMarkingMockClient } from "./mock-client";
 import { taskMetrics, type MarkingBatch, type MarkingCodeRecord, type MarkingPrintStatus, type MarkingTab, type MarkingTask } from "./model";
 
 const number = (value: number) => value.toLocaleString("ru-RU");
@@ -19,7 +18,7 @@ const upsert = (tasks: MarkingTask[], next: MarkingTask) => tasks.some((task) =>
 
 export function MarkingScenario({ payload }: { payload: unknown }) {
   const host = useMemo(() => adaptMarkingHostContract(payload), [payload]);
-  const client = useMemo<MarkingClient | null>(() => host.mode === "mock" ? createMarkingMockClient() : host.api ? createMarkingProductionClient(host.api) : null, [host.api, host.mode]);
+  const client = useMemo<MarkingClient | null>(() => host.mode === "production" && host.api ? createMarkingProductionClient(host.api) : null, [host.api, host.mode]);
   const [tasks, setTasks] = useState<MarkingTask[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [taskDetail, setTaskDetail] = useState<MarkingTask | null>(null);
@@ -93,7 +92,7 @@ export function MarkingScenario({ payload }: { payload: unknown }) {
   };
 
   const header = <ModuleHeader eyebrow="Оперативное управление" title="Маркировка" badge={<span className="marking-demo-badge" data-react-phase-marker>REACT + TS · PHASE 1</span>} />;
-  if (!client) return <ModulePage className="marking-react" label="Маркировка" header={header}><SystemState title="API маркировки не подключён" text="Production mode работает только через typed payload.api; автоматический переход на MOCK запрещён." /></ModulePage>;
+  if (!client) return <ModulePage className="marking-react" label="Маркировка" header={header}><SystemState title="API маркировки не подключён" text={host.contractError || "Production mode работает только через typed payload.api; автоматический переход на MOCK запрещён."} /></ModulePage>;
   if (loading && !tasks.length) return <ModulePage className="marking-react" label="Маркировка" header={header}><SystemState title="Загружаем задания" text="Получаем назначенные задания маркировки." tone="neutral" /></ModulePage>;
   if (loadError && !tasks.length) return <ModulePage className="marking-react" label="Маркировка" header={header}><SystemState title="Задания недоступны" text={loadError} /></ModulePage>;
   if (!selected || !metrics) return <ModulePage className="marking-react" label="Маркировка" header={header}><SystemState title="Назначенных заданий нет" text="Мастерская ещё не назначила задания маркировки." tone="neutral" /></ModulePage>;
@@ -101,7 +100,6 @@ export function MarkingScenario({ payload }: { payload: unknown }) {
   const view = taskStatusView[selected.status];
   const configKitCount = Math.max(0, Number(kitCountDraft) || 0); const configBoards = Math.max(0, Number(boardsPerKitDraft) || 0); const printCandidates = selected.kits.filter((kit) => ["not-sent", "error"].includes(kit.printStatus)); const printCount = Math.max(0, Math.min(printCandidates.length, Number(printCountDraft) || 0)); const busy = Boolean(pendingAction); const revisionReady = selected.revision >= 1 && !detailLoading;
   return <ModulePage className="marking-react" label="Маркировка" header={header}>
-    {host.mode === "mock" ? <div className="marking-demo-boundary" role="note"><strong>Явный MOCK-контур</strong><span>Данные сбрасываются при перезагрузке и не считаются production-интеграцией.</span><code>mode=mock</code></div> : null}
     <section className="marking-react-layout">
       <Panel heading={<div className="panel-heading"><div><p>Рабочая очередь</p><h2>Задания маркировки</h2></div><StatusToken label={`${tasks.length} заданий`} tone="neutral" /></div>}>
         <div className="marking-task-list" data-marking-task-list>{tasks.map((task) => { const taskState = taskMetrics(task); const status = taskStatusView[task.status]; return <button aria-pressed={task.id === selected.id} className={task.id === selected.id ? "is-current" : ""} data-marking-task={task.id} key={task.id} onClick={() => { setSelectedTaskId(task.id); setTab("kits"); }} type="button"><span><small>{task.id} · {task.workOrder}</small><strong>{task.product}</strong><em>{number(taskState.printedKits)} из {number(task.kitCount || task.plannedKits)} комплектов напечатано</em></span><StatusToken label={status.label} tone={status.tone} /></button>; })}</div>

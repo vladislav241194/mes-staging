@@ -29,12 +29,8 @@ assert.match(preflightPolicy, /MES_ENABLE_PLANNING_START_DATE_COMMANDS/);
 assert.match(preflightPolicy, /PLANNING_START_DATE_COMMAND_MIGRATION/);
 assert.match(preflight, /startDateCommandReadiness\(\)/,
   "enabled production owner preflight must verify exact catalog readiness, not only a marker/file name");
-const planningWorkbenchInjection = appSource.slice(
-  appSource.indexOf("function initializePlanningWorkbenchModule"),
-  appSource.indexOf("function ensurePlanningWorkbenchModule"),
-);
-assert.match(planningWorkbenchInjection, /\btoDateInput\b/,
-  "Planning Workbench host must inject the date formatter required by the server slot/start-date model");
+assert.doesNotMatch(appSource, /initializePlanningWorkbenchModule|ensurePlanningWorkbenchModule|renderPlanningWorkbenchPage/,
+  "the start-date owner must remain independent of the retired legacy Planning renderer");
 assert.match(appSource, /function normalizeNullablePlanningStartDate\(value\)[\s\S]*?isExactIsoCalendarDate\(normalized\)/,
   "nullable Planning command normalization must remain bound to the shared exact calendar validator");
 assert.match(appSource, /ownsPlanningStartDate[\s\S]*?normalizeNullablePlanningStartDate\(command\.planningStartDate\)[\s\S]*?planningStartDate === undefined/,

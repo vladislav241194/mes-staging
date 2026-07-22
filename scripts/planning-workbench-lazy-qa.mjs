@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const source = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
@@ -6,29 +6,26 @@ const appEventsSource = await readFile(resolve(process.cwd(), "src/modules/app_e
 const readModelSource = await readFile(resolve(process.cwd(), "src/modules/domain_api/work_orders_read_model.js"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
-expect(!source.includes('import { createPlanningWorkbenchModule } from "./modules/planning_workbench/render.js";'), "Planning Workbench must not remain a static app import");
-expect(source.includes('import("./modules/planning_workbench/render.js")'), "Planning Workbench must load as a dynamic module");
-expect(!source.includes('import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";'), "Planning Workbench legacy selection helpers must not remain in the static app graph");
-expect(source.includes('import("./modules/planning_workbench/work_items.js")'), "Planning Workbench legacy selection helpers must load with the rollback renderer");
-const planningWorkbenchLazyLoader = source.slice(
-  source.indexOf("function ensurePlanningWorkbenchModule"),
-  source.indexOf("function normalizeStatusApplicationArea"),
+expect(!source.includes('import("./modules/planning_workbench/render.js")'), "Planning Workbench normal runtime must not load the legacy renderer");
+expect(!source.includes('import("./modules/planning_workbench/work_items.js")'), "Planning Workbench normal runtime must not load legacy selection helpers");
+expect(await access(resolve(process.cwd(), "src/modules/planning_workbench/render.js")).then(() => false, () => true), "Retired Planning renderer must be physically absent");
+expect(await access(resolve(process.cwd(), "src/modules/planning_workbench/work_items.js")).then(() => false, () => true), "Retired Planning selection helpers must be physically absent");
+expect(!source.includes("function ensurePlanningWorkbenchModule"), "Planning Workbench must not retain a same-release UI rollback loader");
+expect(!source.includes("function renderPlanningWorkbenchShellState"), "Planning loading and failure states must be owned by the React host");
+expect(!source.includes("renderPlanningWorkbenchPage"), "Planning route refresh must not rebuild legacy HTML");
+const planningRuntimeAdapter = source.slice(
+  source.indexOf('    planning: {\n      render: () => {'),
+  source.indexOf("    shiftMasterBoard:", source.indexOf('    planning: {\n      render: () => {')),
 );
-expect(planningWorkbenchLazyLoader.includes("Promise.all(["), "Planning Workbench rollback dependencies must share one lazy-load boundary");
-const helperInitializationIndex = planningWorkbenchLazyLoader.indexOf("initializePlanningWorkItemHelpers(createPlanningWorkItemHelpers)");
-const rendererInitializationIndex = planningWorkbenchLazyLoader.indexOf("initializePlanningWorkbenchModule(createPlanningWorkbenchModule)");
-expect(helperInitializationIndex >= 0 && rendererInitializationIndex > helperInitializationIndex,
-  "Planning Workbench selection helpers must initialize before the rollback renderer");
-expect(source.includes('title: "Загружаем заказ-наряды"'), "Planning Workbench needs a visible loading state");
-expect(source.includes('function renderPlanningWorkbenchShellState'), "Planning Workbench loading and failure states must preserve the planning shell contract");
-expect(source.includes('sidebar: renderUiModuleSidebar({'), "Planning Workbench loading state must provide its required ModuleSidebar slot");
-expect(source.includes('header: renderUiModuleHeader({'), "Planning Workbench loading state must provide its required ModuleHeader slot");
-expect(source.includes('if (ui.activeModule === "planning") render({ skipRememberScroll: true });'), "Planning Workbench must rerender the active screen after lazy load");
+expect(planningRuntimeAdapter.includes("planningWorkbenchReactIslandHost.prepareRender()"), "Planning route must prepare the React host");
+expect(planningRuntimeAdapter.includes("return planningWorkbenchReactIslandHost.renderTarget()"), "Planning route must always render the React target");
+expect(planningRuntimeAdapter.includes("bind: () => {}"), "Planning route must not bind legacy Planning events");
 expect(source.includes('async function hydratePlanningWorkbenchBootstrap'), "Planning needs a compact server bootstrap for its list and selected order.");
 expect(source.includes('workOrdersReadModel.refreshWorkbenchBootstrap(requestedActiveRouteId, { force })'), "Planning startup must request list and selected detail through one server bootstrap.");
 expect(!source.includes('function hydratePlanningWorkOrderDetail('), "Planning must not race its compact bootstrap with the retired direct-detail loader.");
 expect(source.includes('if (String(ui.activeRouteId || "") !== requestedActiveRouteId) return true;'), "A stale bootstrap response must not restore an earlier route selection.");
-expect(source.includes('hydratePlanningWorkOrderReadModel();\n  const currentPage = app.querySelector'), "A route click must request the newly selected aggregate through the compact bootstrap.");
+expect(source.includes('hydratePlanningWorkOrderReadModel();\n  if (ui.activeModule !== "planning") return false;'), "A route click must request the newly selected aggregate through the compact bootstrap.");
+expect(source.includes("if (planningWorkbenchReactIslandHost.update())"), "Planning refresh must update the mounted React island before considering a shell render.");
 expect(source.includes("await restorePlanningWorkbenchSnapshotFallback();"), "A deferred Planning entry must retain the runtime-owned compatibility fallback.");
 expect(!source.includes("if (restored && renderOnChange && ui.activeModule === \"planning\") render({ skipRememberScroll: true });"), "Planning fallback must not trigger a duplicate full render after runtime state already applied the snapshot.");
 expect(readModelSource.includes('async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {})'), "Work-order read model must expose the combined workbench bootstrap reader.");

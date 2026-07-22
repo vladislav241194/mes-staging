@@ -35,7 +35,12 @@ export interface MarkingClient {
   getCode(code: string, signal?: AbortSignal): Promise<MarkingCodeRecord>;
 }
 
-export interface MarkingHostContract { mode: "production" | "mock"; api: MarkingApiPort | null; selectedTaskId: string }
+export interface MarkingHostContract {
+  mode: "production" | "invalid";
+  api: MarkingApiPort | null;
+  selectedTaskId: string;
+  contractError: string;
+}
 
 const requestId = () => globalThis.crypto?.randomUUID?.() || `marking-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const errorMessage = (value: unknown, fallback: string) => text(record(value).message || record(value).error, fallback);
@@ -60,7 +65,17 @@ export function adaptMarkingHostContract(payload: unknown): MarkingHostContract 
   const root = record(payload);
   const api = record(root.api);
   const candidate: MarkingApiPort | null = [api.getTasks, api.getTask, api.postTaskAction, api.getCode].every((method) => typeof method === "function") ? api as unknown as MarkingApiPort : null;
-  return { mode: root.mode === "mock" ? "mock" : "production", api: candidate, selectedTaskId: text(root.selectedTaskId || root.taskId) };
+  const productionMode = root.mode === "production";
+  return {
+    mode: productionMode ? "production" : "invalid",
+    api: productionMode ? candidate : null,
+    selectedTaskId: text(root.selectedTaskId || root.taskId),
+    contractError: !productionMode
+      ? "Production host contract is required; MOCK mode is not available in the MES runtime."
+      : candidate
+        ? ""
+        : "Production Marking API port is incomplete.",
+  };
 }
 
 export function createMarkingProductionClient(port: MarkingApiPort): MarkingClient {

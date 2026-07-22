@@ -226,12 +226,11 @@
       "disposition": "migration-required",
       "normalActionFallback": false,
       "commands": {
-        "implemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "deactivate", "reactivate"],
+        "implemented": ["save-metadata", "set-grant", "set-default-scope", "replace-immediate-assignment", "clear-immediate-assignment", "add-immediate-assignment", "deactivate", "reactivate"],
         "supportedVariants": ["role-default-scope:self"],
         "guarded": ["deactivate-assigned-role", "deactivate-current-role", "reset-access-control"],
-        "missing": ["multiple-assignment-owner", "effective-window-persistence", "subject-responsibility-scope-persistence", "assignment-responsibility-scope-persistence", "read-only-role-persistence"],
+        "missing": ["effective-window-persistence", "subject-responsibility-scope-persistence", "assignment-responsibility-scope-persistence", "read-only-role-persistence"],
         "blockedBy": {
-          "multiple-assignment-owner": ["owner-contract"],
           "effective-window-persistence": ["owner-contract", "schema-migration"],
           "subject-responsibility-scope-persistence": ["owner-contract", "system-domains-schema-version", "schema-migration"],
           "assignment-responsibility-scope-persistence": ["owner-contract", "system-domains-schema-version", "schema-migration"],
@@ -407,7 +406,7 @@
       "runtimeLegacyModelDependency": false,
       "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["multiple-assignment owner contract", "effective-window persistence and schema migration", "subject responsibility-scope owner and schema", "assignment responsibility-scope owner and schema", "readOnly role persistence owner and schema", "current-release Pilot read", "Pilot write lifecycle and cleanup", "rollback/reactivation acceptance"]
+      "remainingScopes": ["effective-window persistence and schema migration", "subject responsibility-scope owner and schema", "assignment responsibility-scope owner and schema", "readOnly role persistence owner and schema", "current-release Pilot read", "Pilot write lifecycle and cleanup", "rollback/reactivation acceptance"]
     },
     {
       "id": "contourAdmin",

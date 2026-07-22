@@ -16,7 +16,7 @@ export interface RoleAssignmentDraft {
 }
 
 export type RolesDeferredCommand =
-  | { type: "add-assignment"; payload: RoleAssignmentDraft }
+  | { type: "add-assignment"; payload: RoleAssignmentDraft & { confirmEmployeeId: string; expectedAssignmentIds: string[] } }
   | { type: "update-assignment-window"; payload: Pick<RoleAssignmentDraft, "employeeId" | "validFrom" | "validTo"> & { assignmentId: string } }
   | { type: "set-subject-responsibility-scope"; payload: { employeeId: string; responsibilityScope: RoleResponsibilityScopeDraft } }
   | { type: "set-assignment-responsibility-scope"; payload: { assignmentId: string; employeeId: string; responsibilityScope: RoleResponsibilityScopeDraft } }

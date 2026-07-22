@@ -51,6 +51,11 @@ const MODULE_FEATURE_OVERRIDES = {
   },
   planning: {
     css: ["styles/ui/planning-order.css", "styles/layers/70-planning-table-and-matrix.css"],
+    files: [
+      "src/modules/planning_workbench/react_island_host.js",
+      "experiments/react-migration/src/modules/planning-workbench/PlanningWorkbenchScenario.tsx",
+      "experiments/react-migration/src/modules/planning-workbench/production-model.ts",
+    ],
     storage: [...CORE_STATE_STORAGE_KEYS, ...DIRECTORY_STORAGE_KEYS],
     qa: ["scripts/planning-labor-functional-qa.mjs", "scripts/ui-table-contract-audit.mjs"],
     removalContract: "Do not remove or rename planning order fields without planning-labor functional QA and Gantt transfer checks.",

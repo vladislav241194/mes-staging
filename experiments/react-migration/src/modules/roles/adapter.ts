@@ -116,10 +116,6 @@ export interface RolesReadModel {
 }
 
 const BLOCKED_OPERATION_DETAILS: Record<string, Omit<RoleBlockedOperation, "id">> = {
-  "multiple-assignment-owner": {
-    label: "Несколько ролей у сотрудника",
-    reason: "Заблокировано до появления серверного owner-контракта для набора назначений.",
-  },
   "effective-window-persistence": {
     label: "Период действия назначения",
     reason: "Заблокировано до серверной схемы validFrom/validTo и команд изменения окна.",

@@ -3,12 +3,11 @@ import { createReactIslandHost } from "../react_island_host.js";
 const MARKING_REACT_TARGET = "[data-react-marking-island]";
 const MARKING_REACT_BUNDLE_VERSION = "__MES_MARKING_REACT_BUNDLE_VERSION__";
 
-export function createMarkingReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Marking React island failed", error) } = {}) {
+export function createMarkingReactIslandHost({ getActivation, getPayload, getTargetRoot, reportError = (error) => console.error("[MES] Marking React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation,
     getPayload,
     getTargetRoot,
-    requestLegacyRender,
     reportError,
     targetSelector: MARKING_REACT_TARGET,
     renderTarget: '<div class="mes-react-marking-island" data-react-marking-island data-react-island-state="loading" aria-live="polite"></div>',

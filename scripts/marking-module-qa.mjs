@@ -40,7 +40,8 @@ assert(features.includes('storage: ["PostgreSQL: marking_phase1_*"]') && feature
 assert(app.includes("createMarkingApiClient") && app.includes('mode: "production"') && app.includes('persistence: "postgresql-isolated-phase-1"'), "Main MES runtime must provide the production Marking API port");
 assert(host.includes("activation.productionEnabled === true") && host.includes("canFallbackToLegacy: () => false"), "Marking normal path must be React-only and fail closed");
 assert(transport.includes('baseUrl = "/api/v1/marking"') && transport.includes('"Idempotency-Key": requestId'), "Shell transport must use the versioned idempotent API");
-assert(apiAdapter.includes("createMarkingProductionClient") && apiAdapter.includes('mode: "production" | "mock"'), "React adapter must keep production and explicit mock modes separate");
+assert(apiAdapter.includes("createMarkingProductionClient") && apiAdapter.includes('mode: "production" | "invalid"'), "React adapter must accept only the production host contract and fail closed otherwise");
+assert(!scenario.includes("mock-client") && !scenario.includes("createMarkingMockClient") && !scenario.includes('host.mode === "mock"'), "Production Marking island must not bundle or activate the in-memory MOCK client");
 assert(previewServer.includes("handleMarkingPhase1Request") && previewServer.includes('stateScope: "test-state"'), "Production preview server must mount the isolated Marking handler");
 assert(endpoint.includes('const BASE_PATH = "/api/v1/marking"') && endpoint.includes('testData: true'), "Marking endpoint must label every response as Phase 1 test data");
 assert(repository.includes("marking_phase1_tasks") && repository.includes("MOK-MARKING-"), "Repository must use isolated durable tables and visibly marked seed data");
@@ -52,7 +53,14 @@ assert(host.includes("data-react-marking-island") && host.includes("react-island
 assert(build.includes("marking-island.tsx") && build.includes('react-islands", "marking.js'), "Production build must publish the integrated Marking island");
 assert(styles.includes("styles/react-marking-island.css"), "Main MES stylesheet must include Marking styles");
 assert(!build.includes("bundleMarkingPilotPreview") && !previewServer.includes("/pilot/marking-preview") && !legacyServer.includes("/pilot/marking-preview"), "Standalone Marking preview route must stay removed");
-assert(scenario.includes("REACT + TS · PHASE 1") && scenario.includes('host.mode === "mock"'), "UI must show an honest Phase 1 marker and reserve MOCK for explicit mock mode");
+assert(scenario.includes("REACT + TS · PHASE 1") && scenario.includes("host.contractError"), "UI must keep an honest Phase 1 marker and expose a fail-closed host-contract error");
+
+const markingRouteStart = app.indexOf("    marking: {");
+const markingRouteEnd = app.indexOf("    weeklyProductionControl: {", markingRouteStart);
+const markingRoute = app.slice(markingRouteStart, markingRouteEnd);
+assert(markingRouteStart >= 0 && markingRouteEnd > markingRouteStart, "Marking route must remain registered");
+assert(markingRoute.includes("markingReactIslandHost.prepareRender()") && markingRoute.includes("markingReactIslandHost.renderTarget()"), "Marking route must render the React target directly");
+assert(!markingRoute.includes("renderMesModulePatternPage") && !markingRoute.includes("renderUiEmptyState"), "Marking route must not retain a same-release HTML fallback");
 
 console.log("Integrated Marking Phase 1 contract passed");
 console.log("- React + TypeScript production port: pass");

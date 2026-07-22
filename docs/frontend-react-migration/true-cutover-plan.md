@@ -374,7 +374,7 @@ Functional parity остаётся 18.
 
 ### Roles и доступ
 
-- targeted owner для multiple assignments;
+- Pilot acceptance и cleanup для targeted immediate multiple-assignment owner;
 - durable persistence для effective-window assignments;
 - System Domains registry/owner/persistence для subject/assignment responsibility scopes;
 - durable `readOnly` owner/persistence; role-default `self` уже реализован;
