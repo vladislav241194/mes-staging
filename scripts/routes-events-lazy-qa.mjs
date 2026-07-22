@@ -62,8 +62,20 @@ assert(
 assert(
   directoryLegacySource.includes("createDirectoryLegacyInteractions")
     && directoryLegacySource.includes("directory-editor-form-grid")
-    && directoryLegacySource.includes("[data-add-directory]"),
+    && directoryLegacySource.includes("[data-add-directory]")
+    && directoryLegacySource.includes("function bindDirectoryForm()")
+    && directoryLegacySource.includes("function deleteDirectoryRow(sectionId, rowIndex)"),
   "The lazy Directory interaction chunk must retain rollback modal and binding behavior",
+);
+assert(
+  !appEventsSource.includes('const form = app.querySelector("#directoryForm")')
+    && !appEventsSource.includes("function deleteDirectoryRow(sectionId, rowIndex)"),
+  "Legacy Directory form and generic delete workflows must not remain in the static event service",
+);
+assert(
+  appEventsSource.includes("function saveDirectoryRow(sectionId, rowIndex, row, options = {})")
+    && appEventsSource.includes("function deleteDirectoryStateRow(sectionId, row)"),
+  "The shared React Directory mutation core must remain available without loading the rollback UI",
 );
 
 let routeRuntimeLoadCount = 0;

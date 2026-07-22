@@ -5,7 +5,6 @@ export function createAppInteractionsModule(dependencies = {}) {
     addMs,
     app,
     audit,
-    bindDirectoryForm,
     bom,
     BOM_COMPONENT_FIELDS,
     cancelAuthPrototypePinFeedback = () => {},
@@ -15,7 +14,6 @@ export function createAppInteractionsModule(dependencies = {}) {
     center,
     config,
     count,
-    deleteDirectoryRow,
     deleteEmployeeSession = async () => ({ ok: true, authenticated: false }),
     deleteOperationMapItem,
     deleteRouteMapConfirmed,
@@ -103,37 +101,49 @@ export function createAppInteractionsModule(dependencies = {}) {
   let mobileModuleSwitcherBehaviorBound = initialMobileModuleSwitcherBehaviorBound;
   let directoryLegacyInteractionsApi = null;
   let directoryLegacyInteractionsLoad = null;
+  let shiftWorkOrderQaLegacyApi = null;
+  let shiftWorkOrderQaLegacyLoad = null;
 
 function getDirectoryLegacyInteractionDependencies() {
   return {
     addMs,
+    alertUser: dependencies.alertUser,
     app,
-    bindDirectoryForm,
     BOM_COMPONENT_FIELDS,
+    canEditDirectorySection,
     clearDirectoryColumnFilter,
     clearDirectorySectionFilters,
+    deleteDirectoryStateRow: dependencies.deleteDirectoryStateRow,
+    deleteOperationMapItem,
     escapeAttribute,
     escapeHtml,
     formatDirectoryCell,
     getDirectoryData,
     getDirectoryRowLabel,
+    getOperationMapRows,
     getPlanningWorkCenters,
     getProductionResources: dependencies.getProductionResources,
     getRouteInstructionWorkCenterId,
     getRouteInstructionWorkCenters,
     getSelectedDirectoryRowIndex,
     icon,
+    isLegacyDirectoryWriteBlocked: dependencies.isLegacyDirectoryWriteBlocked,
     makeId,
+    normalizeDirectorySectionId,
     openConfirmDialog,
+    persistDirectoryState: dependencies.persistDirectoryState,
+    persistState,
     persistUiState,
     render,
     renderUiFormActions,
     renderUiFormField,
     renderUiFormGrid,
     renderUiModalFrame,
+    saveDirectoryRow: dependencies.saveDirectoryRow,
     selected,
     setDirectoryColumnFilter,
     toDateInput,
+    withDirectoryEntityRemovalAllowed: dependencies.withDirectoryEntityRemovalAllowed,
     WORK_MODE_OPTIONS,
     getUi: dependencies.getUi,
     getDirectoryState: dependencies.getDirectoryState,
@@ -157,6 +167,57 @@ function ensureDirectoryLegacyInteractions() {
       });
   }
   return directoryLegacyInteractionsLoad;
+}
+
+function isShiftWorkOrderQaRuntimeRequest() {
+  try {
+    return new URLSearchParams(window.location.search).has("qa");
+  } catch {
+    return false;
+  }
+}
+
+function getShiftWorkOrderQaLegacyDependencies() {
+  return {
+    getShiftMasterBoardModel,
+    getUi: dependencies.getUi,
+    isQaRuntimeRequest: isShiftWorkOrderQaRuntimeRequest,
+    normalizeShiftMasterBoardQuantity,
+    normalizeShiftWorkOrderIssueReports,
+    persistUiState,
+    renderPreservingModuleScroll,
+    saveShiftMasterBoardAssignment,
+  };
+}
+
+function ensureShiftWorkOrderQaLegacyApi() {
+  if (shiftWorkOrderQaLegacyApi) return Promise.resolve(shiftWorkOrderQaLegacyApi);
+  if (!shiftWorkOrderQaLegacyLoad) {
+    shiftWorkOrderQaLegacyLoad = import("./shift_work_order_qa_legacy.js")
+      .then(({ createShiftWorkOrderQaLegacyApi }) => {
+        if (typeof createShiftWorkOrderQaLegacyApi !== "function") {
+          throw new Error("Shift Work Orders QA legacy helper did not export its factory");
+        }
+        shiftWorkOrderQaLegacyApi = createShiftWorkOrderQaLegacyApi(getShiftWorkOrderQaLegacyDependencies());
+        return shiftWorkOrderQaLegacyApi;
+      })
+      .catch((error) => {
+        shiftWorkOrderQaLegacyLoad = null;
+        throw error;
+      });
+  }
+  return shiftWorkOrderQaLegacyLoad;
+}
+
+function invokeShiftWorkOrderQaLegacy(methodName, args, deniedResult, unavailableResult) {
+  if (!isShiftWorkOrderQaRuntimeRequest()) return deniedResult;
+  return ensureShiftWorkOrderQaLegacyApi()
+    .then((api) => {
+      const method = api?.[methodName];
+      if (typeof method !== "function") return unavailableResult;
+      return method(...args);
+    })
+    .catch(() => unavailableResult);
 }
 
 function getDirectoryData(sectionId) {
@@ -632,50 +693,20 @@ function exposeMesRuntimeApi() {
       return Boolean(ui.focusMode);
     },
     setShiftWorkOrderIssueReportsForTest(reportsByRow) {
-      if (!new URLSearchParams(window.location.search).has("qa")) {
-        return { applied: false, reason: "qa parameter is required" };
-      }
-      ui.shiftWorkOrderIssueReports = normalizeShiftWorkOrderIssueReports(reportsByRow);
-      persistUiState();
-      renderPreservingModuleScroll();
-      return {
-        applied: true,
-        rowCount: Object.keys(ui.shiftWorkOrderIssueReports || {}).length,
-      };
+      return invokeShiftWorkOrderQaLegacy(
+        "setShiftWorkOrderIssueReportsForTest",
+        [reportsByRow],
+        { applied: false, reason: "qa parameter is required" },
+        { applied: false, reason: "qa runtime is unavailable" },
+      );
     },
     seedShiftWorkOrderJournalAssignmentForTest() {
-      if (!new URLSearchParams(window.location.search).has("qa")) {
-        return { seeded: false, reason: "qa parameter is required" };
-      }
-      const model = getShiftMasterBoardModel();
-      const row = (model.allRows || model.rows || []).find((item) => (
-        item?.id
-        && normalizeShiftMasterBoardQuantity(item.plannedQuantity || 0) > 0
-        && ((item.availableEmployees || []).length || (item.employees || []).length)
-      )) || (model.allRows || model.rows || [])[0] || null;
-      if (!row?.id) return { seeded: false, reason: "shift row is missing" };
-      const employee = (row.availableEmployees || []).find((item) => item?.id)
-        || (row.employees || []).find((item) => item?.id)
-        || null;
-      if (!employee?.id) return { seeded: false, reason: "employee is missing", rowId: row.id };
-      const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 1);
-      const quantity = Math.max(1, Math.min(plannedQuantity || 1, Math.floor((plannedQuantity || 1) * 0.5) || 1));
-      const assignment = saveShiftMasterBoardAssignment(row.id, {
-        masterId: row.masterProfile?.id || ui.activeShiftMasterId || "",
-        executors: [{
-          employeeId: employee.id,
-          quantity,
-          note: "QA распределение для журнала",
-        }],
-        updatedAt: new Date().toISOString(),
-      });
-      renderPreservingModuleScroll();
-      return {
-        seeded: Boolean(assignment?.assignedQuantity),
-        rowId: row.id,
-        assignedQuantity: assignment?.assignedQuantity || 0,
-        plannedQuantity,
-      };
+      return invokeShiftWorkOrderQaLegacy(
+        "seedShiftWorkOrderJournalAssignmentForTest",
+        [],
+        { seeded: false, reason: "qa parameter is required" },
+        { seeded: false, reason: "qa runtime is unavailable" },
+      );
     },
   };
 }
@@ -794,6 +825,14 @@ function performConfirmedAction(dialog) {
   }
 }
 
+function bindDirectoryForm(...args) {
+  return directoryLegacyInteractionsApi?.bindDirectoryForm?.(...args);
+}
+
+function deleteDirectoryRow(...args) {
+  return directoryLegacyInteractionsApi?.deleteDirectoryRow?.(...args) ?? false;
+}
+
 function bindDirectoryEvents(...args) {
   if (directoryLegacyInteractionsApi) {
     return directoryLegacyInteractionsApi.bindDirectoryEvents?.(...args);
@@ -854,6 +893,8 @@ function bindDirectoryEvents(...args) {
     openConfirmDialog,
     bindConfirmEvents,
     performConfirmedAction,
+    bindDirectoryForm,
     bindDirectoryEvents,
+    deleteDirectoryRow,
   };
 }

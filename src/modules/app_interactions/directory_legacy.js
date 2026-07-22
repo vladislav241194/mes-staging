@@ -10,23 +10,31 @@ import {
 export function createDirectoryLegacyInteractions(dependencies = {}) {
   const {
     addMs,
+    alertUser = (message) => globalThis.alert?.(message),
     app,
-    bindDirectoryForm,
     BOM_COMPONENT_FIELDS = [],
+    canEditDirectorySection = () => false,
     clearDirectoryColumnFilter,
     clearDirectorySectionFilters,
+    deleteDirectoryStateRow = () => null,
+    deleteOperationMapItem = () => false,
     escapeAttribute,
     escapeHtml,
     getDirectoryData,
     getDirectoryRowLabel,
+    getOperationMapRows = () => [],
     getPlanningWorkCenters,
     getProductionResources = () => [],
     getRouteInstructionWorkCenterId,
     getRouteInstructionWorkCenters,
     getSelectedDirectoryRowIndex,
     icon,
+    isLegacyDirectoryWriteBlocked = () => true,
     makeId,
+    normalizeDirectorySectionId = (value) => value,
     openConfirmDialog,
+    persistDirectoryState = () => false,
+    persistState = () => {},
     persistUiState,
     render,
     renderUiFormActions,
@@ -34,8 +42,10 @@ export function createDirectoryLegacyInteractions(dependencies = {}) {
     renderUiFormGrid,
     renderUiModalFrame,
     selected,
+    saveDirectoryRow = () => false,
     setDirectoryColumnFilter,
     toDateInput,
+    withDirectoryEntityRemovalAllowed = (callback) => callback(),
     WORK_MODE_OPTIONS = [],
   } = dependencies;
 
@@ -269,6 +279,79 @@ export function createDirectoryLegacyInteractions(dependencies = {}) {
     }, { id: makeId(directoryData.sectionId === "operations" ? "op" : "dir") });
   }
 
+  function bindDirectoryForm() {
+    const form = app.querySelector("#directoryForm");
+    if (!form) return;
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+      const sectionId = String(data.get("sectionId"));
+      const rowIndex = Number(data.get("rowIndex"));
+      const rowId = String(data.get("rowId") || makeId("dir"));
+      const directoryData = getDirectoryData(sectionId);
+      if (directoryData.readOnly || !canEditDirectorySection(sectionId)) return;
+      const currentRow = rowIndex >= 0 ? directoryData.rows[rowIndex] : {};
+      const nextRow = {
+        ...currentRow,
+        id: currentRow.id || rowId,
+      };
+
+      for (const field of directoryData.fields) {
+        if (field.readonly || !data.has(field.key)) continue;
+        const rawValue = data.get(field.key);
+        nextRow[field.key] = field.type === "number" ? Number(rawValue || 0) : String(rawValue || "").trim();
+      }
+
+      const primaryKey = directoryData.keys[0];
+      if (!String(nextRow[primaryKey] ?? "").trim()) {
+        alertUser(`Заполните поле "${directoryData.columns[0]}".`);
+        return;
+      }
+
+      if (saveDirectoryRow(sectionId, rowIndex, nextRow) === false) {
+        alertUser("Справочник доступен только для чтения: серверная команда ещё не подключена.");
+        return;
+      }
+      const nextIndex = rowIndex >= 0 ? rowIndex : getDirectoryData(sectionId).rows.length - 1;
+      ui.selectedDirectoryRows[sectionId] = Math.max(0, nextIndex);
+      ui.directoryEditor = null;
+      persistUiState();
+      render();
+    });
+  }
+
+  function deleteDirectoryRow(sectionId, rowIndex) {
+    sectionId = normalizeDirectorySectionId(sectionId);
+    const directoryData = getDirectoryData(sectionId);
+    if (directoryData.readOnly || !canEditDirectorySection(sectionId)) {
+      if (isLegacyDirectoryWriteBlocked()) alertUser("Справочник доступен только для чтения: серверная команда ещё не подключена.");
+      return false;
+    }
+    const index = Number(rowIndex);
+    const row = Number.isFinite(index) ? directoryData.rows[index] : null;
+    if (!row) return false;
+
+    if (sectionId === "operations") {
+      ui.directoryEditor = null;
+      const nextCount = Math.max(0, getOperationMapRows().length - 1);
+      ui.selectedDirectoryRows[sectionId] = nextCount ? Math.min(index, nextCount - 1) : 0;
+      return deleteOperationMapItem(row.id);
+    }
+    if (!deleteDirectoryStateRow(sectionId, row)) return false;
+
+    ui.directoryEditor = null;
+    const nextRows = getDirectoryData(sectionId).rows;
+    ui.selectedDirectoryRows[sectionId] = nextRows.length ? Math.min(index, nextRows.length - 1) : 0;
+    if (sectionId === "bomLists" || sectionId === "specifications") {
+      if (withDirectoryEntityRemovalAllowed(() => persistDirectoryState()) === false) return false;
+    } else if (persistDirectoryState() === false) return false;
+    persistState();
+    persistUiState();
+    render();
+    return true;
+  }
+
   function bindDirectoryEvents() {
     app.querySelectorAll("[data-directory-id]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -405,8 +488,10 @@ export function createDirectoryLegacyInteractions(dependencies = {}) {
   }
 
   return {
+    bindDirectoryForm,
     bindDirectoryEvents,
     createEmptyDirectoryRow,
+    deleteDirectoryRow,
     renderDirectoryEditorModal,
     renderDirectoryField,
     renderDirectoryReaderModal,

@@ -982,12 +982,14 @@ const {
   openConfirmDialog,
   bindConfirmEvents,
   performConfirmedAction,
+  bindDirectoryForm: bindLegacyDirectoryForm = () => undefined,
   bindDirectoryEvents,
+  deleteDirectoryRow: deleteLegacyDirectoryRow = () => false,
 } = createAppInteractionsModule({
   addMs,
+  alertUser: (message) => alert(message),
   app,
   audit,
-  bindDirectoryForm,
   bom,
   BOM_COMPONENT_FIELDS,
   cancelAuthPrototypePinFeedback,
@@ -997,7 +999,7 @@ const {
   center,
   config,
   count,
-  deleteDirectoryRow,
+  deleteDirectoryStateRow,
   deleteEmployeeSession,
   deleteOperationMapItem,
   deleteRouteMapConfirmed,
@@ -1047,6 +1049,8 @@ const {
   normalizeShiftWorkOrderIssueReports,
   notifySaveSuccess,
   option,
+  isLegacyDirectoryWriteBlocked,
+  persistDirectoryState,
   persistState,
   persistUiState,
   runLongTask,
@@ -1059,6 +1063,7 @@ const {
   resource,
   rowId,
   saveShiftMasterBoardAssignment,
+  saveDirectoryRow,
   sectionId,
   selected,
   specification,
@@ -1068,6 +1073,7 @@ const {
   value,
   values,
   WORK_MODE_OPTIONS,
+  withDirectoryEntityRemovalAllowed,
   getUi: () => ui,
   getPlanningState: () => planningState,
   getDirectoryState: () => directoryState,
@@ -1723,47 +1729,8 @@ function openProjectInPlanning(productionId, specificationId = "") {
   render();
 }
 
-function bindDirectoryForm() {
-  const form = app.querySelector("#directoryForm");
-  if (!form) return;
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(form);
-    const sectionId = String(data.get("sectionId"));
-    const rowIndex = Number(data.get("rowIndex"));
-    const rowId = String(data.get("rowId") || makeId("dir"));
-    const directoryData = getDirectoryData(sectionId);
-    if (directoryData.readOnly || !canEditDirectorySection(sectionId)) return;
-    const currentRow = rowIndex >= 0 ? directoryData.rows[rowIndex] : {};
-    const nextRow = {
-      ...currentRow,
-      id: currentRow.id || rowId,
-    };
-
-    for (const field of directoryData.fields) {
-      if (field.readonly) continue;
-      if (!data.has(field.key)) continue;
-      const rawValue = data.get(field.key);
-      nextRow[field.key] = field.type === "number" ? Number(rawValue || 0) : String(rawValue || "").trim();
-    }
-
-    const primaryKey = directoryData.keys[0];
-    if (!String(nextRow[primaryKey] ?? "").trim()) {
-      alert(`Заполните поле "${directoryData.columns[0]}".`);
-      return;
-    }
-
-    if (saveDirectoryRow(sectionId, rowIndex, nextRow) === false) {
-      alert("Справочник доступен только для чтения: серверная команда ещё не подключена.");
-      return;
-    }
-    const nextIndex = rowIndex >= 0 ? rowIndex : getDirectoryData(sectionId).rows.length - 1;
-    ui.selectedDirectoryRows[sectionId] = Math.max(0, nextIndex);
-    ui.directoryEditor = null;
-    persistUiState();
-    render();
-  });
+function bindDirectoryForm(...args) {
+  return bindLegacyDirectoryForm(...args);
 }
 
 function saveDirectoryRow(sectionId, rowIndex, row, options = {}) {
@@ -1843,38 +1810,8 @@ function syncNomenclatureTypeRenameInCurrentDirectoryState(previousName, nextNam
   return true;
 }
 
-function deleteDirectoryRow(sectionId, rowIndex) {
-  sectionId = normalizeDirectorySectionId(sectionId);
-  const directoryData = getDirectoryData(sectionId);
-  if (directoryData.readOnly || !canEditDirectorySection(sectionId)) {
-    if (isLegacyDirectoryWriteBlocked()) alert("Справочник доступен только для чтения: серверная команда ещё не подключена.");
-    return false;
-  }
-  const index = Number(rowIndex);
-  const row = Number.isFinite(index) ? directoryData.rows[index] : null;
-  if (!row) return;
-
-  if (sectionId === "operations") {
-    ui.directoryEditor = null;
-    const nextCount = Math.max(0, getOperationMapRows().length - 1);
-    ui.selectedDirectoryRows[sectionId] = nextCount ? Math.min(index, nextCount - 1) : 0;
-    deleteOperationMapItem(row.id);
-    return;
-  }
-  deleteDirectoryStateRow(sectionId, row);
-
-  ui.directoryEditor = null;
-  const nextRows = getDirectoryData(sectionId).rows;
-  ui.selectedDirectoryRows[sectionId] = nextRows.length ? Math.min(index, nextRows.length - 1) : 0;
-  if (sectionId === "bomLists" || sectionId === "specifications") {
-    if (withDirectoryEntityRemovalAllowed(() => persistDirectoryState()) === false) return false;
-  } else {
-    if (persistDirectoryState() === false) return false;
-  }
-  persistState();
-  persistUiState();
-  render();
-  return true;
+function deleteDirectoryRow(...args) {
+  return deleteLegacyDirectoryRow(...args);
 }
 
 function deleteDirectoryStateRow(sectionId, row) {
