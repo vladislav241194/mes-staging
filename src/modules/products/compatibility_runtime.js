@@ -1,49 +1,24 @@
 import { formatDecimalNumber } from "../../ui/formatters.js";
-import { inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson } from "../auth_render/access_role_resolver.js";
 
-export function createProductsRenderModule(dependencies = {}) {
+export function createProductsCompatibilityRuntime(dependencies = {}) {
   const {
-    AUTH_GATE_MAX_ATTEMPTS,
-    AUTH_GATE_PIN,
-    BOARD_BOM_TERM,
-    BOARD_SPEC_LIST_TERM,
     BOARD_SPEC_TERM,
     BOM_COMPONENT_FIELDS,
     BOM_IMPORT_COLUMN_COUNT,
     BOM_IMPORT_FALLBACK_HEADERS,
     DEFAULT_COMPONENT_TYPES,
-    DEFAULT_INTERFACE_ROLE_ID,
     DEFAULT_NOMENCLATURE_TYPES,
     DEFAULT_RESOURCE_CPH,
     MES_SMT_WORK_CENTER_IDS,
-    NOMENCLATURE_DEFAULT_TYPES,
     NOMENCLATURE_REA_COMPONENT_TYPE,
-    PRODUCT_COMPOSITION_LIST_TERM,
     PRODUCT_COMPOSITION_TERM,
-    PRODUCT_STRUCTURE_TERM,
     ROUTE_DOCUMENT_KIND_LABELS,
     ROUTE_DOCUMENT_KIND_ORDER,
     ROUTE_DOCUMENT_KIND_SHORT_LABELS,
-    SMT_LINE_WORKCENTER_PREFIX,
     addMs,
-    authPrototypePinFeedbackSequence,
-    authPrototypePinFeedbackTimer,
-    bindSpekiEvents,
-    createEmployeeSession = async () => ({ ok: false, authenticated: false, status: 0 }),
-    dedupeProductionResources,
-    escapeAttribute,
-    escapeHtml,
-    formatReportNumber,
-    finishEmployeeAuthElevation = () => ({ ok: false }),
-    getAccessRoleById = () => ({ label: "роль" }),
-    getAuthPrototypePinFeedbackSequence = () => authPrototypePinFeedbackSequence,
-    getAuthPrototypePinFeedbackTimer = () => authPrototypePinFeedbackTimer,
+    getAuthPrototypePinFeedbackSequence = () => 0,
+    getAuthPrototypePinFeedbackTimer = () => null,
     getComponentTypes,
-    getDefaultOperationCalculationType,
-    getFulfillmentLabel,
-    getOperationMapItem,
-    getPlanningResourceForRouteStep,
-    getProductionContextForSpecification,
     getProductionResource,
     getProductionResourceWorkCenterId,
     getProductionResourcesForWorkCenter,
@@ -52,26 +27,21 @@ export function createProductsRenderModule(dependencies = {}) {
     getProductionStructureWorkCenters,
     getProject,
     getProjectDisplayName,
-    getRouteForStep,
     getRouteProductionContext,
-    getRouteStepEffectiveOperationContext,
-    getRouteStepPlanningAssignmentForSlot,
     getRouteStepSelectedPlanningWorkCenterId,
     getRouteUnscopedBaseTasks,
+    getSlotPlanningOrderId,
+    getSlotProductionContextId,
+    getSlotRouteId,
     getSpecificationByProjectId,
     getSpecificationItemBoardsPerPanel,
-    getSpecificationItemFulfillmentMode,
     getSpecificationStructureItems,
     getWorkCenter,
-    icon,
-    inferStructureNomenclatureType,
-    isEmployeeAuthRequired = () => false,
-    isEmployeeAuthElevationActive = () => false,
     isLegacyDirectoryWriteBlocked = () => false,
+    loadBoardsXlsxImportAction = () => import("./boards_xlsx_import_action.js"),
     makeFallbackProductionResource,
     makeId,
     mapLegacyWorkCenterId,
-    normalizeAccessRoleAssignments,
     normalizeDirectoryRow,
     normalizeDirectoryState,
     normalizeOptionalPositiveInteger,
@@ -82,32 +52,12 @@ export function createProductsRenderModule(dependencies = {}) {
     persistState,
     persistUiState,
     render,
-    renderDenseInlineSelect,
-    renderUiActionButton,
-    renderUiActionFileLabel,
-    renderUiEmptyState,
-    renderUiFilterBar,
-    renderUiFormActions,
-    renderUiFormField,
-    renderUiFormGrid,
-    renderUiModuleHeader,
-    renderUiModulePage,
-    renderUiModuleSidebar,
-    renderUiSidebarItem,
-    renderUiPanel,
-    renderUiPanelBody,
-    renderUiStatusToken,
-    renderUiTableWrap,
-    resetAuthPrototypeKeypad = () => {},
     resolveProductionResourceType,
     resourceParticipatesInCalculation,
     resourceParticipatesInPlanning,
-    selected,
     setAuthPrototypePinFeedbackSequence = () => {},
     setAuthPrototypePinFeedbackTimer = () => {},
     toDateInput,
-    unlockAuthGate,
-    updateModuleUrlParam,
   } = dependencies;
 
   const planningState = new Proxy({}, {
@@ -140,78 +90,6 @@ export function createProductsRenderModule(dependencies = {}) {
       return true;
     },
   });
-
-  function getSpecificationStructureRows(specification) {
-    if (!specification) return [];
-    const rows = [{
-      level: 0,
-      position: "00",
-      type: "Результат",
-      name: specification.outputItem || specification.name || "Итоговое изделие",
-      source: "Состав изделия",
-      quantity: 1,
-      unit: "изд.",
-      fulfillment: "Итоговый выпуск",
-      result: specification.outputItem || specification.name || "",
-      note: "Состав изделия",
-    }];
-  
-    const items = getSpecificationStructureItems(specification);
-    const visited = new Set();
-    const makeRow = (item, index, level) => {
-      const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
-      const linkedSpecification = item.type === "specification"
-        ? (directoryState.specifications || []).find((specification) => specification.id === item.specificationId)
-        : null;
-      const nomenclatureItem = item.type === "nomenclature"
-        ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
-        : null;
-      return {
-        level,
-        position: String(index + 1).padStart(2, "0"),
-        type: item.type === "bom" ? BOARD_SPEC_TERM : item.type === "specification" ? PRODUCT_COMPOSITION_TERM : "Номенклатура",
-        name: item.type === "bom"
-          ? bom?.name || item.name || "Плата не выбрана"
-          : item.type === "specification"
-            ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
-            : item.type === "nomenclature"
-              ? nomenclatureItem?.name || item.name || "Позиция не выбрана"
-              : item.name || "Позиция не задана",
-        source: item.type === "bom" ? bom?.boardCode || BOARD_SPEC_TERM : item.type === "specification" ? "Вложенный состав изделия" : item.type === "nomenclature" ? nomenclatureItem?.article || "Номенклатура" : PRODUCT_COMPOSITION_TERM,
-        quantity: item.quantity,
-        unit: item.unit,
-        boardsPerPanel: getSpecificationItemBoardsPerPanel(item),
-        fulfillment: getFulfillmentLabel(getSpecificationItemFulfillmentMode(item)),
-        result: item.type === "bom"
-          ? bom?.resultItem || item.resultItem || bom?.name || ""
-          : item.type === "specification"
-            ? linkedSpecification?.outputItem || item.resultItem || linkedSpecification?.name || ""
-            : item.type === "nomenclature"
-              ? nomenclatureItem?.name || item.resultItem || item.name || ""
-              : item.resultItem || item.name || "",
-        note: item.note || "",
-      };
-    };
-    const appendChildren = (parentId, level) => {
-      items
-        .filter((item) => (item.parentId || "root") === parentId && !visited.has(item.id))
-        .forEach((item) => {
-          visited.add(item.id);
-          rows.push(makeRow(item, rows.length, level));
-          appendChildren(item.id, level + 1);
-        });
-    };
-  
-    appendChildren("root", 1);
-    items
-      .filter((item) => !visited.has(item.id))
-      .forEach((item) => {
-        visited.add(item.id);
-        rows.push(makeRow(item, rows.length, 1));
-      });
-  
-    return rows;
-  }
   
   function getSpecificationBomResultNameKeys(specification) {
     const keys = new Set();
@@ -287,21 +165,6 @@ export function createProductsRenderModule(dependencies = {}) {
       .filter((entry) => entry.bom && entry.quantity > 0);
   }
   
-  function buildSpecificationSummary(specification) {
-    if (!specification) return "Выберите состав изделия к производству.";
-    const bomText = getSpecificationBomEntries(specification.id)
-      .map((entry) => `${entry.quantity}x ${entry.bom.resultItem || entry.bom.name}`)
-      .join(" + ");
-    const extras = specification.extraItems ? ` + ${specification.extraItems}` : "";
-    return `${bomText || "плата не выбрана"}${extras}`;
-  }
-  
-  function buildNoSpecificationSummary(calc) {
-    if (!calc.specification) return "Выберите изделие, затем плату.";
-    if (!calc.bomList) return "Для изделия без платы можно использовать маршрут ручных работ.";
-    return `${calc.specification.name}: результат SMT считается как ${calc.bomList.resultItem || calc.bomList.name}.`;
-  }
-  
   function getBomList(bomId) {
     return getDirectoryRows("bomLists").find((bom) => bom.id === bomId) || null;
   }
@@ -336,33 +199,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return "";
   }
   
-  function getSpecificationItemBom(item) {
-    return getBomList(getSpecificationItemBomId(item));
-  }
-  
-  function getBomComponentCounts(bom) {
-    if (!bom) return getDefaultComponentCounts();
-    const importRows = Array.isArray(bom.importRows) ? bom.importRows.map((row) => normalizeBomImportRow(row)) : [];
-    if (importRows.length) {
-      const totals = summarizeBomComponentFields(importRows);
-      return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [
-        field.componentId,
-        Math.max(0, Math.round(Number(totals[field.key] || 0))),
-      ]));
-    }
-    return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [
-      field.componentId,
-      Math.max(0, Math.round(Number(bom[field.key] || 0))),
-    ]));
-  }
-  
-  function getBomComponentFieldCounts(componentCounts = {}) {
-    return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [
-      field.key,
-      Math.max(0, Math.round(Number(componentCounts[field.key] ?? componentCounts[field.componentId] ?? 0))),
-    ]));
-  }
-  
   function getBomComponentTypeForRow(row, componentTypes = getComponentTypes()) {
     const fieldKey = classifyBomPackage(row);
     const field = BOM_COMPONENT_FIELDS.find((item) => item.key === fieldKey) || BOM_COMPONENT_FIELDS[BOM_COMPONENT_FIELDS.length - 1];
@@ -376,87 +212,6 @@ export function createProductsRenderModule(dependencies = {}) {
         coefficient: 1,
         placementsPerHour: DEFAULT_RESOURCE_CPH,
       };
-  }
-  
-  function normalizeSmtComponentKeyPart(value) {
-    return String(value || "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .slice(0, 96);
-  }
-  
-  function makeSmtBomComponentRowId(bom, row, rowIndex, designator = "", index = 0) {
-    const parts = [
-      bom?.id || "bom",
-      rowIndex + 1,
-      normalizeSmtComponentKeyPart(row?.sequence),
-      normalizeSmtComponentKeyPart(designator || row?.designator || row?.manufacturerPart || row?.description || row?.package),
-      index + 1,
-    ].filter((part) => part !== "");
-    return `bom-component::${parts.join("::")}`;
-  }
-  
-  function getBomImportRowNomenclatureItem(row, bom = null) {
-    const directId = String(row?.nomenclatureId || "").trim();
-    const items = directoryState?.nomenclature || [];
-    if (directId) {
-      const direct = items.find((item) => String(item.id || "") === directId);
-      if (direct) return direct;
-    }
-  
-    const payload = makeBomImportNomenclaturePayload(row, bom, new Date().toISOString());
-    if (!payload) return null;
-    const index = findImportedNomenclatureIndex(items, payload);
-    return index >= 0 ? items[index] : null;
-  }
-  
-  function getSmtBomNomenclatureGroupKey(bom, row, rowIndex, nomenclatureItem = null, type = null) {
-    if (nomenclatureItem?.id) return `bom-nomenclature::${bom?.id || "bom"}::${nomenclatureItem.id}`;
-    const identityParts = [
-      normalizeSmtComponentKeyPart(row?.manufacturerPart),
-      normalizeSmtComponentKeyPart(row?.description),
-      normalizeSmtComponentKeyPart(row?.manufacturer),
-      normalizeSmtComponentKeyPart(row?.package),
-    ].filter(Boolean);
-    return identityParts.length
-      ? `bom-nomenclature::${[bom?.id || "bom", ...identityParts, type?.id || ""].filter(Boolean).join("::")}`
-      : makeSmtBomComponentRowId(bom, row, rowIndex);
-  }
-  
-  function formatSmtDesignatorSummary(designators = []) {
-    const unique = [...new Set(designators.map((item) => String(item || "").trim()).filter(Boolean))];
-    if (!unique.length) return "";
-    if (unique.length <= 6) return unique.join(", ");
-    return `${unique.slice(0, 6).join(", ")} и еще ${unique.length - 6}`;
-  }
-  
-  function expandBomDesignatorToken(token) {
-    const clean = String(token || "").trim();
-    if (!clean) return [];
-    const rangeMatch = clean.match(/^([A-Za-zА-Яа-я]+)(\d+)\s*[-–—]\s*([A-Za-zА-Яа-я]+)?(\d+)$/);
-    if (rangeMatch) {
-      const leftPrefix = rangeMatch[1];
-      const rightPrefix = rangeMatch[3] || leftPrefix;
-      const start = Number(rangeMatch[2]);
-      const end = Number(rangeMatch[4]);
-      if (leftPrefix === rightPrefix && Number.isInteger(start) && Number.isInteger(end) && end >= start && end - start <= 100) {
-        return Array.from({ length: end - start + 1 }, (_, index) => `${leftPrefix}${start + index}`);
-      }
-    }
-    return /[A-Za-zА-Яа-я]+\d+/u.test(clean) ? [clean] : [];
-  }
-  
-  function splitBomDesignators(value, quantity = 0) {
-    const raw = String(value || "").trim();
-    if (!raw) return [];
-    const tokens = raw
-      .replace(/[()]/g, " ")
-      .split(/[,;\n]+|\s+(?=[A-Za-zА-Яа-я]+\d)/u)
-      .map((token) => token.trim())
-      .filter(Boolean);
-    const designators = tokens.flatMap(expandBomDesignatorToken);
-    const expectedQuantity = Math.max(0, Math.round(Number(quantity || 0)));
-    return expectedQuantity > 0 && designators.length === expectedQuantity ? designators : [];
   }
   
   function normalizeBomImportRow(row) {
@@ -484,21 +239,6 @@ export function createProductsRenderModule(dependencies = {}) {
   
   function getBomImportRows(bom) {
     return Array.isArray(bom?.importRows) ? bom.importRows.map((row) => normalizeBomImportRow(row)) : [];
-  }
-  
-  function normalizeBomImportHeaderLabel(value, fallback) {
-    const label = String(value || fallback || "").trim();
-    const normalized = label.toLowerCase().replace(/\s+/g, " ");
-    if (normalized === "аритикул производителя") return "Артикул производителя";
-    return label;
-  }
-  
-  function getBomImportHeaders(bom) {
-    const headers = Array.isArray(bom?.importHeaders) ? bom.importHeaders : [];
-    return Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => {
-      const value = String(headers[index] || "").trim();
-      return normalizeBomImportHeaderLabel(value, BOM_IMPORT_FALLBACK_HEADERS[index] || `Поле ${index + 1}`);
-    });
   }
   
   function classifyBomPackage(row) {
@@ -568,19 +308,19 @@ export function createProductsRenderModule(dependencies = {}) {
     }
     return Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, Math.round(value)]));
   }
-  
+
   function makeBomImportNomenclaturePayload(row, bom, stamp) {
     const normalizedRow = normalizeBomImportRow(row);
     const name = String(normalizedRow.description || normalizedRow.manufacturerPart || normalizedRow.designator || `Компонент ${normalizedRow.sequence || ""}`).trim();
     const article = String(normalizedRow.manufacturerPart || "").trim();
     if (!name && !article) return null;
-  
+
     const descriptionParts = [
       normalizedRow.designator ? `Обозначение: ${normalizedRow.designator}` : "",
       normalizedRow.note ? `Примечание: ${normalizedRow.note}` : "",
       bom?.name ? `Источник BOM: ${bom.name}` : "",
     ].filter(Boolean);
-  
+
     return normalizeDirectoryRow("nomenclature", {
       id: makeId("nom"),
       name,
@@ -624,25 +364,6 @@ export function createProductsRenderModule(dependencies = {}) {
     });
   }
   
-  function findImportedNomenclatureIndex(items, payload) {
-    const article = normalizeLookupText(payload.article);
-    const name = normalizeLookupText(payload.name);
-    const packageValue = normalizePackageText(payload.package);
-    const manufacturer = normalizeLookupText(payload.manufacturer);
-  
-    if (article) {
-      const articleIndex = items.findIndex((item) => normalizeLookupText(item.article) === article);
-      if (articleIndex >= 0) return articleIndex;
-    }
-  
-    return items.findIndex((item) => (
-      name
-      && normalizeLookupText(item.name) === name
-      && normalizePackageText(item.package) === packageValue
-      && normalizeLookupText(item.manufacturer) === manufacturer
-    ));
-  }
-  
   function findBomResultNomenclatureIndex(items, bom, payload) {
     const bomId = String(bom?.id || "");
     const article = normalizeLookupText(payload?.article);
@@ -670,16 +391,31 @@ export function createProductsRenderModule(dependencies = {}) {
   
     return -1;
   }
-  
+
+  function findImportedNomenclatureIndex(items, payload) {
+    const article = normalizeLookupText(payload.article);
+    const name = normalizeLookupText(payload.name);
+    const packageValue = normalizePackageText(payload.package);
+    const manufacturer = normalizeLookupText(payload.manufacturer);
+
+    if (article) {
+      const articleIndex = items.findIndex((item) => normalizeLookupText(item.article) === article);
+      if (articleIndex >= 0) return articleIndex;
+    }
+
+    return items.findIndex((item) => (
+      name
+      && normalizeLookupText(item.name) === name
+      && normalizePackageText(item.package) === packageValue
+      && normalizeLookupText(item.manufacturer) === manufacturer
+    ));
+  }
+
   function mergeBomSourceIds(existing, incoming) {
     return [...new Set([
       ...(Array.isArray(existing?.sourceBomIds) ? existing.sourceBomIds : []),
       ...(Array.isArray(incoming?.sourceBomIds) ? incoming.sourceBomIds : []),
     ].filter(Boolean))];
-  }
-  
-  function isReaNomenclatureItem(item) {
-    return normalizeLookupText(item?.type) === normalizeLookupText(NOMENCLATURE_REA_COMPONENT_TYPE);
   }
   
   function normalizeNomenclatureType(value) {
@@ -753,287 +489,11 @@ export function createProductsRenderModule(dependencies = {}) {
     return true;
   }
   
-  function syncNomenclatureTypeRename(previousName, nextName) {
-    if (!String(previousName || "").trim() || !String(nextName || "").trim()) return;
-    const previous = normalizeNomenclatureType(previousName);
-    const next = normalizeNomenclatureType(nextName);
-    if (!previous || !next || normalizeLookupText(previous) === normalizeLookupText(next)) return;
-    directoryState.nomenclature = (directoryState.nomenclature || []).map((item) => (
-      normalizeLookupText(item.type) === normalizeLookupText(previous)
-        ? { ...item, type: next, updatedAt: new Date().toISOString() }
-        : item
-    ));
-    directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
-      ...specification,
-      structureItems: getSpecificationStructureItems(specification).map((item) => (
-        normalizeLookupText(item.nomenclatureType) === normalizeLookupText(previous)
-          ? { ...item, nomenclatureType: next }
-          : item
-      )),
-    }));
-    if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(previous)) {
-      ui.nomenclatureTypeFilter = next;
-    }
-  }
-  
   function getFallbackNomenclatureType(excludedName = "") {
     const excluded = normalizeLookupText(excludedName);
     return getNomenclatureTypeRows()
       .map((row) => row.name)
       .find((name) => normalizeLookupText(name) !== excluded) || "";
-  }
-  
-  function getNomenclatureTypeOptions(items = directoryState.nomenclature || []) {
-    return getNomenclatureTypeRows().map((type) => ({
-      value: type.name,
-      label: type.name,
-      meta: type.description || type.code || "тип номенклатуры",
-    }));
-  }
-  
-  function getNomenclatureTypeTone(typeName = "") {
-    const row = getNomenclatureTypeRows({ includeInactive: true })
-      .find((type) => normalizeLookupText(type.name) === normalizeLookupText(typeName));
-    const key = normalizeLookupText([row?.code, row?.name, typeName].filter(Boolean).join(" "));
-    if (key.includes("pcb") || key.includes("печат")) return "section-blue";
-    if (key.includes("cable") || key.includes("жгут") || key.includes("кабел")) return "section-violet";
-    if (key.includes("mech") || key.includes("механ")) return "section-slate";
-    if (key.includes("cons") || key.includes("расход")) return "section-amber";
-    if (key.includes("pack") || key.includes("упаков") || key.includes("маркир")) return "section-cyan";
-    if (key.includes("buy") || key.includes("покуп")) return "section-rose";
-    if (key.includes("make") || key.includes("производ")) return "section-indigo";
-    if (key.includes("tool") || key.includes("оснаст")) return "section-stone";
-    if (key.includes("rea") || key.includes("рэа")) return "section-emerald";
-    return "section-neutral";
-  }
-  
-  function getNomenclatureTypeIconName(typeName = "") {
-    const row = getNomenclatureTypeRows({ includeInactive: true })
-      .find((type) => normalizeLookupText(type.name) === normalizeLookupText(typeName));
-    const key = normalizeLookupText([row?.code, row?.name, typeName].filter(Boolean).join(" "));
-    if (key.includes("pcb") || key.includes("печат")) return "bom";
-    if (key.includes("cable") || key.includes("жгут") || key.includes("кабел")) return "split";
-    if (key.includes("mech") || key.includes("механ")) return "settings";
-    if (key.includes("cons") || key.includes("расход")) return "package";
-    if (key.includes("pack") || key.includes("упаков") || key.includes("маркир")) return "package";
-    if (key.includes("buy") || key.includes("покуп")) return "supply";
-    if (key.includes("make") || key.includes("производ")) return "operation";
-    if (key.includes("tool") || key.includes("оснаст")) return "settings";
-    if (key.includes("rea") || key.includes("рэа")) return "directory";
-    return "package";
-  }
-  
-  function getNomenclatureTypeVisual(typeName = "", tone = "") {
-    const label = normalizeNomenclatureType(typeName) || "Раздел не выбран";
-    return {
-      label,
-      tone: tone || getNomenclatureTypeTone(label),
-      iconName: getNomenclatureTypeIconName(label),
-      tooltip: `Раздел: ${label}`,
-    };
-  }
-  
-  function getSpekiStructureSectionOptions() {
-    const options = getNomenclatureTypeRows().map((type) => ({
-      value: type.name,
-      label: type.name,
-      meta: type.description || type.code || "раздел номенклатуры",
-      summaryMeta: "",
-      tone: getNomenclatureTypeTone(type.name),
-      iconName: getNomenclatureTypeIconName(type.name),
-      summaryTitle: getNomenclatureTypeVisual(type.name).tooltip,
-    }));
-    return options.length ? options : NOMENCLATURE_DEFAULT_TYPES.map((type) => {
-      const visual = getNomenclatureTypeVisual(type.value || type.label);
-      return {
-        ...type,
-        summaryMeta: "",
-        tone: visual.tone,
-        iconName: visual.iconName,
-        summaryTitle: visual.tooltip,
-      };
-    });
-  }
-  
-  function getNomenclatureTypeCounts(items = directoryState.nomenclature || []) {
-    return items.reduce((counts, item) => {
-      const type = normalizeNomenclatureType(item.type);
-      counts[type] = (counts[type] || 0) + 1;
-      return counts;
-    }, {});
-  }
-  
-  function getNomenclatureTypeFilterValue(items = directoryState.nomenclature || []) {
-    const selected = ui.nomenclatureTypeFilter || "all";
-    if (selected === "all") return selected;
-    if (selected === "Печатные платы") return "all";
-    return getNomenclatureTypeOptions(items).some((item) => item.value === selected) ? selected : "all";
-  }
-  
-  function getFilteredNomenclatureItems(items = directoryState.nomenclature || []) {
-    const filterValue = getNomenclatureTypeFilterValue(items);
-    if (filterValue === "all") return items;
-    return items.filter((item) => normalizeNomenclatureType(item.type) === filterValue);
-  }
-  
-  function getReaNomenclatureItems() {
-    return (directoryState.nomenclature || [])
-      .filter(isReaNomenclatureItem)
-      .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"));
-  }
-  
-  function makeBomImportRowFromNomenclature(item, sequence) {
-    return normalizeBomImportRow({
-      nomenclatureId: item.id,
-      values: [
-        sequence,
-        item.name || "",
-        "",
-        item.article || "",
-        item.manufacturer || "",
-        item.package || "",
-        1,
-        "Добавлено из номенклатуры",
-        "",
-      ],
-    });
-  }
-  
-  function getNextBomImportSequence(rows) {
-    const maxSequence = rows.reduce((max, row, index) => {
-      const number = Number(normalizeBomImportRow(row).sequence || index + 1);
-      return Number.isFinite(number) ? Math.max(max, number) : max;
-    }, 0);
-    return maxSequence + 1;
-  }
-  
-  function updateBomImportRows(bomId, rows, options = {}) {
-    if (isLegacyDirectoryWriteBlocked()) {
-      alert("BOM доступен только для чтения: серверная команда этого раздела ещё не подключена.");
-      return null;
-    }
-    const currentBom = getBomList(bomId);
-    if (!currentBom) return null;
-  
-    const stamp = new Date().toISOString();
-    const importRows = rows.map((row) => normalizeBomImportRow(row));
-    const componentTotals = summarizeBomComponentFields(importRows);
-    let nextBom = null;
-  
-    directoryState.bomLists = (directoryState.bomLists || []).map((item) => {
-      if (item.id !== bomId) return item;
-      nextBom = normalizeDirectoryRow("bomLists", {
-        ...item,
-        importHeaders: item.importHeaders?.length ? item.importHeaders : BOM_IMPORT_FALLBACK_HEADERS,
-        importRows,
-        importedAt: item.importedAt || stamp,
-        updatedAt: stamp,
-        ...componentTotals,
-      });
-      return nextBom;
-    });
-  
-    if (options.syncNomenclature !== false && nextBom) {
-      upsertBomImportRowsToNomenclature(nextBom, stamp);
-    }
-  
-    Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
-    if (persistDirectoryState() === false) return null;
-    persistUiState();
-    if (options.notify !== false) {
-      notifySaveSuccess(options.message || "Таблица BOM сохранена");
-    }
-    return nextBom;
-  }
-  
-  function updateBomImportCell(bomId, rowIndex, columnIndex, value) {
-    const bom = getBomList(bomId);
-    if (!bom) return;
-    const rows = getBomImportRows(bom);
-    const row = rows[rowIndex];
-    if (!row || columnIndex < 0 || columnIndex >= BOM_IMPORT_COLUMN_COUNT) return;
-  
-    const nextValues = [...row.values];
-    nextValues[columnIndex] = columnIndex === 6
-      ? normalizeBomQuantityValue(value)
-      : value;
-    const nextRows = rows.map((item, index) => (
-      index === rowIndex
-        ? normalizeBomImportRow({ ...row, values: nextValues })
-        : item
-    ));
-    updateBomImportRows(bomId, nextRows);
-  }
-  
-  function deleteBomImportRow(bomId, rowIndex) {
-    const bom = getBomList(bomId);
-    if (!bom) return;
-    const rows = getBomImportRows(bom).filter((_, index) => index !== rowIndex);
-    updateBomImportRows(bomId, rows, { syncNomenclature: false });
-  }
-  
-  function addNomenclatureToBom(bomId, nomenclatureId) {
-    const bom = getBomList(bomId);
-    const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === nomenclatureId);
-    if (!bom || !nomenclatureItem) return;
-    if (!isReaNomenclatureItem(nomenclatureItem)) {
-      alert("В BOM можно добавить только номенклатуру из раздела «РЭА компоненты».");
-      return;
-    }
-  
-    const rows = getBomImportRows(bom);
-    const nextRows = [
-      ...rows,
-      makeBomImportRowFromNomenclature(nomenclatureItem, getNextBomImportSequence(rows)),
-    ];
-    updateBomImportRows(bomId, nextRows);
-  }
-  
-  function ensureBomResultsInNomenclature() {
-    if (isLegacyDirectoryWriteBlocked()) return;
-    const bomLists = directoryState.bomLists || [];
-    if (!bomLists.length) return;
-  
-    const stamp = new Date().toISOString();
-    const nextItems = [...(directoryState.nomenclature || [])];
-    let changed = false;
-  
-    bomLists.forEach((bom) => {
-      const payload = makeBomResultNomenclaturePayload(bom, bom.updatedAt || bom.importedAt || stamp);
-      if (!payload) return;
-  
-      const existingIndex = findBomResultNomenclatureIndex(nextItems, bom, payload);
-      if (existingIndex >= 0) {
-        const existing = nextItems[existingIndex];
-        const nextItem = normalizeDirectoryRow("nomenclature", {
-          ...existing,
-          name: payload.name,
-          article: payload.article || existing.article,
-          type: "Печатные платы",
-          package: existing.package || payload.package || "PCB",
-          unit: existing.unit || "шт.",
-          description: payload.description,
-          status: existing.status || "Активен",
-          sourceBomResultId: bom.id,
-          sourceBomIds: mergeBomSourceIds(existing, payload),
-          lastBomResultSyncAt: stamp,
-          updatedAt: stamp,
-        });
-        if (JSON.stringify(existing) !== JSON.stringify(nextItem)) {
-          nextItems[existingIndex] = nextItem;
-          changed = true;
-        }
-        return;
-      }
-  
-      nextItems.push(payload);
-      changed = true;
-    });
-  
-    if (!changed) return;
-    directoryState.nomenclature = nextItems;
-    Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
-    persistDirectoryState();
   }
   
   function migrateSpecificationBomRowsToNomenclature() {
@@ -1080,31 +540,6 @@ export function createProductsRenderModule(dependencies = {}) {
   
     if (!changed) return;
     directoryState.specifications = nextSpecifications;
-    Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
-    persistDirectoryState();
-  }
-  
-  function ensureImportedBomRowsInNomenclature() {
-    if (isLegacyDirectoryWriteBlocked()) return;
-    const bomLists = directoryState.bomLists || [];
-    if (!bomLists.some((bom) => getBomImportRows(bom).length)) return;
-  
-    const stamp = new Date().toISOString();
-    const nextItems = [...(directoryState.nomenclature || [])];
-    let created = 0;
-  
-    bomLists.forEach((bom) => {
-      getBomImportRows(bom).forEach((row) => {
-        const payload = makeBomImportNomenclaturePayload(row, bom, bom.importedAt || bom.updatedAt || stamp);
-        if (!payload) return;
-        if (findImportedNomenclatureIndex(nextItems, payload) >= 0) return;
-        nextItems.push(payload);
-        created += 1;
-      });
-    });
-  
-    if (!created) return;
-    directoryState.nomenclature = nextItems;
     Object.assign(dependencies.getDirectoryState?.() || {}, normalizeDirectoryState(directoryState, { mergeFallback: false }));
     persistDirectoryState();
   }
@@ -1186,7 +621,7 @@ export function createProductsRenderModule(dependencies = {}) {
     if (isLegacyDirectoryWriteBlocked()) {
       throw new Error("BOM доступен только для чтения: серверная команда импорта ещё не подключена.");
     }
-    const { importLegacyBoardsXlsxFile } = await import("./boards_xlsx_import_action.js");
+    const { importLegacyBoardsXlsxFile } = await loadBoardsXlsxImportAction();
     return importLegacyBoardsXlsxFile(file, productionId, {
       BOARD_SPEC_TERM,
       BOM_IMPORT_COLUMN_COUNT,
@@ -1205,11 +640,6 @@ export function createProductsRenderModule(dependencies = {}) {
       upsertBomImportRowsToNomenclature,
       upsertBomResultToNomenclature,
     });
-  }
-  
-  function getDefaultComponentCounts() {
-    const source = directoryState?.componentTypes?.length ? directoryState.componentTypes : DEFAULT_COMPONENT_TYPES;
-    return Object.fromEntries(source.map((type) => [type.id, Math.max(0, Math.round(Number(type.defaultCount || 0)))]));
   }
   
   function getResourcesForWorkCenter(workCenterId) {
@@ -1258,20 +688,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return resources.length ? resources : getDefaultSmtLineConfigurations();
   }
   
-  function getSmtLineWorkCenterId(lineId) {
-    return `${SMT_LINE_WORKCENTER_PREFIX}${lineId}`;
-  }
-  
-  function isSmtLineWorkCenterId(workCenterId) {
-    return String(workCenterId || "").startsWith(SMT_LINE_WORKCENTER_PREFIX);
-  }
-  
-  function getSmtLineIdFromWorkCenterId(workCenterId) {
-    return isSmtLineWorkCenterId(workCenterId)
-      ? String(workCenterId).slice(SMT_LINE_WORKCENTER_PREFIX.length)
-      : "";
-  }
-  
   function getSmtLineNumberFromText(value) {
     const text = String(value || "").toLowerCase();
     const match = text.match(/(?:smt|смт|линия)\s*[-–—№#]?\s*(\d+)/i);
@@ -1288,38 +704,6 @@ export function createProductsRenderModule(dependencies = {}) {
       index + 1 === number
       || getSmtLineNumberFromText(`${line.name} ${line.code} ${line.id}`) === number
     )) || null;
-  }
-  
-  function getSmtGanttLineCenters() {
-    const smtCenter = getWorkCenter("D3") || {
-      id: "D3",
-      name: "SMT-монтаж",
-      code: "SMT",
-      unitsPerHour: 40,
-      capacity: 1,
-      workSchedule: "5/2",
-      workMode: "08:00-20:00",
-      shift: "5/2 08:00-20:00",
-      isActive: true,
-    };
-  
-    return getSmtLineConfigurations().map((line, index) => {
-      const lineNumber = getSmtLineNumberFromText(`${line.name} ${line.code} ${line.id}`) || index + 1;
-      return {
-        ...smtCenter,
-        id: getSmtLineWorkCenterId(line.id),
-        name: line.name || `SMT участок ${lineNumber}`,
-        code: `SMT-${lineNumber}`,
-        description: line.capacity || smtCenter.description || "Производственная линия SMT",
-        parentWorkCenterId: "smt",
-        baseWorkCenterId: "smt",
-        calendarWorkCenterId: "smt",
-        smtLineId: line.id,
-        resourceId: line.id,
-        capacity: 1,
-        isSmtLine: true,
-      };
-    });
   }
   
   function getSlotAssignedSmtLineId(slot) {
@@ -1378,83 +762,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return fallback.id;
   }
   
-  function getGanttResourceForSlot(slot, resourceId = "") {
-    if (!slot) return null;
-    const resolvedResourceId = resourceId || getSlotGanttResourceId(slot);
-    const ganttWorkCenterId = getSlotGanttWorkCenterId(slot) || slot.workCenterId;
-    return getProductionResource(resolvedResourceId)
-      || getResourcesForWorkCenter(ganttWorkCenterId).find((resource) => resource.id === resolvedResourceId)
-      || makeFallbackProductionResource(ganttWorkCenterId);
-  }
-  
-  function getResourceRowId(routeId, workCenterId, resourceId) {
-    return `resource:${routeId}:${workCenterId}:${resourceId || "default"}`;
-  }
-  
-  function getGanttResourcesForWorkCenter(workCenterId) {
-    const resources = getProductionResourcesForWorkCenter(workCenterId, {
-      includeInactive: false,
-      includePassive: true,
-    });
-    const hasSchedulableResource = resources.some((resource) => (
-      resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource)
-    ));
-    const rows = hasSchedulableResource ? resources : [...resources, makeFallbackProductionResource(workCenterId)];
-    return dedupeProductionResources(rows).sort((left, right) => (
-      Number(Boolean(right.participatesInPlanning === "yes" || right.participatesInCalculation === "yes"))
-        - Number(Boolean(left.participatesInPlanning === "yes" || left.participatesInCalculation === "yes"))
-      || String(left.parentResourceId || "").localeCompare(String(right.parentResourceId || ""), "ru")
-      || String(left.name || "").localeCompare(String(right.name || ""), "ru")
-    ));
-  }
-  
-  function applyGanttRowToSlot(slot, row) {
-    if (!slot || !["operation", "workCenter", "resource"].includes(row?.type)) return;
-    if (row.type === "operation") {
-      const step = row.routeStep || planningState.routeSteps.find((item) => item.id === row.routeStepId);
-      if (!step) return;
-      const assignment = getRouteStepPlanningAssignmentForSlot(step, slot, {
-        state: planningState,
-        quantity: slot.quantity || 1,
-        readyAt: slot.plannedStart || null,
-        ignoreSlotId: slot.id || null,
-      });
-      const planningWorkCenterId = assignment?.workCenterId || slot.workCenterId || step.workCenterId;
-      const resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(step, planningWorkCenterId, step.resourceId || slot.resourceId || "");
-      const route = getRouteForStep(step);
-      const operationContext = getRouteStepEffectiveOperationContext(route, step, planningWorkCenterId, resourceId);
-      slot.routeStepId = step.id;
-      slot.routeWorkCenterId = step.workCenterId;
-      slot.workCenterId = planningWorkCenterId;
-      slot.operationId = step.operationId || "";
-      slot.operationName = step.operationName || getOperationMapItem(step.operationId)?.name || slot.operationName || "Операция";
-      slot.unitsPerHour = Number(step.unitsPerHour || slot.unitsPerHour || 0) || undefined;
-      slot.boardsPerPanel = operationContext.boardsPerPanel;
-      slot.resourceId = resourceId;
-      slot.calculationType = step.calculationType || getDefaultOperationCalculationType(planningWorkCenterId, operationContext) || slot.calculationType || "";
-      slot.secondsPerPanel = Number(step.secondsPerPanel || slot.secondsPerPanel || 0);
-      slot.setupMin = Number(step.setupMin || slot.setupMin || 0);
-      slot.bomListId = operationContext.bomListId || slot.bomListId || "";
-      return;
-    }
-  
-    if (row.type === "resource") {
-      slot.workCenterId = row.workCenterId;
-      slot.resourceId = row.resourceId || "";
-      return;
-    }
-  
-    if (row.isSmtLine || isSmtLineWorkCenterId(row.workCenterId)) {
-      slot.workCenterId = "smt";
-      slot.resourceId = row.smtLineId || getSmtLineIdFromWorkCenterId(row.workCenterId);
-      return;
-    }
-  
-    slot.workCenterId = row.workCenterId;
-    const resource = getResourcesForWorkCenter(row.workCenterId)[0] || null;
-    slot.resourceId = resource?.id || "";
-  }
-  
   function normalizeLookupText(value) {
     return String(value || "").trim().toLowerCase();
   }
@@ -1470,12 +777,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return DEFAULT_RESOURCE_CPH;
   }
   
-  function getActiveProjectForModule() {
-    if (ui.activeProjectId === "__new__") return null;
-    return getProject(ui.activeProjectId)
-      || getProductionContextForSpecification(getActiveSpecificationForModule());
-  }
-  
   function getActiveSpecificationForModule() {
     if (ui.activeSpecificationId === "__new__") return null;
     if (!ui.activeSpecificationId) return null;
@@ -1483,33 +784,8 @@ export function createProductsRenderModule(dependencies = {}) {
       || null;
   }
   
-  function getSpecificationProductionProject(specification) {
-    if (!specification) return null;
-    return getProductionContextForSpecification(specification);
-  }
-  
-  function getSpecificationProductionQuantity(specification) {
-    const project = getSpecificationProductionProject(specification);
-    return normalizeOptionalPositiveInteger(specification?.productionQuantity || project?.totalQuantity) || "";
-  }
-  
-  function getSpecificationProductionDueDate(specification) {
-    const project = getSpecificationProductionProject(specification);
-    return specification?.dueDate || project?.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000));
-  }
-  
   function getSpecificationProductionName(specification) {
     return specification?.outputItem || specification?.name || PRODUCT_COMPOSITION_TERM;
-  }
-  
-  function getSpecificationProductionOrder(specification) {
-    const project = getSpecificationProductionProject(specification);
-    return specification?.orderNumber || project?.orderNumber || "";
-  }
-  
-  function getSpecificationProductionCustomer(specification) {
-    const project = getSpecificationProductionProject(specification);
-    return specification?.customer || project?.customer || "";
   }
   
   function ensureSpecificationPlanningUnit(specification) {
@@ -1535,41 +811,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return specificationId;
   }
   
-  function getActiveBomForModule(activeSpecification = null) {
-    if (ui.activeBomId === "__new__") return null;
-    const specBom = activeSpecification ? getBomList(activeSpecification.bomListA) : null;
-    if (ui.activeBomId) {
-      return (directoryState.bomLists || []).find((bom) => bom.id === ui.activeBomId) || null;
-    }
-    return specBom || null;
-  }
-  
-  function getBomLinkedSpecifications(bomId) {
-    if (!bomId) return [];
-    return (directoryState.specifications || []).filter((specification) => (
-      specification.bomListA === bomId
-      || specification.bomListB === bomId
-      || getSpecificationStructureItems(specification).some((item) => item.bomListId === bomId)
-    ));
-  }
-  
-  function isAuthPrototypePinCorrect(pin = "") {
-    return String(pin || "") === AUTH_GATE_PIN;
-  }
-  
-  function getAuthPrototypeAttemptsLeft() {
-    const value = Number(ui.authPrototypeAttemptsLeft);
-    return Number.isFinite(value) ? Math.max(0, Math.min(AUTH_GATE_MAX_ATTEMPTS, Math.round(value))) : AUTH_GATE_MAX_ATTEMPTS;
-  }
-  
-  function setAuthPrototypeAttemptsLeft(value = AUTH_GATE_MAX_ATTEMPTS) {
-    ui.authPrototypeAttemptsLeft = Math.max(0, Math.min(AUTH_GATE_MAX_ATTEMPTS, Math.round(Number(value) || 0)));
-  }
-  
-  function resetAuthPrototypeAttempts() {
-    setAuthPrototypeAttemptsLeft(AUTH_GATE_MAX_ATTEMPTS);
-  }
-  
   function cancelAuthPrototypePinFeedback() {
     const nextSequence = Number(getAuthPrototypePinFeedbackSequence()) + 1;
     setAuthPrototypePinFeedbackSequence(Number.isFinite(nextSequence) ? nextSequence : 1);
@@ -1578,14 +819,6 @@ export function createProductsRenderModule(dependencies = {}) {
       clearTimeout(feedbackTimer);
       setAuthPrototypePinFeedbackTimer(null);
     }
-  }
-  
-  function getAuthPrototypePinFeedbackTone(result = ui.authPrototypeResult) {
-    const normalized = String(result || "");
-    if (normalized === "pin-checking") return "checking";
-    if (normalized === "pin-ok") return "success";
-    if (normalized.startsWith("pin-error")) return "error";
-    return "";
   }
   
   function isAuthPrototypePinFeedbackLocked(result = ui.authPrototypeResult) {
@@ -1597,108 +830,6 @@ export function createProductsRenderModule(dependencies = {}) {
       || people.executors.find((person) => person.id === ui.authPrototypePersonId)
       || people.executors[0]
       || null;
-  }
-  
-  function inferAccessRoleIdForPerson(person = null) {
-    return resolveAccessRoleIdForPerson(person, {
-      defaultRoleId: DEFAULT_INTERFACE_ROLE_ID,
-      accessRoleAssignments: ui.accessRoleAssignments,
-      normalizeAccessRoleAssignments,
-      normalizeLookupText,
-    });
-  }
-  
-  function scheduleAuthPrototypePinValidation(pin = "", selectedPersonId = "", { renderOnChange = true } = {}) {
-    cancelAuthPrototypePinFeedback();
-    const successResult = "pin-ok";
-    const errorResult = "pin-error";
-    const people = getAuthPrototypePeople();
-    const selectedPerson = (people.employees || []).find((person) => person.id === selectedPersonId)
-      || getAuthPrototypePinPerson(people);
-    const exactPersonSelected = Boolean(selectedPerson?.id && selectedPerson.id === selectedPersonId);
-    const serverAuthRequired = isEmployeeAuthRequired() || isEmployeeAuthElevationActive();
-    if (!serverAuthRequired) {
-      const canLogin = Boolean(exactPersonSelected && isAuthPrototypePinCorrect(pin));
-      if (canLogin) {
-        completeAuthPrototypeLogin(successResult, { personId: selectedPerson.id });
-        return { ok: true, authenticated: true, personId: selectedPerson.id };
-      }
-
-      setAuthPrototypeAttemptsLeft(getAuthPrototypeAttemptsLeft() - 1);
-      const locked = getAuthPrototypeAttemptsLeft() <= 0;
-      ui.authPrototypeResult = locked ? `${errorResult}-locked` : errorResult;
-      resetAuthPrototypeKeypad();
-      persistUiState();
-      if (renderOnChange) render();
-      return {
-        ok: true,
-        authenticated: false,
-        attemptsLeft: getAuthPrototypeAttemptsLeft(),
-        locked,
-        result: ui.authPrototypeResult,
-        message: locked ? "Вход заблокирован: попытки исчерпаны." : "Неверный PIN.",
-      };
-    }
-
-    if (!exactPersonSelected) {
-      ui.authPrototypeResult = errorResult;
-      resetAuthPrototypeKeypad();
-      persistUiState();
-      if (renderOnChange) render();
-      return Promise.resolve({ ok: false, authenticated: false, message: "Сотрудник больше не доступен для входа." });
-    }
-
-    ui.authPrototypeResult = "pin-checking";
-    persistUiState();
-    if (renderOnChange) render();
-    return Promise.resolve(createEmployeeSession({ employeeId: selectedPerson.id, pin: String(pin || "") }))
-      .then((result) => {
-        if (result?.ok === true
-          && result.authenticated === true
-          && String(result.actor?.employeeId || "") === selectedPerson.id) {
-          if (isEmployeeAuthElevationActive()) {
-            const completed = finishEmployeeAuthElevation(result.actor);
-            return completed?.ok === true
-              ? { ok: true, authenticated: true, personId: selectedPerson.id, actor: result.actor }
-              : { ok: false, authenticated: false, message: String(completed?.message || "Не удалось завершить подтверждение PIN.") };
-          }
-          completeAuthPrototypeLogin(successResult, { personId: selectedPerson.id });
-          return { ok: true, authenticated: true, personId: selectedPerson.id, actor: result.actor };
-        }
-        const credentialRejected = Number(result?.status || 0) === 401;
-        const rateLimited = Number(result?.status || 0) === 429;
-        if (credentialRejected) setAuthPrototypeAttemptsLeft(getAuthPrototypeAttemptsLeft() - 1);
-        if (rateLimited) setAuthPrototypeAttemptsLeft(0);
-        const locked = getAuthPrototypeAttemptsLeft() <= 0;
-        ui.authPrototypeResult = locked ? `${errorResult}-locked` : errorResult;
-        resetAuthPrototypeKeypad();
-        persistUiState();
-        if (renderOnChange) render();
-        return {
-          ...result,
-          ok: false,
-          authenticated: false,
-          attemptsLeft: getAuthPrototypeAttemptsLeft(),
-          locked,
-          result: ui.authPrototypeResult,
-          message: String(result?.message || (credentialRejected ? "Неверный PIN." : "Серверная авторизация временно недоступна.")),
-        };
-      });
-  }
-  
-  function completeAuthPrototypeLogin(result = "pin-ok", options = {}) {
-    cancelAuthPrototypePinFeedback();
-    const people = getAuthPrototypePeople();
-    const selectedPerson = options.personId
-      ? (people.employees || []).find((person) => person.id === options.personId)
-      : getAuthPrototypePinPerson(people);
-    const roleId = inferAccessRoleIdForPerson(selectedPerson);
-    ui.authPrototypeResult = result;
-    unlockAuthGate({ personId: selectedPerson?.id || "", roleId });
-    persistUiState();
-    updateModuleUrlParam(ui.activeModule);
-    notifySaveSuccess(`Вход выполнен: ${getAccessRoleById(roleId).label}`);
-    render();
   }
   
   function getAuthPrototypePeople() {
@@ -2059,16 +1190,6 @@ export function createProductsRenderModule(dependencies = {}) {
     return true;
   }
   
-  function getActiveNomenclatureItem() {
-    if (ui.activeNomenclatureId === "__new__") return null;
-    if (!ui.activeNomenclatureId) return null;
-    return getNomenclatureItem(ui.activeNomenclatureId);
-  }
-  
-  function getActiveNomenclaturePane() {
-    return ui.activeNomenclaturePane === "boards" ? "boards" : "items";
-  }
-  
   function getNomenclatureItem(itemId) {
     return (directoryState.nomenclature || []).find((item) => item.id === itemId) || null;
   }
@@ -2087,10 +1208,6 @@ export function createProductsRenderModule(dependencies = {}) {
     };
   }
   
-  
-  function renderModulePreviewEmpty({ iconName = "info", title, text, action = "" }) {
-    return renderUiEmptyState({ iconName, title, text, action });
-  }
   
   function getDirectoryRows(sectionId) {
     return Array.isArray(directoryState?.[sectionId]) ? directoryState[sectionId] : [];
@@ -2148,33 +1265,10 @@ export function createProductsRenderModule(dependencies = {}) {
     return getRouteBindingContext(value).value || "";
   }
   
-  function normalizeRouteBindingMode(value = "") {
-    return value === "bom" ? "bom" : "product";
-  }
-  
   function getRouteBindingModeForSelection(value = "", route = null) {
     const binding = getRouteBindingContext(value);
     if (binding.kind === "bom" || binding.bom || route?.bomListId) return "bom";
     return "product";
-  }
-  
-  function getRouteBindingOptions() {
-    const productOptions = (directoryState.specifications || []).map((item) => ({
-      value: `spec:${item.id}`,
-      label: item.name || "Изделие без названия",
-      meta: `${PRODUCT_COMPOSITION_TERM} · ${getSpecificationProductionOrder(item) || "заказ не задан"}`,
-    }));
-    const bomOptions = (directoryState.bomLists || []).map((item) => ({
-      value: `bom:${item.id}`,
-      label: item.name || "Плата без названия",
-      meta: `${BOARD_BOM_TERM} · ${getBomImportRows(item).length || Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0)} поз.`,
-    }));
-  
-    return [
-      { value: "", label: "Связь не выбрана", meta: "маршрутная карта как самостоятельный документ" },
-      ...productOptions,
-      ...bomOptions,
-    ];
   }
   
   function ensureRouteModuleProjectForSpecification(specification) {
@@ -2259,18 +1353,11 @@ export function createProductsRenderModule(dependencies = {}) {
       || (kind === "main" ? route : null);
   }
   
-  function getRouteParentRoute(route = null) {
-    if (!route) return null;
-    return (planningState.routes || []).find((item) => item.id === route.parentRouteId)
-      || getRouteRootRoute(route)
-      || null;
-  }
-  
   function getRouteSortRootId(route = null) {
     const kind = getRouteDocumentKind(route);
     return route?.rootRouteId || (kind === "main" ? route?.id : route?.parentRouteId) || route?.id || "";
   }
-  
+
   function getRouteScopeSourceItemId(route = null) {
     return String(route?.routeTaskSourceItemId || route?.routeScopeSourceItemId || route?.specTaskSourceItemId || "").trim();
   }
@@ -2288,20 +1375,6 @@ export function createProductsRenderModule(dependencies = {}) {
       item.sourceItemId === sourceItemId
       && (!sourceSpecificationId || item.sourceSpecificationId === sourceSpecificationId)
     )) || null;
-  }
-  
-  function scopeRouteTasks(route = null, tasks = []) {
-    const scopeRootTask = getRouteScopeRootTask(route, tasks);
-    if (!scopeRootTask) return tasks;
-    return [{
-      ...scopeRootTask,
-      level: 0,
-      continuationLevels: [],
-      routeScopeRoot: true,
-      hasChildren: false,
-      isLast: true,
-      parentTitle: "",
-    }];
   }
   
   function getRouteLineageSubjectName(route = null) {
@@ -2330,44 +1403,23 @@ export function createProductsRenderModule(dependencies = {}) {
   
   
   return {
-    addNomenclatureToBom,
-    applyGanttRowToSlot,
     cancelAuthPrototypePinFeedback,
-    completeAuthPrototypeLogin,
     createSpekiSpecification,
-    deleteBomImportRow,
     ensureNomenclatureTypeExists,
-    ensureRouteModuleProjectForSpecification,
-    findSmtLineByNumber,
     getActiveSpecificationForModule,
-    getAuthPrototypeAttemptsLeft,
-    getAuthPrototypeDepartmentRows,
-    getAuthPrototypeDirectDepartmentPeople,
     getAuthPrototypePeople,
-    getAuthPrototypePeopleByUnit,
-    getAuthPrototypePinFeedbackTone,
-    getAuthPrototypePinPerson,
-    getAuthPrototypeSelectedDepartment,
-    getAuthPrototypeSelectedPerson,
-    getAuthPrototypeSelectedUnit,
-    getAuthPrototypeUnitRows,
-    getBomImportRowNomenclatureItem,
     getBomImportRows,
-    getBomLinkedSpecifications,
     getBomList,
     getBomResultNomenclatureItem,
     getDefaultSmtLineConfigurations,
     getDirectoryRows,
     getFallbackNomenclatureType,
-    getGanttResourceForSlot,
     getNomenclatureDeleteUsage,
     getNomenclatureItem,
     getResourceBaseCph,
-    getResourceRowId,
     getResourcesForWorkCenter,
     getRouteBindingContext,
     getRouteBindingModeForSelection,
-    getRouteBindingOptions,
     getRouteBomList,
     getRouteDocumentKind,
     getRouteDocumentKindLabel,
@@ -2375,7 +1427,6 @@ export function createProductsRenderModule(dependencies = {}) {
     getRouteLineageSubjectName,
     getRouteModuleSelectionName,
     getRouteModuleSelectionValue,
-    getRouteParentRoute,
     getRouteRootRoute,
     getRouteScopeRootTask,
     getRouteSpecification,
@@ -2383,36 +1434,23 @@ export function createProductsRenderModule(dependencies = {}) {
     getSlotGanttResourceId,
     getSlotGanttWorkCenterId,
     getSmtLineConfigurations,
-    getSmtLineIdFromWorkCenterId,
     getSmtLineNumberFromText,
     getSpecificationBomEntries,
     getSpecificationById,
     getSpecificationItemBomId,
-    getSpecificationProductionOrder,
     getSpekiStructureItemDisplayName,
     getSpekiStructureItemLabel,
-    getSpekiStructureSectionOptions,
     getSpekiStructureTableRows,
-    inferAccessRoleIdForPerson,
     importBomFromXlsxFile,
     isAuthPrototypePinFeedbackLocked,
-    isSmtLineWorkCenterId,
     migrateSpecificationBomRowsToNomenclature,
     normalizeBomImportRow,
     normalizeLookupText,
-    normalizeSmtComponentKeyPart,
     normalizeNomenclatureType,
     normalizeRouteBindingValue,
-    renderModulePreviewEmpty,
-    resetAuthPrototypeAttempts,
     resolveRouteModuleProjectId,
-    scheduleAuthPrototypePinValidation,
-    scopeRouteTasks,
-    summarizeBomComponentFields,
-    syncNomenclatureTypeRename,
     syncNomenclatureTypesFromItems,
     syncSpecificationDerivedFields,
-    updateBomImportCell,
     upsertBomResultToNomenclature,
   };
 }

@@ -136,4 +136,4 @@ assert.doesNotMatch(source, /\bfetch\s*\(/);
 console.log("Nomenclature Boards command owner QA: OK");
 console.log("- board save/delete and specification unlink: pass");
 console.log("- BOM row add/edit/quantity/delete with conflict checks: pass");
-console.log("- XLSX delegation and products/render.js isolation: pass");
+console.log("- XLSX delegation and Products compatibility-runtime isolation: pass");

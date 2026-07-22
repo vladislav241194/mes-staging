@@ -45,7 +45,7 @@ const sources = Object.fromEntries(await Promise.all([
   "src/modules/app_events/service.js",
   "src/modules/planning_routes/service.js",
   "src/modules/products/events.js",
-  "src/modules/products/render.js",
+  "src/modules/products/compatibility_runtime.js",
   "src/modules/runtime_state/service.js",
 ].map(async (file) => [file, await readFile(new URL(`../${file}`, import.meta.url), "utf8")])));
 
@@ -61,7 +61,7 @@ const app = sources["src/app.js"];
 const appEvents = sources["src/modules/app_events/service.js"];
 const planningRoutes = sources["src/modules/planning_routes/service.js"];
 const productsEvents = sources["src/modules/products/events.js"];
-const productsRender = sources["src/modules/products/render.js"];
+const productsRuntime = sources["src/modules/products/compatibility_runtime.js"];
 const runtimeState = sources["src/modules/runtime_state/service.js"];
 
 assert.match(runtimeState, /if \(isNomenclatureServerCommandsPrimary\(\)\) \{[\s\S]*?directoryState = previousState;[\s\S]*?return false;/);
@@ -72,8 +72,10 @@ const directoryCapability = functionBody(app, "canEditDirectorySection", "canEdi
 assert(directoryCapability.indexOf("isNomenclatureServerCommandsPrimary()") < directoryCapability.indexOf("authorizeSystemDomainAction"), "Directory controls must become read-only before RBAC grants are considered");
 assert.match(functionBody(app, "canEditCustomStatusDirectorySection", "isUserManagedDirectoryStatus"), /isNomenclatureServerCommandsPrimary\(\).*return false/s);
 assert.match(app, /function canWriteBoardsReact[\s\S]*?!isLegacyDirectoryWriteBlocked\(\)[\s\S]*?authorizeSystemDomainAction\("nomenclature", "edit", \{ resourceId: "boards" \}\)/, "Boards React writes must fail closed under command-primary before RBAC can grant them");
-assert.match(app, /const boardsReactIslandHost[\s\S]*?capabilities:\s*\{[\s\S]*?createEdit: canWrite,[\s\S]*?delete: canWrite,[\s\S]*?bomImport: canWrite/, "Boards React must expose the fail-closed write decision to every visible editor capability");
-assert.match(app, /const commitSpecifications2Publication[\s\S]*?if \(isLegacyDirectoryWriteBlocked\(\)\)[\s\S]*?buildSpecifications2Publication/, "Specifications 2 publication must fail before compatibility state is built");
+assert.match(app, /const boardsReactIslandHost[\s\S]*?capabilities:\s*\{[\s\S]*?createEdit: canWrite,[\s\S]*?delete: canWrite,[\s\S]*?bomImport: false/, "Boards React must expose the fail-closed write decision while keeping deferred XLSX import disabled");
+assert.match(app, /command\.type === "import-bom-xlsx"[\s\S]*?code: "deferred-import"/, "Boards React must reject deferred XLSX import before entering compatibility commands");
+assert.doesNotMatch(app, /commitSpecifications2Publication|buildSpecifications2Publication/, "Specifications 2 must not retain the retired compatibility publication path");
+assert.match(app, /createSpecifications2ProductionOwner\([\s\S]*?specifications2ProductionOwner\.execute\(command\)/, "Specifications 2 commands must remain behind the production owner");
 
 for (const [name, nextName] of [
   ["updateSpecificationStructure", "addSpecificationStructureItem"],
@@ -88,11 +90,10 @@ for (const [name, nextName] of [
 }
 
 for (const [name, nextName] of [
-  ["updateBomImportRows", "updateBomImportCell"],
-  ["createSpekiSpecification", "getActiveNomenclatureItem"],
+  ["createSpekiSpecification", "getNomenclatureItem"],
   ["ensureRouteModuleProjectForSpecification", "resolveRouteModuleProjectId"],
 ]) {
-  const body = functionBody(productsRender, name, nextName);
+  const body = functionBody(productsRuntime, name, nextName);
   const guard = body.indexOf("isLegacyDirectoryWriteBlocked()");
   const mutation = body.search(/directoryState\.|ensureSpecificationPlanningUnit\(/);
   assert(guard >= 0 && mutation > guard, `${name} must fail before its first compatibility mutation`);

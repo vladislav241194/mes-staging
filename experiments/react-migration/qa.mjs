@@ -259,8 +259,8 @@ try {
   assert.equal(legacyCounterOnlyBoard.componentTotal, 12, "adapter must preserve old component counters for downstream compatibility");
   assert.equal(boardsViewModel.getVisibleComponentTotal(legacyCounterOnlyBoard), 0, "Boards UI must keep the legacy zero badge when importRows are absent");
 
-  const { createProductsRenderModule } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/products/render.js")).href}?qa=${Date.now()}`);
-  const productsModule = createProductsRenderModule({
+  const { createProductsCompatibilityRuntime } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/products/compatibility_runtime.js")).href}?qa=${Date.now()}`);
+  const productsModule = createProductsCompatibilityRuntime({
     BOM_COMPONENT_FIELDS: boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => ({ ...field, componentId: `ct-${field.key}` })),
     BOM_IMPORT_COLUMN_COUNT: boardsAdapter.BOM_IMPORT_HEADERS.length,
     BOM_IMPORT_FALLBACK_HEADERS: boardsAdapter.BOM_IMPORT_HEADERS,

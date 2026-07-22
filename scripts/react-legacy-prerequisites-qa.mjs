@@ -22,9 +22,9 @@ assert.equal(inferAccessRoleIdForPerson({ id: "master", canDistribute: true }, r
 assert.equal(inferAccessRoleIdForPerson({ id: "dispatcher", canCloseFact: true, canExecute: false }, resolverOptions), "dispatcher");
 assert.equal(inferAccessRoleIdForPerson({ id: "employee", role: "Оператор" }, resolverOptions), "executor");
 
-const [appSource, productsSource] = await Promise.all([
+const [appSource, productsRuntimeSource] = await Promise.all([
   readFile(join(root, "src/app.js"), "utf8"),
-  readFile(join(root, "src/modules/products/render.js"), "utf8"),
+  readFile(join(root, "src/modules/products/compatibility_runtime.js"), "utf8"),
 ]);
 
 assert.match(
@@ -33,19 +33,19 @@ assert.match(
   "the app must resolve auth roles without reading the products renderer export",
 );
 const productsInitialization = appSource.slice(
-  appSource.indexOf("function initializeProductsRenderModule()"),
-  appSource.indexOf("} = createProductsRenderModule({", appSource.indexOf("function initializeProductsRenderModule()")),
+  appSource.indexOf("function initializeProductsCompatibilityRuntime()"),
+  appSource.indexOf("} = createProductsCompatibilityRuntime({", appSource.indexOf("function initializeProductsCompatibilityRuntime()")),
 );
 assert.ok(productsInitialization.length > 0, "products initialization boundary must remain inspectable");
 assert.doesNotMatch(
   productsInitialization,
   /\binferAccessRoleIdForPerson\b/,
-  "the products monolith must no longer supply the app auth resolver",
+  "the Products compatibility runtime must not supply the app auth resolver",
 );
-assert.match(
-  productsSource,
-  /import \{ inferAccessRoleIdForPerson as resolveAccessRoleIdForPerson \} from "\.\.\/auth_render\/access_role_resolver\.js";/,
-  "legacy products auth must reuse the extracted resolver",
+assert.doesNotMatch(
+  productsRuntimeSource,
+  /access_role_resolver|resolveAccessRoleIdForPerson|inferAccessRoleIdForPerson/,
+  "the pruned Products compatibility runtime must not retain the retired auth flow",
 );
 assert.match(
   appSource,
