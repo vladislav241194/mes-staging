@@ -1313,3 +1313,43 @@ strict accepted-evidence baseline.
   `50%`. There are 11/16 top-level modules and 21/26 audited surfaces with the
   complete React marker. Partial modules are Specifications 2, Planning, Gantt,
   Roles and Marking.
+
+## Accelerated mixed-runtime cut 2026-07-22: release `.49`
+
+This block supersedes `.48` as the live Pilot pointer, but deliberately does
+not claim browser, visual or authenticated lifecycle acceptance.
+
+- Active Pilot is `v.1.500.49-df23074` at exact commit
+  `df23074faf0343e4b6e9c42b231ce452e1bb2c07`; immediate previous is
+  `v.1.500.48-e02dbb0` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `39283e43a8b643c6fc764c273917587c538e32461a009078c069c7f22567b751` and
+  `0bcf8b3115adf980295eb4fbff18bee51f19ca386386e6e34721a73171576b55`.
+  Git provenance is `fresh-upstream-fetch`; the accelerated stage performed
+  strict TypeScript, recursive syntax, cutover/runtime-policy gates and two
+  deterministic production builds.
+- Local/public health report `ok`, version `v.1.500.49`, shared state `ready`,
+  runtime-policy SHA
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`,
+  and zero active evaluation surfaces. `mes-pilot.service` is active and the
+  release pointer resolves to `.49`.
+- Current runtime no longer imports, loads, renders or binds the legacy
+  `Weekly Production Control`, `Nomenclature/Boards`, `Authorization` or
+  `Employee Desktop` renderer/event paths. All five routes render their
+  fail-closed React hosts. Existing API/command owners, RBAC, signed employee
+  session and the `bomLists` deep link were retained.
+- Feature/module ownership metadata now identifies React hosts and TypeScript
+  scenarios. Complete modules retain the visible `React TS` marker. Large
+  legacy renderer files remain only as unreachable checkout artifacts for a
+  later bounded deletion; rollback is the previous immutable release rather
+  than a same-release UI fallback.
+- Immediate previous `.48` passed rollback dry-run without changing the live
+  pointer. Pinned legacy `.18` manifest remains valid, but its dry-run was
+  correctly blocked by active Specifications 2 attachments, Work Orders and
+  publication command-owner drop-ins. The compatibility guard was not
+  bypassed.
+- Browser/visual QA was deliberately skipped. Implementation remains `99%`
+  and strict accepted evidence remains `50%`; this release records code and
+  runtime consolidation, not final product acceptance. Blueprint UI was not
+  introduced.
