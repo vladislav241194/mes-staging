@@ -31,6 +31,7 @@ const packageSource = await readFile(join(root, "package.json"), "utf8");
 const moduleRegistrySource = await readFile(join(root, "src", "module_registry.js"), "utf8");
 const featureRegistrySource = await readFile(join(root, "src", "feature_registry.js"), "utf8");
 const legacyInventorySource = await readFile(join(root, "scripts", "legacy-inventory.mjs"), "utf8");
+const reactIslandStylesSource = await readFile(join(root, "styles", "react-nomenclature-island.css"), "utf8");
 const packageManifest = JSON.parse(packageSource);
 const policy = JSON.parse(await readFile(join(root, "react-runtime-policy.json"), "utf8"));
 for (const [label, source] of [
@@ -55,6 +56,25 @@ const registries = [
   ["equipment", "structureEquipment"],
   ["responsibility-policies", "structureResponsibilityPolicies"],
 ];
+const structureRootClasses = [
+  ".mes-react-structure-employees-island",
+  ".mes-react-structure-positions-island",
+  ".mes-react-structure-org-units-island",
+  ".mes-react-structure-work-centers-island",
+  ".mes-react-structure-equipment-island",
+  ".mes-react-structure-responsibility-policies-island",
+  ".mes-react-structure-migration-diagnostics-island",
+];
+const commonStylesEnd = reactIslandStylesSource.indexOf(".mes-react-contour-admin-island .contour-admin-react");
+assert(commonStylesEnd > 0, "shared React island CSS boundary must remain discoverable");
+const commonStylesSource = reactIslandStylesSource.slice(0, commonStylesEnd);
+const employeeRootCommonSelectors = commonStylesSource.match(/:is\([^)]*\.mes-react-structure-employees-island[^)]*\)/g) || [];
+assert(employeeRootCommonSelectors.length > 0, "Structure Employees shared CSS selectors must remain discoverable");
+for (const [index, selector] of employeeRootCommonSelectors.entries()) {
+  for (const rootClass of structureRootClasses) {
+    assert(selector.includes(rootClass), `shared Structure CSS selector ${index + 1} is missing ${rootClass}`);
+  }
+}
 
 for (const [, surfaceId] of registries) assert.equal(policy.surfaces[surfaceId], "react", `${surfaceId}: signed candidate policy must select permanent React`);
 assert.equal(policy.surfaces.structureMigrationDiagnostics, "react", "structureMigrationDiagnostics: signed policy must select permanent React");

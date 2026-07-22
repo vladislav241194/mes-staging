@@ -1,4 +1,22 @@
-import { createSpecifications2RevisionsReadModel } from "../src/modules/domain_api/specifications2_revisions_read_model.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-specifications2-revisions-client-"));
+try {
+const output = join(temporaryRoot, "specifications2-revisions-read-model.mjs");
+await build({
+  entryPoints: [fileURLToPath(new URL("../src/modules/domain_api/specifications2_revisions_read_model.ts", import.meta.url))],
+  outfile: output,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  logLevel: "silent",
+});
+const { createSpecifications2RevisionsReadModel } = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
 
 function assert(value, message) {
   if (!value) throw new Error(message);
@@ -39,3 +57,6 @@ await model.refreshBySource("source-1");
 assert(calls === 3, "a confirmed missing revision must be cached and must not refetch on each render");
 
 console.log("Specifications 2.0 revisions read model QA: OK");
+} finally {
+  await rm(temporaryRoot, { recursive: true, force: true });
+}

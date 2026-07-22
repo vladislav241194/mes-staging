@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.64";
+const APP_VERSION_FALLBACK = "v.1.500.65";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -2169,8 +2169,8 @@ function ensureSpecifications2ProductionModule() {
   });
   specifications2ProductionModuleLoad = Promise.all([
     import("./modules/specifications2/publication.js"),
-    import("./modules/domain_api/specifications2_revisions_read_model.js"),
-    import("./modules/domain_api/specifications2_work_order_commands.js"),
+    import("./modules/domain_api/specifications2_revisions_read_model.ts"),
+    import("./modules/domain_api/specifications2_work_order_commands.ts"),
   ])
     .then(([
       { buildSpecifications2ReleaseFingerprint, publishSpecifications2Entry: prepareSpecifications2PublicationEntry },

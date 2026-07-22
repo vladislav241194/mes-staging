@@ -1,4 +1,22 @@
-import { createSpecifications2PublishCommands } from "../src/modules/domain_api/specifications2_publish_commands.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-specifications2-publish-client-"));
+try {
+const output = join(temporaryRoot, "specifications2-publish-commands.mjs");
+await build({
+  entryPoints: [fileURLToPath(new URL("../src/modules/domain_api/specifications2_publish_commands.ts", import.meta.url))],
+  outfile: output,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
+  logLevel: "silent",
+});
+const { createSpecifications2PublishCommands } = await import(`${pathToFileURL(output).href}?qa=${Date.now()}`);
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
 const calls = [];
@@ -50,3 +68,6 @@ const secondUnavailable = await primaryUnavailable.refreshCapability();
 assert(!firstUnavailable.ok && firstUnavailable.serverPrimary && !secondUnavailable.ok && secondUnavailable.serverPrimary, "a configured server-primary client must fail closed when capability discovery is unavailable");
 assert(failedCapabilityRequests === 2, "a failed capability probe must not be cached as a successful legacy capability");
 console.log("Specifications 2.0 publish commands client QA: OK");
+} finally {
+  await rm(temporaryRoot, { recursive: true, force: true });
+}

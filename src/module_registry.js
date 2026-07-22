@@ -219,6 +219,9 @@ const CORE_MODULE_BLUEPRINTS = [
     sourceFiles: [
       "src/modules/specifications2/react_island_host.js",
       "src/modules/specifications2/production_owner.ts",
+      "src/modules/domain_api/specifications2_publish_commands.ts",
+      "src/modules/domain_api/specifications2_revisions_read_model.ts",
+      "src/modules/domain_api/specifications2_work_order_commands.ts",
     ],
   }),
   coreBlueprint({

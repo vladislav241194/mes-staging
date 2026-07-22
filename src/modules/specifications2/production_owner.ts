@@ -1,4 +1,4 @@
-import { createSpecifications2PublishCommands } from "../domain_api/specifications2_publish_commands.js";
+import { createSpecifications2PublishCommands } from "../domain_api/specifications2_publish_commands.ts";
 
 type UnknownRecord = Record<string, unknown>;
 

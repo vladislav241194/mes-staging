@@ -7,9 +7,18 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "../../src/modules/marking/api_client.ts", "../../src/modules/specifications2/production_owner.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../src/modules/marking/api_client.ts",
+    "../../src/modules/domain_api/specifications2_publish_commands.ts",
+    "../../src/modules/domain_api/specifications2_revisions_read_model.ts",
+    "../../src/modules/domain_api/specifications2_work_order_commands.ts",
+    "../../src/modules/specifications2/production_owner.ts"
+  ]
 }
