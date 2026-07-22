@@ -2,23 +2,95 @@ export const MES_REACT_COMPLETION_STATES = Object.freeze({
   COMPLETE: "react-complete",
   PARTIAL: "react-partial",
   LEGACY: "legacy",
-});
+} as const);
 
 export const MES_REACT_VERIFICATION_STATES = Object.freeze({
   ACCEPTED: "accepted",
   DEFERRED: "deferred",
-});
+} as const);
+
+export type MesReactCompletionState = typeof MES_REACT_COMPLETION_STATES[keyof typeof MES_REACT_COMPLETION_STATES];
+export type MesReactVerificationState = typeof MES_REACT_VERIFICATION_STATES[keyof typeof MES_REACT_VERIFICATION_STATES];
+
+export type MesReactCompletionSurfaceId =
+  | "authPicker"
+  | "boards"
+  | "componentTypes"
+  | "contourAdmin"
+  | "dispatch"
+  | "employeeDesktop"
+  | "gantt"
+  | "marking"
+  | "nomenclature"
+  | "nomenclatureTypes"
+  | "operations"
+  | "planningWorkbench"
+  | "roles"
+  | "shiftMasterBoard"
+  | "shiftWorkOrders"
+  | "specifications2"
+  | "statuses"
+  | "structureEmployees"
+  | "structureEquipment"
+  | "structureMigrationDiagnostics"
+  | "structureOrgUnits"
+  | "structurePositions"
+  | "structureResponsibilityPolicies"
+  | "structureWorkCenters"
+  | "timesheet"
+  | "weeklyProductionControl";
+
+export type MesReactCompletionModuleId =
+  | "nomenclature"
+  | "specifications2"
+  | "planning"
+  | "gantt"
+  | "weeklyProductionControl"
+  | "shiftMasterBoard"
+  | "shiftWorkOrders"
+  | "dispatch"
+  | "productionStructureMatrix"
+  | "timesheet"
+  | "roles"
+  | "contourAdmin"
+  | "directories"
+  | "authPrototype"
+  | "authSessionPrototype"
+  | "marking";
+
+type MesReactCompletionEntryId = MesReactCompletionSurfaceId | MesReactCompletionModuleId;
+
+export interface MesReactCompletionDefinition<TId extends MesReactCompletionEntryId = MesReactCompletionEntryId> {
+  readonly id: TId;
+  readonly status: MesReactCompletionState;
+  readonly verification: MesReactVerificationState;
+  readonly surfaceIds: readonly MesReactCompletionSurfaceId[];
+}
+
+interface MesReactCompletionEntryInput<TId extends MesReactCompletionEntryId> {
+  id: TId;
+  status: MesReactCompletionState;
+  verification?: MesReactVerificationState;
+  surfaceIds?: readonly MesReactCompletionSurfaceId[];
+}
 
 const { COMPLETE, PARTIAL, LEGACY } = MES_REACT_COMPLETION_STATES;
 const { ACCEPTED, DEFERRED } = MES_REACT_VERIFICATION_STATES;
+const COMPLETION_STATE_VALUES: readonly unknown[] = [COMPLETE, PARTIAL, LEGACY];
+const VERIFICATION_STATE_VALUES: readonly unknown[] = [ACCEPTED, DEFERRED];
 
-function defineCompletionEntry({ id, status, verification = DEFERRED, surfaceIds = [] }) {
-  const normalizedId = String(id || "").trim();
+function defineCompletionEntry<const TId extends MesReactCompletionEntryId>({
+  id,
+  status,
+  verification = DEFERRED,
+  surfaceIds = [],
+}: MesReactCompletionEntryInput<TId>): Readonly<MesReactCompletionDefinition<TId>> {
+  const normalizedId = String(id || "").trim() as TId;
   if (!normalizedId) throw new Error("React completion entry id is required");
-  if (![COMPLETE, PARTIAL, LEGACY].includes(status)) {
+  if (!COMPLETION_STATE_VALUES.includes(status)) {
     throw new Error(`Unsupported React completion state for ${normalizedId}: ${status}`);
   }
-  if (![ACCEPTED, DEFERRED].includes(verification)) {
+  if (!VERIFICATION_STATE_VALUES.includes(verification)) {
     throw new Error(`Unsupported React verification state for ${normalizedId}: ${verification}`);
   }
   return Object.freeze({
@@ -35,7 +107,7 @@ function defineCompletionEntry({ id, status, verification = DEFERRED, surfaceIds
 // the cutover ledger. Pilot/global acceptance is tracked separately through
 // `verification`, so deferred QA does not block accelerated implementation.
 // Contract QA binds both declarations to the ledger and runtime policy.
-export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
+export const MES_REACT_COMPLETION_SURFACE_REGISTRY: readonly MesReactCompletionDefinition<MesReactCompletionSurfaceId>[] = Object.freeze([
   defineCompletionEntry({ id: "authPicker", status: COMPLETE }),
   defineCompletionEntry({ id: "boards", status: COMPLETE }),
   defineCompletionEntry({ id: "componentTypes", status: COMPLETE }),
@@ -64,7 +136,7 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "weeklyProductionControl", status: COMPLETE, verification: ACCEPTED }),
 ]);
 
-export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
+export const MES_REACT_COMPLETION_MODULE_REGISTRY: readonly MesReactCompletionDefinition<MesReactCompletionModuleId>[] = Object.freeze([
   defineCompletionEntry({ id: "nomenclature", status: COMPLETE, surfaceIds: ["nomenclature", "boards"] }),
   defineCompletionEntry({ id: "specifications2", status: PARTIAL, surfaceIds: ["specifications2"] }),
   defineCompletionEntry({ id: "planning", status: PARTIAL, surfaceIds: ["planningWorkbench"] }),
@@ -99,21 +171,24 @@ export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "marking", status: PARTIAL, surfaceIds: ["marking"] }),
 ]);
 
-const SURFACE_BY_ID = new Map(MES_REACT_COMPLETION_SURFACE_REGISTRY.map((entry) => [entry.id, entry]));
-const MODULE_BY_ID = new Map(MES_REACT_COMPLETION_MODULE_REGISTRY.map((entry) => [entry.id, entry]));
+export type MesReactCompletionSurfaceDefinition = MesReactCompletionDefinition<MesReactCompletionSurfaceId>;
+export type MesReactCompletionModuleDefinition = MesReactCompletionDefinition<MesReactCompletionModuleId>;
 
-export function getMesReactCompletionSurfaceDefinition(surfaceId = "") {
+const SURFACE_BY_ID = new Map<string, MesReactCompletionSurfaceDefinition>(MES_REACT_COMPLETION_SURFACE_REGISTRY.map((entry) => [entry.id, entry] as const));
+const MODULE_BY_ID = new Map<string, MesReactCompletionModuleDefinition>(MES_REACT_COMPLETION_MODULE_REGISTRY.map((entry) => [entry.id, entry] as const));
+
+export function getMesReactCompletionSurfaceDefinition(surfaceId: unknown = ""): MesReactCompletionSurfaceDefinition | null {
   return SURFACE_BY_ID.get(String(surfaceId || "").trim()) || null;
 }
 
-export function getMesReactCompletionModuleDefinition(moduleId = "") {
+export function getMesReactCompletionModuleDefinition(moduleId: unknown = ""): MesReactCompletionModuleDefinition | null {
   return MODULE_BY_ID.get(String(moduleId || "").trim()) || null;
 }
 
-export function getMesReactCompletionModuleStatus(moduleId = "") {
+export function getMesReactCompletionModuleStatus(moduleId: unknown = ""): MesReactCompletionState | null {
   return getMesReactCompletionModuleDefinition(moduleId)?.status || null;
 }
 
-export function isMesReactCompleteModule(moduleId = "") {
+export function isMesReactCompleteModule(moduleId: unknown = ""): boolean {
   return getMesReactCompletionModuleStatus(moduleId) === COMPLETE;
 }

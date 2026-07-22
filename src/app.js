@@ -11,7 +11,7 @@ import {
   getMesStatusOptions,
   getMesStatusView,
   MES_STATUS_CONTRACTS,
-} from "./mes_contracts.js";
+} from "./mes_contracts.ts";
 import {
   addMs,
   buildTimeScale,
@@ -56,7 +56,7 @@ import {
 import {
   UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
   UI_RUNTIME_TABLE_SCROLL_SELECTORS,
-} from "./ui_runtime_contracts.js";
+} from "./ui_runtime_contracts.ts";
 import {
   MES_MODULE_BLUEPRINT_REGISTRY,
   MES_MODULE_NAVIGATION_GROUPS,
@@ -208,7 +208,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.76";
+const APP_VERSION_FALLBACK = "v.1.500.77";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"

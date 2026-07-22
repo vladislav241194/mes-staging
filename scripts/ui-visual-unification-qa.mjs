@@ -1,15 +1,30 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MES_MODULE_FLOW_SEQUENCE } from "../src/mes_contracts.js";
-import {
-  UI_RUNTIME_COMPONENT_CONTRACTS,
-  UI_VISUAL_HARD_EXCEPTIONS,
-  UI_VISUAL_MASTER_STAGES,
-  UI_VISUAL_MODULE_WAVES,
-  UI_VISUAL_STANDARD_COMPONENTS,
-  UI_VISUAL_UNIFICATION_CONTRACT,
-} from "../src/ui_runtime_contracts.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  { MES_MODULE_FLOW_SEQUENCE },
+  {
+    UI_RUNTIME_COMPONENT_CONTRACTS,
+    UI_VISUAL_HARD_EXCEPTIONS,
+    UI_VISUAL_MASTER_STAGES,
+    UI_VISUAL_MODULE_WAVES,
+    UI_VISUAL_STANDARD_COMPONENTS,
+    UI_VISUAL_UNIFICATION_CONTRACT,
+  },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-ui-visual-unification-flow-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-ui-visual-unification-contracts-qa-" },
+  ),
+]);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");

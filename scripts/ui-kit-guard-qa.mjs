@@ -83,7 +83,7 @@ const [
   read("styles.css"),
   read("scripts/css-layer-audit.mjs"),
   read("styles/mes-ui-core.css"),
-  read("src/ui_runtime_contracts.js"),
+  read("src/ui_runtime_contracts.ts"),
   read("src/app.js"),
   read("styles/ui/kit-polish.css"),
 ]);

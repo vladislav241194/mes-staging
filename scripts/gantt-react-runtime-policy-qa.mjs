@@ -9,7 +9,7 @@ const [app, host, planningCore, appEvents, scenario, adapter, productionModel, c
   readFile("experiments/react-migration/src/modules/gantt/GanttScenario.tsx", "utf8"),
   readFile("experiments/react-migration/src/modules/gantt/adapter.ts", "utf8"),
   readFile("experiments/react-migration/src/modules/gantt/production-model.ts", "utf8"),
-  readFile("src/react_completion_registry.js", "utf8"),
+  readFile("src/react_completion_registry.ts", "utf8"),
 ]);
 const ledger = JSON.parse(await readFile("experiments/react-migration/cutover-ledger.json", "utf8"));
 const policy = JSON.parse(await readFile("react-runtime-policy.json", "utf8"));

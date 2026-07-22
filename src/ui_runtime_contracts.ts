@@ -6,11 +6,11 @@ import {
   SPECIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
   UI_RUNTIME_COVERAGE_NOTES,
-} from "./ui/contracts/runtime-contracts.js";
+} from "./ui/contracts/runtime-contracts.ts";
 import {
   UI_HARDENING_KEY_RUNTIME_MODULE_IDS,
   UI_HARDENING_PLAN_STAGES,
-} from "./ui/contracts/hardening-plan-contracts.js";
+} from "./ui/contracts/hardening-plan-contracts.ts";
 import {
   UI_VISUAL_HARD_EXCEPTIONS,
   UI_VISUAL_MASTER_STAGES,
@@ -19,7 +19,27 @@ import {
   UI_VISUAL_UNIFICATION_CONTRACT,
   getUiVisualExceptions,
   getUiVisualModuleWave,
-} from "./ui/contracts/visual-unification-contracts.js";
+} from "./ui/contracts/visual-unification-contracts.ts";
+
+export interface UiRuntimeComponentContract {
+  component: string;
+  helperNames: readonly string[];
+  cssSelectors: readonly string[];
+  purpose: string;
+}
+
+export interface UiRuntimeDomNormalizerContract {
+  component: string;
+  selector: string;
+}
+
+export interface UiRuntimeQaClassContract {
+  requiredClass: string;
+  companionClass: string;
+  label: string;
+}
+
+export type UiRuntimeCoverageStatus = "hard" | "special" | "partial" | "legacy" | "unknown";
 
 export {
   HARD_UI_RUNTIME_MODULE_IDS,
@@ -40,7 +60,7 @@ export {
   getUiVisualModuleWave,
 };
 
-export const UI_RUNTIME_COMPONENT_CONTRACTS = [
+export const UI_RUNTIME_COMPONENT_CONTRACTS: readonly UiRuntimeComponentContract[] = [
   {
     component: "AppShell",
     helperNames: ["renderUiAppShell"],
@@ -241,7 +261,7 @@ export const UI_RUNTIME_COMPONENT_CONTRACTS = [
   },
 ];
 
-export const UI_RUNTIME_STYLE_TOKENS = [
+export const UI_RUNTIME_STYLE_TOKENS: readonly string[] = [
   "--mes-ui-bg",
   "--mes-ui-bg-grid",
   "--mes-ui-bg-gradient",
@@ -552,7 +572,7 @@ export const UI_RUNTIME_STYLE_TOKENS = [
   "--mes-ui-z-dropdown",
 ];
 
-export const UI_RUNTIME_DOM_NORMALIZER_CONTRACTS = [
+export const UI_RUNTIME_DOM_NORMALIZER_CONTRACTS: readonly UiRuntimeDomNormalizerContract[] = [
   { component: "FormField", selector: ".form-field, .ui-form-field" },
   {
     component: "DomainField",
@@ -590,11 +610,11 @@ export const UI_RUNTIME_DOM_NORMALIZER_CONTRACTS = [
   { component: "GanttBar", selector: ".operation-slot, .ui-gantt-bar" },
 ];
 
-export const UI_RUNTIME_TABLE_SCROLL_SELECTORS = [
+export const UI_RUNTIME_TABLE_SCROLL_SELECTORS: readonly string[] = [
   "[data-layout='table'], .ui-table-wrap",
 ];
 
-export const UI_RUNTIME_QA_CLASS_CONTRACTS = [
+export const UI_RUNTIME_QA_CLASS_CONTRACTS: readonly UiRuntimeQaClassContract[] = [
   { requiredClass: "form-field", companionClass: "ui-form-field", label: "form-field должен идти вместе с ui-form-field" },
   { requiredClass: "directory-table-wrap", companionClass: "ui-table-wrap", label: "directory-table-wrap должен идти вместе с ui-table-wrap" },
   { requiredClass: "speki-structure-table-wrap", companionClass: "ui-table-wrap", label: "speki-structure-table-wrap должен идти вместе с ui-table-wrap" },
@@ -604,7 +624,7 @@ export const UI_RUNTIME_QA_CLASS_CONTRACTS = [
   { requiredClass: "table-icon-button", companionClass: "ui-action-button", label: "table-icon-button должен идти вместе с ui-action-button" },
 ];
 
-export const UI_RUNTIME_CONTROLLED_CLASS_PREFIXES = [
+export const UI_RUNTIME_CONTROLLED_CLASS_PREFIXES: readonly string[] = [
   "auth-prototype-",
   "auth-session-",
   "shift-master-board-",
@@ -639,14 +659,14 @@ export const UI_RUNTIME_CONTROLLED_CLASS_PREFIXES = [
   "app-",
 ];
 
-export const UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES = [
+export const UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES: readonly string[] = [
   "is-",
   "status-",
   "dense-select-",
   "mes-icon-source-",
 ];
 
-export const UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES = [
+export const UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES: readonly string[] = [
   "production-row",
   "resource-row",
   "ui-table-actions",
@@ -659,18 +679,22 @@ export const UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES = [
   "workCenter-row",
 ];
 
-export const UI_RUNTIME_COMPATIBILITY_CSS_ONLY_CLASSES = [];
+export const UI_RUNTIME_COMPATIBILITY_CSS_ONLY_CLASSES: readonly string[] = [];
 
-export function getUiRuntimeCoverageStatus(moduleId = "") {
+function hasRuntimeModuleId(moduleIds: readonly string[], moduleId: string): boolean {
+  return moduleIds.includes(moduleId);
+}
+
+export function getUiRuntimeCoverageStatus(moduleId: string = ""): UiRuntimeCoverageStatus {
   const id = String(moduleId || "").trim();
-  if (HARD_UI_RUNTIME_MODULE_IDS.includes(id)) return "hard";
-  if (SPECIAL_UI_RUNTIME_MODULE_IDS.includes(id)) return "special";
-  if (PARTIAL_UI_RUNTIME_MODULE_IDS.includes(id)) return "partial";
-  if (LEGACY_UI_RUNTIME_MODULE_IDS.includes(id)) return "legacy";
+  if (hasRuntimeModuleId(HARD_UI_RUNTIME_MODULE_IDS, id)) return "hard";
+  if (hasRuntimeModuleId(SPECIAL_UI_RUNTIME_MODULE_IDS, id)) return "special";
+  if (hasRuntimeModuleId(PARTIAL_UI_RUNTIME_MODULE_IDS, id)) return "partial";
+  if (hasRuntimeModuleId(LEGACY_UI_RUNTIME_MODULE_IDS, id)) return "legacy";
   return "unknown";
 }
 
-export function getUiRuntimeComponentContract(componentName = "") {
+export function getUiRuntimeComponentContract(componentName: string = ""): UiRuntimeComponentContract | null {
   const name = String(componentName || "").trim();
   return UI_RUNTIME_COMPONENT_CONTRACTS.find((contract) => contract.component === name) || null;
 }

@@ -1,7 +1,13 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MES_MODULE_BLUEPRINT_REGISTRY } from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { MES_MODULE_BLUEPRINT_REGISTRY } = await withBundledTypeScriptClient(
+  new URL("../src/module_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-module-factory-registry-qa-" },
+);
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const reportPath = join(projectRoot, "reports", "module-factory-metrics.json");

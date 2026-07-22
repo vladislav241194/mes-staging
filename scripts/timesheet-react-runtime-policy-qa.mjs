@@ -16,7 +16,7 @@ const [policy, ledger, appSource, hostSource, islandSource, scenarioSource, comp
   readFile(new URL("../src/modules/timesheet/react_island_host.ts", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/timesheet-island.tsx", import.meta.url), "utf8"),
   readFile(new URL("../experiments/react-migration/src/modules/timesheet/TimesheetScenario.tsx", import.meta.url), "utf8"),
-  readFile(new URL("../src/react_completion_registry.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/react_completion_registry.ts", import.meta.url), "utf8"),
 ]);
 
 const disabled = getPublicRuntimeConfig({});

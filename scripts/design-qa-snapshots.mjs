@@ -4,8 +4,23 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { HARD_UI_RUNTIME_MODULE_IDS, PARTIAL_UI_RUNTIME_MODULE_IDS, SPECIAL_UI_RUNTIME_MODULE_IDS } from "../src/ui_runtime_contracts.js";
-import { getMesModuleNavigationDefinitions } from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  { HARD_UI_RUNTIME_MODULE_IDS, PARTIAL_UI_RUNTIME_MODULE_IDS, SPECIAL_UI_RUNTIME_MODULE_IDS },
+  { getMesModuleNavigationDefinitions },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    (contractModule) => contractModule,
+    { prefix: "mes-design-ui-runtime-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    (registryModule) => registryModule,
+    { prefix: "mes-design-module-registry-qa-" },
+  ),
+]);
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultUrl = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/").toString();

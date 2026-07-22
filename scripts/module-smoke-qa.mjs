@@ -2,20 +2,39 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
-import { MES_MODULE_FLOW_CONTRACTS } from "../src/mes_contracts.js";
-import {
-  MES_MODULE_BLUEPRINT_REGISTRY,
-  MES_MODULE_NAVIGATION_REGISTRY,
-  MES_MODULE_NAVIGATION_SCOPES,
-  getMesModuleNavigationDefinitions,
-} from "../src/module_registry.js";
-import {
-  HARD_UI_RUNTIME_MODULE_IDS,
-  PARTIAL_UI_RUNTIME_MODULE_IDS,
-  SPECIAL_UI_RUNTIME_CONTRACTS,
-  SPECIAL_UI_RUNTIME_MODULE_IDS,
-} from "../src/ui_runtime_contracts.js";
+const [
+  { MES_MODULE_FLOW_CONTRACTS },
+  {
+    MES_MODULE_BLUEPRINT_REGISTRY,
+    MES_MODULE_NAVIGATION_REGISTRY,
+    MES_MODULE_NAVIGATION_SCOPES,
+    getMesModuleNavigationDefinitions,
+  },
+  {
+    HARD_UI_RUNTIME_MODULE_IDS,
+    PARTIAL_UI_RUNTIME_MODULE_IDS,
+    SPECIAL_UI_RUNTIME_CONTRACTS,
+    SPECIAL_UI_RUNTIME_MODULE_IDS,
+  },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-smoke-flow-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-smoke-module-registry-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-smoke-ui-runtime-qa-" },
+  ),
+]);
 
 const defaultUrl = new URL("/?qa=module-smoke", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const ADMIN_ONLY_MODULE_IDS = new Set(

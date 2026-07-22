@@ -1,5 +1,152 @@
 import { MES_MODULE_BLUEPRINT_REGISTRY } from "./module_registry.js";
 
+export interface MesDocumentKindContract {
+  id: string;
+  label: string;
+  shortLabel: string;
+  group: string;
+  signal: string;
+  description: string;
+}
+
+export interface MesSignalContract {
+  id: string;
+  label: string;
+  tone: string;
+}
+
+export interface MesStatusContract {
+  scope: string;
+  value: string;
+  label: string;
+  tone: string;
+  signal: string;
+  kind: string;
+  modules: readonly string[];
+  changes: string;
+  blocks: string;
+  deleteRule: string;
+}
+
+export interface MesStatusOption {
+  value: string;
+  label: string;
+  tone: string;
+  signal: string;
+  kind: string;
+  modules: readonly string[];
+}
+
+export interface MesFlowModuleContract {
+  id: string;
+  label: string;
+  modules: readonly string[];
+  owns: readonly string[];
+}
+
+export interface MesModuleFlowContract {
+  id: string;
+  label: string;
+  group: string;
+  role: string;
+  reads: readonly string[];
+  writes: readonly string[];
+  ganttImpact: string;
+  ganttVisualChange: string;
+  editPolicy: string;
+}
+
+export interface MesFlowTransitionContract {
+  id: string;
+  from: string;
+  to: string;
+  sourceModule: string;
+  targetModule: string;
+  actionLabel: string;
+  statusScope: string;
+  nextStatus: string;
+  dataPolicy: string;
+  description: string;
+  futureProofing: string;
+}
+
+export interface MesResolvedFlowTransitionView extends MesFlowTransitionContract {
+  label: string;
+  status: MesStatusContract;
+  route: string;
+}
+
+export interface MesUnknownFlowTransitionView {
+  id: string;
+  label: string;
+  sourceModule: string;
+  targetModule: string;
+  description: string;
+}
+
+export type MesFlowTransitionView = MesResolvedFlowTransitionView | MesUnknownFlowTransitionView;
+
+export type MesOpenRecord = Readonly<Record<string, unknown>>;
+
+export type MesDocumentReferenceInput = MesOpenRecord & {
+  id?: unknown;
+  routeId?: unknown;
+  slotId?: unknown;
+  sourceId?: unknown;
+  specificationId?: unknown;
+  projectId?: unknown;
+  parentId?: unknown;
+  parentRouteId?: unknown;
+  planningOrderId?: unknown;
+};
+
+export interface MesDocumentContract extends MesDocumentKindContract {
+  entityId: string;
+  sourceId: string;
+  parentId: string;
+}
+
+export interface MesGanttInfluenceRow {
+  moduleId: string;
+  module: string;
+  group: string;
+  role: string;
+  reads: readonly string[];
+  writes: readonly string[];
+  ganttImpact: string;
+  ganttVisualChange: string;
+  editPolicy: string;
+}
+
+export interface MesFlowEvent {
+  id: string;
+  transitionId: string;
+  from: string;
+  to: string;
+  sourceModule: string;
+  targetModule: string;
+  dataPolicy: string;
+  statusScope: string;
+  nextStatus: string;
+  sourceDocument: MesOpenRecord;
+  targetDocument: MesOpenRecord;
+  payload: MesOpenRecord;
+}
+
+interface MesModuleBlueprintFlowSource {
+  id: string;
+  flow: {
+    order: number;
+    contract?: MesModuleFlowContract | null;
+  };
+}
+
+function hasOwnKey<Value extends object>(value: Value, key: PropertyKey): key is keyof Value {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+const MES_MODULE_BLUEPRINT_FLOW_SOURCE = MES_MODULE_BLUEPRINT_REGISTRY as readonly MesModuleBlueprintFlowSource[];
+
 export const MES_DOCUMENT_KINDS = {
   routeCard: {
     id: "routeCard",
@@ -41,7 +188,9 @@ export const MES_DOCUMENT_KINDS = {
     signal: "fact",
     description: "Принятый из Мастерской результат сменного заказ-наряда: выпуск, брак, трудозатраты и комментарий.",
   },
-};
+} as const satisfies Record<string, MesDocumentKindContract>;
+
+export type MesDocumentKindId = keyof typeof MES_DOCUMENT_KINDS;
 
 export const MES_SIGNAL_CONTRACTS = {
   neutral: { id: "neutral", label: "Нейтрально", tone: "neutral" },
@@ -53,9 +202,11 @@ export const MES_SIGNAL_CONTRACTS = {
   manual: { id: "manual", label: "Ручное действие", tone: "manual" },
   calculated: { id: "calculated", label: "Расчетное", tone: "calc" },
   demo: { id: "demo", label: "Демо-функция", tone: "demo-function" },
-};
+} as const satisfies Record<string, MesSignalContract>;
 
-export const MES_STATUS_CONTRACTS = [
+export type MesSignalId = keyof typeof MES_SIGNAL_CONTRACTS;
+
+export const MES_STATUS_CONTRACTS: readonly MesStatusContract[] = [
   {
     scope: "ganttSlot",
     value: "planned",
@@ -252,7 +403,7 @@ export const MES_STATUS_CONTRACTS = [
 
 const STATUS_BY_SCOPE_VALUE = new Map(MES_STATUS_CONTRACTS.map((item) => [`${item.scope}:${item.value}`, item]));
 
-export const MES_FLOW_MODULES = {
+export const MES_FLOW_MODULES: Readonly<Record<string, MesFlowModuleContract>> = {
   technologies: {
     id: "technologies",
     label: "Технологии",
@@ -273,7 +424,7 @@ export const MES_FLOW_MODULES = {
   },
 };
 
-export const MES_MODULE_FLOW_SEQUENCE = Object.freeze(MES_MODULE_BLUEPRINT_REGISTRY
+export const MES_MODULE_FLOW_SEQUENCE: readonly string[] = Object.freeze(MES_MODULE_BLUEPRINT_FLOW_SOURCE
   .slice()
   .sort((left, right) => left.flow.order - right.flow.order)
   .map((blueprint) => blueprint.id));
@@ -444,16 +595,17 @@ const CORE_MES_MODULE_FLOW_CONTRACTS = {
     ganttVisualChange: "—",
     editPolicy: "Фаза 1 сохраняет только явно помеченное тестовое состояние в отдельных PostgreSQL-таблицах Marking; реальные статусы, СЗН и производственная история не изменяются.",
   },
-};
+} satisfies Record<string, MesModuleFlowContract>;
 
-export const MES_MODULE_FLOW_CONTRACTS = Object.freeze({
+export const MES_MODULE_FLOW_CONTRACTS: Readonly<Record<string, MesModuleFlowContract>> = Object.freeze({
   ...CORE_MES_MODULE_FLOW_CONTRACTS,
-  ...Object.fromEntries(MES_MODULE_BLUEPRINT_REGISTRY
-    .filter((blueprint) => blueprint.flow.contract)
-    .map((blueprint) => [blueprint.id, blueprint.flow.contract])),
+  ...Object.fromEntries(MES_MODULE_BLUEPRINT_FLOW_SOURCE
+    .flatMap((blueprint) => blueprint.flow.contract
+      ? [[blueprint.id, blueprint.flow.contract] as const]
+      : [])),
 });
 
-export const MES_FLOW_TRANSITIONS = [
+export const MES_FLOW_TRANSITIONS: readonly MesFlowTransitionContract[] = [
   {
     id: "routeCardToWorkOrder",
     from: "routeCard",
@@ -536,8 +688,8 @@ export const MES_FLOW_TRANSITIONS = [
 
 const TRANSITIONS_BY_ID = new Map(MES_FLOW_TRANSITIONS.map((item) => [item.id, item]));
 
-export function getMesDocumentKind(kind = "") {
-  return MES_DOCUMENT_KINDS[kind] || {
+export function getMesDocumentKind(kind: string = ""): MesDocumentKindContract {
+  return (hasOwnKey(MES_DOCUMENT_KINDS, kind) && MES_DOCUMENT_KINDS[kind]) || {
     id: kind || "unknown",
     label: "Документ",
     shortLabel: "Док.",
@@ -547,17 +699,17 @@ export function getMesDocumentKind(kind = "") {
   };
 }
 
-export function getMesStatusContract(scope = "", value = "") {
+export function getMesStatusContract(scope: string = "", value: string = ""): MesStatusContract | null {
   const normalizedScope = String(scope || "").trim();
   const normalizedValue = String(value || "").trim();
   const key = `${normalizedScope}:${normalizedValue}`;
-  if (STATUS_BY_SCOPE_VALUE.has(key)) return STATUS_BY_SCOPE_VALUE.get(key);
+  if (STATUS_BY_SCOPE_VALUE.has(key)) return STATUS_BY_SCOPE_VALUE.get(key) ?? null;
   if (normalizedScope) return null;
   const crossScope = MES_STATUS_CONTRACTS.find((item) => item.value === normalizedValue);
   return crossScope || null;
 }
 
-export function getMesStatusOptions(scope = "") {
+export function getMesStatusOptions(scope: string = ""): MesStatusOption[] {
   const normalizedScope = String(scope || "").trim();
   return MES_STATUS_CONTRACTS
     .filter((item) => item.scope === normalizedScope)
@@ -571,7 +723,11 @@ export function getMesStatusOptions(scope = "") {
     }));
 }
 
-export function getMesStatusView(scope = "", value = "", fallback = {}) {
+export function getMesStatusView(
+  scope: string = "",
+  value: string = "",
+  fallback: Partial<MesStatusContract> = {},
+): MesStatusContract {
   const contract = getMesStatusContract(scope, value);
   return {
     scope,
@@ -587,18 +743,18 @@ export function getMesStatusView(scope = "", value = "", fallback = {}) {
   };
 }
 
-export function getMesModuleFlowContract(moduleId = "") {
+export function getMesModuleFlowContract(moduleId: string = ""): MesModuleFlowContract | null {
   const id = String(moduleId || "").trim();
   return MES_MODULE_FLOW_CONTRACTS[id] || null;
 }
 
-export function getMesModuleFlowSequence() {
+export function getMesModuleFlowSequence(): MesModuleFlowContract[] {
   return MES_MODULE_FLOW_SEQUENCE
     .map((moduleId) => getMesModuleFlowContract(moduleId))
-    .filter(Boolean);
+    .filter((contract): contract is MesModuleFlowContract => contract !== null);
 }
 
-export function getMesGanttInfluenceMatrix() {
+export function getMesGanttInfluenceMatrix(): MesGanttInfluenceRow[] {
   return getMesModuleFlowSequence().map((moduleContract) => ({
     moduleId: moduleContract.id,
     module: moduleContract.label,
@@ -612,7 +768,10 @@ export function getMesGanttInfluenceMatrix() {
   }));
 }
 
-export function buildMesDocumentContract(kind = "", source = {}) {
+export function buildMesDocumentContract(
+  kind: string = "",
+  source: MesDocumentReferenceInput = {},
+): MesDocumentContract {
   const meta = getMesDocumentKind(kind);
   return {
     ...meta,
@@ -622,16 +781,16 @@ export function buildMesDocumentContract(kind = "", source = {}) {
   };
 }
 
-export function getMesFlowTransition(transitionId = "") {
+export function getMesFlowTransition(transitionId: string = ""): MesFlowTransitionContract | null {
   return TRANSITIONS_BY_ID.get(String(transitionId || "").trim()) || null;
 }
 
-export function getMesFlowTransitionsForDocument(kind = "") {
+export function getMesFlowTransitionsForDocument(kind: string = ""): MesFlowTransitionContract[] {
   const id = String(kind || "").trim();
   return MES_FLOW_TRANSITIONS.filter((transition) => transition.from === id || transition.to === id);
 }
 
-export function getMesFlowTransitionsForStatus(scope = "", value = "") {
+export function getMesFlowTransitionsForStatus(scope: string = "", value: string = ""): MesFlowTransitionContract[] {
   const normalizedScope = String(scope || "").trim();
   const normalizedValue = String(value || "").trim();
   return MES_FLOW_TRANSITIONS.filter((transition) => (
@@ -640,7 +799,10 @@ export function getMesFlowTransitionsForStatus(scope = "", value = "") {
   ));
 }
 
-export function getMesFlowTransitionView(transitionId = "", fallback = {}) {
+export function getMesFlowTransitionView(
+  transitionId: string = "",
+  fallback: Partial<MesUnknownFlowTransitionView> = {},
+): MesFlowTransitionView {
   const transition = getMesFlowTransition(transitionId);
   if (!transition) {
     return {
@@ -660,18 +822,24 @@ export function getMesFlowTransitionView(transitionId = "", fallback = {}) {
   };
 }
 
-export function buildMesFlowEvent(transitionId = "", source = {}, target = {}, payload = {}) {
+export function buildMesFlowEvent(
+  transitionId: string = "",
+  source: MesOpenRecord = {},
+  target: MesOpenRecord = {},
+  payload: MesOpenRecord = {},
+): MesFlowEvent {
   const transition = getMesFlowTransitionView(transitionId);
+  const resolvedTransition = "from" in transition ? transition : null;
   return {
     id: `${transition.id || transitionId || "transition"}:${String(source.entityId || source.id || "").trim()}:${String(target.entityId || target.id || "").trim()}`,
     transitionId: transition.id || transitionId || "",
-    from: transition.from || "",
-    to: transition.to || "",
+    from: resolvedTransition?.from || "",
+    to: resolvedTransition?.to || "",
     sourceModule: transition.sourceModule || "",
     targetModule: transition.targetModule || "",
-    dataPolicy: transition.dataPolicy || "",
-    statusScope: transition.statusScope || "",
-    nextStatus: transition.nextStatus || transition.status?.value || "",
+    dataPolicy: resolvedTransition?.dataPolicy || "",
+    statusScope: resolvedTransition?.statusScope || "",
+    nextStatus: resolvedTransition?.nextStatus || resolvedTransition?.status.value || "",
     sourceDocument: source,
     targetDocument: target,
     payload,

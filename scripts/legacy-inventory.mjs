@@ -28,7 +28,7 @@ const trackedFiles = [
   "scripts/fixtures/production_structure_matrix_data.js",
   "src/production_structure_service.js",
   "src/validation.js",
-  "src/mes_contracts.js",
+  "src/mes_contracts.ts",
   "src/types.ts",
   "scripts/mobile-qa.mjs",
   "scripts/ui-contract-qa.mjs",
@@ -268,7 +268,7 @@ const compatibilityDebt = [
     id: "projectId",
     label: "projectId",
     regexp: /\bprojectId\b/,
-    files: ["src/app.js", "src/validation.js", "src/mes_contracts.js", "src/types.ts"],
+    files: ["src/app.js", "src/validation.js", "src/mes_contracts.ts", "src/types.ts"],
     maxCount: 126,
     allowed: "Только compatibility/helper/migration зоны: alias для specificationId.",
   },
@@ -400,7 +400,7 @@ const requiredFacades = [
 
 const facadeSources = [
   appSource,
-  byPath.get("src/mes_contracts.js") || "",
+  byPath.get("src/mes_contracts.ts") || "",
   byPath.get("src/validation.js") || "",
 ];
 const missingFacades = requiredFacades.filter((name) => !facadeSources.some((source) => source.includes(name)));

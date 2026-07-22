@@ -2,17 +2,26 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
-import {
+const {
   MES_REACT_COMPLETION_MODULE_REGISTRY,
   MES_REACT_COMPLETION_STATES,
   MES_REACT_COMPLETION_SURFACE_REGISTRY,
   MES_REACT_VERIFICATION_STATES,
-} from "../src/react_completion_registry.js";
-import {
+} = await withBundledTypeScriptClient(
+  new URL("../src/react_completion_registry.ts", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-react-completion-registry-qa-" },
+);
+const {
   MES_MODULE_BLUEPRINT_REGISTRY,
   MES_MODULE_NAVIGATION_REGISTRY,
-} from "../src/module_registry.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/module_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-react-completion-module-registry-qa-" },
+);
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const [ledger, policy, runtimeSource, navigationCss, authPickerSource] = await Promise.all([

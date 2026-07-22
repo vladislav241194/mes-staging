@@ -1,4 +1,29 @@
-export const GANTT_UI_VIEWPORTS = [
+export type GanttUiViewportCategory = "desktop" | "tablet" | "narrow";
+export type GanttUiRuntimeRisk = "medium" | "high" | "critical";
+
+export interface GanttUiViewport {
+  id: string;
+  width: number;
+  height: number;
+  category: GanttUiViewportCategory;
+}
+
+export interface GanttUiSpecialRuntimeZone {
+  id: string;
+  label: string;
+  selector: string;
+  risk: GanttUiRuntimeRisk;
+  allowedChanges: string;
+}
+
+export interface GanttUiOverlayComponent {
+  id: string;
+  selector: string;
+  marker: string;
+  optional?: boolean;
+}
+
+export const GANTT_UI_VIEWPORTS: readonly GanttUiViewport[] = [
   { id: "desktop", width: 1440, height: 932, category: "desktop" },
   { id: "desktop-wide", width: 1512, height: 982, category: "desktop" },
   { id: "pilot-wide", width: 1967, height: 1192, category: "desktop" },
@@ -7,9 +32,11 @@ export const GANTT_UI_VIEWPORTS = [
   { id: "narrow", width: 430, height: 932, category: "narrow" },
 ];
 
-export const GANTT_UI_SCALE_MODES = ["hours", "days", "weeks"];
+export const GANTT_UI_SCALE_MODES = ["hours", "days", "weeks"] as const;
 
-export const GANTT_UI_REQUIRED_SELECTORS = [
+export type GanttUiScaleMode = typeof GANTT_UI_SCALE_MODES[number];
+
+export const GANTT_UI_REQUIRED_SELECTORS: readonly string[] = [
   "[data-react-gantt-island]",
   ".gantt-react-scroll[data-ui-component='GanttRuntime']",
   ".gantt-react-canvas[data-ui-component='GanttCanvas']",
@@ -24,7 +51,7 @@ export const GANTT_UI_REQUIRED_SELECTORS = [
   "[data-gantt-react-schedule-form]",
 ];
 
-export const GANTT_UI_REQUIRED_DATA_ATTRIBUTES = [
+export const GANTT_UI_REQUIRED_DATA_ATTRIBUTES: readonly string[] = [
   "data-react-gantt-island",
   "data-react-island-state",
   "data-ui-component",
@@ -39,7 +66,7 @@ export const GANTT_UI_REQUIRED_DATA_ATTRIBUTES = [
   "data-gantt-dependency-detail",
 ];
 
-export const GANTT_UI_SPECIAL_RUNTIME_ZONES = [
+export const GANTT_UI_SPECIAL_RUNTIME_ZONES: readonly GanttUiSpecialRuntimeZone[] = [
   {
     id: "shell",
     label: "Gantt runtime shell",
@@ -98,7 +125,7 @@ export const GANTT_UI_SPECIAL_RUNTIME_ZONES = [
   },
 ];
 
-export const GANTT_UI_GEOMETRY_INLINE_STYLE_KEYS = [
+export const GANTT_UI_GEOMETRY_INLINE_STYLE_KEYS: readonly string[] = [
   "left",
   "top",
   "width",
@@ -120,7 +147,7 @@ export const GANTT_UI_GEOMETRY_INLINE_STYLE_KEYS = [
   "--transfer-width",
 ];
 
-export const GANTT_UI_VISUAL_INLINE_STYLE_KEYS = [
+export const GANTT_UI_VISUAL_INLINE_STYLE_KEYS: readonly string[] = [
   "background",
   "background-color",
   "color",
@@ -133,7 +160,7 @@ export const GANTT_UI_VISUAL_INLINE_STYLE_KEYS = [
   "stroke",
 ];
 
-export const GANTT_UI_VISUAL_STATE_CLASS_PREFIXES = [
+export const GANTT_UI_VISUAL_STATE_CLASS_PREFIXES: readonly string[] = [
   "status-",
   "is-",
   "has-warning",
@@ -147,7 +174,7 @@ export const GANTT_UI_VISUAL_STATE_CLASS_PREFIXES = [
   "dependency-arrow",
 ];
 
-export const GANTT_SLOT_STATE_CLASSES = [
+export const GANTT_SLOT_STATE_CLASSES: readonly string[] = [
   "status-planned",
   "status-in_progress",
   "status-paused",
@@ -171,7 +198,7 @@ export const GANTT_SLOT_STATE_CLASSES = [
   "slot-transfer-batch-indicator",
 ];
 
-export const GANTT_DEPENDENCY_STATE_CLASSES = [
+export const GANTT_DEPENDENCY_STATE_CLASSES: readonly string[] = [
   "dependency-path",
   "dependency-path-underlay",
   "dependency-path-muted",
@@ -206,16 +233,18 @@ export const GANTT_UI_REQUIRED_TOKENS = [
   "--mes-ui-gantt-timeline-bg",
   "--mes-ui-gantt-row-hover-bg",
   "--mes-ui-gantt-row-selected-bg",
-];
+] as const;
 
-export const GANTT_UI_OVERLAY_COMPONENTS = [
+export type GanttUiRequiredToken = typeof GANTT_UI_REQUIRED_TOKENS[number];
+
+export const GANTT_UI_OVERLAY_COMPONENTS: readonly GanttUiOverlayComponent[] = [
   { id: "drawer", selector: ".slot-drawer[data-gantt-overlay='drawer']", marker: "GanttDrawer" },
   { id: "editor", selector: ".slot-form-modal[data-gantt-overlay='editor']", marker: "GanttEditorModal" },
   { id: "optimization", selector: ".gantt-optimization-modal[data-gantt-overlay='optimization']", marker: "GanttOptimizationModal" },
   { id: "split", selector: ".gantt-split-modal[data-gantt-overlay='split']", marker: "GanttSplitModal", optional: true },
 ];
 
-export const GANTT_UI_PRACTICAL_MIGRATIONS = [
+export const GANTT_UI_PRACTICAL_MIGRATIONS: readonly string[] = [
   "Gantt toolbar receives data-ui-component=GanttToolbar.",
   "Gantt overlay shells receive data-gantt-overlay markers.",
   "Slot colors/borders/radius use Gantt tokens.",
@@ -223,6 +252,6 @@ export const GANTT_UI_PRACTICAL_MIGRATIONS = [
   "Non-working zones use Gantt non-working tokens.",
 ];
 
-export function getGanttRequiredTokenSet() {
+export function getGanttRequiredTokenSet(): Set<GanttUiRequiredToken> {
   return new Set(GANTT_UI_REQUIRED_TOKENS);
 }

@@ -1,17 +1,32 @@
-import {
-  MES_MODULE_FLOW_CONTRACTS,
-  MES_MODULE_FLOW_SEQUENCE,
-} from "../src/mes_contracts.js";
-import {
-  HARD_UI_RUNTIME_MODULE_IDS,
-  LEGACY_UI_RUNTIME_MODULE_IDS,
-  PARTIAL_UI_RUNTIME_CONTRACTS,
-  PARTIAL_UI_RUNTIME_MODULE_IDS,
-  SPECIAL_UI_RUNTIME_CONTRACTS,
-  SPECIAL_UI_RUNTIME_MODULE_IDS,
-  UI_RUNTIME_COVERAGE_NOTES,
-  getUiRuntimeCoverageStatus,
-} from "../src/ui_runtime_contracts.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  {
+    MES_MODULE_FLOW_CONTRACTS,
+    MES_MODULE_FLOW_SEQUENCE,
+  },
+  {
+    HARD_UI_RUNTIME_MODULE_IDS,
+    LEGACY_UI_RUNTIME_MODULE_IDS,
+    PARTIAL_UI_RUNTIME_CONTRACTS,
+    PARTIAL_UI_RUNTIME_MODULE_IDS,
+    SPECIAL_UI_RUNTIME_CONTRACTS,
+    SPECIAL_UI_RUNTIME_MODULE_IDS,
+    UI_RUNTIME_COVERAGE_NOTES,
+    getUiRuntimeCoverageStatus,
+  },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-ui-runtime-coverage-flow-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-ui-runtime-coverage-contracts-qa-" },
+  ),
+]);
 
 const groups = {
   hard: HARD_UI_RUNTIME_MODULE_IDS,

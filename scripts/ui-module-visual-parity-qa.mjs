@@ -3,10 +3,16 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const {
   MES_MODULE_BLUEPRINT_REGISTRY,
   getMesModuleNavigationDefinitions,
-} from "../src/module_registry.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/module_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-ui-visual-module-registry-qa-" },
+);
 
 if (process.env.MES_SKIP_VISUAL_QA === "1") {
   console.log("MES UI Module Visual Parity QA: skipped by explicit accelerated-prototype release policy.");

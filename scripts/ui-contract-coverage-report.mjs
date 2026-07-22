@@ -2,14 +2,33 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
-import { MES_MODULE_FLOW_CONTRACTS } from "../src/mes_contracts.js";
-import { getMesModuleNavigationDefinitions } from "../src/module_registry.js";
-import {
-  PARTIAL_UI_RUNTIME_CONTRACTS,
-  SPECIAL_UI_RUNTIME_CONTRACTS,
-  getUiRuntimeCoverageStatus,
-} from "../src/ui_runtime_contracts.js";
+const [
+  { MES_MODULE_FLOW_CONTRACTS },
+  { getMesModuleNavigationDefinitions },
+  {
+    PARTIAL_UI_RUNTIME_CONTRACTS,
+    SPECIAL_UI_RUNTIME_CONTRACTS,
+    getUiRuntimeCoverageStatus,
+  },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-contract-coverage-flow-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-contract-coverage-registry-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-contract-coverage-runtime-" },
+  ),
+]);
 
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const coverageModules = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: true })

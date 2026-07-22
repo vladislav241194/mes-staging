@@ -1,19 +1,38 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
-import { MES_MODULE_FLOW_SEQUENCE } from "../src/mes_contracts.js";
-import {
-  MES_MODULE_NAVIGATION_GROUPS,
-  MES_MODULE_NAVIGATION_REGISTRY,
-  MES_MODULE_NAVIGATION_SCOPES,
-  getMesModuleNavigationDefinitions,
-  getMesModuleNavigationGroups,
-} from "../src/module_registry.js";
-import {
-  MES_FEATURE_REGISTRY,
-  MES_MODULE_FEATURE_REGISTRY,
-} from "../src/feature_registry.js";
+const [
+  { MES_MODULE_FLOW_SEQUENCE },
+  {
+    MES_MODULE_NAVIGATION_GROUPS,
+    MES_MODULE_NAVIGATION_REGISTRY,
+    MES_MODULE_NAVIGATION_SCOPES,
+    getMesModuleNavigationDefinitions,
+    getMesModuleNavigationGroups,
+  },
+  {
+    MES_FEATURE_REGISTRY,
+    MES_MODULE_FEATURE_REGISTRY,
+  },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-feature-registry-flow-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-feature-registry-module-registry-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/feature_registry.js", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-feature-registry-contract-qa-" },
+  ),
+]);
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const failures = [];

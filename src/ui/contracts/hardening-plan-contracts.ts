@@ -1,8 +1,44 @@
+import type { MesReactCompletionModuleId } from "../../react_completion_registry.ts";
+
+type UiHardeningKeyRuntimeModuleId = Extract<
+  MesReactCompletionModuleId,
+  | "planning"
+  | "nomenclature"
+  | "specifications2"
+  | "directories"
+  | "shiftMasterBoard"
+  | "shiftWorkOrders"
+  | "timesheet"
+  | "roles"
+  | "productionStructureMatrix"
+>;
+
+export type UiHardeningPlanStageId =
+  | "ui-inventory"
+  | "ui-contract-registry"
+  | "action-button-contract"
+  | "sidebar-header-contract"
+  | "panel-spacing-contract"
+  | "table-contract"
+  | "form-field-contract"
+  | "overlay-contract"
+  | "key-module-migration"
+  | "qa-gates"
+  | "verification";
+
+export interface UiHardeningPlanStage {
+  readonly order: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+  readonly id: UiHardeningPlanStageId;
+  readonly title: string;
+  readonly status: "closed";
+  readonly requiredEvidence: readonly [string, string, string, ...string[]];
+}
+
 // Keep this list in terms of current Blueprint IDs only. Legacy deep links such
 // as `products` and `routes` are compatibility aliases for Specifications 2.0
 // and are exercised through the module-smoke alias suite instead of being
 // treated as independent runtime pages.
-export const UI_HARDENING_KEY_RUNTIME_MODULE_IDS = Object.freeze([
+export const UI_HARDENING_KEY_RUNTIME_MODULE_IDS: readonly UiHardeningKeyRuntimeModuleId[] = Object.freeze([
   "planning",
   "nomenclature",
   "specifications2",
@@ -14,7 +50,7 @@ export const UI_HARDENING_KEY_RUNTIME_MODULE_IDS = Object.freeze([
   "productionStructureMatrix",
 ]);
 
-export const UI_HARDENING_PLAN_STAGES = [
+export const UI_HARDENING_PLAN_STAGES: readonly UiHardeningPlanStage[] = [
   {
     order: 1,
     id: "ui-inventory",

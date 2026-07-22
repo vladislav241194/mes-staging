@@ -2,11 +2,17 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MES_STATUS_CONTRACTS } from "../src/mes_contracts.js";
 import {
   getProductionStructureEmployees,
   getProductionStructureResources,
 } from "../src/production_structure_service.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { MES_STATUS_CONTRACTS } = await withBundledTypeScriptClient(
+  new URL("../src/mes_contracts.ts", import.meta.url),
+  (contractModule) => contractModule,
+  { prefix: "mes-state-consistency-contracts-qa-" },
+);
 
 const defaultUrl = new URL("/?qa=state-consistency", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const statusValuesByScope = MES_STATUS_CONTRACTS.reduce((acc, status) => {

@@ -3,20 +3,35 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import {
-  MOBILE_LIMITED_SUPPORT_MODULES,
-  UI_REGRESSION_EXCEPTIONS,
-  UI_REGRESSION_VIEWPORTS,
-  getUiRegressionException,
-  getUiRegressionProfile,
-} from "../src/ui_regression_exceptions.js";
-import {
-  GANTT_UI_REQUIRED_SELECTORS,
-} from "../src/gantt_ui_contracts.js";
-import {
-  MES_MODULE_BLUEPRINT_REGISTRY,
-  getMesModuleNavigationDefinitions,
-} from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  {
+    MOBILE_LIMITED_SUPPORT_MODULES,
+    UI_REGRESSION_EXCEPTIONS,
+    UI_REGRESSION_VIEWPORTS,
+    getUiRegressionException,
+    getUiRegressionProfile,
+  },
+  { GANTT_UI_REQUIRED_SELECTORS },
+  { MES_MODULE_BLUEPRINT_REGISTRY, getMesModuleNavigationDefinitions },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/ui_regression_exceptions.ts", import.meta.url),
+    (regressionModule) => regressionModule,
+    { prefix: "mes-ui-regression-exceptions-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/gantt_ui_contracts.ts", import.meta.url),
+    (contractModule) => contractModule,
+    { prefix: "mes-ui-regression-gantt-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    (registryModule) => registryModule,
+    { prefix: "mes-ui-regression-module-registry-qa-" },
+  ),
+]);
 
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";

@@ -32,6 +32,10 @@ assert.match(indexHtml, /<script type="module" src="\.\/src\/app\.js[^"\n]*"><\/
   "the mixed-runtime audit must track the actual active frontend boot entry");
 assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/data.ts",
+  "src/gantt_ui_contracts.ts",
+  "src/mes_contracts.ts",
+  "src/module_blueprint.d.ts",
+  "src/module_registry.d.ts",
   "src/modules/access_roles/multiple_assignment_owner.ts",
   "src/modules/access_roles/react_island_host.ts",
   "src/modules/auth_render/access_role_resolver.ts",
@@ -69,13 +73,19 @@ assert.deepEqual(activeTypeScriptRelativePaths, [
   "src/modules/specifications2/react_island_host.ts",
   "src/modules/timesheet/react_island_host.ts",
   "src/modules/weekly_production_control/react_island_host.ts",
+  "src/react_completion_registry.ts",
   "src/types.ts",
   "src/ui/components.ts",
+  "src/ui/contracts/hardening-plan-contracts.ts",
+  "src/ui/contracts/runtime-contracts.ts",
+  "src/ui/contracts/visual-unification-contracts.ts",
   "src/ui/formatters.ts",
   "src/ui/html.ts",
   "src/ui/long_task_overlay.ts",
   "src/ui/module_patterns.ts",
   "src/ui/tree_table_visual.ts",
+  "src/ui_regression_exceptions.ts",
+  "src/ui_runtime_contracts.ts",
 ], "active src TypeScript must grow only through explicitly audited production boundaries");
 assert(activeJavaScriptLines < 80_000, "active JavaScript inventory regrew above the audited post-retirement ceiling");
 assert.equal(requestLegacyRenderDefinitions, 0, "the app shell must not retain any same-release legacy-render callback");

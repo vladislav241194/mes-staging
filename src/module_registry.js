@@ -13,7 +13,7 @@ import { GENERATED_MODULE_BLUEPRINTS } from "./generated/module_blueprint_index.
 import {
   getMesReactCompletionModuleDefinition,
   getMesReactCompletionModuleStatus,
-} from "./react_completion_registry.js";
+} from "./react_completion_registry.ts";
 
 export { MES_MODULE_NAVIGATION_SCOPES } from "./module_blueprint.js";
 

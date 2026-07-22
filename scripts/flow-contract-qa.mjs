@@ -2,23 +2,38 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  MES_DOCUMENT_KINDS,
-  MES_FLOW_TRANSITIONS,
-  MES_MODULE_FLOW_CONTRACTS,
-  MES_MODULE_FLOW_SEQUENCE,
-  MES_STATUS_CONTRACTS,
-  getMesGanttInfluenceMatrix,
-  getMesFlowTransition,
-  getMesStatusContract,
-} from "../src/mes_contracts.js";
-import {
-  MES_MODULE_NAVIGATION_GROUPS,
-  MES_MODULE_NAVIGATION_REGISTRY,
-  MES_MODULE_NAVIGATION_SCOPES,
-  getMesModuleNavigationDefinitions,
-  getMesModuleNavigationGroups,
-} from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  {
+    MES_DOCUMENT_KINDS,
+    MES_FLOW_TRANSITIONS,
+    MES_MODULE_FLOW_CONTRACTS,
+    MES_MODULE_FLOW_SEQUENCE,
+    MES_STATUS_CONTRACTS,
+    getMesGanttInfluenceMatrix,
+    getMesFlowTransition,
+    getMesStatusContract,
+  },
+  {
+    MES_MODULE_NAVIGATION_GROUPS,
+    MES_MODULE_NAVIGATION_REGISTRY,
+    MES_MODULE_NAVIGATION_SCOPES,
+    getMesModuleNavigationDefinitions,
+    getMesModuleNavigationGroups,
+  },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    (contractModule) => contractModule,
+    { prefix: "mes-flow-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    (registryModule) => registryModule,
+    { prefix: "mes-flow-module-registry-qa-" },
+  ),
+]);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");

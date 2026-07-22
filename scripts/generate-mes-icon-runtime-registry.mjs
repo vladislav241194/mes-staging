@@ -7,7 +7,13 @@ import {
   MES_ICON_RUNTIME_ALIASES,
   MES_ICON_SVG_BY_SLUG,
 } from "../src/icons/registry.js";
-import { MES_MODULE_BLUEPRINT_REGISTRY } from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { MES_MODULE_BLUEPRINT_REGISTRY } = await withBundledTypeScriptClient(
+  new URL("../src/module_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-icon-module-registry-qa-" },
+);
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(projectRoot, "src");

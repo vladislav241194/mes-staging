@@ -14,7 +14,7 @@ const [scenario, model, apiAdapter, transport, host, app, registry, contracts, f
   read("src/modules/marking/react_island_host.ts"),
   read("src/app.js"),
   read("src/module_registry.js"),
-  read("src/mes_contracts.js"),
+  read("src/mes_contracts.ts"),
   read("src/feature_registry.js"),
   read("scripts/build.mjs"),
   read("styles.css"),

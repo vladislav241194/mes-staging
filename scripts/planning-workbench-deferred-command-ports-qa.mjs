@@ -8,7 +8,7 @@ const [scenario, adapter, readModel, domainApi, app, completionRegistry] = await
   readFile(new URL("../src/modules/domain_api/work_orders_read_model.ts", import.meta.url), "utf8"),
   readFile(new URL("./domain-api.mjs", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/react_completion_registry.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/react_completion_registry.ts", import.meta.url), "utf8"),
 ]);
 
 assert.match(scenario, /type: "change-labor"; routeId: string; operationId: string; labor: PlanningWorkbenchLaborSetting; expectedRevision: number/);

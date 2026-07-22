@@ -3,8 +3,13 @@ import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
-import { MES_MODULE_BLUEPRINT_REGISTRY } from "../src/module_registry.js";
+const { MES_MODULE_BLUEPRINT_REGISTRY } = await withBundledTypeScriptClient(
+  new URL("../src/module_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-react-cutover-module-registry-qa-" },
+);
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const migrationRoot = join(repositoryRoot, "experiments", "react-migration");

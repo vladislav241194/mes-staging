@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import {
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const {
   GANTT_DEPENDENCY_STATE_CLASSES,
   GANTT_SLOT_STATE_CLASSES,
   GANTT_UI_OVERLAY_COMPONENTS,
@@ -13,7 +15,11 @@ import {
   GANTT_UI_SCALE_MODES,
   GANTT_UI_SPECIAL_RUNTIME_ZONES,
   GANTT_UI_VIEWPORTS,
-} from "../src/gantt_ui_contracts.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/gantt_ui_contracts.ts", import.meta.url),
+  (contractModule) => contractModule,
+  { prefix: "mes-gantt-ui-regression-contracts-qa-" },
+);
 
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const stateStorageKey = "mes-planning-prototype-state-v2";

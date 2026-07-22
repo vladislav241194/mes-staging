@@ -1,10 +1,16 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import {
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const {
   GANTT_UI_GEOMETRY_INLINE_STYLE_KEYS,
   GANTT_UI_VISUAL_INLINE_STYLE_KEYS,
-} from "../src/gantt_ui_contracts.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/gantt_ui_contracts.ts", import.meta.url),
+  (contractModule) => contractModule,
+  { prefix: "mes-gantt-inline-style-contracts-qa-" },
+);
 
 const sourcePaths = ["experiments/react-migration/src/modules/gantt/GanttScenario.tsx"];
 const reportJsonPath = "reports/gantt-inline-style-audit.json";

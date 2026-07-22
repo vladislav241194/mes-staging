@@ -4,20 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { MES_MODULE_FEATURE_REGISTRY } from "../src/feature_registry.js";
 import { GENERATED_MODULE_BLUEPRINTS } from "../src/generated/module_blueprint_index.js";
-import { createGeneratedModuleRuntimeAdapters } from "../src/generated/module_runtime_index.js";
 import { getMesCustomIconName } from "../src/icons/custom-mes/registry.js";
-import {
-  MES_MODULE_FLOW_CONTRACTS,
-  MES_MODULE_FLOW_SEQUENCE,
-} from "../src/mes_contracts.js";
-import {
-  MES_MODULE_BLUEPRINT_REGISTRY,
-  MES_MODULE_NAVIGATION_GROUPS,
-  MES_MODULE_NAVIGATION_REGISTRY,
-  MES_MODULE_NAVIGATION_SCOPES,
-} from "../src/module_registry.js";
 import {
   MES_MODULE_HEADER_MODES,
   MES_MODULE_RUNTIME_LIFECYCLES,
@@ -26,16 +14,61 @@ import {
 } from "../src/module_blueprint.js";
 import { createMesModuleRuntime } from "../src/module_runtime.js";
 import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
-import {
-  HARD_UI_RUNTIME_MODULE_IDS,
-  SPECIAL_UI_RUNTIME_MODULE_IDS,
-} from "../src/ui/contracts/runtime-contracts.js";
-import { UI_VISUAL_MODULE_WAVES } from "../src/ui/contracts/visual-unification-contracts.js";
-import { UI_REGRESSION_MODULE_PROFILES } from "../src/ui_regression_exceptions.js";
 import { syncGeneratedModuleBlueprintIndexes } from "./generate-module-blueprint-index.mjs";
 import { scaffoldModule } from "./scaffold-module.mjs";
 
-const [{ createUiRenderers }, { createMesModulePatternRenderer }] = await Promise.all([
+const [
+  { MES_MODULE_FEATURE_REGISTRY },
+  { createGeneratedModuleRuntimeAdapters },
+  {
+    MES_MODULE_FLOW_CONTRACTS,
+    MES_MODULE_FLOW_SEQUENCE,
+  },
+  {
+    MES_MODULE_BLUEPRINT_REGISTRY,
+    MES_MODULE_NAVIGATION_GROUPS,
+    MES_MODULE_NAVIGATION_REGISTRY,
+    MES_MODULE_NAVIGATION_SCOPES,
+  },
+  {
+    HARD_UI_RUNTIME_MODULE_IDS,
+    SPECIAL_UI_RUNTIME_MODULE_IDS,
+    UI_VISUAL_MODULE_WAVES,
+  },
+  { UI_REGRESSION_MODULE_PROFILES },
+  { createUiRenderers },
+  { createMesModulePatternRenderer },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/feature_registry.js", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-blueprint-feature-registry-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/generated/module_runtime_index.js", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-blueprint-runtime-index-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-blueprint-flow-contracts-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-blueprint-module-registry-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-blueprint-ui-runtime-qa-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/ui_regression_exceptions.ts", import.meta.url),
+    async (module) => module,
+    { prefix: "mes-module-blueprint-ui-regression-qa-" },
+  ),
   withBundledTypeScriptClient(
     new URL("../src/ui/components.ts", import.meta.url),
     async (module) => module,

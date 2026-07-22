@@ -1,9 +1,9 @@
 import {
   MES_MODULE_FLOW_CONTRACTS,
   MES_MODULE_FLOW_SEQUENCE,
-} from "./mes_contracts.js";
+} from "./mes_contracts.ts";
 import { getMesModuleBlueprintDefinition } from "./module_registry.js";
-import { getUiRuntimeCoverageStatus } from "./ui_runtime_contracts.js";
+import { getUiRuntimeCoverageStatus } from "./ui_runtime_contracts.ts";
 
 const CORE_STATE_STORAGE_KEYS = [
   "mes-planning-prototype-state-v2",

@@ -1,19 +1,34 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  HARD_UI_RUNTIME_MODULE_IDS,
-  LEGACY_UI_RUNTIME_MODULE_IDS,
-  PARTIAL_UI_RUNTIME_CONTRACTS,
-  PARTIAL_UI_RUNTIME_MODULE_IDS,
-  SPECIAL_UI_RUNTIME_MODULE_IDS,
-  UI_HARDENING_KEY_RUNTIME_MODULE_IDS,
-  UI_HARDENING_PLAN_STAGES,
-  UI_RUNTIME_COMPONENT_CONTRACTS,
-  UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
-  UI_RUNTIME_STYLE_TOKENS,
-} from "../src/ui_runtime_contracts.js";
-import { MES_MODULE_FLOW_SEQUENCE } from "../src/mes_contracts.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  {
+    HARD_UI_RUNTIME_MODULE_IDS,
+    LEGACY_UI_RUNTIME_MODULE_IDS,
+    PARTIAL_UI_RUNTIME_CONTRACTS,
+    PARTIAL_UI_RUNTIME_MODULE_IDS,
+    SPECIAL_UI_RUNTIME_MODULE_IDS,
+    UI_HARDENING_KEY_RUNTIME_MODULE_IDS,
+    UI_HARDENING_PLAN_STAGES,
+    UI_RUNTIME_COMPONENT_CONTRACTS,
+    UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
+    UI_RUNTIME_STYLE_TOKENS,
+  },
+  { MES_MODULE_FLOW_SEQUENCE },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-hardening-runtime-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/mes_contracts.ts", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-hardening-flow-" },
+  ),
+]);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");

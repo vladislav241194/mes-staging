@@ -1,4 +1,10 @@
-import { MES_FEATURE_REGISTRY } from "../src/feature_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const { MES_FEATURE_REGISTRY } = await withBundledTypeScriptClient(
+  new URL("../src/feature_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-task-route-feature-registry-qa-" },
+);
 
 const ROUTES = {
   "ui-only": {

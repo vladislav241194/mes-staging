@@ -1,18 +1,33 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  HARD_UI_RUNTIME_MODULE_IDS,
-  PARTIAL_UI_RUNTIME_MODULE_IDS,
-  SPECIAL_UI_RUNTIME_MODULE_IDS,
-  UI_HARDENING_PLAN_STAGES,
-  UI_RUNTIME_COMPONENT_CONTRACTS,
-  UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
-  UI_RUNTIME_QA_CLASS_CONTRACTS,
-  UI_RUNTIME_STYLE_TOKENS,
-  UI_RUNTIME_TABLE_SCROLL_SELECTORS,
-} from "../src/ui_runtime_contracts.js";
-import { getMesModuleNavigationDefinitions } from "../src/module_registry.js";
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const [
+  {
+    HARD_UI_RUNTIME_MODULE_IDS,
+    PARTIAL_UI_RUNTIME_MODULE_IDS,
+    SPECIAL_UI_RUNTIME_MODULE_IDS,
+    UI_HARDENING_PLAN_STAGES,
+    UI_RUNTIME_COMPONENT_CONTRACTS,
+    UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
+    UI_RUNTIME_QA_CLASS_CONTRACTS,
+    UI_RUNTIME_STYLE_TOKENS,
+    UI_RUNTIME_TABLE_SCROLL_SELECTORS,
+  },
+  { getMesModuleNavigationDefinitions },
+] = await Promise.all([
+  withBundledTypeScriptClient(
+    new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-contract-qa-runtime-" },
+  ),
+  withBundledTypeScriptClient(
+    new URL("../src/module_registry.js", import.meta.url),
+    (module) => module,
+    { prefix: "mes-ui-contract-qa-registry-" },
+  ),
+]);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -31,13 +46,13 @@ const paths = {
   hardRuntimeCoverageDocs: path.join(rootDir, "docs", "hard-ui-runtime-coverage-v2.md"),
   hardRuntimeLegacyRoadmapDocs: path.join(rootDir, "docs", "hard-ui-runtime-legacy-roadmap-v2.md"),
   bootstrapSnapshot: path.join(rootDir, "bootstrap-snapshot.json"),
-  uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
+  uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.ts"),
   uiHtml: path.join(rootDir, "src", "ui", "html.ts"),
   uiComponents: path.join(rootDir, "src", "ui", "components.ts"),
   accessRolesModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "roles", "adapter.ts"),
   ganttRuntimeModule: path.join(rootDir, "experiments", "react-migration", "src", "modules", "gantt", "GanttScenario.tsx"),
-  uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.js"),
-  uiHardeningPlanContracts: path.join(rootDir, "src", "ui", "contracts", "hardening-plan-contracts.js"),
+  uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.ts"),
+  uiHardeningPlanContracts: path.join(rootDir, "src", "ui", "contracts", "hardening-plan-contracts.ts"),
   uiRuntimeCoverageQa: path.join(rootDir, "scripts", "ui-runtime-coverage-qa.mjs"),
   uiHardeningPlanQa: path.join(rootDir, "scripts", "ui-hardening-plan-qa.mjs"),
 };

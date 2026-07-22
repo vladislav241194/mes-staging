@@ -1,12 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
+import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
+
+const {
   UI_RUNTIME_COMPATIBILITY_CSS_ONLY_CLASSES,
   UI_RUNTIME_CONTROLLED_CLASS_PREFIXES,
   UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES,
   UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES,
-} from "../src/ui_runtime_contracts.js";
+} = await withBundledTypeScriptClient(
+  new URL("../src/ui_runtime_contracts.ts", import.meta.url),
+  (module) => module,
+  { prefix: "mes-ui-runtime-class-audit-" },
+);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");

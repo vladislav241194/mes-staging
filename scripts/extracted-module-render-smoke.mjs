@@ -4,9 +4,13 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { renderDispatchModulePage } from "../src/modules/dispatch/render.js";
-import { getMesModuleBlueprintDefinition } from "../src/module_registry.js";
 import { withBundledTypeScriptClient } from "./typescript-client-qa-loader.mjs";
 
+const { getMesModuleBlueprintDefinition } = await withBundledTypeScriptClient(
+  new URL("../src/module_registry.js", import.meta.url),
+  async (module) => module,
+  { prefix: "mes-extracted-module-registry-qa-" },
+);
 const { createStructureEmployeesReactIslandHost } = await withBundledTypeScriptClient(
   new URL("../src/modules/production_structure_matrix/react_island_host.ts", import.meta.url),
   async (module) => module,
