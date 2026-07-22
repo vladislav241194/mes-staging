@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.64-94b6375`; последний strict-accepted release остаётся
+> `v.1.500.65-bf92a5b`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.64-94b6375`; immediate previous:
-  `v.1.500.63-f0e68dc`; pinned legacy:
+- Активный accelerated release: `v.1.500.65-bf92a5b`; immediate previous:
+  `v.1.500.64-94b6375`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -1990,3 +1990,56 @@ Next accelerated cut: replace the Specifications 2 API client JavaScript
 boundary with strict TypeScript: publication commands, revision read model and
 work-order commands. Remove the temporary publication `.d.ts` shim and keep
 Node 20 executable QA through esbuild bundles.
+
+## Specifications 2 strict API clients and Structure CSS contract 2026-07-22: release `.65`
+
+This block supersedes `.64` as the live Pilot pointer. It reduces the active
+JavaScript boundary and fixes a concrete Pilot styling regression, but it does
+not claim that the still-partial Specifications 2 module is complete.
+
+- Active Pilot is `v.1.500.65-bf92a5b` at exact commit
+  `bf92a5b62ab34457331bf00ee98b6165f6003517`; immediate previous is
+  `v.1.500.64-94b6375` and pinned legacy remains
+  `v.1.500.18-93d02ed`.
+- Source/dist SHA-256 are
+  `7e369d101f6a074d4303207243c4aba4f329a849ea6686af5e1729a8bc71203a` and
+  `07b8a7e62163d14c9cba199bb4866463ad82fb1259a19b55a10f1cd9201abc56`;
+  runtime-policy SHA remains
+  `38bfa8a0a5cddacc7f550b53d15fdf84a7fbbb8bb3c9c620a598d4d7b592cd8c`.
+- Publication commands, revision reads and Work Order commands now execute
+  from strict `.ts` clients. Their three old `.js` files and the temporary
+  publication `.d.ts` shim are absent. `production_owner.ts`, lazy imports,
+  strict tsconfig, ownership registries and executable QA all reference the
+  TypeScript implementations. Active JavaScript fell from 53,422 to 53,226
+  lines; the strict inventory now contains six TypeScript files.
+- All three executable client QA bundle to temporary Node 20 ESM, pass on exact
+  Node `20.19.5` and remove their temporary directories. Strict typecheck,
+  client/lazy/production/server-first/authority/runtime-policy, mixed-runtime,
+  syntax, module/feature and clean-build gates passed. Independent review
+  returned GO with no P1/P2.
+- The `.64` Structure screens did not lose the global stylesheet. Their new
+  registry roots were missing from the common CSS scope, so shell/table rules
+  coexisted with native-looking sidebar buttons. `.65` extends every common
+  selector to all seven Structure roots, including Migration Diagnostics, and
+  adds a static coverage gate. Live `.65` computed-style evidence shows the
+  affected sidebar button as `display:flex` with `border:0` and MES padding,
+  while the module layout is again a grid. No redesign or Blueprint UI was
+  introduced.
+- Standard release staging remains red on pre-existing global `qa:flow`
+  contract failures unrelated to this diff. Under the explicitly accepted
+  accelerated/nonvisual policy, the repository's `accelerated` release profile
+  passed, including immutable double build, built runtime-policy verification,
+  root sealing and remote preflight.
+- Local/public health report `ok`, version `v.1.500.65`, shared state `ready`,
+  all 25 policy surfaces are React, evaluation/legacy surfaces are empty,
+  effective `MES_REACT_*` flags are absent and service/pointer resolve to `.65`.
+- Immediate previous `.64` passed rollback dry-run. Sealed legacy `.18`
+  remains attested; its dry-run correctly refuses while Specifications 2
+  attachment, Work Order and publication command drop-ins `50`, `63`, `64`
+  are ON. The guard was not bypassed.
+- Specifications 2 remains `PARTIAL`; no new `FULL REACT` marker is assigned.
+  Implementation remains `99%`; strict accepted evidence remains `50%`.
+
+Next accelerated cut: audit and type the remaining Specifications 2 read-model
+boundary, beginning with `work_orders_read_model.js`, while preserving the
+existing PostgreSQL owner and fail-closed lazy runtime.
