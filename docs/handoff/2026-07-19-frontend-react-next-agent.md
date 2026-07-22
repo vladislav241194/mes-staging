@@ -8,7 +8,7 @@
 > создания исполняемого route/surface ledger, двух permanent read-only
 > Pilot-поверхностей и принятого Weekly runtime consolidation текущий
 > доказанный прогресс — `50%`. Текущий accelerated Pilot —
-> `v.1.500.75-985b62a`; последний strict-accepted release остаётся
+> `v.1.500.76-01f6e66`; последний strict-accepted release остаётся
 > `v.1.500.26-097d66c`. Fresh current-release read — `1/25`, historical
 > write lifecycles — `1/22`. План до настоящих
 > `100%` зафиксирован в
@@ -111,8 +111,8 @@ git diff --check
 
 ## Текущий Pilot и rollback boundary
 
-- Активный accelerated release: `v.1.500.75-985b62a`; immediate previous:
-  `v.1.500.74-902dd57`; pinned legacy:
+- Активный accelerated release: `v.1.500.76-01f6e66`; immediate previous:
+  `v.1.500.75-985b62a`; pinned legacy:
   `v.1.500.18-93d02ed`.
 - Local/public health — `ok`, shared state — `ready`.
 - Accelerated runtime policy содержит 25 React-поверхностей, zero evaluation и
@@ -148,7 +148,7 @@ cleanup и явного rollback evidence. Старые `.01`/Contour Admin root
    закрытия одного из partial production-сценариев с owner-backed parity.
 5. Не заявлять live parity для Boards/BOM или Responsibility Policies на пустом
    наборе. Для записи нужен отдельный disposable record и явная cleanup-проверка.
-6. Сохранять `.74` как immediate rollback и sealed `.18` как legacy baseline;
+6. Сохранять `.75` как immediate rollback и sealed `.18` как legacy baseline;
    не добавлять evaluation flags и не обходить compatibility guard.
 
 ## Важные ограничения
@@ -2464,3 +2464,43 @@ changing their routes, write gates, navigation or immutable rollback.
 Next accelerated batch: type the dedicated seven-surface Production Structure
 host and correct its stale Diagnostics QA oracle to the already-active
 fail-closed contract; do not count that test correction as new Pilot evidence.
+
+## Production Structure host strict TypeScript batch 2026-07-22: release `.76`
+
+This block supersedes `.75` as the live Pilot pointer. It types the final large
+multi-surface React host while preserving the existing System Domains owners,
+read shells, commands, telemetry and immutable rollback boundary.
+
+- Active Pilot is `v.1.500.76-01f6e66` at exact commit
+  `01f6e667b68d32b49d6f1b97ad0dc43c8b0a7897`; immediate previous is
+  `v.1.500.75-985b62a`, pinned legacy remains `v.1.500.18-93d02ed`, and
+  Staging remains `v.1.499.70-c3b4059`.
+- Source/dist SHA-256 are
+  `010e35034d711c1a2a985a98aebc92e14ea6cbc888158d72fa48ec4696727dac` and
+  `6edab1fcd072524adfbf05f326eaf3c6b841f94a86420818eaed958e3fcc2223`.
+- Six writable registry mounts use a closed discriminated config and exhaustive
+  direct-property switch; Migration Diagnostics has a separate typed read-only
+  module/options contract. The old shared `.js` host is absent; no `any` or
+  free string-index mount dispatch was introduced.
+- Active JavaScript fell from `49,597` to `49,399` lines and from `89` to `88`
+  files; strict production inventory grew from `44` to `45` TypeScript files.
+  Existing completion markers and owner-backed write capabilities did not
+  change.
+- The stale Diagnostics evaluation test now asserts the host's already-active
+  fail-closed contract: `mount-error`, error DOM/telemetry and zero same-release
+  legacy fallback. This is a test-oracle repair only and adds no Pilot evidence.
+- Strict typecheck, seven-surface permanent/Diagnostics/consolidation/render
+  QA, syntax, fixture-retirement parity, mixed runtime, React cutover/runtime
+  policy, module/feature registries, deterministic build, seven marker checks
+  and `git diff --check` passed. Independent review returned `GO` with no
+  P1/P2. No visual/browser QA was claimed.
+- Local/public health report `ok`, version `v.1.500.76`, shared state `ready`,
+  all 25 surfaces React, zero evaluation/legacy surfaces, no effective
+  `MES_REACT_*` flags and no evaluation drop-ins. `.75` passed rollback
+  dry-run; sealed `.18` remains unchanged.
+- Implementation remains `99%`; honest evidence-weighted progress remains
+  `50%`. Blueprint UI was not introduced.
+
+Next accelerated batch: type the low-risk browser UI/contract leaves as one
+cohesive package. Record the JS reduction honestly; this metadata conversion
+does not itself remove a legacy renderer or increase Pilot acceptance.

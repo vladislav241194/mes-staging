@@ -7,7 +7,7 @@ Main Weekly integration commits: `813fabe`, `fb38100`
 Полный integration range с current-truth docs: `aca289f..codex/main-weekly-evidence-port`
 Immutable Pilot acceptance commit: `097d66c416ef61e091099c63b8bc272841c364f5`
 Последний strict-accepted Pilot release: `v.1.500.26-097d66c`
-Текущий accelerated Pilot release: `v.1.500.75-985b62a`
+Текущий accelerated Pilot release: `v.1.500.76-01f6e66`
 
 ## Исправление прежней оценки
 
@@ -1064,6 +1064,38 @@ Production Structure/Diagnostics host.
 Следующий accelerated batch: отдельно типизировать семиповерхностный Production
 Structure host и привести stale Diagnostics QA oracle к уже действующему
 fail-closed контракту без начисления новых Pilot evidence points.
+
+## Production Structure host strict TypeScript batch 2026-07-22: release `.76`
+
+- Pilot активирован на `v.1.500.76-01f6e66`; source/dist SHA-256 —
+  `010e35034d711c1a2a985a98aebc92e14ea6cbc888158d72fa48ec4696727dac` и
+  `6edab1fcd072524adfbf05f326eaf3c6b841f94a86420818eaed958e3fcc2223`.
+- Общий семиповерхностный Production Structure host переведён из JavaScript в
+  strict TypeScript. Шесть registry mounts используют closed discriminated
+  config и exhaustive direct switch; Diagnostics имеет отдельный read-only
+  activation/options/module/telemetry contract.
+- Активный JavaScript уменьшен с `49 597` до `49 399` строк и с `89` до `88`
+  файлов; strict inventory вырос с `44` до `45` TypeScript-файлов. System
+  Domains owners, commands, read shells и completion markers не менялись.
+- Устаревший Diagnostics evaluation oracle исправлен под уже действующее
+  fail-closed поведение: `mount-error`, error DOM/telemetry, нулевой same-release
+  legacy fallback. Правка не создаёт нового Pilot evidence и не повышает
+  процент.
+- Typecheck, seven-surface permanent/Diagnostics/consolidation/render QA,
+  syntax, fixture-retirement parity, mixed runtime, React cutover/runtime
+  policy, module/feature registries, deterministic build, семь marker checks и
+  `git diff --check` прошли; независимый P1/P2 review — `GO`. Визуальный/browser
+  QA для механического пакета не выполнялся.
+- Service/health/pointer подтверждают `.76`, shared state `ready`, все 25
+  surfaces — React, evaluation/legacy surfaces, effective `MES_REACT_*` flags
+  и evaluation drop-ins отсутствуют. Immediate `.75` прошёл rollback dry-run;
+  sealed `.18` сохранён, Staging остался на `v.1.499.70-c3b4059`.
+- Implementation checkpoint остаётся `99%`, честный evidence-weighted прогресс
+  — `50%`. Blueprint UI не используется.
+
+Следующий accelerated batch: одним cohesive пакетом типизировать low-risk
+browser UI/contract leaves, не выдавая metadata conversion за удаление legacy
+renderer или новую Pilot acceptance.
 
 Статус 2026-07-21: исторические rollback chains `.21 -> .20 -> .21` и
 `.21 -> .18 -> .19 -> .20 -> .21` сохранены как evidence своей контрольной
