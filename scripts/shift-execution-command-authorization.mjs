@@ -12,6 +12,16 @@ export const SHIFT_EXECUTION_COMMAND_AUTHORIZATION_CONTRACTS = Object.freeze({
     resourceId: "shiftMasterBoard",
     action: "edit",
   }),
+  report: Object.freeze({
+    moduleId: "authSessionPrototype",
+    resourceId: "authSessionPrototype",
+    action: "edit",
+  }),
+  "report-read": Object.freeze({
+    moduleId: "authSessionPrototype",
+    resourceId: "authSessionPrototype",
+    action: "view",
+  }),
   carryover: Object.freeze({
     moduleId: "shiftMasterBoard",
     resourceId: "shiftMasterBoard",

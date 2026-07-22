@@ -32,12 +32,16 @@ assert.match(source.activate, /compatibilityReady/);
 assert.match(source.activate, /primaryReady/);
 assert.match(source.activate, /retirementEligible/);
 assert.match(source.activate, /capability\.schemaReady !== true/);
-assert.match(source.activate, /Timesheet and Access Control server writes remain disabled/);
+assert.match(source.activate, /Usage: activate-system-domains-command-surfaces\.sh --through=production-structure\|timesheet/);
+assert.match(source.activate, /Access Control server writes remain disabled/);
 
 assert.match(source.suspend, /SCRIPT_APP_DIR/);
 assert.match(source.suspend, /primarySuspendReady/);
-assert.match(source.suspend, /target === "disabled"/);
+assert.doesNotMatch(source.suspend, /target === "disabled" && authority === "postgres-primary"/);
 assert.match(source.suspend, /retirementEligible/);
+assert.match(source.suspend, /const compatibilityReady = authority === "compatibility-snapshot" && consistency\?\.matches === true/);
+assert.match(source.suspend, /const primaryReady = authority === "postgres-primary" && promotion\?\.retirementEligible === true/);
+assert.match(source.suspend, /consistency\?\.ok !== true[\s\S]*promotion\?\.readEligible !== true[\s\S]*!compatibilityReady && !primaryReady/);
 assert.match(source.suspend, /EXPECTED_AUTHORITY_MODE/);
 assert.match(source.suspend, /snapshot\/tombstone state were preserved/);
 assert.match(source.suspend, /release-root-seal-verify\.mjs/);

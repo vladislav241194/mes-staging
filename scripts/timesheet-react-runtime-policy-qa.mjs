@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
 
-const [policy, ledger, appSource, hostSource, completionSource] = await Promise.all([
+const [policy, ledger, appSource, hostSource, scenarioSource, completionSource] = await Promise.all([
   readFile(new URL("../react-runtime-policy.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../experiments/react-migration/cutover-ledger.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/modules/timesheet/react_island_host.js", import.meta.url), "utf8"),
+  readFile(new URL("../experiments/react-migration/src/modules/timesheet/TimesheetScenario.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/react_completion_registry.js", import.meta.url), "utf8"),
 ]);
 
@@ -27,18 +28,32 @@ assert.equal(policy.surfaces.timesheet, "react", "Timesheet ordinary route must 
 assert.equal(ledger.candidatePolicy.surfaceIds.includes("timesheet"), true, "Timesheet permanent policy must remain an unaccepted Pilot candidate");
 const island = ledger.islands.find((entry) => entry.id === "timesheet");
 const module = ledger.modules.find((entry) => entry.id === "timesheet");
+const timesheetHostStart = appSource.indexOf("const timesheetReactIslandHost");
+const timesheetHostEnd = appSource.indexOf("function getPlanningWorkbenchReactLocalQaOverrides", timesheetHostStart);
+const timesheetAppSlice = appSource.slice(timesheetHostStart, timesheetHostEnd);
 assert.equal(island?.normalActionFallback, false, "Timesheet permanent UI must not return actions to the legacy renderer");
-assert.deepEqual(island?.commands?.missing, ["production-write-rollout"], "unapproved production writes must remain explicit");
+assert.deepEqual(island?.commands?.missing, [], "Timesheet implementation must expose every bounded command through the owner surface");
 assert.equal(module?.runtimeMode, "react");
-assert.equal(module?.functionalStatus, "partial", "Timesheet must not claim complete write parity before owner rollout acceptance");
+assert.equal(module?.functionalStatus, "complete", "Timesheet implementation is complete while Pilot verification remains separately deferred");
 assert.equal(module?.visibleLegacyRendererPath, false);
-assert.equal(module?.runtimeLegacyModelDependency, true);
-assert.equal(module?.normalLegacyPath, true, "aggregate legacy-model dependency must remain honest");
+assert.equal(module?.runtimeLegacyModelDependency, false);
+assert.equal(module?.normalLegacyPath, false, "ordinary Timesheet must use its independent typed calendar model");
+assert.equal(module?.productionReady, false, "Pilot lifecycle and rollback acceptance remain deferred");
 assert.match(appSource, /surfaceId:\s*"timesheet"/);
 assert.match(appSource, /runtimeActivation\.runtimeMode === "react"\s*\? "react"/);
 assert.match(appSource, /renderModals:\s*\(\) => timesheetReactIslandHost\.isReactEligible\(\) \? ""/);
 assert.match(hostSource, /canFallbackToLegacy:\s*\(activation\) => activation\.accessMode !== "react"/);
 assert.match(hostSource, /if \(activation\.accessMode === "react"\) return ""/);
 assert.match(hostSource, /onRequestLegacy:\s*getActivation\?\.\(\)\.accessMode === "react" \? undefined/);
-assert.match(completionSource, /id: "timesheet", status: PARTIAL/);
-console.log("Timesheet React runtime policy QA passed: permanent fail-closed UI, deferred production writes.");
+assert.match(scenarioSource, /disabled=\{!canEditSchedule && !onRequestLegacy\}/, "permanent schedule affordance must stay disabled without an explicit rollback callback");
+assert.match(scenarioSource, /disabled=\{!canEditDay && !onRequestLegacy\}/, "permanent day affordance must stay disabled without an explicit rollback callback");
+assert.match(timesheetAppSlice, /productionModel:\s*\{ domains: systemDomainsState/);
+assert.match(timesheetAppSlice, /saveAttendanceEvent\(events/);
+assert.match(appSource, /\.\.\.rows\.filter\(\(row\) => row\.id !== assignmentId\),\s*canonical,/s, "schedule upsert must preserve unrelated historical and future assignments");
+assert.doesNotMatch(appSource, /\.\.\.rows\.filter\(\(row\) => row\.employeeId !== employeeId\),\s*canonical,/s, "schedule upsert must never replace every assignment owned by an employee");
+assert.match(appSource, /!normalizedAssignmentId\s*\|\|\s*!currentAssignment/, "schedule removal must require one concrete existing assignment id");
+assert.doesNotMatch(timesheetAppSlice, /buildTimesheetAttendanceEventsFromFormData/);
+assert.doesNotMatch(timesheetAppSlice, /\bmoveTimesheetPeriod\(/);
+assert.match(appSource, /if \(!permanentReact\) \{\s*ensureProductionStructureMatrixModule\(\);\s*ensureTimesheetModule\(\);/);
+assert.match(completionSource, /id: "timesheet", status: COMPLETE/);
+console.log("Timesheet React runtime policy QA passed: independent typed normal path, owner commands, deferred Pilot verification.");

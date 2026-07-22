@@ -1,4 +1,4 @@
-import { buildShiftAssignmentCommand, buildShiftAssignmentUpdateCommand, buildShiftFactCommand, buildShiftCarryoverCommand, buildShiftCarryoverCancelCommand } from "../src/domain/shift_execution_assignment.js";
+import { buildShiftAssignmentCommand, buildShiftAssignmentUpdateCommand, buildShiftFactCommand, buildShiftCarryoverCommand, buildShiftCarryoverCancelCommand, buildShiftIssueReportCommand } from "../src/domain/shift_execution_assignment.js";
 
 function assert(value, message) { if (!value) throw new Error(message); }
 
@@ -44,4 +44,19 @@ assert(canceledCarryover.carryoverId === "shift-carryover-1" && canceledCarryove
 let badCancel = "";
 try { buildShiftCarryoverCancelCommand({ idempotencyKey: "carryover-cancel-2" }); } catch (error) { badCancel = error.message; }
 assert(/carryoverId is required/.test(badCancel), "carryover cancellation must reject a missing target");
+const report = buildShiftIssueReportCommand({
+  idempotencyKey: "report-1", assignmentId: "shift-1", expectedRevision: 3, text: "Требуется проверка пайки",
+  photo: { name: "issue.jpg", type: "image/jpeg", size: 1024, source: "camera", dataUrl: "data:image/jpeg;base64,QUJD", storageNote: "" },
+});
+const reportRetry = buildShiftIssueReportCommand({
+  idempotencyKey: "report-1", assignmentId: "shift-1", expectedRevision: 3, text: "Требуется проверка пайки",
+  photo: { name: "issue.jpg", type: "image/jpeg", size: 1024, source: "camera", dataUrl: "data:image/jpeg;base64,QUJD", storageNote: "" },
+});
+assert(report.report.id === reportRetry.report.id && report.report.assignmentId === "shift-1", "issue report retries must preserve one stable identity and assignment");
+let emptyReport = "";
+try { buildShiftIssueReportCommand({ idempotencyKey: "report-empty", assignmentId: "shift-1", expectedRevision: 3 }); } catch (error) { emptyReport = error.message; }
+assert(/text or photo is required/.test(emptyReport), "issue report must contain text or a prepared photo");
+let oversizedReportPhoto = "";
+try { buildShiftIssueReportCommand({ idempotencyKey: "report-large", assignmentId: "shift-1", expectedRevision: 3, photo: { type: "image/jpeg", source: "file", dataUrl: `data:image/jpeg;base64,${"A".repeat(320000)}` } }); } catch (error) { oversizedReportPhoto = error.message; }
+assert(/too large/.test(oversizedReportPhoto), "issue report must reject an oversized browser image payload");
 console.log("Shift execution command QA: OK");

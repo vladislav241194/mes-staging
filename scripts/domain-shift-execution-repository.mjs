@@ -5,6 +5,7 @@ import {
   buildShiftFactCommand,
   buildShiftCarryoverCommand,
   buildShiftCarryoverCancelCommand,
+  buildShiftIssueReportCommand,
 } from "../src/domain/shift_execution_assignment.js";
 import {
   acquireProductionResourceDependencySharedLock,
@@ -107,6 +108,10 @@ function compactFact(row) {
   return {
     id: row.id,
     assignmentId: row.shift_assignment_id,
+    assignmentRevision: number(row.assignment_revision),
+    workOrderId: row.work_order_id || "",
+    operationId: row.work_order_operation_id || "",
+    workCenterId: row.work_center_id || "",
     actualQuantity: number(row.actual_quantity),
     defectQuantity: number(row.defect_quantity),
     laborMinutes: number(row.labor_minutes),
@@ -129,6 +134,23 @@ function compactCarryover(row) {
     remainingQuantity: number(row.remaining_quantity),
     reason: row.reason || "",
     workCenterId: row.work_center_id || "",
+    createdAt: iso(row.created_at),
+  };
+}
+
+function compactIssueReport(row) {
+  return {
+    id: row.id,
+    assignmentId: row.shift_assignment_id,
+    assignmentRevision: number(row.assignment_revision),
+    workOrderId: row.work_order_id || "",
+    operationId: row.work_order_operation_id || "",
+    workCenterId: row.work_center_id || "",
+    employeeId: row.actor_employee_id,
+    employeeName: row.actor_display_name || "",
+    text: row.description || "",
+    photo: row.photo_payload && Object.keys(row.photo_payload).length ? row.photo_payload : null,
+    status: row.status || "new",
     createdAt: iso(row.created_at),
   };
 }
@@ -407,9 +429,49 @@ export function createShiftExecutionReadRepository({
       };
     },
     async commandReadiness() {
-      const rows = await sql`SELECT version FROM mes_schema_migrations WHERE version IN ('014_shift_execution_command_idempotency', '015_shift_execution_assignment_revisions', '016_shift_execution_fact_idempotency', '017_shift_execution_carryover_idempotency', '022_shift_execution_carryover_lifecycle', '025_shift_execution_postgres_authority')`;
+      const rows = await sql`SELECT version FROM mes_schema_migrations WHERE version IN ('014_shift_execution_command_idempotency', '015_shift_execution_assignment_revisions', '016_shift_execution_fact_idempotency', '017_shift_execution_carryover_idempotency', '022_shift_execution_carryover_lifecycle', '025_shift_execution_postgres_authority', '034_shift_execution_issue_reports')`;
       const versions = new Set(rows.map((row) => row.version));
-      return { schemaReady: versions.has('014_shift_execution_command_idempotency') && versions.has('015_shift_execution_assignment_revisions') && versions.has('016_shift_execution_fact_idempotency') && versions.has('017_shift_execution_carryover_idempotency') && versions.has('022_shift_execution_carryover_lifecycle') && versions.has('025_shift_execution_postgres_authority') };
+      return { schemaReady: versions.has('014_shift_execution_command_idempotency') && versions.has('015_shift_execution_assignment_revisions') && versions.has('016_shift_execution_fact_idempotency') && versions.has('017_shift_execution_carryover_idempotency') && versions.has('022_shift_execution_carryover_lifecycle') && versions.has('025_shift_execution_postgres_authority') && versions.has('034_shift_execution_issue_reports') };
+    },
+    async listIssueReports({ assignmentId = "", actorEmployeeId = "", authorizedWorkCenterId = "", limit = 8 } = {}) {
+      const canonicalAssignmentId = String(assignmentId || "").trim();
+      const canonicalActorEmployeeId = String(actorEmployeeId || "").trim();
+      const canonicalWorkCenterId = String(authorizedWorkCenterId || "").trim();
+      if (!canonicalAssignmentId || !canonicalActorEmployeeId || !canonicalWorkCenterId) {
+        const error = new Error("Authenticated issue-report read context is required");
+        error.code = "SHIFT_EXECUTION_AUTHORIZATION_CONTEXT_REQUIRED";
+        throw error;
+      }
+      const membership = await sql`
+        SELECT assignment.id, assignment.work_center_id
+        FROM shift_assignments AS assignment
+        JOIN shift_assignment_executors AS executor
+          ON executor.shift_assignment_id = assignment.id
+        WHERE assignment.id = ${canonicalAssignmentId}
+          AND executor.employee_id = ${canonicalActorEmployeeId}
+        LIMIT 1
+      `;
+      if (!membership[0]) {
+        const error = new Error("Only an assigned executor may read issue reports");
+        error.code = "SHIFT_EXECUTION_REPORT_ACTOR_NOT_EXECUTOR";
+        throw error;
+      }
+      if (String(membership[0].work_center_id || "").trim() !== canonicalWorkCenterId) {
+        const error = new Error("Shift Execution report target changed after authorization");
+        error.code = "SHIFT_EXECUTION_AUTHORIZATION_CONTEXT_CHANGED";
+        throw error;
+      }
+      const boundedLimit = Math.max(1, Math.min(8, Math.trunc(number(limit) || 8)));
+      const rows = await sql`
+        SELECT id, shift_assignment_id, assignment_revision, work_order_id,
+               work_order_operation_id, work_center_id, actor_employee_id, actor_display_name,
+               description, photo_payload, status, created_at
+        FROM shift_issue_reports
+        WHERE shift_assignment_id = ${canonicalAssignmentId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT ${boundedLimit}
+      `;
+      return { storageMode: "postgres", storageBackend: "postgresql", configured: true, items: rows.map(compactIssueReport) };
     },
     async getCommandTargetContext({ assignmentId = "", carryoverId = "", workOrderId = "", operationId = "" } = {}) {
       const normalizedAssignmentId = String(assignmentId || "").trim();
@@ -662,6 +724,100 @@ export function createShiftExecutionCommandRepository({
           VALUES (${command.idempotencyKey}, ${command.requestFingerprint}, ${command.assignmentId}, ${number(updated.revision)}, ${String(input.actorId || "")})
         `;
         return { ...metadata, created: false, conflict: false, item: project(updated) };
+      });
+    },
+    async recordIssueReport(input = {}) {
+      const command = buildValidatedCommand(buildShiftIssueReportCommand, input);
+      const authorizedWorkCenterId = requireAuthorizedWorkCenter(input);
+      const actorId = String(input.actorId || "").trim();
+      const actorEmployeeId = String(input.actorEmployeeId || "").trim();
+      const actorDisplayName = String(input.actorDisplayName || "").trim();
+      if (!actorId || !actorEmployeeId) {
+        const error = new Error("Authenticated Employee Desktop actor is required");
+        error.code = "SHIFT_EXECUTION_AUTHORIZATION_CONTEXT_REQUIRED";
+        throw error;
+      }
+      return sql.begin(async (tx) => {
+        await ensureCommandWritable(tx);
+        // Serialize replay inspection with receipt insertion. A concurrent
+        // retry waits here and then observes the canonical committed receipt
+        // instead of surfacing a UNIQUE violation as a storage outage.
+        await tx`SELECT pg_advisory_xact_lock(hashtext('mes:shift-report:' || ${command.idempotencyKey}))`;
+        const replay = await tx`
+          SELECT request.request_fingerprint, request.actor_id,
+                 report.*, assignment.work_center_id AS current_work_center_id
+          FROM shift_execution_report_requests AS request
+          JOIN shift_issue_reports AS report ON report.id = request.shift_report_id
+          JOIN shift_assignments AS assignment ON assignment.id = report.shift_assignment_id
+          WHERE request.idempotency_key = ${command.idempotencyKey}
+          LIMIT 1
+        `;
+        if (replay[0]) {
+          if (replay[0].request_fingerprint !== command.requestFingerprint || String(replay[0].actor_id || "") !== actorId) {
+            throw new Error("Idempotency key was already used for another shift issue report");
+          }
+          assertAuthorizedWorkCenter(replay[0].current_work_center_id, authorizedWorkCenterId);
+          return { ...metadata, created: false, item: compactIssueReport(replay[0]) };
+        }
+        const assignment = await tx`
+          SELECT id, revision, work_order_id, work_order_operation_id, work_center_id
+          FROM shift_assignments
+          WHERE id = ${command.report.assignmentId}
+          FOR SHARE
+        `;
+        if (!assignment[0]) return { ...metadata, created: false, item: null, error: "Shift assignment was not found" };
+        assertAuthorizedWorkCenter(assignment[0].work_center_id, authorizedWorkCenterId);
+        assertCanonicalReference(assignment[0].work_order_id, input.expectedWorkOrderId);
+        assertCanonicalReference(assignment[0].work_order_operation_id, input.expectedOperationId);
+        if (number(assignment[0].revision) !== command.report.expectedRevision) {
+          return {
+            ...metadata,
+            created: false,
+            conflict: true,
+            item: null,
+            current: {
+              id: String(assignment[0].id || ""),
+              revision: number(assignment[0].revision),
+              workOrderId: String(assignment[0].work_order_id || ""),
+              operationId: String(assignment[0].work_order_operation_id || ""),
+              workCenterId: String(assignment[0].work_center_id || ""),
+            },
+            error: "Shift assignment changed before the issue report was saved",
+          };
+        }
+        const executor = await tx`
+          SELECT employee_id
+          FROM shift_assignment_executors
+          WHERE shift_assignment_id = ${command.report.assignmentId}
+            AND employee_id = ${actorEmployeeId}
+          LIMIT 1
+        `;
+        if (!executor[0]) {
+          const error = new Error("Only an assigned executor may create an issue report");
+          error.code = "SHIFT_EXECUTION_REPORT_ACTOR_NOT_EXECUTOR";
+          throw error;
+        }
+        const report = command.report;
+        const [inserted] = await tx`
+          INSERT INTO shift_issue_reports (
+            id, shift_assignment_id, assignment_revision, work_order_id, work_order_operation_id, work_center_id,
+            actor_employee_id, actor_display_name,
+            description, photo_payload, status
+          )
+          VALUES (
+            ${report.id}, ${report.assignmentId}, ${report.expectedRevision}, ${assignment[0].work_order_id}, ${assignment[0].work_order_operation_id}, ${assignment[0].work_center_id},
+            ${actorEmployeeId}, ${actorDisplayName},
+            ${report.text}, ${tx.json(report.photo || {})}, ${report.status}
+          )
+          RETURNING *
+        `;
+        await tx`
+          INSERT INTO shift_execution_report_requests (
+            idempotency_key, request_fingerprint, shift_report_id, actor_id
+          )
+          VALUES (${command.idempotencyKey}, ${command.requestFingerprint}, ${report.id}, ${actorId})
+        `;
+        return { ...metadata, created: true, item: compactIssueReport(inserted) };
       });
     },
     async recordFact(input = {}) {

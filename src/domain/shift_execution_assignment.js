@@ -136,3 +136,49 @@ export function buildShiftCarryoverCancelCommand(input = {}) {
   })).digest("hex");
   return { idempotencyKey, requestFingerprint, carryoverId, cancellationReason };
 }
+
+function issueReportPhoto(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("photo must be an object");
+  }
+  const type = String(value.type || "").trim().toLowerCase();
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+  if (type && !allowedTypes.has(type)) throw new Error("photo.type must be a supported image type");
+  const source = String(value.source || "file").trim().toLowerCase();
+  if (!new Set(["file", "camera"]).has(source)) throw new Error("photo.source must be file or camera");
+  const name = String(value.name || "").trim();
+  if (name.length > 255) throw new Error("photo.name is too long");
+  const size = Math.max(0, Math.trunc(quantity(value.size || 0, "photo.size")));
+  if (size > 20 * 1024 * 1024) throw new Error("photo.size must not exceed 20 MB");
+  const dataUrl = String(value.dataUrl || "").trim();
+  if (dataUrl.length > 320_000) throw new Error("photo.dataUrl is too large");
+  if (dataUrl && !/^data:image\/(?:jpeg|png|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(dataUrl)) {
+    throw new Error("photo.dataUrl must contain an encoded supported image");
+  }
+  const storageNote = String(value.storageNote || "").trim();
+  if (storageNote.length > 500) throw new Error("photo.storageNote is too long");
+  if (!dataUrl && !storageNote) throw new Error("photo must contain dataUrl or storageNote");
+  return { name, type, size, source, dataUrl, storageNote };
+}
+
+export function buildShiftIssueReportCommand(input = {}) {
+  const idempotencyKey = required(input.idempotencyKey, "idempotencyKey");
+  const assignmentId = required(input.assignmentId, "assignmentId");
+  const expectedRevision = Number(input.expectedRevision);
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 1) throw new Error("expectedRevision must be a positive integer");
+  const text = String(input.text || "").trim();
+  if (text.length > 1200) throw new Error("text must not exceed 1200 characters");
+  const photo = issueReportPhoto(input.photo);
+  if (!text && !photo) throw new Error("text or photo is required");
+  const report = { assignmentId, expectedRevision, text, photo, status: "new" };
+  const requestFingerprint = createHash("sha256").update(JSON.stringify(report)).digest("hex");
+  return {
+    idempotencyKey,
+    requestFingerprint,
+    report: {
+      ...report,
+      id: `shift-report-${createHash("sha256").update(`${idempotencyKey}:${requestFingerprint}`).digest("hex").slice(0, 20)}`,
+    },
+  };
+}

@@ -26,10 +26,10 @@ ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
 # Remove the old pre-policy production drop-in too; its lexical name is later
 # than the reviewed 50-* file and otherwise can win an Environment override.
 DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
-# Timesheet and Access Control remain fail-closed: their generic aggregate PUT
-# does not yet have target-scoped employee RBAC and complete server delta
-# invariants. Primary recovery restores only the reviewed Production Structure
-# surface.
+# Primary recovery restores the first reviewed Production Structure surface.
+# Timesheet is activated separately as the second reviewed stage after its
+# target-scoped employee RBAC and bounded delta contract are available. Access
+# Control remains fail-closed.
 EXPECTED_CSV="production-structure"
 INTERNAL_ORIGIN="http://127.0.0.1:${PORT}"
 

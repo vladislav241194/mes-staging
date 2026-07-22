@@ -113,17 +113,24 @@ function parseCookies(req) {
   );
 }
 
-function hasValidSession(req, env = process.env) {
+export function getAuthorizedAdminPrincipal(req, env = process.env) {
+  if (!isAdminHost(req, env)) return null;
   const secret = getSessionSecret(env);
-  if (!secret) return false;
+  if (!secret) return null;
 
   const token = parseCookies(req)[ADMIN_AUTH_COOKIE];
   const payload = verifyPayload(token, secret);
-  return payload?.user === getConfiguredUsername(env);
+  const username = getConfiguredUsername(env);
+  if (payload?.user !== username) return null;
+  return Object.freeze({ id: `admin:${username}`, username, role: "contour-admin" });
+}
+
+function hasValidSession(req, env = process.env) {
+  return Boolean(getAuthorizedAdminPrincipal(req, env));
 }
 
 export function isAuthorizedAdminRequest(req, env = process.env) {
-  return isAdminHost(req, env) && hasValidSession(req, env);
+  return Boolean(getAuthorizedAdminPrincipal(req, env));
 }
 
 function createSessionCookie(username, env = process.env) {

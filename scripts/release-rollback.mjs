@@ -704,7 +704,7 @@ verified_release_pointer_has_system_domains_command_compatibility() {
     const marker = JSON.parse(markerSource);
     const manifest = JSON.parse(await readFile(process.argv[2], "utf8"));
     const surfaces = ["production-structure", "timesheet", "access-control"];
-    const rolloutEligibleSurfaces = ["production-structure"];
+    const rolloutEligibleSurfaces = ["production-structure", "timesheet"];
     const required = [
       "011_system_domains_core",
       "012_system_domains_metadata_parity",
@@ -719,9 +719,9 @@ verified_release_pointer_has_system_domains_command_compatibility() {
       || !manifest.runtimeIncludes.includes("ops")
       || marker?.schemaVersion !== 1
       || marker?.contract !== "system-domains-server-commands"
-      || marker?.commandSurfaceVersion !== 1
+      || marker?.commandSurfaceVersion !== 2
       || marker?.actorPolicyVersion !== 1
-      || marker?.authorizationSnapshotVersion !== 2
+      || marker?.authorizationSnapshotVersion !== 3
       || marker?.authorityTransitionVersion !== 1
       || marker?.employeeAuthReadinessVersion !== 1
       || marker?.lifecycleGuardVersion !== 1
@@ -767,13 +767,14 @@ verified_release_pointer_has_shift_execution_command_compatibility() {
       "017_shift_execution_carryover_idempotency",
       "022_shift_execution_carryover_lifecycle",
       "025_shift_execution_postgres_authority",
+      "034_shift_execution_issue_reports",
     ];
     if (manifest?.schemaVersion < 3
       || !Array.isArray(manifest?.runtimeIncludes)
       || !manifest.runtimeIncludes.includes("ops")
       || marker?.schemaVersion !== 1
       || marker?.contract !== "shift-execution-server-commands"
-      || marker?.commandSurfaceVersion !== 2
+      || marker?.commandSurfaceVersion !== 3
       || marker?.authenticatedActorVersion !== 2
       || marker?.revisionConcurrencyVersion !== 1
       || marker?.idempotencyReceiptVersion !== 1

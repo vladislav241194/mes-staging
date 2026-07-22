@@ -353,7 +353,11 @@ try {
     const finalized = await primary.finalizePostgresPrimaryTransition({ transitionId: "e2e-postgres-primary", actorId: "e2e" });
     assert(finalized.mode === "postgres-primary", "cutover must finalize PostgreSQL authority only after the tombstone is durable");
     const partialPostgresPrimaryCapabilities = await invokeApi({ pathname: "/api/v1/system-domains/capabilities", headers: { cookie: sessionCookie }, env: apiEnv });
-    assert(partialPostgresPrimaryCapabilities.statusCode === 200 && partialPostgresPrimaryCapabilities.json.capabilities?.serverCommandsEnabled === false, "a PostgreSQL-primary store must fail closed until every command surface is enabled");
+    assert(partialPostgresPrimaryCapabilities.statusCode === 200
+      && partialPostgresPrimaryCapabilities.json.capabilities?.serverCommandsEnabled === true
+      && partialPostgresPrimaryCapabilities.json.capabilities?.configuredServerCommandSurfaces?.length === 1
+      && partialPostgresPrimaryCapabilities.json.capabilities?.serverCommandSurfaces?.includes("production-structure"),
+    "a PostgreSQL-primary store must admit only the explicitly configured command surface while omitted surfaces stay read-only");
     apiEnv.MES_SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES = "production-structure,timesheet,access-control";
     const retiredConsistency = await invokeApi({ pathname: "/api/v1/system-domains/consistency", env: apiEnv });
     assert(retiredConsistency.statusCode === 200

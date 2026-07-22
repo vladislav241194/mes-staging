@@ -22,6 +22,7 @@ export const SHIFT_EXECUTION_SERVER_COMMAND_REQUIRED_MIGRATIONS = Object.freeze(
   "017_shift_execution_carryover_idempotency",
   "022_shift_execution_carryover_lifecycle",
   "025_shift_execution_postgres_authority",
+  "034_shift_execution_issue_reports",
 ]);
 export const SPECIFICATIONS2_SERVER_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   SPECIFICATIONS2_PUBLICATION_IDEMPOTENCY_MIGRATION,

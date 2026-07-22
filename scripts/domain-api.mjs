@@ -27,7 +27,9 @@ import {
 } from "./planning-command-authorization.mjs";
 import {
   projectSystemDomainsProductionStructureAuthorization,
+  projectSystemDomainsTimesheetAuthorization,
   resolveSystemDomainsProductionStructureAuthorization,
+  resolveSystemDomainsTimesheetAuthorization,
 } from "./system-domains-command-authorization.mjs";
 import { validateSystemDomainsProductionStructureImpact } from "./system-domains-production-structure-impact.mjs";
 import { withProductionResourceDependencyExclusiveLock } from "./production-resource-dependency-lock.mjs";
@@ -63,6 +65,7 @@ const SPECIFICATIONS2_PUBLISH_BODY_MAX_BYTES = 2 * 1024 * 1024;
 export const SPECIFICATIONS2_ATTACHMENT_BODY_MAX_BYTES = Math.ceil(SPECIFICATIONS2_ATTACHMENT_MAX_BYTES / 3) * 4 + (4 * 1024);
 export const SPECIFICATIONS2_WORK_ORDER_BODY_MAX_BYTES = 64 * 1024;
 export const SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES = 64 * 1024;
+export const SHIFT_EXECUTION_REPORT_BODY_MAX_BYTES = 384 * 1024;
 export const PLANNING_COMMAND_BODY_MAX_BYTES = 64 * 1024;
 const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 // Bump this whenever fields included in planning parity change.  A durable
@@ -299,6 +302,33 @@ function sendSystemDomainsProductionStructureAuthorizationFailure(res, headers, 
   });
 }
 
+function sendSystemDomainsTimesheetAuthorizationFailure(res, headers, authorization) {
+  if (authorization.infrastructureUnavailable) {
+    sendJson(res, headers, 503, {
+      ok: false,
+      apiVersion: "v1",
+      code: "timesheet-authorization-unavailable",
+      error: "Current Timesheet authorization is unavailable",
+    });
+    return;
+  }
+  if (!authorization.actor) {
+    sendJson(res, headers, 401, {
+      ok: false,
+      apiVersion: "v1",
+      code: String(authorization.reason || "employee-session-required"),
+      error: "Authenticated employee session is required to update Timesheet",
+    });
+    return;
+  }
+  sendJson(res, headers, 403, {
+    ok: false,
+    apiVersion: "v1",
+    code: "timesheet-write-forbidden",
+    error: "Current employee is not authorized to update this Timesheet target",
+  });
+}
+
 function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
   if (String(env.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS || "") !== "1") return [];
   return [...new Set(String(env.MES_SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES || "")
@@ -360,21 +390,117 @@ function validateSystemDomainsSurfaceChange({ current, candidate, surface = "" }
     : { ok: true, changedRegistries, forbiddenRegistries: [] };
 }
 
+function getChangedSystemDomainRows(currentRows = [], candidateRows = []) {
+  const currentById = new Map((Array.isArray(currentRows) ? currentRows : []).map((row) => [String(row?.id || ""), row]));
+  const candidateById = new Map((Array.isArray(candidateRows) ? candidateRows : []).map((row) => [String(row?.id || ""), row]));
+  return [...new Set([...currentById.keys(), ...candidateById.keys()])]
+    .filter(Boolean)
+    .flatMap((id) => {
+      const before = currentById.get(id) || null;
+      const after = candidateById.get(id) || null;
+      return stableJson(before) === stableJson(after) ? [] : [{ id, before, after }];
+    });
+}
+
+function getTimesheetScheduleInterval(row = {}) {
+  const validFrom = String(row?.validFrom || row?.effectiveFrom || "").trim();
+  const validTo = String(row?.validTo || row?.effectiveTo || "").trim();
+  if ((validFrom && !isExactIsoCalendarDate(validFrom)) || (validTo && !isExactIsoCalendarDate(validTo))) return null;
+  const from = validFrom ? Math.floor(Date.parse(`${validFrom}T00:00:00.000Z`) / 86_400_000) : Number.NEGATIVE_INFINITY;
+  const to = validTo ? Math.floor(Date.parse(`${validTo}T00:00:00.000Z`) / 86_400_000) : Number.POSITIVE_INFINITY;
+  if (from > to) return null;
+  return { id: String(row?.id || "").trim(), from, to, validFrom, validTo };
+}
+
+function inspectTimesheetScheduleIntervals(rows = [], targetEmployeeId = "") {
+  const intervals = rows
+    .filter((row) => String(row?.employeeId || "").trim() === targetEmployeeId)
+    .map(getTimesheetScheduleInterval);
+  if (intervals.some((interval) => !interval?.id)) {
+    return { ok: false, code: "timesheet-schedule-interval-invalid", error: "Every Timesheet schedule assignment must have one valid effective interval" };
+  }
+  intervals.sort((left, right) => left.from - right.from || left.to - right.to || left.id.localeCompare(right.id, "en"));
+  for (let index = 1; index < intervals.length; index += 1) {
+    if (intervals[index].from <= intervals[index - 1].to) {
+      return { ok: false, code: "timesheet-schedule-overlap", error: "Timesheet schedule assignment intervals must not overlap" };
+    }
+  }
+  return { ok: true };
+}
+
+export function validateSystemDomainsTimesheetDelta({ current, candidate } = {}) {
+  const changedRegistries = getChangedSystemDomainsRegistries(current, candidate);
+  if (changedRegistries.length !== 1 || !["attendanceEvents", "scheduleAssignments"].includes(changedRegistries[0])) {
+    return {
+      ok: false,
+      code: "timesheet-delta-scope-invalid",
+      error: "A Timesheet command must change exactly one attendance or schedule registry",
+      changedRegistries,
+    };
+  }
+  const registryName = changedRegistries[0];
+  const currentMetadata = current?.metadata && typeof current.metadata === "object" ? current.metadata : {};
+  const candidateMetadata = candidate?.metadata && typeof candidate.metadata === "object" ? candidate.metadata : {};
+  const changedMetadataKeys = [...new Set([...Object.keys(currentMetadata), ...Object.keys(candidateMetadata)])]
+    .filter((key) => stableJson(currentMetadata[key]) !== stableJson(candidateMetadata[key]));
+  const forbiddenMetadataKeys = changedMetadataKeys.filter((key) => !["updatedAt", "lastMutationRegistry", "lastMutationKeys"].includes(key));
+  if (forbiddenMetadataKeys.length || String(candidateMetadata.lastMutationRegistry || "") !== registryName) {
+    return {
+      ok: false,
+      code: "timesheet-metadata-scope-invalid",
+      error: "A Timesheet command may update only its bounded mutation metadata",
+      changedRegistries,
+      forbiddenMetadataKeys,
+    };
+  }
+  const changedRows = getChangedSystemDomainRows(
+    current?.registries?.[registryName],
+    candidate?.registries?.[registryName],
+  );
+  if (!changedRows.length) {
+    return { ok: false, code: "timesheet-delta-empty", error: "A Timesheet command must contain one bounded change", changedRegistries };
+  }
+  const touchedRows = changedRows.flatMap(({ before, after }) => [before, after].filter(Boolean));
+  const employeeIds = [...new Set(touchedRows.map((row) => String(row?.employeeId || "").trim()).filter(Boolean))];
+  if (employeeIds.length !== 1) {
+    return { ok: false, code: "timesheet-target-scope-invalid", error: "A Timesheet command may target exactly one employee", changedRegistries };
+  }
+  const targetEmployeeId = employeeIds[0];
+  const candidateRows = Array.isArray(candidate?.registries?.[registryName]) ? candidate.registries[registryName] : [];
+  if (registryName === "attendanceEvents") {
+    const dates = [...new Set(touchedRows.map((row) => String(row?.date || "").trim()).filter(Boolean))];
+    if (dates.length !== 1 || !isExactIsoCalendarDate(dates[0])) {
+      return { ok: false, code: "timesheet-attendance-coordinate-invalid", error: "A Timesheet attendance command may target exactly one calendar day", changedRegistries };
+    }
+    const date = dates[0];
+    const retainedTargetRows = candidateRows.filter((row) => row?.employeeId === targetEmployeeId && row?.date === date);
+    if (retainedTargetRows.length > 1) {
+      return { ok: false, code: "timesheet-attendance-cardinality-invalid", error: "A Timesheet day may retain at most one canonical attendance event", changedRegistries };
+    }
+    return { ok: true, registryName, targetEmployeeId, date, mutationKey: `${targetEmployeeId}|${date}`, changedRows };
+  }
+  if (changedRows.length !== 1) {
+    return { ok: false, code: "timesheet-schedule-delta-broad", error: "A Timesheet schedule command may upsert or remove exactly one assignment", changedRegistries };
+  }
+  const scheduleIntervals = inspectTimesheetScheduleIntervals(candidateRows, targetEmployeeId);
+  if (!scheduleIntervals.ok) return { ...scheduleIntervals, changedRegistries };
+  return { ok: true, registryName, targetEmployeeId, mutationKey: targetEmployeeId, changedRows };
+}
+
 function hasSystemDomainsServerAuthority(consistency = {}, enabledSurfaces = []) {
   // A retired snapshot is never sufficient evidence on its own.  The read-only
   // reconciliation report carries either the two-read compatibility proof or
   // the durable PostgreSQL-primary marker.  A persisted transition-pending
   // record deliberately fails closed while the root cutover switches stores.
   const authorityMode = consistency?.details?.authority?.mode || "compatibility-snapshot";
-  // Partial rollout remains safe while the compatibility snapshot is still
-  // present. Once PostgreSQL has become the durable primary, all visible
-  // writers must be on the command path; otherwise fail closed rather than
-  // letting a subset of the UI fall back to an obsolete local snapshot.
-  const primarySurfaceCoverage = authorityMode !== "postgres-primary"
-    || [...SYSTEM_DOMAINS_COMMAND_SURFACES].every((surface) => enabledSurfaces.includes(surface));
+  // PostgreSQL-primary permits an incremental writer rollout: every omitted
+  // surface remains read-only and its browser mutation path already fails
+  // closed instead of reviving the retired compatibility snapshot. Requiring
+  // all three surfaces here made the reviewed Production Structure ->
+  // Timesheet sequence impossible and encouraged a single broad cutover.
   return consistency?.ok === true
     && authorityMode !== "transition-pending"
-    && primarySurfaceCoverage
+    && enabledSurfaces.length > 0
     && consistency?.details?.reconciliation?.promotion?.readEligible === true;
 }
 
@@ -1669,6 +1795,7 @@ export async function handleDomainApiRequest(req, res, url, {
   shiftExecutionAuthorizationResolver = getCurrentShiftExecutionAuthorization,
   planningAuthorizationResolver = resolvePlanningCommandAuthorization,
   systemDomainsProductionStructureAuthorizationResolver = resolveSystemDomainsProductionStructureAuthorization,
+  systemDomainsTimesheetAuthorizationResolver = resolveSystemDomainsTimesheetAuthorization,
   systemDomainsProductionStructureImpactResolver = validateSystemDomainsProductionStructureImpact,
   systemDomainsProductionStructureLockRunner = withProductionResourceDependencyExclusiveLock,
 } = {}) {
@@ -1697,11 +1824,14 @@ export async function handleDomainApiRequest(req, res, url, {
   const isShiftExecutionAssignmentCommand = req.method === "POST" && url.pathname === `${API_PREFIX}/workshop/shift-execution/assignments`;
   const shiftAssignmentMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/assignments\/([^/]+)$/);
   const shiftFactMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/assignments\/([^/]+)\/facts$/);
+  const shiftReportMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/assignments\/([^/]+)\/reports$/);
   const isShiftExecutionCarryoverCommand = req.method === "POST" && url.pathname === `${API_PREFIX}/workshop/shift-execution/carryovers`;
   const shiftCarryoverMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/carryovers\/([^/]+)$/);
   const isShiftExecutionCarryoverCancel = req.method === "PATCH" && Boolean(shiftCarryoverMatch);
   const isShiftExecutionAssignmentUpdate = req.method === "PATCH" && Boolean(shiftAssignmentMatch);
   const isShiftExecutionFactCommand = req.method === "POST" && Boolean(shiftFactMatch);
+  const isShiftExecutionReportCommand = req.method === "POST" && Boolean(shiftReportMatch);
+  const isShiftExecutionReportRead = req.method === "GET" && Boolean(shiftReportMatch);
   const isShiftExecutionDispatchRead = req.method === "GET" && url.pathname === `${API_PREFIX}/workshop/shift-execution/dispatch`;
   const isOrderPatch = req.method === "PATCH" && Boolean(orderMatch);
   const isStartDatePatch = req.method === "PATCH" && Boolean(startDateMatch);
@@ -1709,12 +1839,12 @@ export async function handleDomainApiRequest(req, res, url, {
   const isPlanningMutation = isOrderPatch || isStartDatePatch || isSlotPatch;
   const isPlanningPeriodRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/period`;
   const isSpecifications2WorkOrderCommand = req.method === "POST" && Boolean(specifications2WorkOrderCommandMatch);
-  if (req.method !== "GET" && !isOrderPatch && !isStartDatePatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionCarryoverCommand && !isShiftExecutionCarryoverCancel) {
+  if (req.method !== "GET" && !isOrderPatch && !isStartDatePatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionReportCommand && !isShiftExecutionCarryoverCommand && !isShiftExecutionCarryoverCancel) {
     sendJson(res, headers, 405, { ok: false, error: "Method is not allowed" });
     return true;
   }
   const isShiftExecutionMutation = isShiftExecutionAssignmentCommand || isShiftExecutionAssignmentUpdate
-    || isShiftExecutionFactCommand || isShiftExecutionCarryoverCommand || isShiftExecutionCarryoverCancel;
+    || isShiftExecutionFactCommand || isShiftExecutionReportCommand || isShiftExecutionCarryoverCommand || isShiftExecutionCarryoverCancel;
   if (isSpecifications2WorkOrderCommand || isSpecifications2PublishCommand || isSpecifications2AttachmentCommand || isShiftExecutionMutation || isPlanningMutation) {
     const contentType = String(getRequestHeader(req, "content-type") || "").trim().toLowerCase();
     if (!/^application\/json(?:\s*;|$)/u.test(contentType)) {
@@ -1810,6 +1940,65 @@ export async function handleDomainApiRequest(req, res, url, {
   const shiftExecutionDispatchQuery = isShiftExecutionDispatchRead ? readShiftExecutionDispatchQuery(url) : null;
   if (shiftExecutionDispatchQuery?.error) {
     sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: shiftExecutionDispatchQuery.error });
+    return true;
+  }
+
+  if (isShiftExecutionReportRead) {
+    let actor = null;
+    try {
+      const session = typeof shiftExecutionSessionResolver === "function"
+        ? await shiftExecutionSessionResolver(req, { env })
+        : null;
+      actor = normalizeShiftExecutionEmployeeActor(session?.principal);
+      if (!actor) {
+        sendShiftExecutionAuthorizationFailure(res, headers, {
+          actor: null,
+          infrastructureUnavailable: session?.infrastructureUnavailable === true
+            || isShiftExecutionAuthorizationInfrastructureReason(session?.reason),
+        }, "reading Employee Desktop issue reports");
+        return true;
+      }
+    } catch {
+      sendShiftExecutionAuthorizationFailure(res, headers, { actor: null, infrastructureUnavailable: true }, "reading Employee Desktop issue reports");
+      return true;
+    }
+    let assignmentId = "";
+    try { assignmentId = decodeURIComponent(shiftReportMatch[1]); }
+    catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Shift Execution report target id is invalid" }); return true; }
+    let shifts;
+    try {
+      shifts = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      const readiness = await shifts.commandReadiness();
+      if (readiness.schemaReady !== true) {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Employee Desktop report owner is not ready" });
+        return true;
+      }
+      const target = (await shifts.getCommandTargetContext({ assignmentId })).item || null;
+      if (!target) { sendJson(res, headers, 404, { ok: false, apiVersion: "v1", error: "Shift assignment was not found" }); return true; }
+      const authorization = typeof shiftExecutionAuthorizationResolver === "function"
+        ? await shiftExecutionAuthorizationResolver(actor, { env, commandKind: "report-read", workCenterId: target.workCenterId })
+        : null;
+      const authorizationResult = inspectShiftExecutionAuthorizationResult(authorization);
+      if (!authorizationResult.allowed) {
+        sendShiftExecutionAuthorizationFailure(res, headers, authorizationResult, "reading Employee Desktop issue reports");
+        return true;
+      }
+      const result = await shifts.listIssueReports({
+        assignmentId,
+        actorEmployeeId: actor.employeeId,
+        authorizedWorkCenterId: target.workCenterId,
+        limit: 8,
+      });
+      sendJson(res, headers, 200, { ok: true, apiVersion: "v1", ...result });
+    } catch (error) {
+      if (error?.code === "SHIFT_EXECUTION_REPORT_ACTOR_NOT_EXECUTOR") {
+        sendJson(res, headers, 403, { ok: false, apiVersion: "v1", code: "shift-execution-report-actor-not-executor", error: error.message });
+      } else if (error?.code === "SHIFT_EXECUTION_AUTHORIZATION_CONTEXT_CHANGED") {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", code: "shift-execution-target-context-changed", error: error.message });
+      } else {
+        sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Employee Desktop report storage is unavailable" });
+      }
+    } finally { await shifts?.close?.(); }
     return true;
   }
 
@@ -2114,6 +2303,10 @@ export async function handleDomainApiRequest(req, res, url, {
       allowed: false,
       reason: actorAuthorization.authorized ? "employee-session-required" : actorAuthorization.reason,
     });
+    let timesheetAuthorization = projectSystemDomainsTimesheetAuthorization({
+      allowed: false,
+      reason: actorAuthorization.authorized ? "employee-session-required" : actorAuthorization.reason,
+    });
     if (commandRequested && enabledSurfaces.includes("production-structure") && actorAuthorization.authorized) {
       try {
         const resolved = typeof systemDomainsProductionStructureAuthorizationResolver === "function"
@@ -2124,6 +2317,20 @@ export async function handleDomainApiRequest(req, res, url, {
         productionStructureAuthorization = projectSystemDomainsProductionStructureAuthorization({
           allowed: false,
           reason: "production-structure-authorization-unavailable",
+          infrastructureUnavailable: true,
+        });
+      }
+    }
+    if (commandRequested && enabledSurfaces.includes("timesheet") && actorAuthorization.authorized) {
+      try {
+        const resolved = typeof systemDomainsTimesheetAuthorizationResolver === "function"
+          ? await systemDomainsTimesheetAuthorizationResolver(req, { env, targetEmployeeId: "" })
+          : { allowed: false, reason: "timesheet-authorization-unavailable", infrastructureUnavailable: true };
+        timesheetAuthorization = projectSystemDomainsTimesheetAuthorization(resolved);
+      } catch {
+        timesheetAuthorization = projectSystemDomainsTimesheetAuthorization({
+          allowed: false,
+          reason: "timesheet-authorization-unavailable",
           infrastructureUnavailable: true,
         });
       }
@@ -2151,8 +2358,19 @@ export async function handleDomainApiRequest(req, res, url, {
       && enabledSurfaces.includes("production-structure")
       && productionStructureAuthorization.canEdit
       && Number(productionStructureAuthorization.revision || 0) === Number(consistency?.revision || 0);
+    const timesheetWriteEnabled = serverCommandsConfigured
+      && actorAuthorization.authorized
+      && enabledSurfaces.includes("timesheet")
+      && timesheetAuthorization.authenticated
+      && timesheetAuthorization.infrastructureUnavailable !== true;
     const serverCommandSurfaces = serverCommandsConfigured && actorAuthorization.authorized
-      ? enabledSurfaces.filter((surface) => surface !== "production-structure" || productionStructureWriteEnabled)
+      ? enabledSurfaces.filter((surface) => (
+        surface === "production-structure"
+          ? productionStructureWriteEnabled
+          : surface === "timesheet"
+            ? timesheetWriteEnabled
+            : false
+      ))
       : [];
     const serverCommandsEnabled = serverCommandSurfaces.length > 0;
     sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
@@ -2169,6 +2387,8 @@ export async function handleDomainApiRequest(req, res, url, {
       actorAuthorization,
       productionStructureWriteEnabled,
       productionStructureAuthorization,
+      timesheetWriteEnabled,
+      timesheetAuthorization,
       primaryPostgres: health.storageBackend === "postgresql",
       schemaReady: commandReadiness.schemaReady === true,
       commandReadiness,
@@ -2387,7 +2607,7 @@ export async function handleDomainApiRequest(req, res, url, {
   if (url.pathname === `${API_PREFIX}/workshop/shift-execution/capabilities`) {
     if (health.storageBackend !== "postgresql") {
       sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
-        assignmentCreationEnabled: false, carryoverCancellationEnabled: false, primaryPostgres: false, schemaReady: false,
+        assignmentCreationEnabled: false, issueReportCreationEnabled: false, carryoverCancellationEnabled: false, primaryPostgres: false, schemaReady: false,
       } });
       return true;
     }
@@ -2399,6 +2619,7 @@ export async function handleDomainApiRequest(req, res, url, {
       const commandsEnabled = String(env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1" && health.storageBackend === "postgresql" && commandReadiness.schemaReady === true;
       sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
         assignmentCreationEnabled: commandsEnabled,
+        issueReportCreationEnabled: commandsEnabled,
         carryoverCancellationEnabled: commandsEnabled,
         primaryPostgres: health.storageBackend === "postgresql",
         schemaReady: commandReadiness.schemaReady === true,
@@ -2436,7 +2657,7 @@ export async function handleDomainApiRequest(req, res, url, {
     }
 
     let payload;
-    try { payload = await readRequestBody(req, { maxBytes: SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES }); }
+    try { payload = await readRequestBody(req, { maxBytes: isShiftExecutionReportCommand ? SHIFT_EXECUTION_REPORT_BODY_MAX_BYTES : SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES }); }
     catch (error) {
       const tooLarge = error?.code === "REQUEST_BODY_TOO_LARGE";
       sendJson(res, headers, tooLarge ? 413 : 400, {
@@ -2456,6 +2677,8 @@ export async function handleDomainApiRequest(req, res, url, {
         ? decodeURIComponent(shiftAssignmentMatch[1])
         : isShiftExecutionFactCommand
           ? decodeURIComponent(shiftFactMatch[1])
+          : isShiftExecutionReportCommand
+            ? decodeURIComponent(shiftReportMatch[1])
           : isShiftExecutionCarryoverCommand
             ? String(payload?.sourceAssignmentId || "").trim()
             : "";
@@ -2561,11 +2784,15 @@ export async function handleDomainApiRequest(req, res, url, {
       ? "assignment"
       : isShiftExecutionFactCommand
         ? "fact"
+        : isShiftExecutionReportCommand
+          ? "report"
         : "carryover";
     const actionLabel = commandKind === "assignment"
       ? "assigning Shift Execution work"
       : commandKind === "fact"
         ? "recording a Shift Execution fact"
+        : commandKind === "report"
+          ? "recording an Employee Desktop issue report"
         : "maintaining a Shift Execution carryover";
     let authorization;
     try {
@@ -2592,6 +2819,8 @@ export async function handleDomainApiRequest(req, res, url, {
         ? await shifts.createCarryover({ ...canonicalPayload, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
         : isShiftExecutionFactCommand
         ? await shifts.recordFact({ ...canonicalPayload, assignmentId, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
+        : isShiftExecutionReportCommand
+        ? await shifts.recordIssueReport({ ...canonicalPayload, assignmentId, idempotencyKey, actorId: actor.id, actorEmployeeId: actor.employeeId, actorDisplayName: actor.displayName, authorizedWorkCenterId: workCenterId, expectedWorkOrderId: targetContext?.workOrderId || "", expectedOperationId: targetContext?.operationId || "" })
         : isShiftExecutionAssignmentUpdate
         ? await shifts.updateAssignment({ ...canonicalPayload, assignmentId, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId })
         : await shifts.createAssignment({ ...canonicalPayload, idempotencyKey, actorId: actor.id, authorizedWorkCenterId: workCenterId });
@@ -2605,6 +2834,8 @@ export async function handleDomainApiRequest(req, res, url, {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", retryable: true, code: "shift-execution-target-context-changed", error: error.message });
       } else if (error?.code === "SHIFT_EXECUTION_COMMAND_INVALID") {
         sendJson(res, headers, 422, { ok: false, apiVersion: "v1", code: "shift-execution-command-invalid", error: error.message });
+      } else if (error?.code === "SHIFT_EXECUTION_REPORT_ACTOR_NOT_EXECUTOR") {
+        sendJson(res, headers, 403, { ok: false, apiVersion: "v1", code: "shift-execution-report-actor-not-executor", error: error.message });
       } else if (error?.code === "PRODUCTION_RESOURCE_ARCHIVED") {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, code: "production-resource-archived", resourceId: error.resourceId || "", error: error.message });
       } else sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" });
@@ -2672,12 +2903,12 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "System Domains command surface is not enabled during snapshot migration", surface, enabledSurfaces });
       return true;
     }
-    if (surface !== "production-structure") {
+    if (surface === "access-control") {
       sendJson(res, headers, 409, {
         ok: false,
         apiVersion: "v1",
         code: "system-domains-surface-not-server-authorized",
-        error: "Timesheet and Access Control writes remain disabled until target-scoped employee RBAC and server delta invariants are implemented",
+        error: "Access Control writes remain disabled until their server authorization and delta invariants are implemented",
         surface,
       });
       return true;
@@ -2702,6 +2933,25 @@ export async function handleDomainApiRequest(req, res, url, {
         return true;
       }
       commandActor = productionStructureAuthorization.actor;
+    } else if (surface === "timesheet") {
+      let timesheetSessionAuthorization;
+      try {
+        const resolved = typeof systemDomainsTimesheetAuthorizationResolver === "function"
+          ? await systemDomainsTimesheetAuthorizationResolver(req, { env, targetEmployeeId: "" })
+          : { allowed: false, reason: "timesheet-authorization-unavailable", infrastructureUnavailable: true };
+        timesheetSessionAuthorization = projectSystemDomainsTimesheetAuthorization(resolved);
+      } catch {
+        timesheetSessionAuthorization = projectSystemDomainsTimesheetAuthorization({
+          allowed: false,
+          reason: "timesheet-authorization-unavailable",
+          infrastructureUnavailable: true,
+        });
+      }
+      if (timesheetSessionAuthorization.infrastructureUnavailable || !timesheetSessionAuthorization.authenticated) {
+        sendSystemDomainsTimesheetAuthorizationFailure(res, headers, timesheetSessionAuthorization);
+        return true;
+      }
+      commandActor = timesheetSessionAuthorization.actor;
     }
     let candidate;
     try { candidate = normalizeSystemDomainsCommandPayload(payload.domains); }
@@ -2775,6 +3025,53 @@ export async function handleDomainApiRequest(req, res, url, {
             forbiddenRegistries: surfaceValidation.forbiddenRegistries,
           });
           return true;
+        }
+        if (surface === "timesheet") {
+          const timesheetDelta = validateSystemDomainsTimesheetDelta({ current: currentProjection.item, candidate });
+          if (!timesheetDelta.ok) {
+            sendJson(res, headers, 422, {
+              ok: false,
+              apiVersion: "v1",
+              code: timesheetDelta.code,
+              error: timesheetDelta.error,
+              surface,
+              changedRegistries: timesheetDelta.changedRegistries || [],
+            });
+            return true;
+          }
+          let timesheetAuthorization;
+          try {
+            const resolved = typeof systemDomainsTimesheetAuthorizationResolver === "function"
+              ? await systemDomainsTimesheetAuthorizationResolver(req, {
+                env,
+                targetEmployeeId: timesheetDelta.targetEmployeeId,
+              })
+              : { allowed: false, reason: "timesheet-authorization-unavailable", infrastructureUnavailable: true };
+            timesheetAuthorization = projectSystemDomainsTimesheetAuthorization(resolved);
+          } catch {
+            timesheetAuthorization = projectSystemDomainsTimesheetAuthorization({
+              allowed: false,
+              reason: "timesheet-authorization-unavailable",
+              infrastructureUnavailable: true,
+            });
+          }
+          if (!timesheetAuthorization.authorized) {
+            sendSystemDomainsTimesheetAuthorizationFailure(res, headers, timesheetAuthorization);
+            return true;
+          }
+          if (timesheetAuthorization.targetEmployeeId !== timesheetDelta.targetEmployeeId
+            || Number(timesheetAuthorization.revision || 0) !== Number(currentProjection.revision)) {
+            sendJson(res, headers, 409, {
+              ok: false,
+              apiVersion: "v1",
+              conflict: true,
+              code: "timesheet-authorization-stale",
+              revision: currentProjection.revision,
+              error: "Timesheet authorization changed before the command could be committed",
+            });
+            return true;
+          }
+          commandActor = timesheetAuthorization.actor;
         }
         // Candidate-final parent/lifecycle invariants apply to the complete
         // aggregate on every surface. Otherwise a Timesheet or Access Control

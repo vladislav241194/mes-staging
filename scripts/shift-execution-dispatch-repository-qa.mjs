@@ -72,6 +72,7 @@ assert(/SELECT DISTINCT ON \(shift_assignment_id\)/.test(calls[2].query) && /FRO
 assert(/FROM shift_carryovers\b/.test(calls[3].query) && /date_key =/.test(calls[3].query) && /work_center_id = ANY/.test(calls[3].query), "fourth query must read active carryovers only for the selected date and visible work centers");
 assert(/canceled_at IS NULL/.test(calls[3].query), "dispatch reader must never re-inject canceled carryovers");
 assert(calls.every((call) => !/source_payload/.test(call.query)), "compact dispatch reader must not load replay payloads");
+assert(calls.every((call) => !/shift_issue_reports/.test(call.query)), "generic dispatch must never load employee Report text or photos");
 assert(calls.slice(1).every((call) => !/IN\s*\(\s*SELECT\s+id\s+FROM\s+shift_assignments/i.test(call.query)), "bounded dependent queries must use actual IDs, never reselect assignments");
 assert(JSON.stringify(calls[0].values[0]) === JSON.stringify(["row-b", "row-a"]), "source row IDs must be trimmed and deduplicated in stable order");
 assert(JSON.stringify(calls[1].values[0]) === JSON.stringify(["assignment-b", "assignment-a"]), "executor query must use only actual assignment IDs in board order");
@@ -85,7 +86,7 @@ assert(JSON.stringify(result.coveredSourceRowIds) === JSON.stringify(["row-b", "
 assert(result.items.map((item) => item.id).join(",") === "assignment-b,assignment-a", "items must preserve visible board source-row order");
 assert(result.items[0]?.executors?.[0]?.employeeId === "employee-b", "compact items must retain matching executors");
 assert(result.items[1]?.facts?.length === 1 && result.items[1]?.facts?.[0]?.id === "fact-a-new", "compact items must retain only the current fact");
-assert(result.items.every((item) => !("sourcePayload" in item) && !("carryovers" in item)), "compact items must omit replay payloads and date-scoped carryovers");
+assert(result.items.every((item) => !("sourcePayload" in item) && !("carryovers" in item) && !("reports" in item)), "compact items must omit replay payloads, date-scoped carryovers and employee Report content");
 assert(result.carryovers.length === 1 && result.carryovers[0]?.sourceAssignmentId === "assignment-history" && result.carryovers[0]?.sourceRowId === "row-history", "date-scoped carryovers must remain top-level and keep source-row identity even when their assignment is outside the current board rows");
 assert(!("sourcePayload" in result.carryovers[0]), "compact carryovers must omit replay payloads");
 

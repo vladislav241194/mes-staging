@@ -157,10 +157,12 @@ failed nor successful PIN values appear in UI or session storage.
 
 Contour Admin now has locally complete protected Ops command presentation:
 React owns explicit confirmation and result state, while the host rechecks the
-scenario/action pair and the existing owner calls the unchanged admin-only Ops
-API. Server cookie authentication, action allowlist, required confirmation
-token, audit and command execution remain outside React. Local QA uses a mock
-endpoint and performs no backup, sync, promote or rollback operation.
+scenario/action pair and the server owner calls the admin-only Ops API. The
+deploy scenario creates only a durable, server-fsynced audit request and never
+starts a deploy process. Server admin RBAC, action allowlist, confirmation
+tokens, audit and command execution remain outside React. The permanent React
+path builds its typed model without loading the legacy renderer; that renderer
+remains available only as the immutable rollback path.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
@@ -186,7 +188,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 20 | Specifications 2.0 | Permanent React UI candidate: existing draft-row edit, exact-ID server-primary publication with conflict/retry and PostgreSQL read-back, plus idempotent exact-revision work-order creation; no legacy renderer/action fallback | Critical | Pilot publication/work-order acceptance, then server owners for add/remove/reparent, attachment binding and route/norm editing; unsupported actions stay visibly disabled |
 | 21 | Gantt | Local complete: dependency inspection, target-slot selection, revision-checked start-time reschedule and React-native period/scale/zoom, expand/collapse, quantity visibility and today persisted by the existing UI-state owner; Pilot read accepted | Critical | Keep default-off; read-only slot edit fallback, schedule-mutating refresh, dependency editing, drag, resize and optimization remain separate scopes |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
-| 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |
+| 23 | Contour Admin | React TS complete: typed model, confirmation/result UI, protected Ops owner and durable audit-only Pilot deploy request; no normal legacy renderer/model load | Critical | Separately gated authenticated Admin read, audit-persistence and dry-run Ops acceptance; immutable legacy rollback remains available |
 | — | Structure Migration Diagnostics | Not applicable: product screen is read-only; permanent desktop Pilot acceptance completed on `.21` | Low | Keep immutable legacy rollback and monitor; narrow Pilot remains unclaimed because viewport resize was unavailable |
 
 The Directories cluster now has Component Types read parity accepted on Pilot
@@ -323,15 +325,19 @@ guards and a cleared archive marker, hidden/reference/quantity preservation,
 active `7`-row legacy read-back and an unchanged disposable
 compatibility snapshot. Pilot write acceptance is separate.
 
-Timesheet adds bounded React editors for the fact of one selected day and the
-employee's permanent schedule. The typed host reuses the existing legacy
-attendance-event builder plus `saveScheduleAssignment` / `removeScheduleAssignment`
-and delegates every write to the revision-checked `timesheet` System Domains
-owner. Production-shell QA rejects absence plus overtime and an invalid cycle
-offset before PUT, saves both a sick day and an alternate schedule, reads both
-through legacy, exposes a revision conflict without mutation, resets both
-coordinates and preserves unrelated hidden event and assignment fields. All
-writes use a localhost-only gate; Pilot remains default-off and read-only.
+Timesheet now has an independent typed calendar read model built directly from
+the canonical System Domains aggregate plus a typed attendance command
+contract. Its ordinary React path no longer loads the legacy Timesheet renderer,
+legacy period navigator or legacy attendance-event form builder. One-day facts
+and one-employee permanent schedules are delegated to the revision-checked
+`timesheet` owner only when PostgreSQL-primary capability, the current aggregate
+revision and a signed employee session agree. The server validates one bounded
+attendance/schedule delta and requires both target-scoped `view` and `edit`
+RBAC; missing sessions, stale revisions, cross-registry changes, multi-employee
+changes and owner outages fail closed. Legacy remains available only after an
+explicit runtime rollback. Strict typecheck and focused owner/model QA are
+complete; current-release Pilot read/write cleanup and rollback acceptance are
+still deferred and are not reported as verified.
 
 Structure Responsibility Policies completes the non-critical Structure command
 set without moving assignability logic into React. The editor writes the master,

@@ -9,6 +9,7 @@ export const SHIFT_EXECUTION_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   "017_shift_execution_carryover_idempotency",
   "022_shift_execution_carryover_lifecycle",
   "025_shift_execution_postgres_authority",
+  "034_shift_execution_issue_reports",
 ]);
 export const SHIFT_EXECUTION_INCOMPATIBLE_TARGET_FLAGS = Object.freeze([
   "MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS",
@@ -19,7 +20,7 @@ export function parseAndValidateShiftExecutionCommandMarker(source) {
   const exclusivity = marker?.controlledRootExclusivity;
   if (marker?.schemaVersion !== 1
     || marker?.contract !== "shift-execution-server-commands"
-    || marker?.commandSurfaceVersion !== 2
+    || marker?.commandSurfaceVersion !== 3
     || marker?.authenticatedActorVersion !== 2
     || marker?.revisionConcurrencyVersion !== 1
     || marker?.idempotencyReceiptVersion !== 1

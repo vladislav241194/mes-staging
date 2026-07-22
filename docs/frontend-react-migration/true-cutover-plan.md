@@ -68,16 +68,16 @@ parity сохраняет `25 x 11`. После fresh authenticated read, точ
 
 ## Ускоренный implementation checkpoint 2026-07-22
 
-Отдельный показатель реализации составляет **82%**, тогда как строгая
+Отдельный показатель реализации составляет **86%**, тогда как строгая
 evidence-weighted Pilot acceptance остаётся **50%**. Все **16/16**
-верхнеуровневых маршрутов уже имеют React UI: **7 complete**, **7 partial** и
-**2 явных prototype**. Маркер `React TS` показывается только на семи complete
+верхнеуровневых маршрутов уже имеют React UI: **9 complete**, **5 partial** и
+**2 явных prototype**. Маркер `React TS` показывается только на девяти complete
 модулях; partial и prototype не выдаются за завершённые.
 
 - Complete: Nomenclature, Weekly Production Control, Shift Master Board,
-  Shift Work Orders, Production Structure Matrix, Directories, Auth Prototype.
-- Partial: Specifications 2, Planning, Gantt, Timesheet, Roles, Contour Admin,
-  Auth Session Prototype.
+  Shift Work Orders, Production Structure Matrix, Directories, Auth Prototype,
+  Contour Admin, Timesheet.
+- Partial: Specifications 2, Planning, Gantt, Roles, Auth Session Prototype.
 - Prototype: Dispatch и Marking.
 
 Visual QA и широкие локальные browser-lifecycle fixtures на этой ускоренной

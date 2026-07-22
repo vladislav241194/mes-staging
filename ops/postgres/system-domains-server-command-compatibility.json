@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "contract": "system-domains-server-commands",
-  "commandSurfaceVersion": 1,
+  "commandSurfaceVersion": 2,
   "actorPolicyVersion": 1,
-  "authorizationSnapshotVersion": 2,
+  "authorizationSnapshotVersion": 3,
   "authorityTransitionVersion": 1,
   "employeeAuthReadinessVersion": 1,
   "lifecycleGuardVersion": 1,
@@ -14,7 +14,8 @@
     "access-control"
   ],
   "rolloutEligibleSurfaces": [
-    "production-structure"
+    "production-structure",
+    "timesheet"
   ],
   "controlledRootExclusivity": {
     "required": true,

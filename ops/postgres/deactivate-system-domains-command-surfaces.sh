@@ -127,12 +127,12 @@ assert_safe_authority_state() {
     const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};
     const authority = value?.consistency?.details?.authority?.mode;
     const compatibilityReady = authority === "compatibility-snapshot" && value?.consistency?.matches === true;
-    const primarySuspendReady = target === "disabled" && authority === "postgres-primary" && reconciliation?.retirementEligible === true;
+    const primarySuspendReady = authority === "postgres-primary" && reconciliation?.retirementEligible === true;
     if (value?.consistency?.ok !== true || reconciliation?.readEligible !== true
       || (!compatibilityReady && !primarySuspendReady) || (expectedMode && authority !== expectedMode)) process.exit(1);
     process.stdout.write(authority);
   ' "$consistency" "$TARGET" "${EXPECTED_AUTHORITY_MODE:-}" || {
-    echo "Refusing command-surface change without stable compatibility parity or a durable PostgreSQL-primary tombstone for --to=disabled." >&2
+    echo "Refusing command-surface change without stable compatibility parity or a durable PostgreSQL-primary tombstone." >&2
     exit 1
   }
 }
@@ -227,12 +227,21 @@ node -e '
   const actual = capability.configuredServerCommandSurfaces || [];
   if (expected.length === 0) {
     if (capability.serverCommandsConfigured === true || actual.length !== 0) process.exit(1);
-  } else if (capability.primaryPostgres !== true
-    || capability.serverCommandsConfigured !== true
-    || capability.actorAuthorization?.policyConfigured !== true
-    || capability.consistency?.matches !== true
-    || actual.length !== expected.length
-    || actual.some((surface, index) => surface !== expected[index])) process.exit(1);
+  } else {
+    const consistency = capability.consistency || {};
+    const authority = consistency?.details?.authority?.mode;
+    const promotion = consistency?.details?.reconciliation?.promotion || {};
+    const compatibilityReady = authority === "compatibility-snapshot" && consistency?.matches === true;
+    const primaryReady = authority === "postgres-primary" && promotion?.retirementEligible === true;
+    if (capability.primaryPostgres !== true
+      || capability.serverCommandsConfigured !== true
+      || capability.actorAuthorization?.policyConfigured !== true
+      || consistency?.ok !== true
+      || promotion?.readEligible !== true
+      || (!compatibilityReady && !primaryReady)
+      || actual.length !== expected.length
+      || actual.some((surface, index) => surface !== expected[index])) process.exit(1);
+  }
 ' "$capabilities" "$EXPECTED_CSV" || {
   echo "System Domains command capability does not match the requested rollback state." >&2
   exit 1

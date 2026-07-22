@@ -51,6 +51,8 @@ const planningStartDateMigrationPath = fileURLToPath(new URL("../db/migrations/0
 const planningStartDateSql = await readFile(planningStartDateMigrationPath, "utf-8");
 const systemDomainsLifecycleArchivedAtMigrationPath = fileURLToPath(new URL("../db/migrations/033_system_domains_lifecycle_archived_at.sql", import.meta.url));
 const systemDomainsLifecycleArchivedAtSql = await readFile(systemDomainsLifecycleArchivedAtMigrationPath, "utf-8");
+const shiftExecutionIssueReportsMigrationPath = fileURLToPath(new URL("../db/migrations/034_shift_execution_issue_reports.sql", import.meta.url));
+const shiftExecutionIssueReportsSql = await readFile(shiftExecutionIssueReportsMigrationPath, "utf-8");
 const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
 const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
 const postgresPreflightPolicyPath = fileURLToPath(new URL("./domain-postgres-preflight-policy.mjs", import.meta.url));
@@ -236,6 +238,20 @@ for (const table of ["system_org_units", "system_work_centers", "system_position
 assert(systemDomainsLifecycleArchivedAtSql.includes("ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ"));
 assert(systemDomainsLifecycleArchivedAtSql.includes("VALUES ('033_system_domains_lifecycle_archived_at')"));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA|COLUMN)/i.test(systemDomainsLifecycleArchivedAtSql), "System Domains lifecycle archived-at migration must not contain destructive statements");
+[
+  "CREATE TABLE shift_issue_reports",
+  "shift_assignment_id TEXT NOT NULL REFERENCES shift_assignments(id) ON DELETE RESTRICT",
+  "assignment_revision INTEGER NOT NULL CHECK (assignment_revision >= 1)",
+  "work_order_id TEXT NOT NULL",
+  "work_order_operation_id TEXT NOT NULL",
+  "work_center_id TEXT NOT NULL",
+  "CREATE TABLE shift_execution_report_requests",
+  "shift_report_id TEXT NOT NULL UNIQUE REFERENCES shift_issue_reports(id) ON DELETE RESTRICT",
+  "WHERE version = '034_shift_execution_issue_reports'",
+  "VALUES ('034_shift_execution_issue_reports')",
+].forEach((fragment) => assert(shiftExecutionIssueReportsSql.includes(fragment), `Shift issue-report migration is missing: ${fragment}`));
+assert(!/^\s*BEGIN\s*;/iu.test(shiftExecutionIssueReportsSql) && !/COMMIT\s*;\s*$/iu.test(shiftExecutionIssueReportsSql), "Shift issue-report migration must rely on the runner-owned transaction");
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA|COLUMN)/i.test(shiftExecutionIssueReportsSql), "Shift issue-report migration must not contain destructive statements");
 assert(
   postgresPreflightSql.includes("getRequiredDomainMigrations(process.env)")
     && postgresPreflightPolicySql.includes('"026_system_responsibility_policy_lifecycle"'),

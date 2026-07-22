@@ -13,10 +13,11 @@ fi
 
 usage() {
   cat >&2 <<'EOF'
-Usage: activate-system-domains-command-surfaces.sh --through=production-structure
+Usage: activate-system-domains-command-surfaces.sh --through=production-structure|timesheet
 
-Timesheet and Access Control server writes remain intentionally unavailable
-until target-scoped employee RBAC and server delta invariants are implemented.
+Timesheet is the reviewed second stage after Production Structure. Access
+Control remains unavailable until its server authorization and delta
+invariants are implemented.
 This command never retires the compatibility snapshot.
 EOF
   exit 2
@@ -31,11 +32,14 @@ for argument in "$@"; do
     *) usage ;;
   esac
 done
-case "$THROUGH" in production-structure|timesheet|access-control) ;; *) usage ;; esac
-if [[ "$THROUGH" != "production-structure" ]]; then
-  echo "Timesheet and Access Control server writes remain disabled until their employee-session RBAC and server delta invariants are implemented." >&2
-  exit 1
-fi
+case "$THROUGH" in
+  production-structure|timesheet) ;;
+  access-control)
+    echo "Access Control server writes remain disabled until their server authorization and delta invariants are implemented." >&2
+    exit 1
+    ;;
+  *) usage ;;
+esac
 APP_DIR="${MES_PILOT_APP_DIR:-/srv/mes/pilot/app}"
 if [[ ${MES_SHARED_STATE_AUTHORITY_ROLLOUT_LOCK_HELD:-0} != 1 ]]; then
   exec "${APP_DIR}/ops/shared-state/with-authority-rollout-lock.sh" "$0" "$@"
@@ -121,12 +125,6 @@ case "$THROUGH" in
     PREDECESSOR_CSV="production-structure"
     TARGET_SOURCE="${APP_DIR}/ops/postgres/mes-pilot-system-domains-timesheet.conf"
     TARGET_FILE="$TIMESHEET_DROPIN_FILE"
-    ;;
-  access-control)
-    EXPECTED_CSV="production-structure,timesheet,access-control"
-    PREDECESSOR_CSV="production-structure,timesheet"
-    TARGET_SOURCE="${APP_DIR}/ops/postgres/mes-pilot-system-domains-access-control.conf"
-    TARGET_FILE="$ACCESS_CONTROL_DROPIN_FILE"
     ;;
 esac
 

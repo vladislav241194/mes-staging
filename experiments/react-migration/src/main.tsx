@@ -112,6 +112,7 @@ const featureGate = createReactIslandFeatureGate({
       onShiftMasterBoardCommand: async (command) => { markRevisionStart(nextExpectedRevision); featureGate.update(command.type === "save-assignment" ? createShiftMasterBoardAssignmentFixture(command.rowId, command.executors) : command.type === "save-fact" ? createShiftMasterBoardFactFixture(command.rowId, command) : createShiftMasterBoardLaneFixture(command.rowId, command.laneId)); return { ok: true }; },
       onEmployeeDesktopCommand: async (command) => {
         if (command.type === "select-person") { if (command.personId === null) { root.dataset.employeeDesktopReturnToUserSelection = "requested"; return { ok: true }; } markRevisionStart(nextExpectedRevision); featureGate.update(createEmployeeDesktopPersonFixture(command.personId)); return { ok: true }; }
+        if (command.type === "select-task") return { ok: true };
         if (command.type === "prepare-report-photo") { const dataUrl = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => resolve(""); reader.readAsDataURL(command.file); }); return { ok: true, photo: { id: "photo-lab", name: command.file.name, type: command.file.type, size: command.file.size, source: command.source, dataUrl, storageNote: "" } }; }
         markRevisionStart(nextExpectedRevision);
         if (command.type === "start-task") featureGate.update(createEmployeeDesktopStartedFixture(command.taskId));

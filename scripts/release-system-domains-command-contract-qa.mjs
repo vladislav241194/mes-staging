@@ -12,11 +12,12 @@ import {
 const markerSource = await readFile(new URL(`../${SYSTEM_DOMAINS_COMMAND_MARKER_PATH}`, import.meta.url), "utf8");
 const marker = JSON.parse(markerSource);
 const compatibility = buildSystemDomainsCommandManifestContract(markerSource);
-assert.equal(marker.authorizationSnapshotVersion, 2, "production-structure commands must bind the signed employee/RBAC authorization contract");
+assert.equal(marker.commandSurfaceVersion, 2, "the command contract must include bounded Timesheet writes");
+assert.equal(marker.authorizationSnapshotVersion, 3, "production-structure and Timesheet commands must bind signed employee/RBAC authorization");
 assert.equal(marker.employeeAuthReadinessVersion, 1, "production-structure rollout must bind root employee-auth readiness");
 assert.equal(marker.lifecycleGuardVersion, 1, "production-structure commands must bind final-state lifecycle invariants");
 assert.equal(marker.resourceDependencyLockVersion, 1, "production-structure commands must bind the durable Planning/Shift dependency lock");
-assert.deepEqual(marker.rolloutEligibleSurfaces, ["production-structure"], "the release marker must not advertise Timesheet or Access Control as rollout eligible");
+assert.deepEqual(marker.rolloutEligibleSurfaces, ["production-structure", "timesheet"], "the release marker must advertise only reviewed Production Structure and Timesheet surfaces");
 assert(marker.requiredMigrations.includes("027_employee_auth_credentials"), "the System Domains command release must require durable employee-session storage");
 assert(marker.requiredMigrations.includes("033_system_domains_lifecycle_archived_at"), "the System Domains command release must require durable lifecycle archive timestamps");
 const manifest = {
@@ -74,6 +75,11 @@ assert(apiSource.includes("resolveSystemDomainsProductionStructureAuthorization"
   && apiSource.includes("production-structure-authorization-stale")
   && apiSource.includes("productionStructureWriteEnabled"),
 "the versioned server surface must enforce employee RBAC, impact validation and revision binding");
+assert(apiSource.includes("resolveSystemDomainsTimesheetAuthorization")
+  && apiSource.includes("validateSystemDomainsTimesheetDelta")
+  && apiSource.includes("timesheet-authorization-stale")
+  && apiSource.includes("timesheetWriteEnabled"),
+"authorization v3 must enforce target-scoped Timesheet RBAC, bounded deltas and revision binding");
 assert(authorizationSource.includes("inspectEmployeeAuthSession") && authorizationSource.includes('moduleId: "productionStructureMatrix"'), "authorization v2 must derive its actor from the signed employee session and current module grant");
 assert(impactSource.includes("position-active-assignment") && impactSource.includes("equipment-active-resource-dependency"), "authorization v2 must retain the server-owned Position and Equipment impact guards");
 assert(impactSource.includes("production-structure-hard-delete-forbidden")

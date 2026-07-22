@@ -110,6 +110,8 @@ import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/empl
 import { createMarkingReactIslandHost } from "./modules/marking/react_island_host.js";
 import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
+import { isContourAdminCommandAllowed } from "./modules/contour_admin/command_contract.js";
+import { executeContourAdminServerAction } from "./modules/contour_admin/server_owner_client.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createGanttReactIslandHost } from "./modules/gantt_runtime/react_island_host.js";
@@ -209,7 +211,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.500.37";
+const APP_VERSION_FALLBACK = "v.1.500.38";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -2670,8 +2672,6 @@ function ensureAccessRolesModule() {
 }
 
 let bindContourAdminEvents = () => {};
-let executeContourAdminAction = async () => ({ ok: false, error: "Contour Admin ещё не загружен." });
-let getContourAdminModel = () => ({ contours: [], scenarios: [], speedRows: [], guardrails: [] });
 let renderContourAdminPage = () => renderUiModulePage({
   ariaLabel: "Администрирование контура",
   className: "contour-admin-page",
@@ -2684,8 +2684,6 @@ let contourAdminModuleError = null;
 function initializeContourAdminModule(factory) {
   ({
     bindContourAdminEvents,
-    executeContourAdminAction,
-    getContourAdminModel,
     renderContourAdminPage,
   } = factory({
   appendLocalDataSafetyAudit,
@@ -4466,6 +4464,34 @@ function isTimesheetReactEvaluationRequested() {
   if (params.get("react-timesheet-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+function isTimesheetReactCommandReady({ localWriteEvaluation = false } = {}) {
+  const commandSurfaceReady = systemDomainsServerReadState.status === "server"
+    && systemDomainsServerCommandState.status === "ready"
+    && systemDomainsServerCommandState.enabled === true
+    && systemDomainsServerCommandState.surfaces.includes("timesheet");
+  if (localWriteEvaluation) return commandSurfaceReady;
+  return getReactRuntimeMode("timesheet") === "react"
+    && commandSurfaceReady
+    && systemDomainsServerCommandState.configured === true
+    && systemDomainsServerCommandState.configuredSurfaces.includes("timesheet")
+    && systemDomainsServerCommandState.primaryAuthority === true
+    && Number(systemDomainsServerCommandState.consistencyRevision || 0) > 0
+    && Number(systemDomainsServerCommandState.consistencyRevision) === Number(systemDomainsServerReadState.revision || 0);
+}
+function moveTimesheetReactPeriod(direction = 0) {
+  const normalizedDirection = Number(direction);
+  if (![-1, 1].includes(normalizedDirection)) return false;
+  const anchorKey = normalizeDateInput(ui.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor) || defaultUiState.timesheetPeriodAnchor;
+  const anchor = fromDateInput(anchorKey);
+  if (!(anchor instanceof Date) || Number.isNaN(anchor.getTime())) return false;
+  const next = ui.timesheetView === "week"
+    ? addMs(anchor, normalizedDirection * 7 * DAY_MS)
+    : new Date(anchor.getFullYear(), anchor.getMonth() + normalizedDirection, 1);
+  ui.timesheetPeriodAnchor = toDateInput(next);
+  persistUiState();
+  if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
+  return true;
+}
 const timesheetReactIslandHost = createTimesheetReactIslandHost({
   getActivation: () => {
     const localQa = getTimesheetReactLocalQaOverrides();
@@ -4494,13 +4520,16 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
     };
   },
   getPayload: () => {
-    const model = getTimesheetModel(); const localQa = getTimesheetReactLocalQaOverrides(); const registries = getSystemDomainsRegistries();
-    const commandReady = localQa.writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("timesheet");
-    const editableEmployeeIds = commandReady ? model.employees.filter((employee) => canEditTimesheetEmployee(employee.timesheetId)).map((employee) => employee.timesheetId) : [];
-    return { model, capabilities: { attendanceEdit: commandReady, scheduleEdit: commandReady, editableEmployeeIds, scheduleEditableEmployeeIds: editableEmployeeIds, scheduleTemplates: (registries.scheduleTemplates || []).map((template) => ({ id: template.id, code: template.code, caption: template.caption || template.name || "", start: template.startTime || template.start || "", end: template.endTime || template.end || "" })), attendanceEventKeys: (registries.attendanceEvents || []).map((event) => `${String(event.employeeId || "").trim()}|${String(event.date || "").trim()}`).filter((value) => !value.startsWith("|") && !value.endsWith("|")) } };
+    const permanentReact = getReactRuntimeMode("timesheet") === "react"; const localQa = getTimesheetReactLocalQaOverrides(); const registries = getSystemDomainsRegistries();
+    const commandReady = isTimesheetReactCommandReady({ localWriteEvaluation: localQa.writeEvaluation });
+    const editableEmployeeIds = commandReady ? (registries.employees || []).map((employee) => String(employee.id || "").trim()).filter((employeeId) => employeeId && canEditTimesheetEmployee(employeeId)) : [];
+    const capabilities = { attendanceEdit: commandReady, scheduleEdit: commandReady, editableEmployeeIds, scheduleEditableEmployeeIds: editableEmployeeIds, scheduleTemplates: (registries.scheduleTemplates || []).map((template) => ({ id: template.id, code: template.code, caption: template.caption || template.name || "", start: template.startTime || template.start || "", end: template.endTime || template.end || "" })), attendanceEventKeys: (registries.attendanceEvents || []).map((event) => `${String(event.employeeId || "").trim()}|${String(event.date || "").trim()}`).filter((value) => !value.startsWith("|") && !value.endsWith("|")) };
+    if (permanentReact) return { productionModel: { domains: systemDomainsState, view: ui.timesheetView || defaultUiState.timesheetView, periodAnchor: ui.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor }, capabilities };
+    return { model: getTimesheetModel(), capabilities };
   },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
+    if (getReactRuntimeMode("timesheet") === "react") return;
     const [action, value, dateKey] = String(scope || "").split(":");
     if (["day", "schedule"].includes(action)) openTimesheetEditor(value, dateKey);
     if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
@@ -4518,11 +4547,10 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
     if (command.type === "move-period") {
       const direction = Number(command.payload?.direction);
       if (![-1, 1].includes(direction)) return { ok: false, message: "Направление периода табеля некорректно." };
-      moveTimesheetPeriod(direction);
-      return { ok: true };
+      return moveTimesheetReactPeriod(direction) ? { ok: true } : { ok: false, message: "Период табеля недоступен." };
     }
-    if (!localQa.writeEvaluation || !["save-attendance", "remove-attendance", "save-schedule", "remove-schedule"].includes(command.type)) return { ok: false, message: "Команда табеля недоступна." };
-    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("timesheet")) return { ok: false, message: "PostgreSQL-команда табеля недоступна." };
+    if (!["save-attendance", "remove-attendance", "save-schedule", "remove-schedule"].includes(command.type)) return { ok: false, message: "Команда табеля недоступна." };
+    if (!isTimesheetReactCommandReady({ localWriteEvaluation: localQa.writeEvaluation })) return { ok: false, message: "PostgreSQL-команда табеля недоступна." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {}; const employeeId = String(input.employeeId || "").trim(); const dateKey = String(input.dateKey || "").trim();
     if (!employeeId || !(getSystemDomainsRegistries().employees || []).some((employee) => employee.id === employeeId)) return { ok: false, message: "Сотрудник больше не существует." };
     if (!canEditTimesheetEmployee(employeeId)) return { ok: false, message: "Нет права изменять табель этого сотрудника." };
@@ -4545,11 +4573,12 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
           const removed = await removeAttendanceEvents({ employeeId, date: dateKey });
           if (removed !== true) return { ok: false, message: "Сброс факта дня отклонён проверкой табеля." };
         } else {
-          const form = new FormData(); ["value", "start", "end", "overtime", "comment"].forEach((field) => form.set(field, String(input[field] ?? ""))); form.set("employeeId", employeeId); form.set("dateKey", dateKey);
-          const change = buildTimesheetAttendanceEventsFromFormData(form);
-          const reasonMessages = { unknown_attendance_value: "Выберите состояние дня.", invalid_overtime: "Сверхурочные часы должны быть неотрицательным числом.", invalid_work_window: "Для рабочего дня заполните начало и окончание.", absence_overtime_conflict: "Для отсутствия нельзя указывать сверхурочные часы.", missing_overtime_minutes: "Для сверхурочной смены укажите часы сверхурочной работы.", unsupported_attendance_value: "Выбранное состояние дня не поддерживается." };
-          if (!change?.ok) return { ok: false, message: reasonMessages[change?.reason] || "Параметры факта дня некорректны." };
-          const saved = await saveAttendanceEvent(change.events, { mode: "replace-day", employeeId, date: dateKey });
+          const events = Array.isArray(input.events) ? input.events : [];
+          const eventKinds = new Set(["work", "overtime", "vacation", "sick", "leave", "day_off"]);
+          if (!events.length || events.length > 2 || events.some((event) => !event || event.employeeId !== employeeId || event.date !== dateKey || !eventKinds.has(event.kind))) return { ok: false, message: "Параметры факта дня некорректны." };
+          const baseEvents = events.filter((event) => event.kind !== "overtime");
+          if (baseEvents.length !== 1 || events.filter((event) => event.kind === "overtime").length > 1) return { ok: false, message: "Команда факта дня должна изменять только один день." };
+          const saved = await saveAttendanceEvent(events, { mode: "replace-day", employeeId, date: dateKey });
           if (saved !== true) return { ok: false, message: "Сохранение факта дня отклонено проверкой табеля." };
         }
       }
@@ -5335,12 +5364,13 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     const commandsReady = (activation.accessMode === "react" || localQa.writeEvaluation)
       && shiftExecutionServerState.commandsEnabled === true
       && roleCanEdit;
+    const reportCommandsReady = commandsReady && shiftExecutionCommands?.getCapability?.().reportEnabled === true;
     const canStartTask = commandsReady && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
     const canSaveFact = commandsReady && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
-    // Report remains visible in React but fail-closed until a durable server
-    // owner replaces the browser-only issue store.
-    const canSaveReport = localQa.writeEvaluation && (model.tasks || []).some((task) => !authPersonId || task.employeeId === authPersonId);
-    const reportSummaries = Object.fromEntries((model.tasks || []).map((task) => [task.id, getShiftWorkOrderIssueSummary(task.rowId)]));
+    const canSaveReport = reportCommandsReady && Boolean(authPersonId) && (model.tasks || []).some((task) => (
+      task.employeeId === authPersonId && Boolean(getShiftExecutionServerAssignment(task.row)?.id)
+    ));
+    const reportSummaries = Object.fromEntries((model.tasks || []).map((task) => [task.id, getEmployeeDesktopIssueReportSummary(task.rowId)]));
     return { model, reportSummaries, capabilities: { taskStart: canStartTask, factSave: canSaveFact, reportSave: canSaveReport, sessionNavigation: model.isLoggedIn === true } };
   },
   getTargetRoot: () => app,
@@ -5378,8 +5408,19 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
       return { ok: true, id: personId };
     }
-    const permanentCommand = activation.accessMode === "react" && ["start-task", "save-fact"].includes(String(command.type || ""));
+    if (command.type === "select-task") {
+      const taskId = String(command.taskId || "").trim();
+      const task = (model.tasks || []).find((item) => item.id === taskId) || null;
+      if (!task) return { ok: false, message: "Задание больше не доступно на рабочем столе." };
+      ui.authSessionSelectedTaskId = task.id;
+      persistUiState();
+      void hydrateEmployeeDesktopIssueReports(task);
+      return { ok: true, id: task.id };
+    }
+    const commandType = String(command.type || "");
+    const permanentCommand = activation.accessMode === "react" && ["start-task", "save-fact", "prepare-report-photo", "save-report"].includes(commandType);
     if ((!permanentCommand && !localQa.writeEvaluation) || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Команда рабочего стола пока недоступна." };
+    if (["prepare-report-photo", "save-report"].includes(commandType) && shiftExecutionCommands?.getCapability?.().reportEnabled !== true) return { ok: false, message: "Серверный владелец Report пока недоступен." };
     if (!getAccessRoleModulePermission(model.role?.id, "authSessionPrototype", "edit")) return { ok: false, message: "Нет права изменять рабочее задание." };
     const taskId = String(command.taskId || "").trim();
     const task = (model.tasks || []).find((item) => item.id === taskId) || null;
@@ -5428,16 +5469,51 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     }
     if (command.type === "save-report") {
       const text = String(command.text || "").trim();
+      if (text.length > 1200) return { ok: false, message: "Описание проблемы не должно превышать 1200 символов." };
       const photoSource = normalizePlainRecord(command.photo);
       const hasPhotoInput = Object.keys(photoSource).length > 0;
       const hasPhoto = Boolean(photoSource.id && photoSource.name && (photoSource.dataUrl || photoSource.storageNote));
       if (!text && !hasPhoto) return { ok: false, message: "Добавьте фото или описание проблемы." };
-      if (hasPhotoInput && (!hasPhoto || !String(photoSource.type || "").startsWith("image/") || !["camera", "file"].includes(String(photoSource.source || "")))) return { ok: false, message: "Реквизиты подготовленного изображения не прошли проверку." };
+      if (hasPhotoInput && (!hasPhoto || !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(String(photoSource.type || "").toLowerCase()) || !["camera", "file"].includes(String(photoSource.source || "")))) return { ok: false, message: "Реквизиты подготовленного изображения не прошли проверку." };
       if (photoSource.dataUrl && (!String(photoSource.dataUrl).startsWith("data:image/") || String(photoSource.dataUrl).length > 320000)) return { ok: false, message: "Подготовленное изображение не прошло проверку." };
-      const report = saveAuthSessionTaskReport(task.id, { text, photo: hasPhoto ? photoSource : null, renderOnChange: false });
-      if (!report?.id) return { ok: false, message: "Report не сохранён: владелец журнала недоступен." };
+      const assignment = getShiftExecutionServerAssignment(task.row);
+      if (!assignment?.id || !shiftExecutionCommands?.recordIssueReport) return { ok: false, message: "Report не сохранён: серверное сменное задание недоступно." };
+      const expectedRevision = Number(assignment.revision);
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 1) return { ok: false, message: "Report не сохранён: версия сменного задания недоступна." };
+      const idempotencyKey = `shift-report:${globalThis.crypto?.randomUUID?.() || makeId("request")}`;
+      let result;
+      try {
+        result = await shiftExecutionCommands.recordIssueReport(assignment.id, {
+          idempotencyKey,
+          expectedRevision,
+          text,
+          photo: hasPhoto ? photoSource : null,
+        });
+      } catch (error) {
+        return { ok: false, message: error?.message || "Report не сохранён сервером." };
+      }
+      const canonical = normalizePlainRecord(result?.item);
+      if (!canonical.id) return { ok: false, message: "Report не сохранён: сервер не вернул запись." };
+      upsertShiftExecutionIssueReport(task.rowId, {
+        id: canonical.id,
+        rowId: task.rowId,
+        taskId: task.id,
+        documentNumber: task.documentNumber || "",
+        employeeId: canonical.employeeId || task.employeeId || "",
+        employeeName: canonical.employeeName || task.employeeName || "",
+        operationName: task.operationName || "",
+        workCenterLabel: task.workCenterLabel || "",
+        text: canonical.text || text,
+        photo: canonical.photo || (hasPhoto ? photoSource : null),
+        status: canonical.status || "new",
+        createdAt: canonical.createdAt || new Date().toISOString(),
+      });
+      // POST returns the canonical inserted row. Refresh the signed Employee
+      // Desktop report endpoint immediately as an additional read-back; a transient GET
+      // failure must not invite a duplicate retry after the durable write.
+      await hydrateEmployeeDesktopIssueReports(task, { force: true });
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
-      return { ok: true, id: report.id };
+      return { ok: true, id: canonical.id };
     }
     return { ok: false, message: "Неизвестная команда рабочего стола." };
   },
@@ -5564,6 +5640,7 @@ function getContourAdminReactActivation() {
     evaluationRequested: isContourAdminReactEvaluationRequested(),
     localQaEnabled: localQa.featureFlagEnabled && (localQa.readOnlyEvaluation || localQa.writeEvaluation),
   });
+  const permanentReact = runtimeActivation.runtimeMode === "react";
   return {
     ...runtimeActivation,
     accessMode: runtimeActivation.runtimeMode === "react"
@@ -5571,8 +5648,8 @@ function getContourAdminReactActivation() {
       : runtimeActivation.featureFlagEnabled && localQa.writeEvaluation
         ? "write-evaluation"
         : runtimeActivation.accessMode,
-    adminHostReady: isAdminRuntimeHost() && contourAdminModuleReady,
-    serverReadFailure: contourAdminModuleError ? "model-unavailable" : "",
+    adminHostReady: isAdminRuntimeHost() && (permanentReact || contourAdminModuleReady),
+    serverReadFailure: !permanentReact && contourAdminModuleError ? "model-unavailable" : "",
     policyId: String(MES_RUNTIME_CONFIG.MES_REACT_RUNTIME_POLICY?.policyId || ""),
   };
 }
@@ -5580,7 +5657,7 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
   getActivation: getContourAdminReactActivation,
   getPayload: () => {
     const activation = getContourAdminReactActivation();
-    return { model: getContourAdminModel(), capabilities: { executeOps: activation.accessMode === "react" || getContourAdminReactLocalQaOverrides().writeEvaluation } };
+    return { capabilities: { executeOps: activation.accessMode === "react" || getContourAdminReactLocalQaOverrides().writeEvaluation } };
   },
   getTargetRoot: () => app,
   executeCommand: async (command = {}) => {
@@ -5590,17 +5667,27 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
     if (command.confirmed !== true) return { ok: false, confirmationRequired: true, message: "Подтвердите защищённую операцию." };
     const actionId = String(command.actionId || "").trim();
     const scenarioId = String(command.scenarioId || "").trim();
-    const scenario = getContourAdminModel().scenarios.find((item) => item.id === scenarioId);
-    if (!scenario || ![scenario.actionId, scenario.precheckActionId].filter(Boolean).includes(actionId)) return { ok: false, message: "Сценарий или операция изменились." };
-    const payload = await executeContourAdminAction(actionId, { confirmed: true });
+    if (!isContourAdminCommandAllowed(scenarioId, actionId)) return { ok: false, message: "Сценарий или операция изменились." };
+    const payload = await executeContourAdminServerAction(actionId, { confirmed: true });
+    appendLocalDataSafetyAudit("contourAdminActionExecuted", {
+      actionId,
+      scenarioId,
+      ok: Boolean(payload?.ok),
+      code: payload?.code ?? "",
+      durationMs: payload?.durationMs ?? "",
+      requestId: payload?.requestId ?? "",
+    });
+    notifySaveSuccess(payload?.ok
+      ? String(payload?.message || `${payload?.label || actionId}: готово`)
+      : `${payload?.label || actionId}: ошибка выполнения`);
     return {
       ok: payload?.ok === true,
       actionId,
       scenarioId,
-      label: String(payload?.label || scenario.label || actionId),
+      label: String(payload?.label || actionId),
       code: payload?.code ?? "",
       durationMs: Number(payload?.durationMs || 0),
-      message: payload?.ok ? "Операция выполнена." : String(payload?.error || (payload?.code !== undefined ? `Операция завершилась с кодом ${payload.code}.` : "Операция завершилась с ошибкой.")),
+      message: String(payload?.message || (payload?.ok ? "Операция выполнена." : payload?.error || (payload?.code !== undefined ? `Операция завершилась с кодом ${payload.code}.` : "Операция завершилась с ошибкой."))),
     };
   },
   requestLegacyRender: () => { if (ui.activeModule === "contourAdmin") render({ skipRememberScroll: true }); },
@@ -8105,6 +8192,9 @@ let executeShiftMasterBoardServerWrite = null;
 let projectShiftExecutionDispatchProjection = null;
 let reconcileShiftMasterBoardCarryovers = null;
 let shiftExecutionDomainApiModuleLoad = null;
+let shiftExecutionIssueReportsBySourceRowId = {};
+let shiftExecutionIssueReportCoveredSourceRowIds = new Set();
+let employeeDesktopIssueReportReadStateByAssignmentId = new Map();
 let shiftExecutionServerState = { status: "idle", primaryPostgres: false, schemaReady: false, commandsEnabled: false, coverageComplete: false, error: "" };
 let shiftExecutionOutboxFlushInFlight = false;
 let systemDomainsServerReadState = { status: "idle", error: "", revision: 0 };
@@ -8671,6 +8761,27 @@ function mergeShiftExecutionCarryovers(current = {}, incoming = {}, dateKey = ""
   return next;
 }
 
+function upsertShiftExecutionIssueReport(rowId = "", report = null) {
+  const key = String(rowId || "").trim();
+  if (!key || !report?.id) return;
+  const current = Array.isArray(shiftExecutionIssueReportsBySourceRowId[key]) ? shiftExecutionIssueReportsBySourceRowId[key] : [];
+  shiftExecutionIssueReportsBySourceRowId = {
+    ...shiftExecutionIssueReportsBySourceRowId,
+    [key]: [report, ...current.filter((item) => item?.id !== report.id)].slice(0, 8),
+  };
+  shiftExecutionIssueReportCoveredSourceRowIds.add(key);
+}
+
+function getEmployeeDesktopIssueReportSummary(rowId = "") {
+  const reports = shiftExecutionIssueReportCoveredSourceRowIds.has(String(rowId || "").trim())
+    ? shiftExecutionIssueReportsBySourceRowId[String(rowId || "").trim()] || []
+    : [];
+  return {
+    reportCount: reports.length,
+    photoCount: reports.reduce((count, report) => count + (report?.photo?.dataUrl ? 1 : 0), 0),
+  };
+}
+
 function applyShiftExecutionDispatchProjection(result = {}) {
   if (!ui || !projectShiftExecutionDispatchProjection) return false;
   const projection = projectShiftExecutionDispatchProjection(result);
@@ -8885,6 +8996,46 @@ async function refreshShiftExecutionServerProjection() {
   applyShiftExecutionDispatchProjection(result);
   shiftExecutionServerState = { ...shiftExecutionServerState, status: "ready", coverageComplete: result.coverageComplete === true, error: "" };
   return result;
+}
+async function hydrateEmployeeDesktopIssueReports(task = null, { force = false } = {}) {
+  if (!await ensureShiftExecutionDomainApiModule()) return false;
+  const model = getAuthSessionPrototypeModel();
+  const targetTask = task || model.selectedTask || null;
+  const authenticatedPersonId = String(model.authPerson?.id || "").trim();
+  if (!targetTask?.rowId || !authenticatedPersonId || targetTask.employeeId !== authenticatedPersonId) return false;
+  const assignment = getShiftExecutionServerAssignment(targetTask.row);
+  if (!assignment?.id || !shiftExecutionCommands?.readIssueReports) return false;
+  const previous = employeeDesktopIssueReportReadStateByAssignmentId.get(assignment.id);
+  if (!force && (previous?.status === "loading" || previous?.status === "ready")) return previous.status === "ready";
+  employeeDesktopIssueReportReadStateByAssignmentId.set(assignment.id, { status: "loading", error: "" });
+  try {
+    const result = await shiftExecutionCommands.readIssueReports(assignment.id);
+    const reports = result.items.slice(0, 8).map((item) => ({
+      id: String(item.id || "").trim(),
+      rowId: targetTask.rowId,
+      taskId: targetTask.id,
+      documentNumber: targetTask.documentNumber || "",
+      employeeId: String(item.employeeId || targetTask.employeeId || "").trim(),
+      employeeName: String(item.employeeName || targetTask.employeeName || "").trim(),
+      operationName: targetTask.operationName || "",
+      workCenterLabel: targetTask.workCenterLabel || "",
+      text: String(item.text || "").slice(0, 1200),
+      photo: item.photo || null,
+      status: String(item.status || "new").trim() || "new",
+      createdAt: String(item.createdAt || "").trim(),
+    })).filter((item) => item.id);
+    shiftExecutionIssueReportsBySourceRowId = {
+      ...shiftExecutionIssueReportsBySourceRowId,
+      [targetTask.rowId]: reports,
+    };
+    shiftExecutionIssueReportCoveredSourceRowIds.add(targetTask.rowId);
+    employeeDesktopIssueReportReadStateByAssignmentId.set(assignment.id, { status: "ready", error: "" });
+    if (ui?.activeModule === "authSessionPrototype") render({ skipRememberScroll: true });
+    return true;
+  } catch (error) {
+    employeeDesktopIssueReportReadStateByAssignmentId.set(assignment.id, { status: "error", error: error?.message || "Report read failed" });
+    return false;
+  }
 }
 async function flushShiftExecutionOutbox() {
   if (!shiftExecutionServerState.commandsEnabled || shiftExecutionOutboxFlushInFlight) return { attempted: 0, delivered: 0, pending: shiftExecutionOutbox?.getPending?.().length || 0 };
@@ -9779,21 +9930,30 @@ function removeAttendanceEvents({ employeeId = "", date = "", eventId = "" } = {
 
 function saveScheduleAssignment(assignment = {}, options = {}) {
   const employeeId = String(assignment.employeeId || options.employeeId || "").trim();
+  const assignmentId = String(assignment.id || "").trim();
   const scheduleTemplateId = String(assignment.scheduleTemplateId || "").trim();
+  const currentAssignment = (getSystemDomainsRegistries().scheduleAssignments || [])
+    .find((row) => row.id === assignmentId) || null;
+  const validFrom = String(assignment.effectiveFrom || assignment.validFrom || currentAssignment?.validFrom || "").trim();
+  const validTo = String(assignment.effectiveTo ?? assignment.validTo ?? currentAssignment?.validTo ?? "").trim();
   if (!employeeId
+    || !assignmentId
     || !scheduleTemplateId
+    || !isExactIsoCalendarDate(validFrom)
+    || (validTo && (!isExactIsoCalendarDate(validTo) || validTo < validFrom))
+    || (currentAssignment && currentAssignment.employeeId !== employeeId)
     || !authorizeSystemDomainAction("timesheet", "edit", getAccessControlEmployeeContext(employeeId))) return false;
   const canonical = {
-    id: String(assignment.id || `schedule-assignment:${employeeId}`).trim(),
+    id: assignmentId,
     employeeId,
     scheduleTemplateId,
     patternOffset: Number.isInteger(Number(assignment.patternOffset)) ? Number(assignment.patternOffset) : 0,
-    validFrom: String(assignment.effectiveFrom || assignment.validFrom || "").trim(),
-    validTo: String(assignment.effectiveTo || assignment.validTo || "").trim(),
-    source: "personnel-calendar",
+    validFrom,
+    validTo,
+    source: String(currentAssignment?.source || assignment.source || "personnel-calendar").trim() || "personnel-calendar",
   };
   return updateSystemDomainRegistry("scheduleAssignments", (rows) => [
-    ...rows.filter((row) => row.employeeId !== employeeId),
+    ...rows.filter((row) => row.id !== assignmentId),
     canonical,
   ], { source: "timesheet:schedule-save", serverCommand: true, surface: "timesheet" });
 }
@@ -9801,9 +9961,14 @@ function saveScheduleAssignment(assignment = {}, options = {}) {
 function removeScheduleAssignment({ employeeId = "", assignmentId = "" } = {}) {
   const normalizedEmployeeId = String(employeeId || "").trim();
   const normalizedAssignmentId = String(assignmentId || "").trim();
-  if (!normalizedEmployeeId || !authorizeSystemDomainAction("timesheet", "edit", getAccessControlEmployeeContext(normalizedEmployeeId))) return false;
+  const currentAssignment = (getSystemDomainsRegistries().scheduleAssignments || [])
+    .find((row) => row.id === normalizedAssignmentId && row.employeeId === normalizedEmployeeId);
+  if (!normalizedEmployeeId
+    || !normalizedAssignmentId
+    || !currentAssignment
+    || !authorizeSystemDomainAction("timesheet", "edit", getAccessControlEmployeeContext(normalizedEmployeeId))) return false;
   return updateSystemDomainRegistry("scheduleAssignments", (rows) => rows.filter((row) => (
-    normalizedAssignmentId ? row.id !== normalizedAssignmentId : row.employeeId !== normalizedEmployeeId
+    row.id !== normalizedAssignmentId
   )), { source: "timesheet:schedule-remove", serverCommand: true, surface: "timesheet" });
 }
 
@@ -10829,7 +10994,7 @@ function initializeModuleRuntime() {
         bindAuthPrototypeEvents();
         bindAuthSessionEvents();
       },
-      afterRender: () => { void employeeDesktopReactIslandHost.mount(); },
+      afterRender: () => { void employeeDesktopReactIslandHost.mount(); void hydrateEmployeeDesktopIssueReports(); },
     },
     marking: {
       render: () => {
@@ -10891,10 +11056,14 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("timesheet", { fallbackToLegacy: false });
         }
-        ensureProductionStructureMatrixModule();
-        ensureTimesheetModule();
+        const permanentReact = getReactRuntimeMode("timesheet") === "react";
+        if (!permanentReact) {
+          ensureProductionStructureMatrixModule();
+          ensureTimesheetModule();
+        }
         const reactDecision = timesheetReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return timesheetReactIslandHost.renderTarget();
+        if (permanentReact) return timesheetReactIslandHost.renderTarget();
         return renderTimesheetPage();
       },
       renderModals: () => timesheetReactIslandHost.isReactEligible() ? "" : renderTimesheetEditorModal(),
@@ -10921,9 +11090,11 @@ function initializeModuleRuntime() {
     },
     contourAdmin: {
       render: () => {
-        ensureContourAdminModule();
+        const permanentReact = getReactRuntimeMode("contourAdmin") === "react";
+        if (!permanentReact) ensureContourAdminModule();
         const reactDecision = contourAdminReactIslandHost.prepareRender();
         if (reactDecision.activateReact) return contourAdminReactIslandHost.renderTarget();
+        if (permanentReact) return contourAdminReactIslandHost.renderTarget();
         return renderContourAdminPage();
       },
       bind: () => { if (!contourAdminReactIslandHost.isReactEligible()) bindContourAdminEvents(); },

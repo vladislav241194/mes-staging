@@ -8,6 +8,7 @@ export const SYSTEM_DOMAINS_COMMAND_SURFACES = Object.freeze([
 ]);
 export const SYSTEM_DOMAINS_COMMAND_ROLLOUT_ELIGIBLE_SURFACES = Object.freeze([
   "production-structure",
+  "timesheet",
 ]);
 export const SYSTEM_DOMAINS_COMMAND_REQUIRED_MIGRATIONS = Object.freeze([
   "011_system_domains_core",
@@ -30,9 +31,9 @@ export function parseAndValidateSystemDomainsCommandMarker(source) {
   const exclusivity = marker?.controlledRootExclusivity;
   if (marker?.schemaVersion !== 1
     || marker?.contract !== "system-domains-server-commands"
-    || marker?.commandSurfaceVersion !== 1
+    || marker?.commandSurfaceVersion !== 2
     || marker?.actorPolicyVersion !== 1
-    || marker?.authorizationSnapshotVersion !== 2
+    || marker?.authorizationSnapshotVersion !== 3
     || marker?.authorityTransitionVersion !== 1
     || marker?.employeeAuthReadinessVersion !== 1
     || marker?.lifecycleGuardVersion !== 1

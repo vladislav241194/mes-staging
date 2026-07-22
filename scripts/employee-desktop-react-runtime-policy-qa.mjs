@@ -23,6 +23,16 @@ const pendingPermanentHost = createEmployeeDesktopReactIslandHost({ getActivatio
 assert.deepEqual(pendingPermanentHost.prepareRender(), { activateReact: true, reason: "eligible" }, "Employee Desktop permanent route must retain a React loading/error shell instead of legacy");
 const scenarioSource = await readFile(join(import.meta.dirname, "..", "experiments", "react-migration", "src", "modules", "employee-desktop", "EmployeeDesktopScenario.tsx"), "utf8");
 assert.doesNotMatch(scenarioSource, /onRequestLegacy\?\./, "Employee Desktop actions must not navigate to legacy UI");
+const appSource = await readFile(join(import.meta.dirname, "..", "src", "app.js"), "utf8");
+const employeeDesktopOwnerSlice = appSource.slice(
+  appSource.indexOf("const employeeDesktopReactIslandHost"),
+  appSource.indexOf("const markingReactIslandHost"),
+);
+assert.match(employeeDesktopOwnerSlice, /shiftExecutionCommands\.recordIssueReport\(/, "permanent Employee Desktop Report must use the PostgreSQL owner client");
+assert.match(employeeDesktopOwnerSlice, /await hydrateEmployeeDesktopIssueReports\(task, \{ force: true \}\)/, "Report completion must force a signed owner read-back");
+assert.doesNotMatch(employeeDesktopOwnerSlice, /saveAuthSessionTaskReport\(/, "permanent Employee Desktop Report must not write the browser UI store");
+assert.doesNotMatch(employeeDesktopOwnerSlice, /const canSaveReport = localQa\.writeEvaluation/, "Report capability must not remain local-QA-only");
+assert.match(appSource, /shiftExecutionCommands\.readIssueReports\(assignment\.id\)/, "Report data must be loaded only through the signed on-demand endpoint");
 
 let task = { id: "task-1", rowId: "row-1", employeeId: "employee-1", employeeName: "Исполнитель QA", assignedQuantity: 10, minutesPerUnit: 2, isDone: false, isStarted: false };
 let patch = null; let persists = 0; let notifications = 0; let renders = 0; let rejectBoardFact = false; const drafts = {}; const uiState = { authSessionFactDrafts: drafts }; const boardFacts = [];

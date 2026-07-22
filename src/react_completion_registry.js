@@ -39,7 +39,7 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "authPicker", status: COMPLETE }),
   defineCompletionEntry({ id: "boards", status: COMPLETE }),
   defineCompletionEntry({ id: "componentTypes", status: COMPLETE }),
-  defineCompletionEntry({ id: "contourAdmin", status: PARTIAL }),
+  defineCompletionEntry({ id: "contourAdmin", status: COMPLETE }),
   defineCompletionEntry({ id: "dispatch", status: PARTIAL }),
   defineCompletionEntry({ id: "employeeDesktop", status: PARTIAL }),
   defineCompletionEntry({ id: "gantt", status: PARTIAL }),
@@ -60,7 +60,7 @@ export const MES_REACT_COMPLETION_SURFACE_REGISTRY = Object.freeze([
   defineCompletionEntry({ id: "structurePositions", status: COMPLETE }),
   defineCompletionEntry({ id: "structureResponsibilityPolicies", status: COMPLETE }),
   defineCompletionEntry({ id: "structureWorkCenters", status: COMPLETE }),
-  defineCompletionEntry({ id: "timesheet", status: PARTIAL }),
+  defineCompletionEntry({ id: "timesheet", status: COMPLETE }),
   defineCompletionEntry({ id: "weeklyProductionControl", status: COMPLETE, verification: ACCEPTED }),
 ]);
 
@@ -86,9 +86,9 @@ export const MES_REACT_COMPLETION_MODULE_REGISTRY = Object.freeze([
       "structureMigrationDiagnostics",
     ],
   }),
-  defineCompletionEntry({ id: "timesheet", status: PARTIAL, surfaceIds: ["timesheet"] }),
+  defineCompletionEntry({ id: "timesheet", status: COMPLETE, surfaceIds: ["timesheet"] }),
   defineCompletionEntry({ id: "roles", status: PARTIAL, surfaceIds: ["roles"] }),
-  defineCompletionEntry({ id: "contourAdmin", status: PARTIAL, surfaceIds: ["contourAdmin"] }),
+  defineCompletionEntry({ id: "contourAdmin", status: COMPLETE, surfaceIds: ["contourAdmin"] }),
   defineCompletionEntry({
     id: "directories",
     status: COMPLETE,

@@ -1,3 +1,5 @@
+import { buildTimesheetProductionModel } from "./production-model";
+
 type UnknownRecord = Record<string, unknown>;
 const asRecord = (value: unknown): UnknownRecord => value && typeof value === "object" ? value as UnknownRecord : {};
 const asArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
@@ -56,6 +58,24 @@ export interface TimesheetGroup {
   employees: TimesheetEmployee[];
 }
 
+export interface TimesheetModel {
+  view: string;
+  periodLabel: string;
+  days: TimesheetDay[];
+  groups: TimesheetGroup[];
+  employees: TimesheetEmployee[];
+  employeeCount: number;
+  departmentCount: number;
+  plannedHours: number;
+  overtimeHours: number;
+  unknownDayCount: number;
+  calendarSource: string;
+  canActivate: boolean;
+  canEditAttendance: boolean;
+  canEditSchedule: boolean;
+  scheduleTemplates: TimesheetScheduleTemplate[];
+}
+
 function dateParts(value: unknown) {
   const date = value instanceof Date ? value : new Date(asText(value));
   if (!Number.isFinite(date.getTime())) return null;
@@ -108,8 +128,9 @@ function adaptEmployee(value: unknown, days: TimesheetDay[], editableEmployeeIds
   };
 }
 
-export function adaptTimesheet(payload: unknown) {
+export function adaptTimesheet(payload: unknown): TimesheetModel {
   const root = asRecord(payload);
+  if (root.productionModel) return buildTimesheetProductionModel(root.productionModel, root.capabilities);
   const source = asRecord(root.model || payload);
   const capabilities = asRecord(root.capabilities);
   const editableEmployeeIds = new Set(asArray(capabilities.editableEmployeeIds).map((value) => asText(value)).filter(Boolean));

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contract": "shift-execution-server-commands",
-  "commandSurfaceVersion": 2,
+  "commandSurfaceVersion": 3,
   "authenticatedActorVersion": 2,
   "revisionConcurrencyVersion": 1,
   "idempotencyReceiptVersion": 1,
@@ -20,6 +20,7 @@
     "016_shift_execution_fact_idempotency",
     "017_shift_execution_carryover_idempotency",
     "022_shift_execution_carryover_lifecycle",
-    "025_shift_execution_postgres_authority"
+    "025_shift_execution_postgres_authority",
+    "034_shift_execution_issue_reports"
   ]
 }

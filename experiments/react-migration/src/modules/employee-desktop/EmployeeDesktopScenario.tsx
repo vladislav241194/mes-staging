@@ -7,6 +7,7 @@ const quantity = (value: number, unit = "шт.") => `${value.toLocaleString("ru-
 const taskTone = (task: { isDone: boolean; isStarted: boolean }): "success" | "warning" | "neutral" => task.isDone ? "success" : task.isStarted ? "warning" : "neutral";
 export type EmployeeDesktopReactCommand =
   | { type: "select-person"; personId: string | null }
+  | { type: "select-task"; taskId: string }
   | { type: "start-task"; taskId: string }
   | { type: "save-fact"; taskId: string; actualQuantity: number; defectQuantity: number; deviationComment: string }
   | { type: "prepare-report-photo"; taskId: string; file: File; source: "camera" | "file" }
@@ -99,7 +100,7 @@ export function EmployeeDesktopScenario({ payload, onCommand }: { payload: unkno
       </Panel>
       <Panel heading={<div className="panel-heading"><div><p>{model.canSwitchPerson ? "Все рабочие столы" : model.personName}</p><h2>Назначенные задания</h2></div></div>}>
         <MetricGrid className="employee-desktop-react-kpis" label="Сводка рабочего стола"><MetricCard label="Задания" value={model.tasks.length} meta={`${model.activeCount} открыто`} /><MetricCard label="Распределено" value={quantity(model.assignedQuantity)} /><MetricCard label="Факт" value={quantity(model.goodQuantity)} meta={`${model.doneCount} закрыто`} /></MetricGrid>
-        <div className="employee-desktop-react-tasks" data-employee-desktop-task-list>{model.tasks.map((task) => <button aria-pressed={task.id === selected.id} className={task.id === selected.id ? "is-current" : ""} data-employee-desktop-task={task.id} key={task.id} onClick={() => setSelectedId(task.id)} type="button"><span><strong>{task.operationName}</strong><small>{model.canSwitchPerson ? `${task.employeeName} · ${task.workCenterLabel}` : task.workCenterLabel}</small><em>До: {task.previousOperation} · После: {task.nextOperation}</em></span><b>{quantity(task.assignedQuantity, task.unit)}</b><StatusToken label={task.status} tone={taskTone(task)} /></button>)}</div>
+        <div className="employee-desktop-react-tasks" data-employee-desktop-task-list>{model.tasks.map((task) => <button aria-pressed={task.id === selected.id} className={task.id === selected.id ? "is-current" : ""} data-employee-desktop-task={task.id} key={task.id} onClick={() => { setSelectedId(task.id); void onCommand?.({ type: "select-task", taskId: task.id }); }} type="button"><span><strong>{task.operationName}</strong><small>{model.canSwitchPerson ? `${task.employeeName} · ${task.workCenterLabel}` : task.workCenterLabel}</small><em>До: {task.previousOperation} · После: {task.nextOperation}</em></span><b>{quantity(task.assignedQuantity, task.unit)}</b><StatusToken label={task.status} tone={taskTone(task)} /></button>)}</div>
       </Panel>
     </section>}
     {selected && contextView ? <ModalOverlay className="employee-desktop-react-context-modal" eyebrow="Контекст задания" label={contextView === "structure" ? "Структура изделия" : contextView === "route" ? "Маршрут задания" : "PDF-инструкция"} onClose={closeContext} title={contextView === "structure" ? "Структура изделия" : contextView === "route" ? "Маршрут задания" : `Инструкция_${selected.operationName}.pdf`}>

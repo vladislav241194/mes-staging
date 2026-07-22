@@ -3,9 +3,9 @@
   "updatedAt": "2026-07-21",
   "baselineProgress": 46,
   "currentProgress": 50,
-  "implementationProgress": 82,
+  "implementationProgress": 86,
   "implementationProgressUpdatedAt": "2026-07-22",
-  "implementationProgressBasis": "16/16 top-level routes have React UI: 7 complete, 7 partial, 2 explicit prototypes; strict Pilot acceptance remains separate at 50%.",
+  "implementationProgressBasis": "16/16 top-level routes have React UI: 9 complete, 5 partial, 2 explicit prototypes; strict Pilot acceptance remains separate at 50%.",
   "designSystem": "mes-line",
   "acceptedPilotRelease": "v.1.500.26-097d66c",
   "acceptedPilotPreviousRelease": "v.1.500.25-1f8369c",
@@ -208,9 +208,9 @@
     { "id": "authPicker", "routeId": "authPrototype", "entry": "experiments/react-migration/src/auth-picker-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["submit-pin"], "missing": [] } },
     { "id": "boards", "routeId": "nomenclature", "entry": "experiments/react-migration/src/boards-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save-board", "delete-board", "import-xlsx", "add-bom-row", "update-bom-row", "delete-bom-row"], "missing": [] } },
     { "id": "componentTypes", "routeId": "directories", "entry": "experiments/react-migration/src/component-types-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
-    { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["execute-ops"], "missing": ["deploy-request-owner-action"] } },
+    { "id": "contourAdmin", "routeId": "contourAdmin", "entry": "experiments/react-migration/src/contour-admin-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["execute-ops", "request-deploy-to-pilot"], "missing": [] } },
     { "id": "dispatch", "routeId": "dispatch", "entry": "experiments/react-migration/src/dispatch-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["approved-scope", "production-owner", "read-api", "write-api", "rbac"] } },
-    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["durable-report-persistence"] } },
+    { "id": "employeeDesktop", "routeId": "authSessionPrototype", "entry": "experiments/react-migration/src/employee-desktop-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["select-person", "start-task", "save-fact", "prepare-photo", "save-report"], "missing": ["typed-model-independence"] } },
     { "id": "gantt", "routeId": "gantt", "entry": "experiments/react-migration/src/gantt-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["reschedule-start", "set-window-start", "set-scale", "set-zoom", "toggle-expanded-routes", "toggle-quantity", "jump-today"], "blocked": ["refresh", "edit-dependency", "drag", "resize", "optimize"], "missing": ["refresh", "edit-dependency", "drag", "resize", "optimize"] } },
     { "id": "marking", "routeId": "marking", "entry": "experiments/react-migration/src/marking-island.tsx", "disposition": "mock-not-production", "normalActionFallback": false, "commands": { "implemented": [], "missing": ["production-owner", "read-api", "write-api", "database-persistence", "traceability"] } },
     { "id": "nomenclature", "routeId": "nomenclature", "entry": "experiments/react-migration/src/nomenclature-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "delete"], "missing": [] } },
@@ -248,7 +248,7 @@
     { "id": "structurePositions", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-positions-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureResponsibilityPolicies", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-responsibility-policies-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
     { "id": "structureWorkCenters", "routeId": "productionStructureMatrix", "entry": "experiments/react-migration/src/structure-work-centers-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["save", "archive", "reactivate"], "missing": [] } },
-    { "id": "timesheet", "routeId": "timesheet", "entry": "experiments/react-migration/src/timesheet-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["set-view", "move-period", "save-attendance", "remove-attendance", "save-schedule", "remove-schedule"], "missing": ["production-write-rollout"] } },
+    { "id": "timesheet", "routeId": "timesheet", "entry": "experiments/react-migration/src/timesheet-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": ["set-view", "move-period", "save-attendance", "remove-attendance", "save-schedule", "remove-schedule"], "missing": [] } },
     { "id": "weeklyProductionControl", "routeId": "weeklyProductionControl", "entry": "experiments/react-migration/src/weekly-production-control-island.tsx", "disposition": "migration-required", "normalActionFallback": false, "commands": { "implemented": [], "missing": [] } }
   ],
   "modules": [
@@ -386,13 +386,13 @@
       "navigationScope": "user",
       "scenarios": ["timesheet"],
       "reactSurface": "production-island",
-      "functionalStatus": "partial",
+      "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["production Timesheet command-surface eligibility", "employee-scoped RBAC acceptance", "Pilot attendance lifecycle", "Pilot schedule lifecycle", "typed owner/model independence", "permanent Pilot acceptance"]
+      "remainingScopes": ["current-release Pilot read", "Pilot attendance lifecycle and cleanup", "Pilot schedule lifecycle and cleanup", "rollback/reactivation acceptance"]
     },
     {
       "id": "roles",
@@ -412,13 +412,13 @@
       "navigationScope": "admin-only",
       "scenarios": ["contourAdmin"],
       "reactSurface": "production-island",
-      "functionalStatus": "partial",
+      "functionalStatus": "complete",
       "runtimeMode": "react",
       "visibleLegacyRendererPath": false,
-      "runtimeLegacyModelDependency": true,
-      "normalLegacyPath": true,
+      "runtimeLegacyModelDependency": false,
+      "normalLegacyPath": false,
       "productionReady": false,
-      "remainingScopes": ["mapped-host Pilot read", "dry-run Ops lifecycle", "deploy request owner action", "typed owner/model independence"]
+      "remainingScopes": ["mapped-host Pilot read", "dry-run Ops lifecycle", "Pilot deploy-request audit persistence acceptance", "rollback/reactivation acceptance"]
     },
     {
       "id": "directories",
@@ -457,7 +457,7 @@
       "runtimeLegacyModelDependency": true,
       "normalLegacyPath": true,
       "productionReady": false,
-      "remainingScopes": ["Report durable persistence", "Pilot task/fact/Report lifecycle", "typed owner/model independence"]
+      "remainingScopes": ["Pilot task/fact/Report lifecycle", "typed owner/model independence"]
     },
     {
       "id": "marking",

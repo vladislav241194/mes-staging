@@ -323,6 +323,7 @@ createServer(async (req, res) => {
 
   if (await handleContourAdminActionRequest(req, res, url, {
     projectRoot,
+    auditLogPath: sharedStatePaths.auditLogPath,
     headers: noCacheHeaders,
   })) {
     return;

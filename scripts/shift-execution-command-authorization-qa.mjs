@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 
 import {
   SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES,
+  SHIFT_EXECUTION_REPORT_BODY_MAX_BYTES,
   handleDomainApiRequest,
 } from "./domain-api.mjs";
 import { createEmployeeSessionCookie } from "./employee-auth-guard.mjs";
@@ -30,6 +31,8 @@ const env = {
 assert.deepEqual(SHIFT_EXECUTION_COMMAND_AUTHORIZATION_CONTRACTS, {
   assignment: { moduleId: "shiftMasterBoard", resourceId: "shiftMasterBoard", action: "assign" },
   fact: { moduleId: "shiftMasterBoard", resourceId: "shiftMasterBoard", action: "edit" },
+  report: { moduleId: "authSessionPrototype", resourceId: "authSessionPrototype", action: "edit" },
+  "report-read": { moduleId: "authSessionPrototype", resourceId: "authSessionPrototype", action: "view" },
   carryover: { moduleId: "shiftMasterBoard", resourceId: "shiftMasterBoard", action: "edit" },
 }, "Shift commands must use the established live Workshop grants");
 
@@ -99,17 +102,20 @@ let domainsRepositoryMode = "ready";
 function currentDomains() {
   const actions = ["view", "edit", "assign"];
   const grants = [];
-  const add = (roleId, actionId, effect) => grants.push({
-    id: `${roleId}:shiftMasterBoard:${actionId}`,
+  const add = (roleId, resourceId, actionId, effect) => grants.push({
+    id: `${roleId}:${resourceId}:${actionId}`,
     roleId,
     resourceType: "module",
-    resourceId: "shiftMasterBoard",
+    resourceId,
     actionId,
     effect,
   });
-  actions.forEach((action) => add("master", action, "allow"));
-  actions.forEach((action) => add("productionHead", action, "allow"));
-  actions.forEach((action) => add("executor", action, "deny"));
+  actions.forEach((action) => add("master", "shiftMasterBoard", action, "allow"));
+  actions.forEach((action) => add("productionHead", "shiftMasterBoard", action, "allow"));
+  actions.forEach((action) => add("executor", "shiftMasterBoard", action, "deny"));
+  ["view", "edit"].forEach((action) => add("master", "authSessionPrototype", action, "allow"));
+  ["view", "edit"].forEach((action) => add("productionHead", "authSessionPrototype", action, "allow"));
+  ["view", "edit"].forEach((action) => add("executor", "authSessionPrototype", action, "deny"));
   return {
     schemaId: "mes.system-domains",
     schemaVersion: 1,
@@ -158,7 +164,7 @@ const authorizationResolver = (principal, { env: requestEnv, commandKind, workCe
 
 const validSession = await sessionResolver({ headers: requestHeaders() }, { env });
 assert.equal(validSession.principal?.id, "employee:employee-master");
-for (const commandKind of ["assignment", "fact", "carryover"]) {
+for (const commandKind of ["assignment", "fact", "report", "report-read", "carryover"]) {
   const allowed = await authorizationResolver(validSession.principal, { env, commandKind, workCenterId: "WC-A" });
   assert.equal(allowed.allowed, true, `${commandKind} must be allowed in the master's canonical work center`);
   const foreign = await authorizationResolver(validSession.principal, { env, commandKind, workCenterId: "WC-B" });
@@ -185,6 +191,8 @@ let assignmentTargetWorkCenterId = "WC-A";
 let carryoverTargetWorkCenterId = "WC-A";
 let operationTargetWorkCenterId = "WC-A";
 const targetReads = [];
+const reportReadCalls = [];
+let reportReadExecutorAllowed = true;
 const shiftExecutionReadRepositoryFactory = () => ({
   async commandReadiness() { return { schemaReady: true }; },
   async getCommandTargetContext({ assignmentId = "", carryoverId = "", workOrderId = "", operationId = "" } = {}) {
@@ -203,6 +211,15 @@ const shiftExecutionReadRepositoryFactory = () => ({
     if (carryoverId) return { item: { kind: "carryover", id: carryoverId, assignmentId: "assignment-qa", workCenterId: carryoverTargetWorkCenterId } };
     return { item: null };
   },
+  async listIssueReports(input) {
+    reportReadCalls.push(input);
+    if (!reportReadExecutorAllowed) {
+      const error = new Error("Only an assigned executor may read issue reports");
+      error.code = "SHIFT_EXECUTION_REPORT_ACTOR_NOT_EXECUTOR";
+      throw error;
+    }
+    return { items: [{ id: "report-read-1", assignmentId: input.assignmentId, employeeId: input.actorEmployeeId, text: "Проверить пайку" }] };
+  },
   async close() {},
 });
 
@@ -220,6 +237,7 @@ const shiftExecutionCommandRepositoryFactory = () => ({
   },
   async updateAssignment(command) { commandCalls.push({ method: "updateAssignment", command }); return { created: false, item: { id: command.assignmentId } }; },
   async recordFact(command) { commandCalls.push({ method: "recordFact", command }); return { created: true, item: { id: "fact-created" } }; },
+  async recordIssueReport(command) { commandCalls.push({ method: "recordIssueReport", command }); return { created: true, item: { id: "report-created" } }; },
   async createCarryover(command) { commandCalls.push({ method: "createCarryover", command }); return { created: true, item: { id: "carryover-created" } }; },
   async cancelCarryover(command) { commandCalls.push({ method: "cancelCarryover", command }); return { created: true, item: { id: command.carryoverId } }; },
   async close() {},
@@ -269,6 +287,12 @@ const routes = [
     path: "/api/v1/workshop/shift-execution/assignments/assignment-qa/facts",
     method: "POST",
     body: { idempotencyKey: "fact-create" },
+  },
+  {
+    name: "report",
+    path: "/api/v1/workshop/shift-execution/assignments/assignment-qa/reports",
+    method: "POST",
+    body: { idempotencyKey: "report-create", expectedRevision: 3, text: "Проверить пайку" },
   },
   {
     name: "carryover-create",
@@ -326,14 +350,30 @@ for (const route of routes) {
 
   const oversized = await request(route.path, {
     method: route.method,
-    body: JSON.stringify({ ...route.body, padding: "x".repeat(SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES) }),
+    body: JSON.stringify({ ...route.body, padding: "x".repeat(route.name === "report" ? SHIFT_EXECUTION_REPORT_BODY_MAX_BYTES : SHIFT_EXECUTION_COMMAND_BODY_MAX_BYTES) }),
   });
   assert.equal(oversized.statusCode, 413, `${route.name} must reject an oversized command before mutation`);
 }
 assert.equal(commandCalls.length, 0, "all rejected Shift probes must remain non-mutating");
 
+const reportReadPath = "/api/v1/workshop/shift-execution/assignments/assignment-qa/reports";
+const anonymousReportRead = await request(reportReadPath, {
+  method: "GET",
+  headers: requestHeaders({ publicSession: true, employeeSession: "missing" }),
+});
+assert.equal(anonymousReportRead.statusCode, 401, "issue-report read must reject a public-only session");
+assert.equal(reportReadCalls.length, 0, "public-only report read must not reach PostgreSQL report content");
+const signedReportRead = await request(reportReadPath, { method: "GET" });
+assert.equal(signedReportRead.statusCode, 200);
+assert.equal(signedReportRead.json.items?.[0]?.id, "report-read-1", "signed assigned employee must receive the bounded Report read-back");
+assert.equal(reportReadCalls[0]?.actorEmployeeId, "employee-master", "report read must bind the signed employee id");
+reportReadExecutorAllowed = false;
+const foreignReportRead = await request(reportReadPath, { method: "GET" });
+assert.equal(foreignReportRead.statusCode, 403, "signed employee outside the assignment must not read Report content");
+reportReadExecutorAllowed = true;
+
 assignmentTargetWorkCenterId = "WC-B";
-for (const route of routes.filter((item) => ["assignment-update", "fact", "carryover-create"].includes(item.name))) {
+for (const route of routes.filter((item) => ["assignment-update", "fact", "report", "carryover-create"].includes(item.name))) {
   const body = route.name === "assignment-update" || route.name === "carryover-create"
     ? { ...route.body, workCenterId: "WC-B" }
     : route.body;
@@ -349,7 +389,8 @@ assert.equal((await request(routes[0].path, { method: routes[0].method, body: { 
   "an incomplete canonical PostgreSQL operation target must fail closed instead of trusting the submitted work center");
 operationTargetWorkCenterId = "WC-A";
 carryoverTargetWorkCenterId = "WC-B";
-assert.equal((await request(routes[4].path, { method: routes[4].method, body: routes[4].body })).statusCode, 403,
+const carryoverCancelRoute = routes.find((route) => route.name === "carryover-cancel");
+assert.equal((await request(carryoverCancelRoute.path, { method: carryoverCancelRoute.method, body: carryoverCancelRoute.body })).statusCode, 403,
   "carryover cancellation must authorize the canonical PostgreSQL carryover work center");
 carryoverTargetWorkCenterId = "WC-A";
 
@@ -372,12 +413,13 @@ for (const route of routes.filter((item) => ["assignment-update", "carryover-cre
 
 for (const route of routes) {
   const result = await request(route.path, { method: route.method, body: route.body });
-  assert.equal(result.statusCode, route.name.includes("create") || route.name === "fact" ? 201 : 200, `${route.name} allowed status`);
+  assert.equal(result.statusCode, route.name.includes("create") || ["fact", "report"].includes(route.name) ? 201 : 200, `${route.name} allowed status`);
 }
 assert.deepEqual(commandCalls.map((entry) => entry.method), [
   "createAssignment",
   "updateAssignment",
   "recordFact",
+  "recordIssueReport",
   "createCarryover",
   "cancelCarryover",
 ]);
@@ -385,6 +427,9 @@ for (const { command } of commandCalls) {
   assert.equal(command.actorId, "employee:employee-master", "audit actor must come from the signed employee session");
   assert.equal(command.authorizedWorkCenterId, "WC-A", "repository guard must receive the canonical authorized work center");
 }
+const reportCommand = commandCalls.find((entry) => entry.method === "recordIssueReport")?.command;
+assert.equal(reportCommand?.actorEmployeeId, "employee-master", "issue report must bind the signed employee id for executor membership");
+assert.equal(reportCommand?.actorDisplayName, "Мастер QA", "issue report must retain the signed employee display name for audit");
 assert.equal(commandCalls.find((entry) => entry.method === "updateAssignment")?.command?.workCenterId, "WC-A", "assignment update must use the canonical work center when the body omits it");
 assert.equal(commandCalls.find((entry) => entry.method === "createCarryover")?.command?.workCenterId, "WC-A", "carryover create must use the canonical work center when the body omits it");
 assert.equal(commandCalls.find((entry) => entry.method === "createAssignment")?.command?.workCenterId, "WC-A", "assignment create must use the canonical operation work center when the body omits it");
